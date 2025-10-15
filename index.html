@@ -81,6 +81,7 @@
       box-shadow: 0 30px 80px rgba(15, 23, 42, 0.6);
       backdrop-filter: blur(20px);
       z-index: 1;
+      min-height: 0;
     }
 
     h1 {
@@ -132,14 +133,43 @@
       gap: 1rem;
     }
 
+    .steps-actions {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
     .steps-list {
       display: flex;
       flex-direction: column;
       gap: 0.75rem;
+      max-height: min(45vh, 360px);
+      overflow-y: auto;
+      padding-right: 0.25rem;
+      scrollbar-gutter: stable both-edges;
+    }
+
+    .steps-list::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    .steps-list::-webkit-scrollbar-track {
+      background: rgba(148, 163, 184, 0.15);
+      border-radius: 999px;
+    }
+
+    .steps-list::-webkit-scrollbar-thumb {
+      background: rgba(96, 165, 250, 0.45);
+      border-radius: 999px;
+    }
+
+    .steps-list::-webkit-scrollbar-thumb:hover {
+      background: rgba(59, 130, 246, 0.6);
     }
 
     .steps-list:empty::before {
-      content: 'Add steps to expand the journey between start and end.';
+      content: 'Add steps or decisions to expand the journey between start and end.';
       font-size: 0.9rem;
       color: rgba(226, 232, 240, 0.55);
     }
@@ -153,6 +183,118 @@
       border-radius: 14px;
       background: rgba(15, 23, 42, 0.55);
       border: 1px solid rgba(148, 163, 184, 0.35);
+    }
+
+    .step-row--decision {
+      display: flex;
+      flex-direction: column;
+      gap: 0.9rem;
+      padding: 0.9rem 0.85rem;
+    }
+
+    .step-row[data-type='decision'] {
+      border-color: rgba(250, 204, 21, 0.5);
+      background: rgba(250, 204, 21, 0.12);
+      color: rgba(250, 250, 250, 0.92);
+    }
+
+    .step-row[data-type='decision'] .step-label {
+      color: rgba(250, 250, 250, 0.85);
+    }
+
+    .decision-header {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      gap: 0.75rem;
+      align-items: center;
+    }
+
+    .decision-branches {
+      display: grid;
+      gap: 0.75rem;
+    }
+
+    .branch-section {
+      display: flex;
+      flex-direction: column;
+      gap: 0.6rem;
+      padding: 0.75rem;
+      border-radius: 12px;
+      background: rgba(15, 23, 42, 0.45);
+      border: 1px solid rgba(148, 163, 184, 0.25);
+    }
+
+    .branch-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .branch-label {
+      font-weight: 600;
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: rgba(226, 232, 240, 0.75);
+    }
+
+    .branch-steps {
+      display: flex;
+      flex-direction: column;
+      gap: 0.6rem;
+    }
+
+    .branch-step {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      gap: 0.6rem;
+      align-items: center;
+      padding: 0.5rem 0.6rem;
+      border-radius: 10px;
+      background: rgba(15, 23, 42, 0.55);
+      border: 1px solid rgba(148, 163, 184, 0.25);
+    }
+
+    .branch-step-label {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: rgba(226, 232, 240, 0.8);
+    }
+
+    .branch-step-input {
+      width: 100%;
+      border: none;
+      background: transparent;
+      color: inherit;
+      padding: 0;
+    }
+
+    .branch-step-input::placeholder {
+      color: rgba(226, 232, 240, 0.45);
+    }
+
+    .branch-step-input:focus {
+      outline: none;
+    }
+
+    .branch-footer {
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+      font-size: 0.8rem;
+      color: rgba(226, 232, 240, 0.7);
+    }
+
+    .branch-target {
+      width: 100%;
+      padding: 0.45rem 0.75rem;
+      border-radius: 10px;
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      background: rgba(15, 23, 42, 0.45);
+      color: inherit;
+      font-size: 0.85rem;
+      font-family: inherit;
     }
 
     .step-label {
@@ -218,57 +360,6 @@
       color: rgba(226, 232, 240, 0.6);
     }
 
-    .definition-title {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      font-weight: 600;
-      color: rgba(226, 232, 240, 0.85);
-    }
-
-    .definition-preview {
-      margin: 0;
-      padding: 1rem 1.25rem;
-      border-radius: 14px;
-      border: 1px solid rgba(148, 163, 184, 0.35);
-      background: rgba(15, 23, 42, 0.45);
-      color: rgba(226, 232, 240, 0.9);
-      font-family: 'Fira Code', 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
-      font-size: 0.85rem;
-      line-height: 1.5;
-      max-height: 200px;
-      overflow: auto;
-      white-space: pre-wrap;
-    }
-
-    .button-row {
-      display: flex;
-      gap: 0.75rem;
-      justify-content: flex-end;
-    }
-
-    .render-button {
-      padding: 0.65rem 1.5rem;
-      border-radius: 999px;
-      border: none;
-      font-size: 0.95rem;
-      font-weight: 600;
-      color: #f8fafc;
-      background: linear-gradient(135deg, #2563eb, #7c3aed);
-      cursor: pointer;
-      box-shadow: 0 16px 40px rgba(37, 99, 235, 0.35);
-      transition: transform 0.2s ease, box-shadow 0.2s ease;
-    }
-
-    .render-button:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 18px 46px rgba(59, 130, 246, 0.4);
-    }
-
-    .render-button:active {
-      transform: translateY(0);
-    }
-
     .panel-footer {
       font-size: 0.85rem;
       color: rgba(226, 232, 240, 0.65);
@@ -297,6 +388,11 @@
         margin: 1.5rem;
         padding: 1.5rem;
         box-shadow: 0 20px 60px rgba(15, 23, 42, 0.55);
+        max-height: none;
+      }
+
+      .steps-list {
+        max-height: 40vh;
       }
     }
 
@@ -339,13 +435,63 @@
         color: rgba(15, 23, 42, 0.55);
       }
 
+      .steps-list::-webkit-scrollbar-track {
+        background: rgba(148, 163, 184, 0.25);
+      }
+
+      .steps-list::-webkit-scrollbar-thumb {
+        background: rgba(59, 130, 246, 0.45);
+      }
+
       .step-row {
         background: rgba(241, 245, 249, 0.9);
         border-color: rgba(148, 163, 184, 0.4);
       }
 
+      .step-row[data-type='decision'] {
+        background: rgba(253, 230, 138, 0.35);
+        border-color: rgba(245, 158, 11, 0.45);
+        color: rgba(120, 53, 15, 0.85);
+      }
+
       .step-label {
         color: rgba(15, 23, 42, 0.7);
+      }
+
+      .step-row[data-type='decision'] .step-label {
+        color: rgba(146, 64, 14, 0.8);
+      }
+
+      .branch-section {
+        background: rgba(255, 255, 255, 0.88);
+        border-color: rgba(148, 163, 184, 0.35);
+      }
+
+      .branch-label {
+        color: rgba(15, 23, 42, 0.6);
+      }
+
+      .branch-step {
+        background: rgba(241, 245, 249, 0.85);
+        border-color: rgba(148, 163, 184, 0.3);
+      }
+
+      .branch-step-label {
+        color: rgba(15, 23, 42, 0.65);
+      }
+
+      .branch-step-input::placeholder {
+        color: rgba(15, 23, 42, 0.45);
+      }
+
+      .branch-footer {
+        color: rgba(15, 23, 42, 0.6);
+      }
+
+      .branch-target {
+        background: rgba(241, 245, 249, 0.85);
+        border-color: rgba(148, 163, 184, 0.35);
+        color: #0f172a;
       }
 
       .step-input::placeholder {
@@ -376,11 +522,6 @@
         color: rgba(15, 23, 42, 0.55);
       }
 
-      .definition-preview {
-        background: rgba(241, 245, 249, 0.85);
-        color: #0f172a;
-        border-color: rgba(148, 163, 184, 0.4);
-      }
     }
   </style>
 </head>
@@ -401,21 +542,17 @@
       <div class="field-group">
         <div class="steps-header">
           <span class="field-label">Process steps</span>
-          <button id="add-step" class="secondary-button" type="button">Add step</button>
+          <div class="steps-actions">
+            <button id="add-step" class="secondary-button" type="button">Add step</button>
+            <button id="add-decision" class="secondary-button" type="button">Add Decision</button>
+          </div>
         </div>
         <div id="steps-list" class="steps-list" role="list"></div>
-        <p class="helper-text">Each step will appear between the start and end circles.</p>
+        <p class="helper-text">Each step or decision will appear between the start and end circles.</p>
       </div>
       <div class="field-group">
         <label for="end-text">End step</label>
         <input id="end-text" class="input-control" type="text" placeholder="Name the finish line" value="Launch" />
-      </div>
-      <div class="field-group">
-        <div class="definition-title">Generated Mermaid definition</div>
-        <pre id="definition-preview" class="definition-preview" aria-live="polite"></pre>
-      </div>
-      <div class="button-row">
-        <button id="render" class="render-button" type="button">Render diagram</button>
       </div>
       <div class="panel-footer">
         Built with <a href="https://mermaid.js.org" target="_blank" rel="noopener noreferrer">Mermaid</a>
@@ -430,9 +567,8 @@
     const startInput = document.getElementById('start-text');
     const endInput = document.getElementById('end-text');
     const addStepButton = document.getElementById('add-step');
+    const addDecisionButton = document.getElementById('add-decision');
     const stepsList = document.getElementById('steps-list');
-    const definitionPreview = document.getElementById('definition-preview');
-    const renderButton = document.getElementById('render');
 
     mermaid.initialize({
       startOnLoad: false,
@@ -449,6 +585,8 @@
         .replace(/\]/g, '\\]')
         .replace(/\(/g, '\\(')
         .replace(/\)/g, '\\)')
+        .replace(/\{/g, '\\{')
+        .replace(/\}/g, '\\}')
         .replace(/&/g, '\\&')
         .replace(/</g, '\\<')
         .replace(/>/g, '\\>');
@@ -456,27 +594,253 @@
 
     function updateStepLabels() {
       const rows = Array.from(stepsList.querySelectorAll('.step-row'));
-      rows.forEach((row, index) => {
+      let stepCount = 0;
+      let decisionCount = 0;
+
+      rows.forEach((row) => {
         const label = row.querySelector('.step-label');
         const input = row.querySelector('.step-input');
-        const stepNumber = index + 1;
+        const type = row.dataset.type === 'decision' ? 'decision' : 'process';
+
+        if (type === 'decision') {
+          decisionCount += 1;
+          const entryId = `decision${decisionCount}`;
+          row.dataset.entryId = entryId;
+          if (label) {
+            label.textContent = `Decision ${decisionCount}`;
+          }
+          if (input) {
+            input.placeholder = `Describe decision ${decisionCount}`;
+          }
+          updateBranchStepLabels(row, 'yes');
+          updateBranchStepLabels(row, 'no');
+        } else {
+          stepCount += 1;
+          const entryId = `step${stepCount}`;
+          row.dataset.entryId = entryId;
+          if (label) {
+            label.textContent = `Step ${stepCount}`;
+          }
+          if (input) {
+            input.placeholder = `Describe step ${stepCount}`;
+          }
+        }
+      });
+
+      updateBranchTargets();
+    }
+
+    function updateBranchStepLabels(decisionRow, branchType) {
+      const steps = Array.from(
+        decisionRow.querySelectorAll(`.branch-steps[data-branch="${branchType}"] .branch-step`)
+      );
+      const branchName = branchType === 'yes' ? 'Yes' : 'No';
+
+      steps.forEach((stepRow, index) => {
+        const label = stepRow.querySelector('.branch-step-label');
+        const input = stepRow.querySelector('.branch-step-input');
         if (label) {
-          label.textContent = `Step ${stepNumber}`;
+          label.textContent = `${branchName} ${index + 1}`;
         }
         if (input) {
-          input.placeholder = `Describe step ${stepNumber}`;
+          input.placeholder = `Describe ${branchName.toLowerCase()} path ${index + 1}`;
+        }
+      });
+    }
+
+    function updateBranchTargets() {
+      const rows = Array.from(stepsList.querySelectorAll('.step-row'));
+      const entries = rows
+        .map((row) => {
+          const entryId = row.dataset.entryId;
+          if (!entryId) {
+            return null;
+          }
+          const input = row.querySelector('.step-input');
+          const label = row.querySelector('.step-label');
+          const text = (input?.value || '').trim();
+          const fallback = label?.textContent?.trim() || entryId;
+          return { id: entryId, label: text || fallback };
+        })
+        .filter(Boolean);
+
+      stepsList.querySelectorAll('.branch-target').forEach((select) => {
+        const previousValue = select.value;
+        while (select.firstChild) {
+          select.removeChild(select.firstChild);
+        }
+
+        const finishOption = document.createElement('option');
+        finishOption.value = 'finish';
+        finishOption.textContent = 'Finish';
+        select.appendChild(finishOption);
+
+        const parentRow = select.closest('.step-row');
+
+        entries.forEach(({ id, label }) => {
+          if (parentRow && parentRow.dataset.entryId === id) {
+            return;
+          }
+          const option = document.createElement('option');
+          option.value = id;
+          option.textContent = label;
+          select.appendChild(option);
+        });
+
+        const availableValues = Array.from(select.options).map((option) => option.value);
+        if (availableValues.includes(previousValue)) {
+          select.value = previousValue;
+        } else {
+          select.value = 'finish';
         }
       });
     }
 
     function handleInputChange() {
+      updateBranchTargets();
       renderDiagram();
     }
 
-    function createStepRow(value = '') {
+    function createRemoveButton(onRemove, label = 'Remove item') {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'icon-button';
+      button.innerHTML = '<span aria-hidden="true">&times;</span>';
+      button.setAttribute('aria-label', label);
+      button.addEventListener('click', () => {
+        onRemove();
+        updateStepLabels();
+        renderDiagram();
+      });
+      return button;
+    }
+
+    function createBranchStepRow(branchType, value = '') {
+      const stepRow = document.createElement('div');
+      stepRow.className = 'branch-step';
+      stepRow.dataset.branch = branchType;
+
+      const label = document.createElement('span');
+      label.className = 'branch-step-label';
+      label.textContent = branchType === 'yes' ? 'Yes' : 'No';
+      stepRow.appendChild(label);
+
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.className = 'branch-step-input';
+      input.value = value;
+      input.placeholder = branchType === 'yes' ? 'Describe yes path' : 'Describe no path';
+      input.addEventListener('input', handleInputChange);
+      stepRow.appendChild(input);
+
+      const removeButton = createRemoveButton(() => {
+        stepRow.remove();
+      }, 'Remove branch step');
+      stepRow.appendChild(removeButton);
+
+      return stepRow;
+    }
+
+    function createBranchSection(branchType) {
+      const section = document.createElement('div');
+      section.className = 'branch-section';
+      section.dataset.branch = branchType;
+
+      const header = document.createElement('div');
+      header.className = 'branch-header';
+
+      const label = document.createElement('span');
+      label.className = 'branch-label';
+      label.textContent = branchType === 'yes' ? 'Yes branch' : 'No branch';
+      header.appendChild(label);
+
+      const addButton = document.createElement('button');
+      addButton.type = 'button';
+      addButton.className = 'secondary-button';
+      addButton.textContent = 'Add step';
+      addButton.addEventListener('click', () => {
+        const stepsContainer = section.querySelector('.branch-steps');
+        const newStep = createBranchStepRow(branchType);
+        stepsContainer.appendChild(newStep);
+        updateStepLabels();
+        renderDiagram();
+        const input = newStep.querySelector('.branch-step-input');
+        if (input) {
+          input.focus();
+        }
+      });
+      header.appendChild(addButton);
+
+      section.appendChild(header);
+
+      const stepsContainer = document.createElement('div');
+      stepsContainer.className = 'branch-steps';
+      stepsContainer.dataset.branch = branchType;
+      section.appendChild(stepsContainer);
+
+      const footer = document.createElement('div');
+      footer.className = 'branch-footer';
+
+      const footerLabel = document.createElement('span');
+      footerLabel.className = 'branch-label';
+      footerLabel.textContent = 'Close on';
+      footer.appendChild(footerLabel);
+
+      const targetSelect = document.createElement('select');
+      targetSelect.className = 'branch-target';
+      targetSelect.dataset.branch = branchType;
+      targetSelect.addEventListener('change', renderDiagram);
+      const finishOption = document.createElement('option');
+      finishOption.value = 'finish';
+      finishOption.textContent = 'Finish';
+      targetSelect.appendChild(finishOption);
+      footer.appendChild(targetSelect);
+
+      section.appendChild(footer);
+
+      return section;
+    }
+
+    function createStepRow(value = '', type = 'process') {
       const row = document.createElement('div');
       row.className = 'step-row';
       row.setAttribute('role', 'listitem');
+      row.dataset.type = type === 'decision' ? 'decision' : 'process';
+
+      if (row.dataset.type === 'decision') {
+        row.classList.add('step-row--decision');
+
+        const header = document.createElement('div');
+        header.className = 'decision-header';
+
+        const label = document.createElement('span');
+        label.className = 'step-label';
+        label.textContent = 'Decision';
+        header.appendChild(label);
+
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'input-control step-input';
+        input.value = value;
+        input.placeholder = 'Describe the decision';
+        input.addEventListener('input', handleInputChange);
+        header.appendChild(input);
+
+        const removeButton = createRemoveButton(() => {
+          row.remove();
+        }, 'Remove decision');
+        header.appendChild(removeButton);
+
+        row.appendChild(header);
+
+        const branches = document.createElement('div');
+        branches.className = 'decision-branches';
+        branches.appendChild(createBranchSection('yes'));
+        branches.appendChild(createBranchSection('no'));
+        row.appendChild(branches);
+
+        return row;
+      }
 
       const label = document.createElement('span');
       label.className = 'step-label';
@@ -491,59 +855,127 @@
       input.addEventListener('input', handleInputChange);
       row.appendChild(input);
 
-      const removeButton = document.createElement('button');
-      removeButton.type = 'button';
-      removeButton.className = 'icon-button';
-      removeButton.innerHTML = '<span aria-hidden="true">&times;</span>';
-      removeButton.setAttribute('aria-label', 'Remove step');
-      removeButton.addEventListener('click', () => {
+      const removeButton = createRemoveButton(() => {
         row.remove();
-        updateStepLabels();
-        renderDiagram();
       });
       row.appendChild(removeButton);
 
       return row;
     }
 
-    function collectSteps() {
-      return Array.from(stepsList.querySelectorAll('.step-input'));
-    }
-
     function buildDefinition() {
       const startLabel = sanitizeLabel(startInput.value, 'Start');
       const endLabel = sanitizeLabel(endInput.value, 'End');
-      const stepInputs = collectSteps();
-      const stepLabels = stepInputs.map((input, index) => sanitizeLabel(input.value, `Step ${index + 1}`));
-      const stepIds = stepLabels.map((_, index) => `step${index + 1}`);
+      const stepRows = Array.from(stepsList.querySelectorAll('.step-row'));
+      let stepCount = 0;
+      let decisionCount = 0;
+
+      const entries = stepRows.map((row) => {
+        const type = row.dataset.type === 'decision' ? 'decision' : 'process';
+        if (type === 'decision') {
+          decisionCount += 1;
+        } else {
+          stepCount += 1;
+        }
+
+        const entryId = row.dataset.entryId || (type === 'decision' ? `decision${decisionCount}` : `step${stepCount}`);
+        const input = row.querySelector('.step-input');
+        const fallbackLabel = row.querySelector('.step-label')?.textContent?.trim() || entryId;
+        const label = sanitizeLabel(input?.value, fallbackLabel);
+
+        const buildBranch = (branchType) => {
+          const stepsContainer = row.querySelector(`.branch-steps[data-branch="${branchType}"]`);
+          const branchSteps = Array.from(stepsContainer?.querySelectorAll('.branch-step') || []).map((stepRow, index) => {
+            const branchInput = stepRow.querySelector('.branch-step-input');
+            const branchLabel = stepRow.querySelector('.branch-step-label')?.textContent?.trim() ||
+              `${branchType === 'yes' ? 'Yes' : 'No'} ${index + 1}`;
+            return {
+              id: `${entryId}_${branchType}${index + 1}`,
+              label: sanitizeLabel(branchInput?.value, branchLabel)
+            };
+          });
+          const targetSelect = row.querySelector(`.branch-target[data-branch="${branchType}"]`);
+          const target = targetSelect?.value || 'finish';
+          return { steps: branchSteps, target };
+        };
+
+        return {
+          id: entryId,
+          label,
+          type,
+          branches: type === 'decision' ? { yes: buildBranch('yes'), no: buildBranch('no') } : undefined
+        };
+      });
 
       const lines = [
         'flowchart TD',
         '  classDef start fill:#22c55e,color:#052e16,stroke:#16a34a,stroke-width:2px;',
         '  classDef step fill:#1f2937,color:#f8fafc,stroke:#334155,stroke-width:2px;',
-        '  classDef end fill:#fca5a5,color:#7f1d1d,stroke:#ef4444,stroke-width:2px;',
+        '  classDef decision fill:#fde68a,color:#78350f,stroke:#f59e0b,stroke-width:2px;',
+        '  classDef finish fill:#fca5a5,color:#7f1d1d,stroke:#ef4444,stroke-width:2px;',
         `  start((${startLabel})):::start`
       ];
 
-      stepLabels.forEach((label, index) => {
-        lines.push(`  ${stepIds[index]}["${label}"]:::step`);
+      entries.forEach(({ id, label, type, branches }) => {
+        if (type === 'decision') {
+          lines.push(`  ${id}{"${label}"}:::decision`);
+          branches.yes.steps.forEach((step) => {
+            lines.push(`  ${step.id}["${step.label}"]:::step`);
+          });
+          branches.no.steps.forEach((step) => {
+            lines.push(`  ${step.id}["${step.label}"]:::step`);
+          });
+        } else {
+          lines.push(`  ${id}["${label}"]:::step`);
+        }
       });
 
-      lines.push(`  finish((${endLabel})):::end`);
+      lines.push(`  finish((${endLabel})):::finish`);
 
-      if (stepIds.length > 0) {
-        lines.push(`  start --> ${stepIds[0]}`);
-        for (let i = 0; i < stepIds.length - 1; i += 1) {
-          lines.push(`  ${stepIds[i]} --> ${stepIds[i + 1]}`);
-        }
-        lines.push(`  ${stepIds[stepIds.length - 1]} --> finish`);
-      } else {
+      if (entries.length === 0) {
         lines.push('  start --> finish');
+        return lines.join('\n');
       }
 
-      const definition = lines.join('\n');
-      definitionPreview.textContent = definition;
-      return definition;
+      lines.push(`  start --> ${entries[0].id}`);
+      for (let i = 0; i < entries.length - 1; i += 1) {
+        const current = entries[i];
+        const next = entries[i + 1];
+        if (current.type !== 'decision') {
+          lines.push(`  ${current.id} --> ${next.id}`);
+        }
+      }
+
+      const lastEntry = entries[entries.length - 1];
+      if (lastEntry.type !== 'decision') {
+        lines.push(`  ${lastEntry.id} --> finish`);
+      }
+
+      entries
+        .filter((entry) => entry.type === 'decision')
+        .forEach((entry) => {
+          const yesBranch = entry.branches.yes;
+          const noBranch = entry.branches.no;
+
+          const handleBranch = (branch, label) => {
+            const branchSteps = branch.steps;
+            const target = branch.target === 'finish' || !branch.target ? 'finish' : branch.target;
+            if (branchSteps.length > 0) {
+              lines.push(`  ${entry.id} -->|${label}| ${branchSteps[0].id}`);
+              for (let i = 0; i < branchSteps.length - 1; i += 1) {
+                lines.push(`  ${branchSteps[i].id} --> ${branchSteps[i + 1].id}`);
+              }
+              lines.push(`  ${branchSteps[branchSteps.length - 1].id} --> ${target}`);
+            } else {
+              lines.push(`  ${entry.id} -->|${label}| ${target}`);
+            }
+          };
+
+          handleBranch(yesBranch, 'Yes');
+          handleBranch(noBranch, 'No');
+        });
+
+      return lines.join('\n');
     }
 
     async function renderDiagram() {
@@ -564,10 +996,20 @@
 
     startInput.addEventListener('input', handleInputChange);
     endInput.addEventListener('input', handleInputChange);
-    renderButton.addEventListener('click', renderDiagram);
 
     addStepButton.addEventListener('click', () => {
       const row = createStepRow();
+      stepsList.appendChild(row);
+      updateStepLabels();
+      renderDiagram();
+      const input = row.querySelector('.step-input');
+      if (input) {
+        input.focus();
+      }
+    });
+
+    addDecisionButton.addEventListener('click', () => {
+      const row = createStepRow('', 'decision');
       stepsList.appendChild(row);
       updateStepLabels();
       renderDiagram();

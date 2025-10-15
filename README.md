@@ -19,7 +19,7 @@ Then visit http://localhost:4173 in your browser.
 2. Push this repository to your own GitHub/GitLab/Bitbucket account.
 3. In the Vercel dashboard, click **Add New... → Project** and import the repository.
 4. When prompted for a framework preset, choose **Other** so Vercel treats the project as a static site.
-5. Leave the build command empty and set the output directory to `.` (the repository root) because `index.html` lives at the root.
+5. Leave the build command empty and keep the output directory blank — the included `vercel.json` tells Vercel to serve the root `index.html` automatically.
 6. Click **Deploy**. Vercel will upload `index.html` and any other static assets and give you a live URL.
 
 ### Redeploying after changes
@@ -34,4 +34,4 @@ Whenever you push new commits to the connected branch, Vercel automatically trig
 
 ## Deployment configuration
 
-A minimal `vercel.json` file is included so Vercel knows to serve the root `index.html` file and lets you expand the configuration later if you add more routes or headers.
+The bundled `vercel.json` keeps Vercel in static hosting mode (no deprecated builders) while adding friendly defaults like clean URLs, cache-control headers, and a catch-all rewrite back to `index.html` for any deep links.
