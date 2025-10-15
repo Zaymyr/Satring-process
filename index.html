@@ -258,34 +258,6 @@
       color: rgba(226, 232, 240, 0.6);
     }
 
-    .button-row {
-      display: flex;
-      gap: 0.75rem;
-      justify-content: flex-end;
-    }
-
-    .render-button {
-      padding: 0.65rem 1.5rem;
-      border-radius: 999px;
-      border: none;
-      font-size: 0.95rem;
-      font-weight: 600;
-      color: #f8fafc;
-      background: linear-gradient(135deg, #2563eb, #7c3aed);
-      cursor: pointer;
-      box-shadow: 0 16px 40px rgba(37, 99, 235, 0.35);
-      transition: transform 0.2s ease, box-shadow 0.2s ease;
-    }
-
-    .render-button:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 18px 46px rgba(59, 130, 246, 0.4);
-    }
-
-    .render-button:active {
-      transform: translateY(0);
-    }
-
     .panel-footer {
       font-size: 0.85rem;
       color: rgba(226, 232, 240, 0.65);
@@ -448,9 +420,6 @@
         <label for="end-text">End step</label>
         <input id="end-text" class="input-control" type="text" placeholder="Name the finish line" value="Launch" />
       </div>
-      <div class="button-row">
-        <button id="render" class="render-button" type="button">Render diagram</button>
-      </div>
       <div class="panel-footer">
         Built with <a href="https://mermaid.js.org" target="_blank" rel="noopener noreferrer">Mermaid</a>
       </div>
@@ -466,7 +435,6 @@
     const addStepButton = document.getElementById('add-step');
     const addDecisionButton = document.getElementById('add-decision');
     const stepsList = document.getElementById('steps-list');
-    const renderButton = document.getElementById('render');
 
     mermaid.initialize({
       startOnLoad: false,
@@ -628,7 +596,6 @@
 
     startInput.addEventListener('input', handleInputChange);
     endInput.addEventListener('input', handleInputChange);
-    renderButton.addEventListener('click', renderDiagram);
 
     addStepButton.addEventListener('click', () => {
       const row = createStepRow();
