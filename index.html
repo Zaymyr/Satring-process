@@ -29,25 +29,25 @@
     }
 
     header {
-      padding: 2rem 1.5rem 1rem;
-      text-align: center;
+      padding: 1.5rem 2rem 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
     }
 
     h1 {
       margin: 0;
-      font-size: clamp(2rem, 4vw, 2.6rem);
+      font-size: clamp(1.8rem, 3.5vw, 2.6rem);
       font-weight: 600;
       color: #1d4ed8;
     }
 
     main {
       flex: 1;
-      display: grid;
+      display: flex;
       gap: 1.5rem;
-      padding: 0 1.5rem 2rem;
-      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-      width: min(1100px, 100%);
-      margin: 0 auto;
+      padding: 0 2rem 2rem;
+      min-height: 0;
     }
 
     .panel {
@@ -59,6 +59,34 @@
       display: flex;
       flex-direction: column;
       border: 1px solid rgba(148, 163, 184, 0.25);
+    }
+
+    .diagram-panel {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      background: rgba(255, 255, 255, 0.6);
+      border-radius: 20px;
+      border: 1px solid rgba(148, 163, 184, 0.2);
+      box-shadow: 0 25px 60px rgba(30, 64, 175, 0.18);
+      backdrop-filter: blur(12px);
+      overflow: hidden;
+    }
+
+    .diagram-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 1.25rem 1.5rem;
+      border-bottom: 1px solid rgba(148, 163, 184, 0.25);
+      font-weight: 600;
+      color: #1d4ed8;
+    }
+
+    .editor-panel {
+      width: clamp(320px, 28vw, 420px);
+      gap: 1rem;
     }
 
     label {
@@ -81,18 +109,21 @@
       color: #0f172a;
     }
 
+    .editor-panel textarea {
+      flex: 1;
+      min-height: 0;
+    }
+
     textarea:focus {
       outline: 2px solid rgba(59, 130, 246, 0.65);
       outline-offset: 2px;
     }
 
-    button {
-      align-self: flex-start;
-      margin-top: 1rem;
-      padding: 0.75rem 1.5rem;
+    .render-button {
+      padding: 0.6rem 1.25rem;
       border-radius: 999px;
       border: none;
-      font-size: 1rem;
+      font-size: 0.95rem;
       font-weight: 600;
       color: white;
       background: linear-gradient(135deg, #2563eb, #7c3aed);
@@ -101,12 +132,12 @@
       transition: transform 0.15s ease, box-shadow 0.15s ease;
     }
 
-    button:hover {
+    .render-button:hover {
       transform: translateY(-2px);
       box-shadow: 0 12px 30px rgba(37, 99, 235, 0.35);
     }
 
-    button:active {
+    .render-button:active {
       transform: translateY(0);
     }
 
@@ -114,10 +145,13 @@
       position: relative;
       flex: 1;
       overflow: auto;
-      padding: 1rem;
-      border-radius: 12px;
-      background: rgba(15, 23, 42, 0.03);
-      border: 1px dashed rgba(148, 163, 184, 0.4);
+      padding: 1.5rem;
+      background: rgba(15, 23, 42, 0.02);
+    }
+
+    .diagram-wrapper svg {
+      max-width: 100%;
+      height: auto;
     }
 
     .diagram-wrapper:empty::before {
@@ -129,9 +163,30 @@
       padding-top: 3rem;
     }
 
+    @media (max-width: 960px) {
+      main {
+        flex-direction: column;
+      }
+
+      .diagram-panel {
+        height: 55vh;
+      }
+
+      .editor-panel {
+        width: 100%;
+      }
+
+      .diagram-header {
+        position: sticky;
+        top: 0;
+        background: inherit;
+        z-index: 1;
+      }
+    }
+
     footer {
       text-align: center;
-      padding: 1.25rem;
+      padding: 1rem 2rem 1.5rem;
       font-size: 0.9rem;
       color: rgba(30, 41, 59, 0.6);
     }
@@ -147,6 +202,17 @@
         border-color: rgba(148, 163, 184, 0.35);
       }
 
+      .diagram-panel {
+        background: rgba(15, 23, 42, 0.8);
+        border-color: rgba(148, 163, 184, 0.35);
+        box-shadow: 0 25px 60px rgba(15, 23, 42, 0.55);
+      }
+
+      .diagram-header {
+        border-color: rgba(148, 163, 184, 0.3);
+        color: #93c5fd;
+      }
+
       label {
         color: #e2e8f0;
       }
@@ -158,8 +224,7 @@
       }
 
       .diagram-wrapper {
-        background: rgba(15, 23, 42, 0.65);
-        border-color: rgba(148, 163, 184, 0.35);
+        background: rgba(15, 23, 42, 0.7);
       }
 
       footer {
@@ -174,7 +239,14 @@
     <p>Create and preview flowcharts, sequence diagrams, and more using Mermaid syntax.</p>
   </header>
   <main>
-    <section class="panel">
+    <section class="diagram-panel">
+      <div class="diagram-header">
+        <span>Preview</span>
+        <button id="render" class="render-button">Render diagram</button>
+      </div>
+      <div id="diagram" class="diagram-wrapper"></div>
+    </section>
+    <aside class="panel editor-panel">
       <label for="definition">Mermaid definition</label>
       <textarea id="definition">flowchart TD
   A[Start] --> B{Is it working?}
@@ -182,12 +254,7 @@
   B -- No --> D[Fix it]
   D --> B
 </textarea>
-      <button id="render">Render diagram</button>
-    </section>
-    <section class="panel">
-      <label>Preview</label>
-      <div id="diagram" class="diagram-wrapper"></div>
-    </section>
+    </aside>
   </main>
   <footer>
     Built with <a href="https://mermaid.js.org" target="_blank" rel="noopener noreferrer">Mermaid</a>
