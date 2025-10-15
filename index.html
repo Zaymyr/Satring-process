@@ -443,14 +443,15 @@
     function sanitizeLabel(raw, fallback) {
       const safe = (raw ?? '').trim() || fallback;
       return safe
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/\(/g, '&#40;')
-        .replace(/\)/g, '&#41;')
-        .replace(/\[/g, '&#91;')
-        .replace(/\]/g, '&#93;');
+        .replace(/\\/g, '\\\\')
+        .replace(/"/g, '\\"')
+        .replace(/\[/g, '\\[')
+        .replace(/\]/g, '\\]')
+        .replace(/\(/g, '\\(')
+        .replace(/\)/g, '\\)')
+        .replace(/&/g, '\\&')
+        .replace(/</g, '\\<')
+        .replace(/>/g, '\\>');
     }
 
     function updateStepLabels() {
