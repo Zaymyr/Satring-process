@@ -81,6 +81,7 @@
       box-shadow: 0 30px 80px rgba(15, 23, 42, 0.6);
       backdrop-filter: blur(20px);
       z-index: 1;
+      min-height: 0;
     }
 
     h1 {
@@ -136,6 +137,28 @@
       display: flex;
       flex-direction: column;
       gap: 0.75rem;
+      max-height: min(45vh, 360px);
+      overflow-y: auto;
+      padding-right: 0.25rem;
+      scrollbar-gutter: stable both-edges;
+    }
+
+    .steps-list::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    .steps-list::-webkit-scrollbar-track {
+      background: rgba(148, 163, 184, 0.15);
+      border-radius: 999px;
+    }
+
+    .steps-list::-webkit-scrollbar-thumb {
+      background: rgba(96, 165, 250, 0.45);
+      border-radius: 999px;
+    }
+
+    .steps-list::-webkit-scrollbar-thumb:hover {
+      background: rgba(59, 130, 246, 0.6);
     }
 
     .steps-list:empty::before {
@@ -274,6 +297,11 @@
         margin: 1.5rem;
         padding: 1.5rem;
         box-shadow: 0 20px 60px rgba(15, 23, 42, 0.55);
+        max-height: none;
+      }
+
+      .steps-list {
+        max-height: 40vh;
       }
     }
 
@@ -314,6 +342,14 @@
 
       .steps-list:empty::before {
         color: rgba(15, 23, 42, 0.55);
+      }
+
+      .steps-list::-webkit-scrollbar-track {
+        background: rgba(148, 163, 184, 0.25);
+      }
+
+      .steps-list::-webkit-scrollbar-thumb {
+        background: rgba(59, 130, 246, 0.45);
       }
 
       .step-row {
