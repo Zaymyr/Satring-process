@@ -218,29 +218,6 @@
       color: rgba(226, 232, 240, 0.6);
     }
 
-    .definition-title {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      font-weight: 600;
-      color: rgba(226, 232, 240, 0.85);
-    }
-
-    .definition-preview {
-      margin: 0;
-      padding: 1rem 1.25rem;
-      border-radius: 14px;
-      border: 1px solid rgba(148, 163, 184, 0.35);
-      background: rgba(15, 23, 42, 0.45);
-      color: rgba(226, 232, 240, 0.9);
-      font-family: 'Fira Code', 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
-      font-size: 0.85rem;
-      line-height: 1.5;
-      max-height: 200px;
-      overflow: auto;
-      white-space: pre-wrap;
-    }
-
     .button-row {
       display: flex;
       gap: 0.75rem;
@@ -376,11 +353,6 @@
         color: rgba(15, 23, 42, 0.55);
       }
 
-      .definition-preview {
-        background: rgba(241, 245, 249, 0.85);
-        color: #0f172a;
-        border-color: rgba(148, 163, 184, 0.4);
-      }
     }
   </style>
 </head>
@@ -410,10 +382,6 @@
         <label for="end-text">End step</label>
         <input id="end-text" class="input-control" type="text" placeholder="Name the finish line" value="Launch" />
       </div>
-      <div class="field-group">
-        <div class="definition-title">Generated Mermaid definition</div>
-        <pre id="definition-preview" class="definition-preview" aria-live="polite"></pre>
-      </div>
       <div class="button-row">
         <button id="render" class="render-button" type="button">Render diagram</button>
       </div>
@@ -431,7 +399,6 @@
     const endInput = document.getElementById('end-text');
     const addStepButton = document.getElementById('add-step');
     const stepsList = document.getElementById('steps-list');
-    const definitionPreview = document.getElementById('definition-preview');
     const renderButton = document.getElementById('render');
 
     mermaid.initialize({
@@ -541,9 +508,7 @@
         lines.push('  start --> finish');
       }
 
-      const definition = lines.join('\n');
-      definitionPreview.textContent = definition;
-      return definition;
+      return lines.join('\n');
     }
 
     async function renderDiagram() {
