@@ -521,7 +521,7 @@
         'flowchart TD',
         '  classDef start fill:#22c55e,color:#052e16,stroke:#16a34a,stroke-width:2px;',
         '  classDef step fill:#1f2937,color:#f8fafc,stroke:#334155,stroke-width:2px;',
-        '  classDef end fill:#fca5a5,color:#7f1d1d,stroke:#ef4444,stroke-width:2px;',
+        '  classDef finish fill:#fca5a5,color:#7f1d1d,stroke:#ef4444,stroke-width:2px;',
         `  start((${startLabel})):::start`
       ];
 
@@ -529,7 +529,7 @@
         lines.push(`  ${stepIds[index]}["${label}"]:::step`);
       });
 
-      lines.push(`  finish((${endLabel})):::end`);
+      lines.push(`  finish((${endLabel})):::finish`);
 
       if (stepIds.length > 0) {
         lines.push(`  start --> ${stepIds[0]}`);
