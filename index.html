@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mermaid Process Visualizer</title>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs" type="module"></script>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --panel-width: clamp(320px, 28vw, 420px);
+    }
+
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #0f172a;
+      color: #e2e8f0;
+      display: flex;
+    }
+
+    main {
+      flex: 1;
+      position: relative;
+      display: flex;
+      min-height: 0;
+      overflow: hidden;
+      background: radial-gradient(circle at top left, rgba(37, 99, 235, 0.35), transparent 55%),
+        radial-gradient(circle at bottom right, rgba(14, 165, 233, 0.25), transparent 50%);
+    }
+
+    .diagram-stage {
+      position: relative;
+      flex: 1;
+      min-width: 0;
+    }
+
+    .diagram-area {
+      position: absolute;
+      inset: 0;
+      padding: 2rem calc(var(--panel-width) + 4rem) 2rem 2rem;
+      overflow: auto;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .diagram-area svg {
+      max-width: min(1400px, 100%);
+      height: auto;
+    }
+
+    .diagram-area:empty::before {
+      content: 'Your diagram will appear here';
+      font-size: 1rem;
+      color: rgba(226, 232, 240, 0.6);
+    }
+
+    .controls-panel {
+      position: absolute;
+      top: 2rem;
+      right: 2rem;
+      bottom: 2rem;
+      width: var(--panel-width);
+      padding: 2rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+      border-radius: 24px;
+      background: rgba(15, 23, 42, 0.82);
+      border: 1px solid rgba(148, 163, 184, 0.25);
+      box-shadow: 0 30px 80px rgba(15, 23, 42, 0.6);
+      backdrop-filter: blur(20px);
+      z-index: 1;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(1.4rem, 2.3vw, 2rem);
+      font-weight: 600;
+      color: #93c5fd;
+    }
+
+    p {
+      margin: 0;
+      color: rgba(226, 232, 240, 0.75);
+      line-height: 1.5;
+    }
+
+    .field-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    label,
+    .field-label {
+      font-weight: 600;
+      color: #e2e8f0;
+    }
+
+    .input-control {
+      width: 100%;
+      padding: 0.75rem 1rem;
+      border-radius: 14px;
+      border: 1px solid rgba(148, 163, 184, 0.4);
+      font-family: inherit;
+      font-size: 0.95rem;
+      line-height: 1.4;
+      background-color: rgba(15, 23, 42, 0.45);
+      color: #f8fafc;
+    }
+
+    .input-control:focus {
+      outline: 2px solid rgba(59, 130, 246, 0.8);
+      outline-offset: 2px;
+    }
+
+    .steps-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .steps-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .steps-list:empty::before {
+      content: 'Add steps to expand the journey between start and end.';
+      font-size: 0.9rem;
+      color: rgba(226, 232, 240, 0.55);
+    }
+
+    .step-row {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      gap: 0.75rem;
+      align-items: center;
+      padding: 0.65rem 0.75rem;
+      border-radius: 14px;
+      background: rgba(15, 23, 42, 0.55);
+      border: 1px solid rgba(148, 163, 184, 0.35);
+    }
+
+    .step-label {
+      font-weight: 600;
+      font-size: 0.9rem;
+      color: rgba(226, 232, 240, 0.85);
+      min-width: 64px;
+    }
+
+    .step-input {
+      width: 100%;
+      border: none;
+      background: transparent;
+      color: inherit;
+      padding: 0;
+    }
+
+    .step-input::placeholder {
+      color: rgba(226, 232, 240, 0.45);
+    }
+
+    .step-input:focus {
+      outline: none;
+    }
+
+    .icon-button {
+      display: grid;
+      place-items: center;
+      width: 2.25rem;
+      height: 2.25rem;
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.4);
+      background: rgba(15, 23, 42, 0.6);
+      color: rgba(226, 232, 240, 0.8);
+      cursor: pointer;
+      transition: background 0.2s ease, transform 0.2s ease;
+    }
+
+    .icon-button:hover {
+      background: rgba(59, 130, 246, 0.2);
+      transform: translateY(-1px);
+    }
+
+    .secondary-button {
+      padding: 0.55rem 1.1rem;
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.45);
+      background: transparent;
+      color: #bfdbfe;
+      font-weight: 600;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: background 0.2s ease, color 0.2s ease;
+    }
+
+    .secondary-button:hover {
+      background: rgba(59, 130, 246, 0.2);
+      color: #f8fafc;
+    }
+
+    .helper-text {
+      font-size: 0.85rem;
+      color: rgba(226, 232, 240, 0.6);
+    }
+
+    .definition-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-weight: 600;
+      color: rgba(226, 232, 240, 0.85);
+    }
+
+    .definition-preview {
+      margin: 0;
+      padding: 1rem 1.25rem;
+      border-radius: 14px;
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      background: rgba(15, 23, 42, 0.45);
+      color: rgba(226, 232, 240, 0.9);
+      font-family: 'Fira Code', 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+      font-size: 0.85rem;
+      line-height: 1.5;
+      max-height: 200px;
+      overflow: auto;
+      white-space: pre-wrap;
+    }
+
+    .button-row {
+      display: flex;
+      gap: 0.75rem;
+      justify-content: flex-end;
+    }
+
+    .render-button {
+      padding: 0.65rem 1.5rem;
+      border-radius: 999px;
+      border: none;
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: #f8fafc;
+      background: linear-gradient(135deg, #2563eb, #7c3aed);
+      cursor: pointer;
+      box-shadow: 0 16px 40px rgba(37, 99, 235, 0.35);
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .render-button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 18px 46px rgba(59, 130, 246, 0.4);
+    }
+
+    .render-button:active {
+      transform: translateY(0);
+    }
+
+    .panel-footer {
+      font-size: 0.85rem;
+      color: rgba(226, 232, 240, 0.65);
+      text-align: center;
+    }
+
+    .panel-footer a {
+      color: inherit;
+    }
+
+    @media (max-width: 960px) {
+      main {
+        flex-direction: column;
+      }
+
+      .diagram-area {
+        position: relative;
+        padding: 1.5rem;
+        min-height: 55vh;
+      }
+
+      .controls-panel {
+        position: relative;
+        inset: auto;
+        width: auto;
+        margin: 1.5rem;
+        padding: 1.5rem;
+        box-shadow: 0 20px 60px rgba(15, 23, 42, 0.55);
+      }
+    }
+
+    @media (prefers-color-scheme: light) {
+      body {
+        background: #f1f5f9;
+        color: #0f172a;
+      }
+
+      main {
+        background: radial-gradient(circle at top left, rgba(59, 130, 246, 0.2), transparent 55%),
+          radial-gradient(circle at bottom right, rgba(56, 189, 248, 0.18), transparent 50%);
+      }
+
+      .controls-panel {
+        background: rgba(255, 255, 255, 0.92);
+        border-color: rgba(148, 163, 184, 0.35);
+        box-shadow: 0 35px 80px rgba(59, 130, 246, 0.22);
+        color: #0f172a;
+      }
+
+      h1 {
+        color: #1d4ed8;
+      }
+
+      p,
+      label,
+      .field-label,
+      .panel-footer {
+        color: rgba(15, 23, 42, 0.75);
+      }
+
+      .input-control {
+        background-color: rgba(241, 245, 249, 0.85);
+        color: #0f172a;
+        border-color: rgba(148, 163, 184, 0.4);
+      }
+
+      .steps-list:empty::before {
+        color: rgba(15, 23, 42, 0.55);
+      }
+
+      .step-row {
+        background: rgba(241, 245, 249, 0.9);
+        border-color: rgba(148, 163, 184, 0.4);
+      }
+
+      .step-label {
+        color: rgba(15, 23, 42, 0.7);
+      }
+
+      .step-input::placeholder {
+        color: rgba(15, 23, 42, 0.45);
+      }
+
+      .icon-button {
+        background: rgba(148, 163, 184, 0.2);
+        color: rgba(15, 23, 42, 0.75);
+        border-color: rgba(148, 163, 184, 0.4);
+      }
+
+      .icon-button:hover {
+        background: rgba(37, 99, 235, 0.12);
+      }
+
+      .secondary-button {
+        border-color: rgba(148, 163, 184, 0.5);
+        color: #1d4ed8;
+      }
+
+      .secondary-button:hover {
+        background: rgba(59, 130, 246, 0.15);
+        color: #1e3a8a;
+      }
+
+      .helper-text {
+        color: rgba(15, 23, 42, 0.55);
+      }
+
+      .definition-preview {
+        background: rgba(241, 245, 249, 0.85);
+        color: #0f172a;
+        border-color: rgba(148, 163, 184, 0.4);
+      }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="diagram-stage">
+      <div id="diagram" class="diagram-area"></div>
+    </div>
+    <aside class="controls-panel">
+      <header>
+        <h1>Mermaid Process Visualizer</h1>
+        <p>Describe your process steps and instantly render them across the canvas.</p>
+      </header>
+      <div class="field-group">
+        <label for="start-text">Start step</label>
+        <input id="start-text" class="input-control" type="text" placeholder="Name your starting point" value="Kickoff" />
+      </div>
+      <div class="field-group">
+        <div class="steps-header">
+          <span class="field-label">Process steps</span>
+          <button id="add-step" class="secondary-button" type="button">Add step</button>
+        </div>
+        <div id="steps-list" class="steps-list" role="list"></div>
+        <p class="helper-text">Each step will appear between the start and end circles.</p>
+      </div>
+      <div class="field-group">
+        <label for="end-text">End step</label>
+        <input id="end-text" class="input-control" type="text" placeholder="Name the finish line" value="Launch" />
+      </div>
+      <div class="field-group">
+        <div class="definition-title">Generated Mermaid definition</div>
+        <pre id="definition-preview" class="definition-preview" aria-live="polite"></pre>
+      </div>
+      <div class="button-row">
+        <button id="render" class="render-button" type="button">Render diagram</button>
+      </div>
+      <div class="panel-footer">
+        Built with <a href="https://mermaid.js.org" target="_blank" rel="noopener noreferrer">Mermaid</a>
+      </div>
+    </aside>
+  </main>
+
+  <script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+
+    const diagram = document.getElementById('diagram');
+    const startInput = document.getElementById('start-text');
+    const endInput = document.getElementById('end-text');
+    const addStepButton = document.getElementById('add-step');
+    const stepsList = document.getElementById('steps-list');
+    const definitionPreview = document.getElementById('definition-preview');
+    const renderButton = document.getElementById('render');
+
+    mermaid.initialize({
+      startOnLoad: false,
+      securityLevel: 'strict',
+      theme: window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'default'
+    });
+
+    function sanitizeLabel(raw, fallback) {
+      const safe = (raw ?? '').trim() || fallback;
+      return safe
+        .replace(/\\/g, '\\\\')
+        .replace(/"/g, '\\"')
+        .replace(/\[/g, '\\[')
+        .replace(/\]/g, '\\]')
+        .replace(/\(/g, '\\(')
+        .replace(/\)/g, '\\)')
+        .replace(/&/g, '\\&')
+        .replace(/</g, '\\<')
+        .replace(/>/g, '\\>');
+    }
+
+    function updateStepLabels() {
+      const rows = Array.from(stepsList.querySelectorAll('.step-row'));
+      rows.forEach((row, index) => {
+        const label = row.querySelector('.step-label');
+        const input = row.querySelector('.step-input');
+        const stepNumber = index + 1;
+        if (label) {
+          label.textContent = `Step ${stepNumber}`;
+        }
+        if (input) {
+          input.placeholder = `Describe step ${stepNumber}`;
+        }
+      });
+    }
+
+    function handleInputChange() {
+      renderDiagram();
+    }
+
+    function createStepRow(value = '') {
+      const row = document.createElement('div');
+      row.className = 'step-row';
+      row.setAttribute('role', 'listitem');
+
+      const label = document.createElement('span');
+      label.className = 'step-label';
+      label.textContent = 'Step';
+      row.appendChild(label);
+
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.className = 'input-control step-input';
+      input.value = value;
+      input.placeholder = 'Describe the step';
+      input.addEventListener('input', handleInputChange);
+      row.appendChild(input);
+
+      const removeButton = document.createElement('button');
+      removeButton.type = 'button';
+      removeButton.className = 'icon-button';
+      removeButton.innerHTML = '<span aria-hidden="true">&times;</span>';
+      removeButton.setAttribute('aria-label', 'Remove step');
+      removeButton.addEventListener('click', () => {
+        row.remove();
+        updateStepLabels();
+        renderDiagram();
+      });
+      row.appendChild(removeButton);
+
+      return row;
+    }
+
+    function collectSteps() {
+      return Array.from(stepsList.querySelectorAll('.step-input'));
+    }
+
+    function buildDefinition() {
+      const startLabel = sanitizeLabel(startInput.value, 'Start');
+      const endLabel = sanitizeLabel(endInput.value, 'End');
+      const stepInputs = collectSteps();
+      const stepLabels = stepInputs.map((input, index) => sanitizeLabel(input.value, `Step ${index + 1}`));
+      const stepIds = stepLabels.map((_, index) => `step${index + 1}`);
+
+      const lines = [
+        'flowchart TD',
+        '  classDef start fill:#22c55e,color:#052e16,stroke:#16a34a,stroke-width:2px;',
+        '  classDef step fill:#1f2937,color:#f8fafc,stroke:#334155,stroke-width:2px;',
+        '  classDef end fill:#fca5a5,color:#7f1d1d,stroke:#ef4444,stroke-width:2px;',
+        `  start((${startLabel})):::start`
+      ];
+
+      stepLabels.forEach((label, index) => {
+        lines.push(`  ${stepIds[index]}["${label}"]:::step`);
+      });
+
+      lines.push(`  finish((${endLabel})):::end`);
+
+      if (stepIds.length > 0) {
+        lines.push(`  start --> ${stepIds[0]}`);
+        for (let i = 0; i < stepIds.length - 1; i += 1) {
+          lines.push(`  ${stepIds[i]} --> ${stepIds[i + 1]}`);
+        }
+        lines.push(`  ${stepIds[stepIds.length - 1]} --> finish`);
+      } else {
+        lines.push('  start --> finish');
+      }
+
+      const definition = lines.join('\n');
+      definitionPreview.textContent = definition;
+      return definition;
+    }
+
+    async function renderDiagram() {
+      const definition = buildDefinition();
+      diagram.innerHTML = '';
+
+      if (!definition) {
+        return;
+      }
+
+      try {
+        const { svg } = await mermaid.render('diagram-' + Date.now(), definition);
+        diagram.innerHTML = svg;
+      } catch (error) {
+        diagram.innerHTML = `<pre style="color:#f97316; white-space:pre-wrap;">${error.message}</pre>`;
+      }
+    }
+
+    startInput.addEventListener('input', handleInputChange);
+    endInput.addEventListener('input', handleInputChange);
+    renderButton.addEventListener('click', renderDiagram);
+
+    addStepButton.addEventListener('click', () => {
+      const row = createStepRow();
+      stepsList.appendChild(row);
+      updateStepLabels();
+      renderDiagram();
+      const input = row.querySelector('.step-input');
+      if (input) {
+        input.focus();
+      }
+    });
+
+    ['Plan', 'Build'].forEach((value) => {
+      const row = createStepRow(value);
+      stepsList.appendChild(row);
+    });
+
+    updateStepLabels();
+    renderDiagram();
+  </script>
+</body>
+</html>
