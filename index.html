@@ -3,164 +3,160 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Process Visualizer</title>
+  <title>Mermaid Process Visualizer</title>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs" type="module"></script>
   <style>
     :root {
       color-scheme: light dark;
+      --panel-width: clamp(320px, 28vw, 420px);
     }
 
-    * {
+    *,
+    *::before,
+    *::after {
       box-sizing: border-box;
     }
 
     body {
       margin: 0;
-      padding: 0;
-      font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      background: radial-gradient(circle at top, rgba(80, 110, 255, 0.15), transparent 55%),
-        linear-gradient(180deg, rgba(240, 244, 255, 0.9), rgba(245, 247, 255, 0.95));
       min-height: 100vh;
+      font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #0f172a;
+      color: #e2e8f0;
       display: flex;
-      flex-direction: column;
-      color: #1e293b;
-    }
-
-    header {
-      padding: 1.5rem 2rem 1rem;
-      display: flex;
-      flex-direction: column;
-      gap: 0.5rem;
-    }
-
-    h1 {
-      margin: 0;
-      font-size: clamp(1.8rem, 3.5vw, 2.6rem);
-      font-weight: 600;
-      color: #1d4ed8;
     }
 
     main {
       flex: 1;
+      position: relative;
       display: flex;
-      gap: 1.5rem;
-      padding: 0 2rem 2rem;
       min-height: 0;
+      overflow: hidden;
+      background: radial-gradient(circle at top left, rgba(37, 99, 235, 0.35), transparent 55%),
+        radial-gradient(circle at bottom right, rgba(14, 165, 233, 0.25), transparent 50%);
     }
 
-    .panel {
-      background: rgba(255, 255, 255, 0.8);
-      backdrop-filter: blur(10px);
-      border-radius: 16px;
-      box-shadow: 0 20px 50px rgba(30, 64, 175, 0.12);
-      padding: 1.5rem;
-      display: flex;
-      flex-direction: column;
-      border: 1px solid rgba(148, 163, 184, 0.25);
-    }
-
-    .diagram-panel {
+    .diagram-stage {
+      position: relative;
       flex: 1;
       min-width: 0;
+    }
+
+    .diagram-area {
+      position: absolute;
+      inset: 0;
+      padding: 2rem calc(var(--panel-width) + 4rem) 2rem 2rem;
+      overflow: auto;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .diagram-area svg {
+      max-width: min(1400px, 100%);
+      height: auto;
+    }
+
+    .diagram-area:empty::before {
+      content: 'Your diagram will appear here';
+      font-size: 1rem;
+      color: rgba(226, 232, 240, 0.6);
+    }
+
+    .controls-panel {
+      position: absolute;
+      top: 2rem;
+      right: 2rem;
+      bottom: 2rem;
+      width: var(--panel-width);
+      padding: 2rem;
       display: flex;
       flex-direction: column;
-      background: rgba(255, 255, 255, 0.6);
-      border-radius: 20px;
-      border: 1px solid rgba(148, 163, 184, 0.2);
-      box-shadow: 0 25px 60px rgba(30, 64, 175, 0.18);
-      backdrop-filter: blur(12px);
-      overflow: hidden;
+      gap: 1.25rem;
+      border-radius: 24px;
+      background: rgba(15, 23, 42, 0.82);
+      border: 1px solid rgba(148, 163, 184, 0.25);
+      box-shadow: 0 30px 80px rgba(15, 23, 42, 0.6);
+      backdrop-filter: blur(20px);
+      z-index: 1;
     }
 
-    .diagram-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 1.25rem 1.5rem;
-      border-bottom: 1px solid rgba(148, 163, 184, 0.25);
+    h1 {
+      margin: 0;
+      font-size: clamp(1.4rem, 2.3vw, 2rem);
       font-weight: 600;
-      color: #1d4ed8;
+      color: #93c5fd;
     }
 
-    .editor-panel {
-      width: clamp(320px, 28vw, 420px);
-      gap: 1rem;
+    p {
+      margin: 0;
+      color: rgba(226, 232, 240, 0.75);
+      line-height: 1.5;
     }
 
     label {
       font-weight: 600;
-      margin-bottom: 0.75rem;
-      color: #1e293b;
+      color: #e2e8f0;
     }
 
     textarea {
+      flex: 1;
+      min-height: 200px;
       width: 100%;
-      min-height: 260px;
       padding: 1rem;
-      border-radius: 12px;
-      border: 1px solid rgba(148, 163, 184, 0.5);
+      border-radius: 14px;
+      border: 1px solid rgba(148, 163, 184, 0.4);
       font-family: 'Fira Code', 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
       font-size: 0.95rem;
-      resize: vertical;
       line-height: 1.5;
-      background-color: rgba(15, 23, 42, 0.03);
-      color: #0f172a;
-    }
-
-    .editor-panel textarea {
-      flex: 1;
-      min-height: 0;
+      resize: none;
+      background-color: rgba(15, 23, 42, 0.45);
+      color: #f8fafc;
     }
 
     textarea:focus {
-      outline: 2px solid rgba(59, 130, 246, 0.65);
+      outline: 2px solid rgba(59, 130, 246, 0.8);
       outline-offset: 2px;
     }
 
+    .button-row {
+      display: flex;
+      gap: 0.75rem;
+      justify-content: flex-end;
+    }
+
     .render-button {
-      padding: 0.6rem 1.25rem;
+      padding: 0.65rem 1.5rem;
       border-radius: 999px;
       border: none;
       font-size: 0.95rem;
       font-weight: 600;
-      color: white;
+      color: #f8fafc;
       background: linear-gradient(135deg, #2563eb, #7c3aed);
       cursor: pointer;
-      box-shadow: 0 10px 25px rgba(37, 99, 235, 0.3);
-      transition: transform 0.15s ease, box-shadow 0.15s ease;
+      box-shadow: 0 16px 40px rgba(37, 99, 235, 0.35);
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
     }
 
     .render-button:hover {
       transform: translateY(-2px);
-      box-shadow: 0 12px 30px rgba(37, 99, 235, 0.35);
+      box-shadow: 0 18px 46px rgba(59, 130, 246, 0.4);
     }
 
     .render-button:active {
       transform: translateY(0);
     }
 
-    .diagram-wrapper {
-      position: relative;
-      flex: 1;
-      overflow: auto;
-      padding: 1.5rem;
-      background: rgba(15, 23, 42, 0.02);
-    }
-
-    .diagram-wrapper svg {
-      max-width: 100%;
-      height: auto;
-    }
-
-    .diagram-wrapper:empty::before {
-      content: 'Your diagram will appear here';
-      display: block;
+    .panel-footer {
+      font-size: 0.85rem;
+      color: rgba(226, 232, 240, 0.65);
       text-align: center;
-      color: rgba(30, 41, 59, 0.6);
-      font-size: 0.95rem;
-      padding-top: 3rem;
+    }
+
+    .panel-footer a {
+      color: inherit;
     }
 
     @media (max-width: 960px) {
@@ -168,85 +164,77 @@
         flex-direction: column;
       }
 
-      .diagram-panel {
-        height: 55vh;
+      .diagram-area {
+        position: relative;
+        padding: 1.5rem;
+        min-height: 55vh;
       }
 
-      .editor-panel {
-        width: 100%;
-      }
-
-      .diagram-header {
-        position: sticky;
-        top: 0;
-        background: inherit;
-        z-index: 1;
-      }
-    }
-
-    footer {
-      text-align: center;
-      padding: 1rem 2rem 1.5rem;
-      font-size: 0.9rem;
-      color: rgba(30, 41, 59, 0.6);
-    }
-
-    @media (prefers-color-scheme: dark) {
-      body {
-        background: radial-gradient(circle at top, rgba(37, 99, 235, 0.25), rgba(15, 23, 42, 0.95));
-        color: #e2e8f0;
-      }
-
-      .panel {
-        background: rgba(15, 23, 42, 0.85);
-        border-color: rgba(148, 163, 184, 0.35);
-      }
-
-      .diagram-panel {
-        background: rgba(15, 23, 42, 0.8);
-        border-color: rgba(148, 163, 184, 0.35);
-        box-shadow: 0 25px 60px rgba(15, 23, 42, 0.55);
-      }
-
-      .diagram-header {
-        border-color: rgba(148, 163, 184, 0.3);
-        color: #93c5fd;
-      }
-
-      label {
-        color: #e2e8f0;
+      .controls-panel {
+        position: relative;
+        inset: auto;
+        width: auto;
+        margin: 1.5rem;
+        padding: 1.5rem;
+        box-shadow: 0 20px 60px rgba(15, 23, 42, 0.55);
       }
 
       textarea {
-        background-color: rgba(15, 23, 42, 0.6);
-        color: #e2e8f0;
+        min-height: 180px;
+        resize: vertical;
+      }
+    }
+
+    @media (prefers-color-scheme: light) {
+      body {
+        background: #f1f5f9;
+        color: #0f172a;
+      }
+
+      main {
+        background: radial-gradient(circle at top left, rgba(59, 130, 246, 0.2), transparent 55%),
+          radial-gradient(circle at bottom right, rgba(56, 189, 248, 0.18), transparent 50%);
+      }
+
+      .controls-panel {
+        background: rgba(255, 255, 255, 0.92);
+        border-color: rgba(148, 163, 184, 0.35);
+        box-shadow: 0 35px 80px rgba(59, 130, 246, 0.22);
+        color: #0f172a;
+      }
+
+      h1 {
+        color: #1d4ed8;
+      }
+
+      p,
+      label,
+      .panel-footer {
+        color: rgba(15, 23, 42, 0.7);
+      }
+
+      textarea {
+        background-color: rgba(241, 245, 249, 0.85);
+        color: #0f172a;
         border-color: rgba(148, 163, 184, 0.4);
       }
 
-      .diagram-wrapper {
-        background: rgba(15, 23, 42, 0.7);
-      }
-
-      footer {
-        color: rgba(226, 232, 240, 0.65);
+      .render-button {
+        color: white;
       }
     }
   </style>
 </head>
 <body>
-  <header>
-    <h1>Mermaid Process Visualizer</h1>
-    <p>Create and preview flowcharts, sequence diagrams, and more using Mermaid syntax.</p>
-  </header>
   <main>
-    <section class="diagram-panel">
-      <div class="diagram-header">
-        <span>Preview</span>
-        <button id="render" class="render-button">Render diagram</button>
-      </div>
-      <div id="diagram" class="diagram-wrapper"></div>
-    </section>
-    <aside class="panel editor-panel">
+    <div class="diagram-stage">
+      <div id="diagram" class="diagram-area"></div>
+    </div>
+    <aside class="controls-panel">
+      <header>
+        <h1>Mermaid Process Visualizer</h1>
+        <p>Author Mermaid diagrams and see them instantly across the canvas.</p>
+      </header>
       <label for="definition">Mermaid definition</label>
       <textarea id="definition">flowchart TD
   A[Start] --> B{Is it working?}
@@ -254,11 +242,14 @@
   B -- No --> D[Fix it]
   D --> B
 </textarea>
+      <div class="button-row">
+        <button id="render" class="render-button">Render diagram</button>
+      </div>
+      <div class="panel-footer">
+        Built with <a href="https://mermaid.js.org" target="_blank" rel="noopener noreferrer">Mermaid</a>
+      </div>
     </aside>
   </main>
-  <footer>
-    Built with <a href="https://mermaid.js.org" target="_blank" rel="noopener noreferrer">Mermaid</a>
-  </footer>
 
   <script type="module">
     import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
@@ -285,7 +276,7 @@
         const { svg } = await mermaid.render('diagram-' + Date.now(), definition);
         diagram.innerHTML = svg;
       } catch (error) {
-        diagram.innerHTML = `<pre style="color:#dc2626; white-space:pre-wrap;">${error.message}</pre>`;
+        diagram.innerHTML = `<pre style="color:#f97316; white-space:pre-wrap;">${error.message}</pre>`;
       }
     }
 
