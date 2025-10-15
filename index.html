@@ -185,6 +185,13 @@
       border: 1px solid rgba(148, 163, 184, 0.35);
     }
 
+    .step-row--decision {
+      display: flex;
+      flex-direction: column;
+      gap: 0.9rem;
+      padding: 0.9rem 0.85rem;
+    }
+
     .step-row[data-type='decision'] {
       border-color: rgba(250, 204, 21, 0.5);
       background: rgba(250, 204, 21, 0.12);
@@ -193,6 +200,101 @@
 
     .step-row[data-type='decision'] .step-label {
       color: rgba(250, 250, 250, 0.85);
+    }
+
+    .decision-header {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      gap: 0.75rem;
+      align-items: center;
+    }
+
+    .decision-branches {
+      display: grid;
+      gap: 0.75rem;
+    }
+
+    .branch-section {
+      display: flex;
+      flex-direction: column;
+      gap: 0.6rem;
+      padding: 0.75rem;
+      border-radius: 12px;
+      background: rgba(15, 23, 42, 0.45);
+      border: 1px solid rgba(148, 163, 184, 0.25);
+    }
+
+    .branch-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .branch-label {
+      font-weight: 600;
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: rgba(226, 232, 240, 0.75);
+    }
+
+    .branch-steps {
+      display: flex;
+      flex-direction: column;
+      gap: 0.6rem;
+    }
+
+    .branch-step {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      gap: 0.6rem;
+      align-items: center;
+      padding: 0.5rem 0.6rem;
+      border-radius: 10px;
+      background: rgba(15, 23, 42, 0.55);
+      border: 1px solid rgba(148, 163, 184, 0.25);
+    }
+
+    .branch-step-label {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: rgba(226, 232, 240, 0.8);
+    }
+
+    .branch-step-input {
+      width: 100%;
+      border: none;
+      background: transparent;
+      color: inherit;
+      padding: 0;
+    }
+
+    .branch-step-input::placeholder {
+      color: rgba(226, 232, 240, 0.45);
+    }
+
+    .branch-step-input:focus {
+      outline: none;
+    }
+
+    .branch-footer {
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+      font-size: 0.8rem;
+      color: rgba(226, 232, 240, 0.7);
+    }
+
+    .branch-target {
+      width: 100%;
+      padding: 0.45rem 0.75rem;
+      border-radius: 10px;
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      background: rgba(15, 23, 42, 0.45);
+      color: inherit;
+      font-size: 0.85rem;
+      font-family: inherit;
     }
 
     .step-label {
@@ -360,6 +462,38 @@
         color: rgba(146, 64, 14, 0.8);
       }
 
+      .branch-section {
+        background: rgba(255, 255, 255, 0.88);
+        border-color: rgba(148, 163, 184, 0.35);
+      }
+
+      .branch-label {
+        color: rgba(15, 23, 42, 0.6);
+      }
+
+      .branch-step {
+        background: rgba(241, 245, 249, 0.85);
+        border-color: rgba(148, 163, 184, 0.3);
+      }
+
+      .branch-step-label {
+        color: rgba(15, 23, 42, 0.65);
+      }
+
+      .branch-step-input::placeholder {
+        color: rgba(15, 23, 42, 0.45);
+      }
+
+      .branch-footer {
+        color: rgba(15, 23, 42, 0.6);
+      }
+
+      .branch-target {
+        background: rgba(241, 245, 249, 0.85);
+        border-color: rgba(148, 163, 184, 0.35);
+        color: #0f172a;
+      }
+
       .step-input::placeholder {
         color: rgba(15, 23, 42, 0.45);
       }
@@ -470,14 +604,20 @@
 
         if (type === 'decision') {
           decisionCount += 1;
+          const entryId = `decision${decisionCount}`;
+          row.dataset.entryId = entryId;
           if (label) {
             label.textContent = `Decision ${decisionCount}`;
           }
           if (input) {
             input.placeholder = `Describe decision ${decisionCount}`;
           }
+          updateBranchStepLabels(row, 'yes');
+          updateBranchStepLabels(row, 'no');
         } else {
           stepCount += 1;
+          const entryId = `step${stepCount}`;
+          row.dataset.entryId = entryId;
           if (label) {
             label.textContent = `Step ${stepCount}`;
           }
@@ -486,10 +626,179 @@
           }
         }
       });
+
+      updateBranchTargets();
+    }
+
+    function updateBranchStepLabels(decisionRow, branchType) {
+      const steps = Array.from(
+        decisionRow.querySelectorAll(`.branch-steps[data-branch="${branchType}"] .branch-step`)
+      );
+      const branchName = branchType === 'yes' ? 'Yes' : 'No';
+
+      steps.forEach((stepRow, index) => {
+        const label = stepRow.querySelector('.branch-step-label');
+        const input = stepRow.querySelector('.branch-step-input');
+        if (label) {
+          label.textContent = `${branchName} ${index + 1}`;
+        }
+        if (input) {
+          input.placeholder = `Describe ${branchName.toLowerCase()} path ${index + 1}`;
+        }
+      });
+    }
+
+    function updateBranchTargets() {
+      const rows = Array.from(stepsList.querySelectorAll('.step-row'));
+      const entries = rows
+        .map((row) => {
+          const entryId = row.dataset.entryId;
+          if (!entryId) {
+            return null;
+          }
+          const input = row.querySelector('.step-input');
+          const label = row.querySelector('.step-label');
+          const text = (input?.value || '').trim();
+          const fallback = label?.textContent?.trim() || entryId;
+          return { id: entryId, label: text || fallback };
+        })
+        .filter(Boolean);
+
+      stepsList.querySelectorAll('.branch-target').forEach((select) => {
+        const previousValue = select.value;
+        while (select.firstChild) {
+          select.removeChild(select.firstChild);
+        }
+
+        const finishOption = document.createElement('option');
+        finishOption.value = 'finish';
+        finishOption.textContent = 'Finish';
+        select.appendChild(finishOption);
+
+        const parentRow = select.closest('.step-row');
+
+        entries.forEach(({ id, label }) => {
+          if (parentRow && parentRow.dataset.entryId === id) {
+            return;
+          }
+          const option = document.createElement('option');
+          option.value = id;
+          option.textContent = label;
+          select.appendChild(option);
+        });
+
+        const availableValues = Array.from(select.options).map((option) => option.value);
+        if (availableValues.includes(previousValue)) {
+          select.value = previousValue;
+        } else {
+          select.value = 'finish';
+        }
+      });
     }
 
     function handleInputChange() {
+      updateBranchTargets();
       renderDiagram();
+    }
+
+    function createRemoveButton(onRemove, label = 'Remove item') {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'icon-button';
+      button.innerHTML = '<span aria-hidden="true">&times;</span>';
+      button.setAttribute('aria-label', label);
+      button.addEventListener('click', () => {
+        onRemove();
+        updateStepLabels();
+        renderDiagram();
+      });
+      return button;
+    }
+
+    function createBranchStepRow(branchType, value = '') {
+      const stepRow = document.createElement('div');
+      stepRow.className = 'branch-step';
+      stepRow.dataset.branch = branchType;
+
+      const label = document.createElement('span');
+      label.className = 'branch-step-label';
+      label.textContent = branchType === 'yes' ? 'Yes' : 'No';
+      stepRow.appendChild(label);
+
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.className = 'branch-step-input';
+      input.value = value;
+      input.placeholder = branchType === 'yes' ? 'Describe yes path' : 'Describe no path';
+      input.addEventListener('input', handleInputChange);
+      stepRow.appendChild(input);
+
+      const removeButton = createRemoveButton(() => {
+        stepRow.remove();
+      }, 'Remove branch step');
+      stepRow.appendChild(removeButton);
+
+      return stepRow;
+    }
+
+    function createBranchSection(branchType) {
+      const section = document.createElement('div');
+      section.className = 'branch-section';
+      section.dataset.branch = branchType;
+
+      const header = document.createElement('div');
+      header.className = 'branch-header';
+
+      const label = document.createElement('span');
+      label.className = 'branch-label';
+      label.textContent = branchType === 'yes' ? 'Yes branch' : 'No branch';
+      header.appendChild(label);
+
+      const addButton = document.createElement('button');
+      addButton.type = 'button';
+      addButton.className = 'secondary-button';
+      addButton.textContent = 'Add step';
+      addButton.addEventListener('click', () => {
+        const stepsContainer = section.querySelector('.branch-steps');
+        const newStep = createBranchStepRow(branchType);
+        stepsContainer.appendChild(newStep);
+        updateStepLabels();
+        renderDiagram();
+        const input = newStep.querySelector('.branch-step-input');
+        if (input) {
+          input.focus();
+        }
+      });
+      header.appendChild(addButton);
+
+      section.appendChild(header);
+
+      const stepsContainer = document.createElement('div');
+      stepsContainer.className = 'branch-steps';
+      stepsContainer.dataset.branch = branchType;
+      section.appendChild(stepsContainer);
+
+      const footer = document.createElement('div');
+      footer.className = 'branch-footer';
+
+      const footerLabel = document.createElement('span');
+      footerLabel.className = 'branch-label';
+      footerLabel.textContent = 'Close on';
+      footer.appendChild(footerLabel);
+
+      const targetSelect = document.createElement('select');
+      targetSelect.className = 'branch-target';
+      targetSelect.dataset.branch = branchType;
+      targetSelect.addEventListener('change', renderDiagram);
+      const finishOption = document.createElement('option');
+      finishOption.value = 'finish';
+      finishOption.textContent = 'Finish';
+      targetSelect.appendChild(finishOption);
+      footer.appendChild(targetSelect);
+
+      section.appendChild(footer);
+
+      return section;
     }
 
     function createStepRow(value = '', type = 'process') {
@@ -498,28 +807,56 @@
       row.setAttribute('role', 'listitem');
       row.dataset.type = type === 'decision' ? 'decision' : 'process';
 
+      if (row.dataset.type === 'decision') {
+        row.classList.add('step-row--decision');
+
+        const header = document.createElement('div');
+        header.className = 'decision-header';
+
+        const label = document.createElement('span');
+        label.className = 'step-label';
+        label.textContent = 'Decision';
+        header.appendChild(label);
+
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'input-control step-input';
+        input.value = value;
+        input.placeholder = 'Describe the decision';
+        input.addEventListener('input', handleInputChange);
+        header.appendChild(input);
+
+        const removeButton = createRemoveButton(() => {
+          row.remove();
+        }, 'Remove decision');
+        header.appendChild(removeButton);
+
+        row.appendChild(header);
+
+        const branches = document.createElement('div');
+        branches.className = 'decision-branches';
+        branches.appendChild(createBranchSection('yes'));
+        branches.appendChild(createBranchSection('no'));
+        row.appendChild(branches);
+
+        return row;
+      }
+
       const label = document.createElement('span');
       label.className = 'step-label';
-      label.textContent = type === 'decision' ? 'Decision' : 'Step';
+      label.textContent = 'Step';
       row.appendChild(label);
 
       const input = document.createElement('input');
       input.type = 'text';
       input.className = 'input-control step-input';
       input.value = value;
-      input.placeholder = type === 'decision' ? 'Describe the decision' : 'Describe the step';
+      input.placeholder = 'Describe the step';
       input.addEventListener('input', handleInputChange);
       row.appendChild(input);
 
-      const removeButton = document.createElement('button');
-      removeButton.type = 'button';
-      removeButton.className = 'icon-button';
-      removeButton.innerHTML = '<span aria-hidden="true">&times;</span>';
-      removeButton.setAttribute('aria-label', 'Remove item');
-      removeButton.addEventListener('click', () => {
+      const removeButton = createRemoveButton(() => {
         row.remove();
-        updateStepLabels();
-        renderDiagram();
       });
       row.appendChild(removeButton);
 
@@ -533,16 +870,40 @@
       let stepCount = 0;
       let decisionCount = 0;
 
-      const entries = stepRows.map((row, index) => {
-        const input = row.querySelector('.step-input');
+      const entries = stepRows.map((row) => {
         const type = row.dataset.type === 'decision' ? 'decision' : 'process';
-        const fallbackIndex = type === 'decision' ? (decisionCount += 1) : (stepCount += 1);
-        const fallback = type === 'decision' ? `Decision ${fallbackIndex}` : `Step ${fallbackIndex}`;
+        if (type === 'decision') {
+          decisionCount += 1;
+        } else {
+          stepCount += 1;
+        }
+
+        const entryId = row.dataset.entryId || (type === 'decision' ? `decision${decisionCount}` : `step${stepCount}`);
+        const input = row.querySelector('.step-input');
+        const fallbackLabel = row.querySelector('.step-label')?.textContent?.trim() || entryId;
+        const label = sanitizeLabel(input?.value, fallbackLabel);
+
+        const buildBranch = (branchType) => {
+          const stepsContainer = row.querySelector(`.branch-steps[data-branch="${branchType}"]`);
+          const branchSteps = Array.from(stepsContainer?.querySelectorAll('.branch-step') || []).map((stepRow, index) => {
+            const branchInput = stepRow.querySelector('.branch-step-input');
+            const branchLabel = stepRow.querySelector('.branch-step-label')?.textContent?.trim() ||
+              `${branchType === 'yes' ? 'Yes' : 'No'} ${index + 1}`;
+            return {
+              id: `${entryId}_${branchType}${index + 1}`,
+              label: sanitizeLabel(branchInput?.value, branchLabel)
+            };
+          });
+          const targetSelect = row.querySelector(`.branch-target[data-branch="${branchType}"]`);
+          const target = targetSelect?.value || 'finish';
+          return { steps: branchSteps, target };
+        };
 
         return {
-          id: `${type === 'decision' ? 'decision' : 'step'}${index + 1}`,
-          label: sanitizeLabel(input?.value, fallback),
-          type
+          id: entryId,
+          label,
+          type,
+          branches: type === 'decision' ? { yes: buildBranch('yes'), no: buildBranch('no') } : undefined
         };
       });
 
@@ -555,9 +916,15 @@
         `  start((${startLabel})):::start`
       ];
 
-      entries.forEach(({ id, label, type }) => {
+      entries.forEach(({ id, label, type, branches }) => {
         if (type === 'decision') {
           lines.push(`  ${id}{"${label}"}:::decision`);
+          branches.yes.steps.forEach((step) => {
+            lines.push(`  ${step.id}["${step.label}"]:::step`);
+          });
+          branches.no.steps.forEach((step) => {
+            lines.push(`  ${step.id}["${step.label}"]:::step`);
+          });
         } else {
           lines.push(`  ${id}["${label}"]:::step`);
         }
@@ -565,15 +932,48 @@
 
       lines.push(`  finish((${endLabel})):::finish`);
 
-      if (entries.length > 0) {
-        lines.push(`  start --> ${entries[0].id}`);
-        for (let i = 0; i < entries.length - 1; i += 1) {
-          lines.push(`  ${entries[i].id} --> ${entries[i + 1].id}`);
-        }
-        lines.push(`  ${entries[entries.length - 1].id} --> finish`);
-      } else {
+      if (entries.length === 0) {
         lines.push('  start --> finish');
+        return lines.join('\n');
       }
+
+      lines.push(`  start --> ${entries[0].id}`);
+      for (let i = 0; i < entries.length - 1; i += 1) {
+        const current = entries[i];
+        const next = entries[i + 1];
+        if (current.type !== 'decision') {
+          lines.push(`  ${current.id} --> ${next.id}`);
+        }
+      }
+
+      const lastEntry = entries[entries.length - 1];
+      if (lastEntry.type !== 'decision') {
+        lines.push(`  ${lastEntry.id} --> finish`);
+      }
+
+      entries
+        .filter((entry) => entry.type === 'decision')
+        .forEach((entry) => {
+          const yesBranch = entry.branches.yes;
+          const noBranch = entry.branches.no;
+
+          const handleBranch = (branch, label) => {
+            const branchSteps = branch.steps;
+            const target = branch.target === 'finish' || !branch.target ? 'finish' : branch.target;
+            if (branchSteps.length > 0) {
+              lines.push(`  ${entry.id} -->|${label}| ${branchSteps[0].id}`);
+              for (let i = 0; i < branchSteps.length - 1; i += 1) {
+                lines.push(`  ${branchSteps[i].id} --> ${branchSteps[i + 1].id}`);
+              }
+              lines.push(`  ${branchSteps[branchSteps.length - 1].id} --> ${target}`);
+            } else {
+              lines.push(`  ${entry.id} -->|${label}| ${target}`);
+            }
+          };
+
+          handleBranch(yesBranch, 'Yes');
+          handleBranch(noBranch, 'No');
+        });
 
       return lines.join('\n');
     }
