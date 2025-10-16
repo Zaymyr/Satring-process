@@ -11,6 +11,16 @@
     :root {
       color-scheme: light dark;
       --panel-width: clamp(320px, 28vw, 420px);
+      --left-panel-offset: calc(var(--panel-width) + 4rem);
+      --right-panel-offset: calc(var(--panel-width) + 4rem);
+    }
+
+    body[data-left-collapsed='true'] {
+      --left-panel-offset: 2rem;
+    }
+
+    body[data-right-collapsed='true'] {
+      --right-panel-offset: 2rem;
     }
 
     *,
@@ -47,7 +57,7 @@
     .diagram-area {
       position: absolute;
       inset: 0;
-      padding: 2rem calc(var(--panel-width) + 4rem) 2rem 2rem;
+      padding: 2rem var(--right-panel-offset) 2rem var(--left-panel-offset);
       overflow: auto;
       display: flex;
       justify-content: center;
@@ -65,10 +75,9 @@
       color: rgba(226, 232, 240, 0.6);
     }
 
-    .controls-panel {
+    .side-panel {
       position: absolute;
       top: 2rem;
-      right: 2rem;
       bottom: 2rem;
       width: var(--panel-width);
       padding: 2rem;
@@ -82,6 +91,142 @@
       backdrop-filter: blur(20px);
       z-index: 1;
       min-height: 0;
+      transition: transform 0.35s ease;
+    }
+
+    .side-panel[data-side='left'] {
+      left: 2rem;
+    }
+
+    .side-panel[data-side='right'] {
+      right: 2rem;
+    }
+
+    .side-panel .panel-body {
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+      height: 100%;
+      overflow: auto;
+      transition: opacity 0.3s ease;
+    }
+
+    .side-panel.is-collapsed .panel-body {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .side-panel[data-side='left'].is-collapsed {
+      transform: translateX(calc(-100% + 3rem));
+    }
+
+    .side-panel[data-side='right'].is-collapsed {
+      transform: translateX(calc(100% - 3rem));
+    }
+
+    .panel-toggle {
+      position: absolute;
+      top: 1.25rem;
+      width: 2.5rem;
+      height: 2.5rem;
+      display: grid;
+      place-items: center;
+      border-radius: 999px;
+      z-index: 2;
+    }
+
+    .side-panel[data-side='left'] .panel-toggle {
+      right: -1.25rem;
+    }
+
+    .side-panel[data-side='right'] .panel-toggle {
+      left: -1.25rem;
+    }
+
+    .info-header {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .info-header h2 {
+      margin: 0;
+      font-size: clamp(1.1rem, 2vw, 1.5rem);
+      font-weight: 600;
+      color: #bfdbfe;
+    }
+
+    .info-section {
+      display: flex;
+      flex-direction: column;
+      gap: 0.55rem;
+    }
+
+    .info-section h3 {
+      margin: 0;
+      font-size: 0.95rem;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+      color: rgba(226, 232, 240, 0.75);
+    }
+
+    .info-list {
+      margin: 0;
+      padding-left: 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      color: rgba(226, 232, 240, 0.75);
+      font-size: 0.9rem;
+    }
+
+    .info-list li {
+      list-style: disc;
+    }
+
+    .info-list--legend {
+      list-style: none;
+      padding-left: 0;
+      gap: 0.75rem;
+    }
+
+    .info-list--legend li {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      list-style: none;
+    }
+
+    .legend-swatch {
+      width: 0.85rem;
+      height: 0.85rem;
+      border-radius: 4px;
+      box-shadow: 0 0 0 2px rgba(15, 23, 42, 0.45);
+      flex-shrink: 0;
+    }
+
+    .legend-swatch--start {
+      background: linear-gradient(135deg, #22c55e, #4ade80);
+    }
+
+    .legend-swatch--step {
+      background: linear-gradient(135deg, #2563eb, #60a5fa);
+    }
+
+    .legend-swatch--decision {
+      background: linear-gradient(135deg, #f59e0b, #facc15);
+    }
+
+    .visually-hidden {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      border: 0;
     }
 
     h1 {
@@ -409,13 +554,18 @@
         flex-direction: column;
       }
 
+      :root {
+        --left-panel-offset: 1.5rem;
+        --right-panel-offset: 1.5rem;
+      }
+
       .diagram-area {
         position: relative;
         padding: 1.5rem;
         min-height: 55vh;
       }
 
-      .controls-panel {
+      .side-panel {
         position: relative;
         inset: auto;
         width: auto;
@@ -423,6 +573,16 @@
         padding: 1.5rem;
         box-shadow: 0 20px 60px rgba(15, 23, 42, 0.55);
         max-height: none;
+        transform: none !important;
+      }
+
+      .side-panel .panel-body {
+        opacity: 1 !important;
+        pointer-events: auto;
+      }
+
+      .panel-toggle {
+        display: none;
       }
 
       .steps-list {
@@ -441,7 +601,7 @@
           radial-gradient(circle at bottom right, rgba(56, 189, 248, 0.18), transparent 50%);
       }
 
-      .controls-panel {
+      .side-panel {
         background: rgba(255, 255, 255, 0.92);
         border-color: rgba(148, 163, 184, 0.35);
         box-shadow: 0 35px 80px rgba(59, 130, 246, 0.22);
@@ -528,6 +688,19 @@
         color: #0f172a;
       }
 
+      .info-header h2 {
+        color: #1d4ed8;
+      }
+
+      .info-section h3,
+      .info-list {
+        color: rgba(15, 23, 42, 0.65);
+      }
+
+      .legend-swatch {
+        box-shadow: 0 0 0 2px rgba(148, 163, 184, 0.35);
+      }
+
       .step-input::placeholder {
         color: rgba(15, 23, 42, 0.45);
       }
@@ -561,35 +734,69 @@
 </head>
 <body>
   <main>
+    <aside class="side-panel info-panel" data-side="left">
+      <button class="icon-button panel-toggle" type="button" aria-expanded="true" aria-controls="insights-panel">
+        <span aria-hidden="true">⟨</span>
+        <span class="visually-hidden">Toggle overview panel</span>
+      </button>
+      <div class="panel-body" id="insights-panel" role="region" aria-label="Flow overview">
+        <header class="info-header">
+          <h2>Journey overview</h2>
+          <p>Keep a summary of the process beside your diagram for quick context.</p>
+        </header>
+        <section class="info-section">
+          <h3>Tips</h3>
+          <ul class="info-list">
+            <li>Drag the handle on any step to reorder the flow.</li>
+            <li>Collapse decision branches to stay focused while editing.</li>
+            <li>Use the finish target to control where each branch lands.</li>
+          </ul>
+        </section>
+        <section class="info-section">
+          <h3>Legend</h3>
+          <ul class="info-list info-list--legend">
+            <li><span class="legend-swatch legend-swatch--start"></span>Start and finish points</li>
+            <li><span class="legend-swatch legend-swatch--step"></span>Standard steps in the flow</li>
+            <li><span class="legend-swatch legend-swatch--decision"></span>Decision branches with yes / no paths</li>
+          </ul>
+        </section>
+      </div>
+    </aside>
     <div class="diagram-stage">
       <div id="diagram" class="diagram-area"></div>
     </div>
-    <aside class="controls-panel">
-      <header>
-        <h1>Mermaid Process Visualizer</h1>
-        <p>Describe your process steps and instantly render them across the canvas.</p>
-      </header>
-      <div class="field-group">
-        <label for="start-text">Start step</label>
-        <input id="start-text" class="input-control" type="text" placeholder="Name your starting point" value="Kickoff" />
-      </div>
-      <div class="field-group">
-        <div class="steps-header">
-          <span class="field-label">Process steps</span>
-          <div class="steps-actions">
-            <button id="add-step" class="secondary-button" type="button">Add step</button>
-            <button id="add-decision" class="secondary-button" type="button">Add Decision</button>
-          </div>
+    <aside class="side-panel controls-panel" data-side="right">
+      <button class="icon-button panel-toggle" type="button" aria-expanded="true" aria-controls="builder-panel">
+        <span aria-hidden="true">⟩</span>
+        <span class="visually-hidden">Toggle builder panel</span>
+      </button>
+      <div class="panel-body" id="builder-panel" role="region" aria-label="Process builder controls">
+        <header>
+          <h1>Mermaid Process Visualizer</h1>
+          <p>Describe your process steps and instantly render them across the canvas.</p>
+        </header>
+        <div class="field-group">
+          <label for="start-text">Start step</label>
+          <input id="start-text" class="input-control" type="text" placeholder="Name your starting point" value="Kickoff" />
         </div>
-        <div id="steps-list" class="steps-list" role="list"></div>
-        <p class="helper-text">Each step or decision will appear between the start and end circles.</p>
-      </div>
-      <div class="field-group">
-        <label for="end-text">End step</label>
-        <input id="end-text" class="input-control" type="text" placeholder="Name the finish line" value="Launch" />
-      </div>
-      <div class="panel-footer">
-        Built with <a href="https://mermaid.js.org" target="_blank" rel="noopener noreferrer">Mermaid</a>
+        <div class="field-group">
+          <div class="steps-header">
+            <span class="field-label">Process steps</span>
+            <div class="steps-actions">
+              <button id="add-step" class="secondary-button" type="button">Add step</button>
+              <button id="add-decision" class="secondary-button" type="button">Add Decision</button>
+            </div>
+          </div>
+          <div id="steps-list" class="steps-list" role="list"></div>
+          <p class="helper-text">Each step or decision will appear between the start and end circles.</p>
+        </div>
+        <div class="field-group">
+          <label for="end-text">End step</label>
+          <input id="end-text" class="input-control" type="text" placeholder="Name the finish line" value="Launch" />
+        </div>
+        <div class="panel-footer">
+          Built with <a href="https://mermaid.js.org" target="_blank" rel="noopener noreferrer">Mermaid</a>
+        </div>
       </div>
     </aside>
   </main>
@@ -603,7 +810,47 @@
     const addStepButton = document.getElementById('add-step');
     const addDecisionButton = document.getElementById('add-decision');
     const stepsList = document.getElementById('steps-list');
+    const body = document.body;
+    const panelToggles = document.querySelectorAll('.panel-toggle');
     let draggedStepRow = null;
+
+    body.dataset.leftCollapsed = 'false';
+    body.dataset.rightCollapsed = 'false';
+
+    function setPanelToggleState(toggle, side, collapsed) {
+      const icon = toggle.querySelector('span[aria-hidden="true"]');
+      const expandedLabel = side === 'left' ? 'overview panel' : 'builder panel';
+      if (icon) {
+        if (side === 'left') {
+          icon.textContent = collapsed ? '⟩' : '⟨';
+        } else {
+          icon.textContent = collapsed ? '⟨' : '⟩';
+        }
+      }
+
+      toggle.setAttribute('aria-expanded', String(!collapsed));
+      toggle.setAttribute('aria-label', `${collapsed ? 'Expand' : 'Collapse'} ${expandedLabel}`);
+    }
+
+    panelToggles.forEach((toggle) => {
+      const panel = toggle.closest('.side-panel');
+      if (!panel) {
+        return;
+      }
+
+      const side = panel.dataset.side === 'left' ? 'left' : 'right';
+      setPanelToggleState(toggle, side, panel.classList.contains('is-collapsed'));
+
+      toggle.addEventListener('click', () => {
+        const collapsed = panel.classList.toggle('is-collapsed');
+        setPanelToggleState(toggle, side, collapsed);
+        if (side === 'left') {
+          body.dataset.leftCollapsed = String(collapsed);
+        } else {
+          body.dataset.rightCollapsed = String(collapsed);
+        }
+      });
+    });
 
     mermaid.initialize({
       startOnLoad: false,
