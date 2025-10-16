@@ -1,4 +1,5 @@
 import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+import Collapse from 'https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.esm.min.js';
 
 const dom = {
   diagram: document.getElementById('diagram'),
@@ -1172,8 +1173,19 @@ class PanelManager {
         return;
       }
       const side = panel.dataset.side === 'left' ? 'left' : 'right';
+      const targetId = toggle.getAttribute('aria-controls');
+      const panelBody = targetId ? document.getElementById(targetId) : panel.querySelector('.panel-body');
+      if (!panelBody) {
+        return;
+      }
+
+      if (!panelBody.classList.contains('collapse')) {
+        panelBody.classList.add('collapse');
+      }
+
       const icon = toggle.querySelector('span[aria-hidden="true"]');
-      const updateState = (collapsed) => {
+
+      const applyState = (collapsed) => {
         toggle.setAttribute('aria-expanded', String(!collapsed));
         toggle.setAttribute(
           'aria-label',
@@ -1182,17 +1194,44 @@ class PanelManager {
         if (icon) {
           icon.textContent = side === 'left' ? (collapsed ? '⟩' : '⟨') : collapsed ? '⟨' : '⟩';
         }
-        if (side === 'left') {
-          body.dataset.leftCollapsed = String(collapsed);
-        } else {
-          body.dataset.rightCollapsed = String(collapsed);
-        }
+        body.dataset[side === 'left' ? 'leftCollapsed' : 'rightCollapsed'] = String(collapsed);
+        panel.classList.toggle('is-collapsed', collapsed);
       };
-      updateState(panel.classList.contains('is-collapsed'));
-      toggle.addEventListener('click', () => {
-        const collapsed = panel.classList.toggle('is-collapsed');
-        updateState(collapsed);
+
+      const initiallyCollapsed = panel.classList.contains('is-collapsed') || !panelBody.classList.contains('show');
+      if (initiallyCollapsed) {
+        panelBody.classList.remove('show');
+      } else {
+        panelBody.classList.add('show');
+      }
+
+      const collapse = new Collapse(panelBody, { toggle: false });
+      applyState(initiallyCollapsed);
+      if (initiallyCollapsed) {
+        collapse.hide();
+      } else {
+        collapse.show();
+      }
+
+      toggle.addEventListener('click', (event) => {
+        event.preventDefault();
+        collapse.toggle();
       });
+
+      panelBody.addEventListener('show.bs.collapse', () => {
+        applyState(false);
+      });
+
+      panelBody.addEventListener('hide.bs.collapse', () => {
+        applyState(true);
+      });
+
+      const removeInlineHeight = () => {
+        panelBody.style.removeProperty('height');
+      };
+
+      panelBody.addEventListener('shown.bs.collapse', removeInlineHeight);
+      panelBody.addEventListener('hidden.bs.collapse', removeInlineHeight);
     });
   }
 }
