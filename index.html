@@ -446,8 +446,44 @@
       gap: 0.6rem;
     }
 
+    .step-row--process {
+      display: grid;
+      grid-template-columns: auto auto auto minmax(0, 1fr) auto;
+      column-gap: 0.75rem;
+      row-gap: 0.75rem;
+      align-items: center;
+    }
+
+    .step-row--process .step-header {
+      display: contents;
+    }
+
+    .step-row--process .drag-handle {
+      grid-column: 1;
+    }
+
+    .step-row--process .step-toggle {
+      grid-column: 2;
+    }
+
+    .step-row--process .step-label {
+      grid-column: 3;
+      align-self: center;
+    }
+
+    .step-row--process .step-input {
+      grid-column: 4;
+      width: 100%;
+    }
+
+    .step-row--process .step-header .icon-button:last-of-type {
+      grid-column: 5;
+      justify-self: end;
+    }
+
     .step-row--process .step-body {
-      padding-left: calc(4.5rem + 1.5rem);
+      grid-column: 1 / -1;
+      padding-left: 0;
     }
 
     .step-row--process.step-collapsed .step-body {
@@ -594,8 +630,9 @@
 
     .assignment-row {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      grid-template-columns: minmax(0, 1fr);
       gap: 0.5rem;
+      width: 100%;
     }
 
     .assignment-row--compact {
@@ -610,6 +647,7 @@
       display: flex;
       flex-direction: column;
       gap: 0.35rem;
+      width: 100%;
     }
 
     .assignment-field-label {
