@@ -1019,7 +1019,15 @@ class DiagramRenderer {
       theme: window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'default',
       flowchart: {
         curve: 'linear',
-        defaultRenderer: 'elk'
+        defaultRenderer: 'elk',
+        elk: {
+          'elk.direction': 'DOWN',
+          'elk.edgeRouting': 'ORTHOGONAL',
+          'elk.layered.spacing.nodeNodeBetweenLayers': '64',
+          'elk.spacing.nodeNode': '48',
+          'elk.spacing.edgeEdge': '24',
+          'elk.layered.nodePlacement.strategy': 'NETWORK_SIMPLEX'
+        }
       }
     });
   }
@@ -1036,7 +1044,6 @@ class DiagramRenderer {
       '  classDef step fill:#1f2937,color:#f8fafc,stroke:#334155,stroke-width:2px;',
       '  classDef decision fill:#fde68a,color:#78350f,stroke:#f59e0b,stroke-width:2px;',
       '  classDef finish fill:#fca5a5,color:#7f1d1d,stroke:#ef4444,stroke-width:2px;',
-      '  classDef departmentLane fill:#082f49,color:#bae6fd,stroke:#38bdf8,stroke-width:1.5px,stroke-dasharray:6 4;',
       `  start((${startLabel})):::start`
     ];
     const linkStyleLines = [];
@@ -1098,15 +1105,15 @@ class DiagramRenderer {
         lines.push(`    ${node}`);
       });
       lines.push('  end');
-      if (color) {
-        const { fill, stroke, text } = deriveLaneColors(color);
-        lines.push(
-          `  classDef ${laneId} fill:${fill},color:${text},stroke:${stroke},stroke-width:1.5px,stroke-dasharray:6 4;`
-        );
-        lines.push(`  class ${laneId} ${laneId};`);
-      } else {
-        lines.push(`  class ${laneId} departmentLane;`);
-      }
+      const { fill, stroke, text } = deriveLaneColors(color || '#082f49');
+      const styleParts = [
+        `fill:${fill}`,
+        `stroke:${stroke}`,
+        'stroke-width:1.5px',
+        'stroke-dasharray:6 4',
+        `color:${text}`
+      ];
+      lines.push(`  style ${laneId} ${styleParts.join(',')}`);
     });
     lines.push(`  finish((${endLabel})):::finish`);
     if (entries.length === 0) {
