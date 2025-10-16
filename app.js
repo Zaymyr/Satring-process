@@ -1018,7 +1018,7 @@ class DiagramRenderer {
       securityLevel: 'strict',
       theme: window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'default',
       flowchart: {
-        curve: 'step'
+        curve: 'linear'
       }
     });
   }
@@ -1039,33 +1039,56 @@ class DiagramRenderer {
       `  start((${startLabel})):::start`
     ];
     const linkStyleLines = [];
+    const nodeDepartments = new Map();
+    const getDepartmentId = (id) => nodeDepartments.get(id) ?? null;
     let edgeIndex = 0;
     const nodeDeclarations = [];
-    const registerNode = (line, departmentInfo) => {
-      nodeDeclarations.push({ line, department: departmentInfo });
+    const registerNode = (id, line, departmentInfo) => {
+      nodeDeclarations.push({ id, line, department: departmentInfo });
+      nodeDepartments.set(id, departmentInfo?.id ?? null);
+    };
+    const defaultCurve = 'linear';
+    const determineCurve = (from, to, explicitCurve) => {
+      if (explicitCurve) {
+        return explicitCurve;
+      }
+      const fromDept = getDepartmentId(from);
+      const toDept = getDepartmentId(to);
+      if (!fromDept || !toDept) {
+        return defaultCurve;
+      }
+      if (fromDept === toDept) {
+        return defaultCurve;
+      }
+      return 'step';
     };
     const addEdge = (from, to, options = {}) => {
       const { label, type = '-->', hidden } = options;
       const labelSegment = label ? `|${label}| ` : '';
+      const currentIndex = edgeIndex;
       lines.push(`  ${from} ${type}${labelSegment}${to}`);
       if (hidden) {
         linkStyleLines.push(
-          `  linkStyle ${edgeIndex} stroke-width:0px,stroke:transparent,color:transparent,opacity:0;`
+          `  linkStyle ${currentIndex} stroke-width:0px,stroke:transparent,color:transparent,opacity:0;`
         );
+      }
+      const curve = determineCurve(from, to, options.curve);
+      if (curve && curve !== defaultCurve) {
+        linkStyleLines.push(`  linkStyle ${currentIndex} interpolate ${curve}`);
       }
       edgeIndex += 1;
     };
     entries.forEach((entry) => {
       if (entry.type === 'decision') {
-        registerNode(`${entry.id}{"${entry.label}"}:::decision`, entry.departmentLane);
+        registerNode(entry.id, `${entry.id}{"${entry.label}"}:::decision`, entry.departmentLane);
         entry.branches.yes.steps.forEach((step) => {
-          registerNode(`${step.id}["${step.label}"]:::step`, step.departmentLane);
+          registerNode(step.id, `${step.id}["${step.label}"]:::step`, step.departmentLane);
         });
         entry.branches.no.steps.forEach((step) => {
-          registerNode(`${step.id}["${step.label}"]:::step`, step.departmentLane);
+          registerNode(step.id, `${step.id}["${step.label}"]:::step`, step.departmentLane);
         });
       } else {
-        registerNode(`${entry.id}["${entry.label}"]:::step`, entry.departmentLane);
+        registerNode(entry.id, `${entry.id}["${entry.label}"]:::step`, entry.departmentLane);
       }
     });
     const departmentGroups = new Map();
@@ -1106,6 +1129,8 @@ class DiagramRenderer {
         lines.push(`  class ${laneId} departmentLane;`);
       }
     });
+    nodeDepartments.set('start', null);
+    nodeDepartments.set('finish', null);
     lines.push(`  finish((${endLabel})):::finish`);
     if (entries.length === 0) {
       addEdge('start', 'finish');
