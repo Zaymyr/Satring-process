@@ -1018,7 +1018,8 @@ class DiagramRenderer {
       securityLevel: 'strict',
       theme: window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'default',
       flowchart: {
-        curve: 'linear'
+        curve: 'linear',
+        defaultRenderer: 'elk'
       }
     });
   }
@@ -1039,28 +1040,10 @@ class DiagramRenderer {
       `  start((${startLabel})):::start`
     ];
     const linkStyleLines = [];
-    const nodeDepartments = new Map();
-    const getDepartmentId = (id) => nodeDepartments.get(id) ?? null;
     let edgeIndex = 0;
     const nodeDeclarations = [];
     const registerNode = (id, line, departmentInfo) => {
       nodeDeclarations.push({ id, line, department: departmentInfo });
-      nodeDepartments.set(id, departmentInfo?.id ?? null);
-    };
-    const defaultCurve = 'linear';
-    const determineCurve = (from, to, explicitCurve) => {
-      if (explicitCurve) {
-        return explicitCurve;
-      }
-      const fromDept = getDepartmentId(from);
-      const toDept = getDepartmentId(to);
-      if (!fromDept || !toDept) {
-        return defaultCurve;
-      }
-      if (fromDept === toDept) {
-        return defaultCurve;
-      }
-      return 'step';
     };
     const addEdge = (from, to, options = {}) => {
       const { label, type = '-->', hidden } = options;
@@ -1071,10 +1054,6 @@ class DiagramRenderer {
         linkStyleLines.push(
           `  linkStyle ${currentIndex} stroke-width:0px,stroke:transparent,color:transparent,opacity:0;`
         );
-      }
-      const curve = determineCurve(from, to, options.curve);
-      if (curve && curve !== defaultCurve) {
-        linkStyleLines.push(`  linkStyle ${currentIndex} interpolate ${curve}`);
       }
       edgeIndex += 1;
     };
@@ -1129,8 +1108,6 @@ class DiagramRenderer {
         lines.push(`  class ${laneId} departmentLane;`);
       }
     });
-    nodeDepartments.set('start', null);
-    nodeDepartments.set('finish', null);
     lines.push(`  finish((${endLabel})):::finish`);
     if (entries.length === 0) {
       addEdge('start', 'finish');
