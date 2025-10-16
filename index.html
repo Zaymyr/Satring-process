@@ -204,14 +204,31 @@
 
     .decision-header {
       display: grid;
-      grid-template-columns: auto 1fr auto;
+      grid-template-columns: auto auto 1fr auto;
       gap: 0.75rem;
       align-items: center;
+    }
+
+    .decision-toggle {
+      font-size: 1.05rem;
+    }
+
+    .decision-toggle span {
+      display: inline-block;
+      transition: transform 0.2s ease;
+    }
+
+    .step-row--decision.decision-collapsed .decision-toggle span {
+      transform: rotate(-90deg);
     }
 
     .decision-branches {
       display: grid;
       gap: 0.75rem;
+    }
+
+    .step-row--decision.decision-collapsed .decision-branches {
+      display: none;
     }
 
     .branch-section {
@@ -813,6 +830,14 @@
         const header = document.createElement('div');
         header.className = 'decision-header';
 
+        const toggle = document.createElement('button');
+        toggle.type = 'button';
+        toggle.className = 'icon-button decision-toggle';
+        toggle.innerHTML = '<span aria-hidden="true">▾</span>';
+        toggle.setAttribute('aria-expanded', 'true');
+        toggle.setAttribute('aria-label', 'Collapse decision branches');
+        header.appendChild(toggle);
+
         const label = document.createElement('span');
         label.className = 'step-label';
         label.textContent = 'Decision';
@@ -830,6 +855,15 @@
           row.remove();
         }, 'Remove decision');
         header.appendChild(removeButton);
+
+        toggle.addEventListener('click', () => {
+          const isCollapsed = row.classList.toggle('decision-collapsed');
+          toggle.setAttribute('aria-expanded', isCollapsed ? 'false' : 'true');
+          toggle.setAttribute(
+            'aria-label',
+            isCollapsed ? 'Expand decision branches' : 'Collapse decision branches'
+          );
+        });
 
         row.appendChild(header);
 
