@@ -12,7 +12,8 @@ const dom = {
   addRoleButton: document.getElementById('add-role'),
   roleList: document.getElementById('role-list'),
   orgSummary: document.getElementById('org-summary'),
-  panelToggles: document.querySelectorAll('.panel-toggle')
+  panelToggles: document.querySelectorAll('.panel-toggle'),
+  entitySections: document.querySelectorAll('.entity-section')
 };
 
 const defaultDepartmentColors = ['#0ea5e9', '#22c55e', '#f97316', '#a855f7', '#facc15', '#ef4444', '#14b8a6'];
@@ -1161,6 +1162,49 @@ class DiagramRenderer {
   }
 }
 
+class CollapsibleSection {
+  constructor(section) {
+    this.section = section;
+    this.button = section.querySelector('.entity-collapse');
+    if (!this.button) {
+      return;
+    }
+    this.heading = section.querySelector('h3');
+    this.icon = this.button.querySelector('.entity-collapse-icon');
+    this.targets = Array.from(section.querySelectorAll('[data-collapsible]'));
+    this.label = this.heading?.textContent?.trim() || 'section';
+    const initiallyCollapsed = section.dataset.collapsed === 'true';
+    this.setExpanded(!initiallyCollapsed);
+    this.button.addEventListener('click', () => {
+      const isCollapsed = this.section.dataset.collapsed === 'true';
+      this.setExpanded(isCollapsed);
+    });
+  }
+
+  setExpanded(expanded) {
+    this.section.dataset.collapsed = expanded ? 'false' : 'true';
+    this.button.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+    this.button.setAttribute(
+      'aria-label',
+      `${expanded ? 'Collapse' : 'Expand'} ${this.label}`
+    );
+    if (this.icon) {
+      this.icon.textContent = expanded ? '⌄' : '⌃';
+    }
+    this.targets.forEach((target) => {
+      if (expanded) {
+        target.hidden = false;
+      } else {
+        target.hidden = true;
+      }
+    });
+  }
+
+  static init(sections) {
+    return Array.from(sections, (section) => new CollapsibleSection(section));
+  }
+}
+
 class PanelManager {
   static init(toggles) {
     const body = document.body;
@@ -1218,6 +1262,7 @@ class App {
       endInput: dom.endInput
     });
     PanelManager.init(dom.panelToggles);
+    CollapsibleSection.init(dom.entitySections);
     this.orgManager.onChange(() => {
       this.stepManager.updateAssignments(this.orgManager.getAssignmentOptions());
       this.renderDiagram();
