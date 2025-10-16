@@ -243,6 +243,10 @@
       border: 1px solid rgba(148, 163, 184, 0.35);
     }
 
+    .entity-row[data-entity-type='department'] {
+      grid-template-columns: minmax(0, 1fr) auto auto;
+    }
+
     .entity-input {
       width: 100%;
       border: none;
@@ -259,6 +263,39 @@
 
     .entity-input:focus {
       outline: none;
+    }
+
+    .entity-color {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 2.25rem;
+      height: 2.25rem;
+      border-radius: 8px;
+      border: 1px solid rgba(148, 163, 184, 0.45);
+      background: transparent;
+      cursor: pointer;
+      padding: 0;
+      justify-self: end;
+    }
+
+    .entity-color::-webkit-color-swatch-wrapper {
+      padding: 0;
+      border-radius: inherit;
+    }
+
+    .entity-color::-webkit-color-swatch {
+      border: none;
+      border-radius: inherit;
+    }
+
+    .entity-color::-moz-color-swatch {
+      border: none;
+      border-radius: inherit;
+    }
+
+    .entity-color:focus-visible {
+      outline: 2px solid #38bdf8;
+      outline-offset: 2px;
     }
 
     .legend-swatch {
@@ -387,14 +424,70 @@
     }
 
     .step-row {
-      display: grid;
-      grid-template-columns: auto auto 1fr auto;
+      display: flex;
+      flex-direction: column;
       gap: 0.75rem;
-      align-items: center;
       padding: 0.65rem 0.75rem;
       border-radius: 14px;
       background: rgba(15, 23, 42, 0.55);
       border: 1px solid rgba(148, 163, 184, 0.35);
+    }
+
+    .step-header {
+      display: grid;
+      grid-template-columns: auto auto auto minmax(0, 1fr) auto;
+      gap: 0.75rem;
+      align-items: center;
+    }
+
+    .step-body {
+      display: flex;
+      flex-direction: column;
+      gap: 0.6rem;
+    }
+
+    .step-row--process {
+      display: grid;
+      grid-template-columns: auto auto auto minmax(0, 1fr) auto;
+      column-gap: 0.75rem;
+      row-gap: 0.75rem;
+      align-items: center;
+    }
+
+    .step-row--process .step-header {
+      display: contents;
+    }
+
+    .step-row--process .drag-handle {
+      grid-column: 1;
+    }
+
+    .step-row--process .step-toggle {
+      grid-column: 2;
+    }
+
+    .step-row--process .step-label {
+      grid-column: 3;
+      align-self: center;
+    }
+
+    .step-row--process .step-input {
+      grid-column: 4;
+      width: 100%;
+    }
+
+    .step-row--process .step-header .icon-button:last-of-type {
+      grid-column: 5;
+      justify-self: end;
+    }
+
+    .step-row--process .step-body {
+      grid-column: 1 / -1;
+      padding-left: 0;
+    }
+
+    .step-row--process.step-collapsed .step-body {
+      display: none;
     }
 
     .step-row--decision {
@@ -447,6 +540,19 @@
       transform: rotate(-90deg);
     }
 
+    .step-toggle {
+      font-size: 1.05rem;
+    }
+
+    .step-toggle span {
+      display: inline-block;
+      transition: transform 0.2s ease;
+    }
+
+    .step-row--process.step-collapsed .step-toggle span {
+      transform: rotate(-90deg);
+    }
+
     .decision-branches {
       display: grid;
       gap: 0.75rem;
@@ -489,8 +595,10 @@
 
     .branch-step {
       display: grid;
-      grid-template-columns: auto 1fr auto;
-      gap: 0.6rem;
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      grid-template-rows: auto auto;
+      column-gap: 0.6rem;
+      row-gap: 0.45rem;
       align-items: center;
       padding: 0.5rem 0.6rem;
       border-radius: 10px;
@@ -518,6 +626,66 @@
 
     .branch-step-input:focus {
       outline: none;
+    }
+
+    .assignment-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      gap: 0.5rem;
+      width: 100%;
+    }
+
+    .assignment-row--compact {
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    }
+
+    .branch-step .assignment-row {
+      grid-column: 1 / -1;
+    }
+
+    .assignment-field {
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+      width: 100%;
+    }
+
+    .assignment-field-label {
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: rgba(226, 232, 240, 0.7);
+    }
+
+    .assignment-select {
+      width: 100%;
+      padding: 0.45rem 0.65rem;
+      border-radius: 12px;
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      background: rgba(15, 23, 42, 0.5);
+      color: inherit;
+      font-family: inherit;
+      font-size: 0.85rem;
+    }
+
+    .assignment-select:focus {
+      outline: 2px solid rgba(59, 130, 246, 0.75);
+      outline-offset: 2px;
+    }
+
+    .assignment-select:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .step-row[data-type='decision'] .assignment-field-label {
+      color: rgba(250, 250, 250, 0.75);
+    }
+
+    .step-row[data-type='decision'] .assignment-select {
+      border-color: rgba(245, 158, 11, 0.4);
+      background: rgba(30, 41, 59, 0.55);
     }
 
     .branch-footer {
@@ -612,44 +780,130 @@
       color: inherit;
     }
 
-    @media (max-width: 960px) {
-      main {
+    @media (max-width: 1400px) {
+      :root {
+        --panel-width: clamp(260px, 32vw, 360px);
+        --left-panel-offset: calc(var(--panel-width) + 2.75rem);
+        --right-panel-offset: calc(var(--panel-width) + 2.75rem);
+      }
+
+      .diagram-area {
+        padding: 1.75rem var(--right-panel-offset) 1.75rem var(--left-panel-offset);
+      }
+    }
+
+    @media (max-width: 1024px) {
+      :root {
+        --panel-width: min(360px, 42vw);
+        --left-panel-offset: 2rem;
+        --right-panel-offset: 2rem;
+      }
+
+      body {
         flex-direction: column;
       }
 
-      :root {
-        --left-panel-offset: 1.5rem;
-        --right-panel-offset: 1.5rem;
+      main {
+        flex-direction: column;
+        overflow: visible;
+        gap: 1rem;
+      }
+
+      .diagram-stage {
+        order: 2;
+        width: 100%;
+        min-height: 380px;
+      }
+
+      .side-panel {
+        position: static;
+        top: auto;
+        bottom: auto;
+        left: auto;
+        right: auto;
+        width: auto;
+        margin: 0 1.5rem;
+        padding: 1.5rem;
+        border-radius: 20px;
+        max-width: 100%;
+        transform: none !important;
+        min-height: auto;
+      }
+
+      .side-panel[data-side='left'] {
+        order: 1;
+      }
+
+      .side-panel[data-side='right'] {
+        order: 3;
+      }
+
+      .panel-toggle {
+        position: static;
+        align-self: flex-end;
+        margin-bottom: 0.75rem;
+      }
+
+      .side-panel.is-collapsed {
+        padding-bottom: 1rem;
+      }
+
+      .side-panel .panel-body {
+        opacity: 1;
+        pointer-events: auto;
+      }
+
+      .side-panel.is-collapsed .panel-body {
+        display: none;
       }
 
       .diagram-area {
         position: relative;
+        inset: auto;
         padding: 1.5rem;
-        min-height: 55vh;
+        align-items: stretch;
+      }
+
+      .diagram-area svg {
+        max-width: 100%;
+      }
+    }
+
+    @media (max-width: 640px) {
+      main {
+        gap: 0;
       }
 
       .side-panel {
-        position: relative;
-        inset: auto;
-        width: auto;
-        margin: 1.5rem;
-        padding: 1.5rem;
-        box-shadow: 0 20px 60px rgba(15, 23, 42, 0.55);
-        max-height: none;
-        transform: none !important;
-      }
-
-      .side-panel .panel-body {
-        opacity: 1 !important;
-        pointer-events: auto;
+        margin: 0 1rem 1rem;
+        padding: 1.25rem;
+        border-radius: 18px;
       }
 
       .panel-toggle {
-        display: none;
+        margin-bottom: 0.5rem;
+      }
+
+      .diagram-stage {
+        min-height: 320px;
+      }
+
+      .diagram-area {
+        padding: 1rem;
+      }
+
+      .steps-actions {
+        flex-wrap: wrap;
+        justify-content: flex-start;
+        gap: 0.75rem;
+      }
+
+      .steps-actions .secondary-button {
+        flex: 1 1 45%;
       }
 
       .steps-list {
-        max-height: 40vh;
+        max-height: none;
       }
     }
 
@@ -749,6 +1003,31 @@
         background: rgba(241, 245, 249, 0.85);
         border-color: rgba(148, 163, 184, 0.35);
         color: #0f172a;
+      }
+
+      .assignment-field-label {
+        color: rgba(15, 23, 42, 0.6);
+      }
+
+      .step-row[data-type='decision'] .assignment-field-label {
+        color: rgba(146, 64, 14, 0.75);
+      }
+
+      .assignment-select {
+        background: rgba(241, 245, 249, 0.88);
+        border-color: rgba(148, 163, 184, 0.35);
+        color: #0f172a;
+      }
+
+      .step-row[data-type='decision'] .assignment-select {
+        background: rgba(253, 230, 138, 0.25);
+        border-color: rgba(245, 158, 11, 0.45);
+        color: rgba(120, 53, 15, 0.85);
+      }
+
+      .assignment-select:disabled {
+        background: rgba(226, 232, 240, 0.6);
+        color: rgba(15, 23, 42, 0.5);
       }
 
       .info-header h2 {
@@ -897,745 +1176,6 @@
     </aside>
   </main>
 
-  <script type="module">
-    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
-
-    const diagram = document.getElementById('diagram');
-    const startInput = document.getElementById('start-text');
-    const endInput = document.getElementById('end-text');
-    const addStepButton = document.getElementById('add-step');
-    const addDecisionButton = document.getElementById('add-decision');
-    const stepsList = document.getElementById('steps-list');
-    const addDepartmentButton = document.getElementById('add-department');
-    const departmentList = document.getElementById('department-list');
-    const addRoleButton = document.getElementById('add-role');
-    const roleList = document.getElementById('role-list');
-    const orgSummary = document.getElementById('org-summary');
-    const body = document.body;
-    const panelToggles = document.querySelectorAll('.panel-toggle');
-    let draggedStepRow = null;
-
-    body.dataset.leftCollapsed = 'false';
-    body.dataset.rightCollapsed = 'false';
-
-    function setPanelToggleState(toggle, side, collapsed) {
-      const icon = toggle.querySelector('span[aria-hidden="true"]');
-      const expandedLabel = side === 'left' ? 'organization panel' : 'builder panel';
-      if (icon) {
-        if (side === 'left') {
-          icon.textContent = collapsed ? '⟩' : '⟨';
-        } else {
-          icon.textContent = collapsed ? '⟨' : '⟩';
-        }
-      }
-
-      toggle.setAttribute('aria-expanded', String(!collapsed));
-      toggle.setAttribute('aria-label', `${collapsed ? 'Expand' : 'Collapse'} ${expandedLabel}`);
-    }
-
-    panelToggles.forEach((toggle) => {
-      const panel = toggle.closest('.side-panel');
-      if (!panel) {
-        return;
-      }
-
-      const side = panel.dataset.side === 'left' ? 'left' : 'right';
-      setPanelToggleState(toggle, side, panel.classList.contains('is-collapsed'));
-
-      toggle.addEventListener('click', () => {
-        const collapsed = panel.classList.toggle('is-collapsed');
-        setPanelToggleState(toggle, side, collapsed);
-        if (side === 'left') {
-          body.dataset.leftCollapsed = String(collapsed);
-        } else {
-          body.dataset.rightCollapsed = String(collapsed);
-        }
-      });
-    });
-
-    function updateOrganizationSummary() {
-      if (!orgSummary) {
-        return;
-      }
-
-      const countFilledEntries = (container) => {
-        if (!container) {
-          return 0;
-        }
-        return Array.from(container.querySelectorAll('.entity-input')).filter((input) => input.value.trim().length > 0)
-          .length;
-      };
-
-      const departmentCount = countFilledEntries(departmentList);
-      const roleCount = countFilledEntries(roleList);
-
-      if (departmentCount === 0 && roleCount === 0) {
-        orgSummary.textContent = 'Start by adding departments and roles so your flow mirrors real teams.';
-        return;
-      }
-
-      const parts = [];
-      if (departmentCount > 0) {
-        parts.push(`${departmentCount} ${departmentCount === 1 ? 'department' : 'departments'}`);
-      }
-      if (roleCount > 0) {
-        parts.push(`${roleCount} ${roleCount === 1 ? 'role' : 'roles'}`);
-      }
-
-      orgSummary.textContent = `Tracking ${parts.join(' and ')} for this journey.`;
-    }
-
-    mermaid.initialize({
-      startOnLoad: false,
-      securityLevel: 'strict',
-      theme: window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'default'
-    });
-
-    function sanitizeLabel(raw, fallback) {
-      const safe = (raw ?? '').trim() || fallback;
-      return safe
-        .replace(/\\/g, '\\\\')
-        .replace(/"/g, '\\"')
-        .replace(/\[/g, '\\[')
-        .replace(/\]/g, '\\]')
-        .replace(/\(/g, '\\(')
-        .replace(/\)/g, '\\)')
-        .replace(/\{/g, '\\{')
-        .replace(/\}/g, '\\}')
-        .replace(/&/g, '\\&')
-        .replace(/</g, '\\<')
-        .replace(/>/g, '\\>');
-    }
-
-    function createDragHandle(context = 'item') {
-      const handle = document.createElement('button');
-      handle.type = 'button';
-      handle.className = 'icon-button drag-handle';
-      handle.innerHTML = '<span aria-hidden="true">☰</span>';
-      handle.setAttribute('aria-label', `Reorder ${context}`);
-      return handle;
-    }
-
-    function enableRowDrag(row, handle) {
-      row.draggable = true;
-      let handleActive = false;
-
-      if (handle) {
-        const resetHandleState = () => {
-          handleActive = false;
-        };
-
-        const activateHandleState = () => {
-          handleActive = true;
-        };
-
-        handle.addEventListener('pointerdown', activateHandleState);
-        handle.addEventListener('pointerup', resetHandleState);
-        handle.addEventListener('pointerleave', resetHandleState);
-        handle.addEventListener('lostpointercapture', resetHandleState);
-        handle.addEventListener('blur', resetHandleState);
-
-        handle.addEventListener('mousedown', activateHandleState);
-        handle.addEventListener('mouseup', resetHandleState);
-        handle.addEventListener('mouseleave', resetHandleState);
-      }
-
-      row.addEventListener('dragstart', (event) => {
-        if (handle && !handleActive) {
-          event.preventDefault();
-          return;
-        }
-        handleActive = false;
-        draggedStepRow = row;
-        row.classList.add('is-dragging');
-        event.dataTransfer.effectAllowed = 'move';
-        event.dataTransfer.setData('text/plain', row.dataset.entryId || '');
-      });
-
-      row.addEventListener('dragend', () => {
-        if (draggedStepRow === row) {
-          row.classList.remove('is-dragging');
-          draggedStepRow = null;
-          updateStepLabels();
-          renderDiagram();
-        }
-      });
-    }
-
-    function updateStepLabels() {
-      const rows = Array.from(stepsList.querySelectorAll('.step-row'));
-      let stepCount = 0;
-      let decisionCount = 0;
-
-      rows.forEach((row) => {
-        const label = row.querySelector('.step-label');
-        const input = row.querySelector('.step-input');
-        const type = row.dataset.type === 'decision' ? 'decision' : 'process';
-        const dragHandle = row.querySelector('.drag-handle');
-
-        if (type === 'decision') {
-          decisionCount += 1;
-          const entryId = `decision${decisionCount}`;
-          row.dataset.entryId = entryId;
-          if (label) {
-            label.textContent = `Decision ${decisionCount}`;
-          }
-          if (input) {
-            input.placeholder = `Describe decision ${decisionCount}`;
-          }
-          if (dragHandle) {
-            dragHandle.setAttribute('aria-label', `Reorder decision ${decisionCount}`);
-          }
-          updateBranchStepLabels(row, 'yes');
-          updateBranchStepLabels(row, 'no');
-        } else {
-          stepCount += 1;
-          const entryId = `step${stepCount}`;
-          row.dataset.entryId = entryId;
-          if (label) {
-            label.textContent = `Step ${stepCount}`;
-          }
-          if (input) {
-            input.placeholder = `Describe step ${stepCount}`;
-          }
-          if (dragHandle) {
-            dragHandle.setAttribute('aria-label', `Reorder step ${stepCount}`);
-          }
-        }
-      });
-
-      updateBranchTargets();
-    }
-
-    function updateBranchStepLabels(decisionRow, branchType) {
-      const steps = Array.from(
-        decisionRow.querySelectorAll(`.branch-steps[data-branch="${branchType}"] .branch-step`)
-      );
-      const branchName = branchType === 'yes' ? 'Yes' : 'No';
-
-      steps.forEach((stepRow, index) => {
-        const label = stepRow.querySelector('.branch-step-label');
-        const input = stepRow.querySelector('.branch-step-input');
-        if (label) {
-          label.textContent = `${branchName} ${index + 1}`;
-        }
-        if (input) {
-          input.placeholder = `Describe ${branchName.toLowerCase()} path ${index + 1}`;
-        }
-      });
-    }
-
-    function updateBranchTargets() {
-      const rows = Array.from(stepsList.querySelectorAll('.step-row'));
-      const entries = rows
-        .map((row) => {
-          const entryId = row.dataset.entryId;
-          if (!entryId) {
-            return null;
-          }
-          const input = row.querySelector('.step-input');
-          const label = row.querySelector('.step-label');
-          const text = (input?.value || '').trim();
-          const fallback = label?.textContent?.trim() || entryId;
-          return { id: entryId, label: text || fallback };
-        })
-        .filter(Boolean);
-
-      stepsList.querySelectorAll('.branch-target').forEach((select) => {
-        const previousValue = select.value;
-        while (select.firstChild) {
-          select.removeChild(select.firstChild);
-        }
-
-        const finishOption = document.createElement('option');
-        finishOption.value = 'finish';
-        finishOption.textContent = 'Finish';
-        select.appendChild(finishOption);
-
-        const parentRow = select.closest('.step-row');
-
-        entries.forEach(({ id, label }) => {
-          if (parentRow && parentRow.dataset.entryId === id) {
-            return;
-          }
-          const option = document.createElement('option');
-          option.value = id;
-          option.textContent = label;
-          select.appendChild(option);
-        });
-
-        const availableValues = Array.from(select.options).map((option) => option.value);
-        if (availableValues.includes(previousValue)) {
-          select.value = previousValue;
-        } else {
-          select.value = 'finish';
-        }
-      });
-    }
-
-    function handleInputChange() {
-      updateBranchTargets();
-      renderDiagram();
-    }
-
-    function createRemoveButton(onRemove, label = 'Remove item', options = {}) {
-      const { skipDiagramUpdate = false } = options;
-      const button = document.createElement('button');
-      button.type = 'button';
-      button.className = 'icon-button';
-      button.innerHTML = '<span aria-hidden="true">&times;</span>';
-      button.setAttribute('aria-label', label);
-      button.addEventListener('click', () => {
-        onRemove();
-        if (!skipDiagramUpdate) {
-          updateStepLabels();
-          renderDiagram();
-        }
-      });
-      return button;
-    }
-
-    function createEntityRow(type, value = '') {
-      const row = document.createElement('div');
-      row.className = 'entity-row';
-      row.dataset.entityType = type;
-      row.setAttribute('role', 'listitem');
-
-      const input = document.createElement('input');
-      input.type = 'text';
-      input.className = 'entity-input';
-      input.placeholder = type === 'department' ? 'Name the department' : 'Name the role';
-      input.value = value;
-      input.setAttribute('aria-label', type === 'department' ? 'Department name' : 'Role name');
-      input.addEventListener('input', updateOrganizationSummary);
-      input.addEventListener('keydown', (event) => {
-        if (event.key === 'Enter') {
-          event.preventDefault();
-          const newRow = appendEntityRow(type);
-          newRow?.querySelector('.entity-input')?.focus();
-        }
-      });
-      row.appendChild(input);
-
-      const removeButton = createRemoveButton(
-        () => {
-          row.remove();
-          updateOrganizationSummary();
-        },
-        type === 'department' ? 'Remove department' : 'Remove role',
-        { skipDiagramUpdate: true }
-      );
-      row.appendChild(removeButton);
-
-      return row;
-    }
-
-    function appendEntityRow(type, value = '') {
-      const container = type === 'department' ? departmentList : roleList;
-      if (!container) {
-        return null;
-      }
-
-      const row = createEntityRow(type, value);
-      container.appendChild(row);
-      updateOrganizationSummary();
-      return row;
-    }
-
-    if (addDepartmentButton) {
-      addDepartmentButton.addEventListener('click', () => {
-        const row = appendEntityRow('department');
-        const input = row?.querySelector('.entity-input');
-        if (input) {
-          requestAnimationFrame(() => input.focus());
-        }
-      });
-    }
-
-    if (addRoleButton) {
-      addRoleButton.addEventListener('click', () => {
-        const row = appendEntityRow('role');
-        const input = row?.querySelector('.entity-input');
-        if (input) {
-          requestAnimationFrame(() => input.focus());
-        }
-      });
-    }
-
-    if (departmentList && departmentList.childElementCount === 0) {
-      ['Operations', 'Customer Success'].forEach((name) => {
-        appendEntityRow('department', name);
-      });
-    }
-
-    if (roleList && roleList.childElementCount === 0) {
-      ['Process Owner', 'Reviewer'].forEach((name) => {
-        appendEntityRow('role', name);
-      });
-    }
-
-    updateOrganizationSummary();
-
-    function createBranchStepRow(branchType, value = '') {
-      const stepRow = document.createElement('div');
-      stepRow.className = 'branch-step';
-      stepRow.dataset.branch = branchType;
-
-      const label = document.createElement('span');
-      label.className = 'branch-step-label';
-      label.textContent = branchType === 'yes' ? 'Yes' : 'No';
-      stepRow.appendChild(label);
-
-      const input = document.createElement('input');
-      input.type = 'text';
-      input.className = 'branch-step-input';
-      input.value = value;
-      input.placeholder = branchType === 'yes' ? 'Describe yes path' : 'Describe no path';
-      input.addEventListener('input', handleInputChange);
-      stepRow.appendChild(input);
-
-      const removeButton = createRemoveButton(() => {
-        stepRow.remove();
-      }, 'Remove branch step');
-      stepRow.appendChild(removeButton);
-
-      return stepRow;
-    }
-
-    function createBranchSection(branchType) {
-      const section = document.createElement('div');
-      section.className = 'branch-section';
-      section.dataset.branch = branchType;
-
-      const header = document.createElement('div');
-      header.className = 'branch-header';
-
-      const label = document.createElement('span');
-      label.className = 'branch-label';
-      label.textContent = branchType === 'yes' ? 'Yes branch' : 'No branch';
-      header.appendChild(label);
-
-      const addButton = document.createElement('button');
-      addButton.type = 'button';
-      addButton.className = 'secondary-button';
-      addButton.textContent = 'Add step';
-      addButton.addEventListener('click', () => {
-        const stepsContainer = section.querySelector('.branch-steps');
-        const newStep = createBranchStepRow(branchType);
-        stepsContainer.appendChild(newStep);
-        updateStepLabels();
-        renderDiagram();
-        const input = newStep.querySelector('.branch-step-input');
-        if (input) {
-          input.focus();
-        }
-      });
-      header.appendChild(addButton);
-
-      section.appendChild(header);
-
-      const stepsContainer = document.createElement('div');
-      stepsContainer.className = 'branch-steps';
-      stepsContainer.dataset.branch = branchType;
-      section.appendChild(stepsContainer);
-
-      const footer = document.createElement('div');
-      footer.className = 'branch-footer';
-
-      const footerLabel = document.createElement('span');
-      footerLabel.className = 'branch-label';
-      footerLabel.textContent = 'Close on';
-      footer.appendChild(footerLabel);
-
-      const targetSelect = document.createElement('select');
-      targetSelect.className = 'branch-target';
-      targetSelect.dataset.branch = branchType;
-      targetSelect.addEventListener('change', renderDiagram);
-      const finishOption = document.createElement('option');
-      finishOption.value = 'finish';
-      finishOption.textContent = 'Finish';
-      targetSelect.appendChild(finishOption);
-      footer.appendChild(targetSelect);
-
-      section.appendChild(footer);
-
-      return section;
-    }
-
-    function createStepRow(value = '', type = 'process') {
-      const row = document.createElement('div');
-      row.className = 'step-row';
-      row.setAttribute('role', 'listitem');
-      row.dataset.type = type === 'decision' ? 'decision' : 'process';
-
-      if (row.dataset.type === 'decision') {
-        row.classList.add('step-row--decision');
-
-        const header = document.createElement('div');
-        header.className = 'decision-header';
-
-        const handle = createDragHandle('decision');
-        header.appendChild(handle);
-
-        const toggle = document.createElement('button');
-        toggle.type = 'button';
-        toggle.className = 'icon-button decision-toggle';
-        toggle.innerHTML = '<span aria-hidden="true">▾</span>';
-        toggle.setAttribute('aria-expanded', 'true');
-        toggle.setAttribute('aria-label', 'Collapse decision branches');
-        header.appendChild(toggle);
-
-        const label = document.createElement('span');
-        label.className = 'step-label';
-        label.textContent = 'Decision';
-        header.appendChild(label);
-
-        const input = document.createElement('input');
-        input.type = 'text';
-        input.className = 'input-control step-input';
-        input.value = value;
-        input.placeholder = 'Describe the decision';
-        input.addEventListener('input', handleInputChange);
-        header.appendChild(input);
-
-        const removeButton = createRemoveButton(() => {
-          row.remove();
-        }, 'Remove decision');
-        header.appendChild(removeButton);
-
-        toggle.addEventListener('click', () => {
-          const isCollapsed = row.classList.toggle('decision-collapsed');
-          toggle.setAttribute('aria-expanded', isCollapsed ? 'false' : 'true');
-          toggle.setAttribute(
-            'aria-label',
-            isCollapsed ? 'Expand decision branches' : 'Collapse decision branches'
-          );
-        });
-
-        enableRowDrag(row, handle);
-
-        row.appendChild(header);
-
-        const branches = document.createElement('div');
-        branches.className = 'decision-branches';
-        branches.appendChild(createBranchSection('yes'));
-        branches.appendChild(createBranchSection('no'));
-        row.appendChild(branches);
-
-        return row;
-      }
-
-      const handle = createDragHandle('step');
-      row.appendChild(handle);
-      enableRowDrag(row, handle);
-
-      const label = document.createElement('span');
-      label.className = 'step-label';
-      label.textContent = 'Step';
-      row.appendChild(label);
-
-      const input = document.createElement('input');
-      input.type = 'text';
-      input.className = 'input-control step-input';
-      input.value = value;
-      input.placeholder = 'Describe the step';
-      input.addEventListener('input', handleInputChange);
-      row.appendChild(input);
-
-      const removeButton = createRemoveButton(() => {
-        row.remove();
-      });
-      row.appendChild(removeButton);
-
-      return row;
-    }
-
-    stepsList.addEventListener('dragover', (event) => {
-      if (!draggedStepRow) {
-        return;
-      }
-      event.preventDefault();
-      const targetRow = event.target.closest('.step-row');
-      if (!targetRow || targetRow === draggedStepRow) {
-        return;
-      }
-      const targetRect = targetRow.getBoundingClientRect();
-      const offset = event.clientY - targetRect.top;
-      const shouldInsertBefore = offset < targetRect.height / 2;
-      if (shouldInsertBefore) {
-        stepsList.insertBefore(draggedStepRow, targetRow);
-      } else {
-        stepsList.insertBefore(draggedStepRow, targetRow.nextSibling);
-      }
-    });
-
-    stepsList.addEventListener('drop', (event) => {
-      event.preventDefault();
-    });
-
-    function buildDefinition() {
-      const startLabel = sanitizeLabel(startInput.value, 'Start');
-      const endLabel = sanitizeLabel(endInput.value, 'End');
-      const stepRows = Array.from(stepsList.querySelectorAll('.step-row'));
-      let stepCount = 0;
-      let decisionCount = 0;
-
-      const entries = stepRows.map((row) => {
-        const type = row.dataset.type === 'decision' ? 'decision' : 'process';
-        if (type === 'decision') {
-          decisionCount += 1;
-        } else {
-          stepCount += 1;
-        }
-
-        const entryId = row.dataset.entryId || (type === 'decision' ? `decision${decisionCount}` : `step${stepCount}`);
-        const input = row.querySelector('.step-input');
-        const fallbackLabel = row.querySelector('.step-label')?.textContent?.trim() || entryId;
-        const label = sanitizeLabel(input?.value, fallbackLabel);
-
-        const buildBranch = (branchType) => {
-          const stepsContainer = row.querySelector(`.branch-steps[data-branch="${branchType}"]`);
-          const branchSteps = Array.from(stepsContainer?.querySelectorAll('.branch-step') || []).map((stepRow, index) => {
-            const branchInput = stepRow.querySelector('.branch-step-input');
-            const branchLabel = stepRow.querySelector('.branch-step-label')?.textContent?.trim() ||
-              `${branchType === 'yes' ? 'Yes' : 'No'} ${index + 1}`;
-            return {
-              id: `${entryId}_${branchType}${index + 1}`,
-              label: sanitizeLabel(branchInput?.value, branchLabel)
-            };
-          });
-          const targetSelect = row.querySelector(`.branch-target[data-branch="${branchType}"]`);
-          const target = targetSelect?.value || 'finish';
-          return { steps: branchSteps, target };
-        };
-
-        return {
-          id: entryId,
-          label,
-          type,
-          branches: type === 'decision' ? { yes: buildBranch('yes'), no: buildBranch('no') } : undefined
-        };
-      });
-
-      const lines = [
-        'flowchart TD',
-        '  classDef start fill:#22c55e,color:#052e16,stroke:#16a34a,stroke-width:2px;',
-        '  classDef step fill:#1f2937,color:#f8fafc,stroke:#334155,stroke-width:2px;',
-        '  classDef decision fill:#fde68a,color:#78350f,stroke:#f59e0b,stroke-width:2px;',
-        '  classDef finish fill:#fca5a5,color:#7f1d1d,stroke:#ef4444,stroke-width:2px;',
-        `  start((${startLabel})):::start`
-      ];
-
-      entries.forEach(({ id, label, type, branches }) => {
-        if (type === 'decision') {
-          lines.push(`  ${id}{"${label}"}:::decision`);
-          branches.yes.steps.forEach((step) => {
-            lines.push(`  ${step.id}["${step.label}"]:::step`);
-          });
-          branches.no.steps.forEach((step) => {
-            lines.push(`  ${step.id}["${step.label}"]:::step`);
-          });
-        } else {
-          lines.push(`  ${id}["${label}"]:::step`);
-        }
-      });
-
-      lines.push(`  finish((${endLabel})):::finish`);
-
-      if (entries.length === 0) {
-        lines.push('  start --> finish');
-        return lines.join('\n');
-      }
-
-      lines.push(`  start --> ${entries[0].id}`);
-      for (let i = 0; i < entries.length - 1; i += 1) {
-        const current = entries[i];
-        const next = entries[i + 1];
-        if (current.type !== 'decision') {
-          lines.push(`  ${current.id} --> ${next.id}`);
-        }
-      }
-
-      const lastEntry = entries[entries.length - 1];
-      if (lastEntry.type !== 'decision') {
-        lines.push(`  ${lastEntry.id} --> finish`);
-      }
-
-      entries
-        .filter((entry) => entry.type === 'decision')
-        .forEach((entry) => {
-          const yesBranch = entry.branches.yes;
-          const noBranch = entry.branches.no;
-
-          const handleBranch = (branch, label) => {
-            const branchSteps = branch.steps;
-            const target = branch.target === 'finish' || !branch.target ? 'finish' : branch.target;
-            if (branchSteps.length > 0) {
-              lines.push(`  ${entry.id} -->|${label}| ${branchSteps[0].id}`);
-              for (let i = 0; i < branchSteps.length - 1; i += 1) {
-                lines.push(`  ${branchSteps[i].id} --> ${branchSteps[i + 1].id}`);
-              }
-              lines.push(`  ${branchSteps[branchSteps.length - 1].id} --> ${target}`);
-            } else {
-              lines.push(`  ${entry.id} -->|${label}| ${target}`);
-            }
-          };
-
-          handleBranch(yesBranch, 'Yes');
-          handleBranch(noBranch, 'No');
-        });
-
-      return lines.join('\n');
-    }
-
-    async function renderDiagram() {
-      const definition = buildDefinition();
-      diagram.innerHTML = '';
-
-      if (!definition) {
-        return;
-      }
-
-      try {
-        const { svg } = await mermaid.render('diagram-' + Date.now(), definition);
-        diagram.innerHTML = svg;
-      } catch (error) {
-        diagram.innerHTML = `<pre style="color:#f97316; white-space:pre-wrap;">${error.message}</pre>`;
-      }
-    }
-
-    startInput.addEventListener('input', handleInputChange);
-    endInput.addEventListener('input', handleInputChange);
-
-    addStepButton.addEventListener('click', () => {
-      const row = createStepRow();
-      stepsList.appendChild(row);
-      updateStepLabels();
-      renderDiagram();
-      const input = row.querySelector('.step-input');
-      if (input) {
-        input.focus();
-      }
-    });
-
-    addDecisionButton.addEventListener('click', () => {
-      const row = createStepRow('', 'decision');
-      stepsList.appendChild(row);
-      updateStepLabels();
-      renderDiagram();
-      const input = row.querySelector('.step-input');
-      if (input) {
-        input.focus();
-      }
-    });
-
-    ['Plan', 'Build'].forEach((value) => {
-      const row = createStepRow(value);
-      stepsList.appendChild(row);
-    });
-
-    updateStepLabels();
-    renderDiagram();
-  </script>
+  <script type="module" src="app.js"></script>
 </body>
 </html>
