@@ -249,10 +249,18 @@
       gap: 0.9rem;
     }
 
+    .entity-section[data-collapsed='true'] {
+      gap: 0.75rem;
+    }
+
+    .entity-section[data-collapsed='true'] [data-collapsible] {
+      display: none;
+    }
+
     .entity-header {
-      display: flex;
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr) auto;
       align-items: center;
-      justify-content: space-between;
       gap: 0.75rem;
     }
 
@@ -263,6 +271,17 @@
       letter-spacing: 0.01em;
       text-transform: none;
       color: #bfdbfe;
+    }
+
+    .entity-collapse {
+      width: 2.15rem;
+      height: 2.15rem;
+      border-radius: 12px;
+    }
+
+    .entity-collapse-icon {
+      font-size: 0.95rem;
+      transition: transform 0.25s ease;
     }
 
     .entity-list {
@@ -1057,6 +1076,12 @@
         border-color: rgba(148, 163, 184, 0.4);
       }
 
+      .entity-collapse {
+        border-color: rgba(148, 163, 184, 0.5);
+        background: rgba(226, 232, 240, 0.6);
+        color: #1e3a8a;
+      }
+
       .entity-input {
         color: #0f172a;
       }
@@ -1086,6 +1111,15 @@
         </header>
         <section class="info-section entity-section" aria-labelledby="departments-title">
           <div class="entity-header">
+            <button
+              class="icon-button entity-collapse"
+              type="button"
+              aria-expanded="true"
+              aria-controls="department-list"
+              aria-label="Collapse Departments section"
+            >
+              <span class="entity-collapse-icon" aria-hidden="true">⌄</span>
+            </button>
             <h3 id="departments-title">Departments</h3>
             <button id="add-department" class="secondary-button" type="button">Add department</button>
           </div>
@@ -1095,11 +1129,23 @@
             data-empty-text="Add departments to capture who owns each phase."
             role="list"
             aria-labelledby="departments-title"
+            data-collapsible="true"
           ></div>
-          <p class="helper-text">Use departments to highlight which teams drive each milestone.</p>
+          <p class="helper-text" data-collapsible="true">
+            Use departments to highlight which teams drive each milestone.
+          </p>
         </section>
         <section class="info-section entity-section" aria-labelledby="roles-title">
           <div class="entity-header">
+            <button
+              class="icon-button entity-collapse"
+              type="button"
+              aria-expanded="true"
+              aria-controls="role-list"
+              aria-label="Collapse Roles section"
+            >
+              <span class="entity-collapse-icon" aria-hidden="true">⌄</span>
+            </button>
             <h3 id="roles-title">Roles</h3>
             <button id="add-role" class="secondary-button" type="button">Add role</button>
           </div>
@@ -1109,8 +1155,11 @@
             data-empty-text="Record the key roles collaborating in this journey."
             role="list"
             aria-labelledby="roles-title"
+            data-collapsible="true"
           ></div>
-          <p class="helper-text">Pair roles with steps to clarify ownership and expectations.</p>
+          <p class="helper-text" data-collapsible="true">
+            Pair roles with steps to clarify ownership and expectations.
+          </p>
         </section>
       </div>
     </aside>
