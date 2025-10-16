@@ -1809,30 +1809,34 @@
         edgeIndex += 1;
       };
 
-      const addDepartmentLane = (nodeId, label) => {
-        if (!label) {
+      const addNodeWithDepartment = (nodeLine, nodeId, departmentLabel) => {
+        if (!departmentLabel) {
+          lines.push(`  ${nodeLine}`);
           return;
         }
         const laneId = `${nodeId}_department`;
-        lines.push(`  ${laneId}["${label}"]:::departmentLane`);
-        addEdge(nodeId, laneId, { hidden: true });
+        lines.push(`  subgraph ${laneId}["${departmentLabel}"]`);
+        lines.push('    direction TB');
+        lines.push(`    ${nodeLine}`);
+        lines.push('  end');
+        lines.push(`  class ${laneId} departmentLane;`);
       };
 
       entries.forEach(({ id, label, type, branches, departmentLane }) => {
         if (type === 'decision') {
-          lines.push(`  ${id}{"${label}"}:::decision`);
-          addDepartmentLane(id, departmentLane);
+          const decisionLine = `${id}{"${label}"}:::decision`;
+          addNodeWithDepartment(decisionLine, id, departmentLane);
           branches.yes.steps.forEach((step) => {
-            lines.push(`  ${step.id}["${step.label}"]:::step`);
-            addDepartmentLane(step.id, step.departmentLane);
+            const branchLine = `${step.id}["${step.label}"]:::step`;
+            addNodeWithDepartment(branchLine, step.id, step.departmentLane);
           });
           branches.no.steps.forEach((step) => {
-            lines.push(`  ${step.id}["${step.label}"]:::step`);
-            addDepartmentLane(step.id, step.departmentLane);
+            const branchLine = `${step.id}["${step.label}"]:::step`;
+            addNodeWithDepartment(branchLine, step.id, step.departmentLane);
           });
         } else {
-          lines.push(`  ${id}["${label}"]:::step`);
-          addDepartmentLane(id, departmentLane);
+          const processLine = `${id}["${label}"]:::step`;
+          addNodeWithDepartment(processLine, id, departmentLane);
         }
       });
 
