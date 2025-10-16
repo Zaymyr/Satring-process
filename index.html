@@ -243,6 +243,10 @@
       border: 1px solid rgba(148, 163, 184, 0.35);
     }
 
+    .entity-row[data-entity-type='department'] {
+      grid-template-columns: minmax(0, 1fr) auto auto;
+    }
+
     .entity-input {
       width: 100%;
       border: none;
@@ -259,6 +263,39 @@
 
     .entity-input:focus {
       outline: none;
+    }
+
+    .entity-color {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 2.25rem;
+      height: 2.25rem;
+      border-radius: 8px;
+      border: 1px solid rgba(148, 163, 184, 0.45);
+      background: transparent;
+      cursor: pointer;
+      padding: 0;
+      justify-self: end;
+    }
+
+    .entity-color::-webkit-color-swatch-wrapper {
+      padding: 0;
+      border-radius: inherit;
+    }
+
+    .entity-color::-webkit-color-swatch {
+      border: none;
+      border-radius: inherit;
+    }
+
+    .entity-color::-moz-color-swatch {
+      border: none;
+      border-radius: inherit;
+    }
+
+    .entity-color:focus-visible {
+      outline: 2px solid #38bdf8;
+      outline-offset: 2px;
     }
 
     .legend-swatch {
@@ -1033,6 +1070,101 @@
     const panelToggles = document.querySelectorAll('.panel-toggle');
     let draggedStepRow = null;
     const entityCounters = { department: 0, role: 0 };
+    const defaultDepartmentColors = ['#0ea5e9', '#22c55e', '#f97316', '#a855f7', '#facc15', '#ef4444', '#14b8a6'];
+    let departmentColorCursor = 0;
+
+    function getNextDepartmentColor() {
+      const color = defaultDepartmentColors[departmentColorCursor % defaultDepartmentColors.length];
+      departmentColorCursor += 1;
+      return color;
+    }
+
+    function normalizeHexColor(value, fallback = '#082f49') {
+      if (typeof value !== 'string') {
+        return fallback;
+      }
+      const trimmed = value.trim();
+      if (/^#([0-9a-fA-F]{6})$/.test(trimmed)) {
+        return trimmed.toLowerCase();
+      }
+      if (/^#([0-9a-fA-F]{3})$/.test(trimmed)) {
+        const [, r, g, b] = trimmed;
+        return `#${r}${r}${g}${g}${b}${b}`.toLowerCase();
+      }
+      return fallback;
+    }
+
+    function hexToRgb(hex) {
+      const normalized = normalizeHexColor(hex);
+      const numeric = parseInt(normalized.slice(1), 16);
+      return {
+        r: (numeric >> 16) & 255,
+        g: (numeric >> 8) & 255,
+        b: numeric & 255
+      };
+    }
+
+    function mixColor(hex, amount) {
+      const normalized = normalizeHexColor(hex);
+      const { r, g, b } = hexToRgb(normalized);
+      const target = amount < 0 ? 0 : 255;
+      const mixRatio = Math.min(1, Math.max(0, Math.abs(amount)));
+      const mixChannel = (channel) => {
+        const value = Math.round(channel + (target - channel) * mixRatio);
+        return Math.min(255, Math.max(0, value));
+      };
+      const channels = [mixChannel(r), mixChannel(g), mixChannel(b)]
+        .map((channel) => channel.toString(16).padStart(2, '0'))
+        .join('');
+      return `#${channels}`;
+    }
+
+    function getContrastingTextColor(hex) {
+      const { r, g, b } = hexToRgb(hex);
+      const convert = (channel) => {
+        const value = channel / 255;
+        return value <= 0.03928 ? value / 12.92 : Math.pow((value + 0.055) / 1.055, 2.4);
+      };
+      const [rLinear, gLinear, bLinear] = [convert(r), convert(g), convert(b)];
+      const luminance = 0.2126 * rLinear + 0.7152 * gLinear + 0.0722 * bLinear;
+      return luminance > 0.55 ? '#0f172a' : '#f8fafc';
+    }
+
+    function deriveLaneColors(baseColor) {
+      const fill = normalizeHexColor(baseColor);
+      return {
+        fill,
+        stroke: mixColor(fill, -0.35),
+        text: getContrastingTextColor(fill)
+      };
+    }
+
+    function getEntityEntries(type) {
+      const container = type === 'department' ? departmentList : roleList;
+      if (!container) {
+        return [];
+      }
+
+      return Array.from(container.querySelectorAll('.entity-row'))
+        .map((row) => {
+          const id = row.dataset.entityId;
+          if (!id) {
+            return null;
+          }
+          const input = row.querySelector('.entity-input');
+          const order = Number(row.dataset.entityOrder) || 0;
+          const fallbackPrefix = type === 'department' ? 'Department' : 'Role';
+          const fallbackLabel = order > 0 ? `${fallbackPrefix} ${order}` : fallbackPrefix;
+          const label = (input?.value || '').trim() || fallbackLabel;
+          if (type === 'department') {
+            const colorInput = row.querySelector('.entity-color');
+            const color = colorInput?.value || row.dataset.entityColor || '#082f49';
+            return { id, label, color: normalizeHexColor(color) };
+          }
+          return { id, label };
+        })
+        .filter(Boolean);
+    }
 
     body.dataset.leftCollapsed = 'false';
     body.dataset.rightCollapsed = 'false';
@@ -1104,28 +1236,6 @@
     }
 
     function updateAssignmentOptions() {
-      const getEntityEntries = (type) => {
-        const container = type === 'department' ? departmentList : roleList;
-        if (!container) {
-          return [];
-        }
-
-        return Array.from(container.querySelectorAll('.entity-row'))
-          .map((row) => {
-            const id = row.dataset.entityId;
-            if (!id) {
-              return null;
-            }
-            const input = row.querySelector('.entity-input');
-            const order = Number(row.dataset.entityOrder) || 0;
-            const fallbackPrefix = type === 'department' ? 'Department' : 'Role';
-            const fallbackLabel = order > 0 ? `${fallbackPrefix} ${order}` : fallbackPrefix;
-            const label = (input?.value || '').trim() || fallbackLabel;
-            return { id, label };
-          })
-          .filter(Boolean);
-      };
-
       const updateSelect = (select, entries, type) => {
         const previousValue = select.value;
         while (select.firstChild) {
@@ -1141,10 +1251,13 @@
           entries.length === 0 ? `Add ${pluralLabel} to assign` : `Unassigned ${typeLabel}`;
         select.appendChild(placeholder);
 
-        entries.forEach(({ id, label }) => {
+        entries.forEach(({ id, label, color }) => {
           const option = document.createElement('option');
           option.value = id;
           option.textContent = label;
+          if (type === 'department' && color) {
+            option.dataset.color = color;
+          }
           select.appendChild(option);
         });
 
@@ -1244,10 +1357,24 @@
 
       const departmentSelect = container.querySelector('.assignment-select[data-type="department"]');
       if (departmentSelect && departmentSelect.value) {
+        const selectedId = departmentSelect.value;
+        const departmentEntries = getEntityEntries('department');
+        const selectedEntry = departmentEntries.find(({ id }) => id === selectedId);
         const option = departmentSelect.selectedOptions?.[0];
-        const text = option?.textContent?.trim();
-        if (text) {
-          assignment.department = sanitizeLabel(text, text);
+        const optionLabel = option?.textContent?.trim();
+        const optionColor = option?.dataset?.color;
+        if (selectedEntry) {
+          assignment.department = {
+            id: selectedEntry.id,
+            label: sanitizeLabel(selectedEntry.label, selectedEntry.label),
+            color: normalizeHexColor(selectedEntry.color)
+          };
+        } else if (optionLabel) {
+          assignment.department = {
+            id: selectedId,
+            label: sanitizeLabel(optionLabel, optionLabel),
+            color: normalizeHexColor(optionColor || '#082f49')
+          };
         }
       }
 
@@ -1460,7 +1587,7 @@
       return button;
     }
 
-    function createEntityRow(type, value = '') {
+    function createEntityRow(type, value = '', options = {}) {
       const row = document.createElement('div');
       row.className = 'entity-row';
       row.dataset.entityType = type;
@@ -1496,18 +1623,40 @@
         type === 'department' ? 'Remove department' : 'Remove role',
         { skipDiagramUpdate: true }
       );
+
+      if (type === 'department') {
+        const colorInput = document.createElement('input');
+        colorInput.type = 'color';
+        colorInput.className = 'entity-color';
+        const initialColor = normalizeHexColor(options.color || getNextDepartmentColor());
+        colorInput.value = initialColor;
+        colorInput.setAttribute('aria-label', 'Department color');
+        colorInput.title = 'Pick department color';
+        row.dataset.entityColor = initialColor;
+        colorInput.addEventListener('input', () => {
+          const normalizedColor = normalizeHexColor(colorInput.value);
+          row.dataset.entityColor = normalizedColor;
+          if (colorInput.value !== normalizedColor) {
+            colorInput.value = normalizedColor;
+          }
+          updateAssignmentOptions();
+          renderDiagram();
+        });
+        row.appendChild(colorInput);
+      }
+
       row.appendChild(removeButton);
 
       return row;
     }
 
-    function appendEntityRow(type, value = '') {
+    function appendEntityRow(type, value = '', options = {}) {
       const container = type === 'department' ? departmentList : roleList;
       if (!container) {
         return null;
       }
 
-      const row = createEntityRow(type, value);
+      const row = createEntityRow(type, value, options);
       container.appendChild(row);
       updateOrganizationSummary();
       return row;
@@ -1863,8 +2012,8 @@
 
       const nodeDeclarations = [];
 
-      const registerNode = (nodeLine, departmentLabel) => {
-        nodeDeclarations.push({ line: nodeLine, departmentLabel });
+      const registerNode = (nodeLine, departmentInfo) => {
+        nodeDeclarations.push({ line: nodeLine, department: departmentInfo });
       };
 
       const addEdge = (from, to, options = {}) => {
@@ -1901,33 +2050,44 @@
       const departmentGroups = new Map();
       let departmentCounter = 0;
 
-      nodeDeclarations.forEach(({ line, departmentLabel }) => {
-        if (!departmentLabel) {
+      nodeDeclarations.forEach(({ line, department }) => {
+        if (!department || !department.id) {
           lines.push(`  ${line}`);
           return;
         }
 
-        if (!departmentGroups.has(departmentLabel)) {
+        if (!departmentGroups.has(department.id)) {
           departmentCounter += 1;
-          departmentGroups.set(departmentLabel, {
+          departmentGroups.set(department.id, {
             laneId: `department_${departmentCounter}`,
+            label: department.label,
+            color: department.color,
             nodes: []
           });
-          departmentOrder.push(departmentLabel);
+          departmentOrder.push(department.id);
         }
 
-        departmentGroups.get(departmentLabel).nodes.push(line);
+        departmentGroups.get(department.id).nodes.push(line);
       });
 
-      departmentOrder.forEach((departmentLabel) => {
-        const { laneId, nodes } = departmentGroups.get(departmentLabel);
-        lines.push(`  subgraph ${laneId}["${departmentLabel}"]`);
+      departmentOrder.forEach((departmentId) => {
+        const { laneId, label, color, nodes } = departmentGroups.get(departmentId);
+        lines.push(`  subgraph ${laneId}["${label}"]`);
         lines.push('    direction TB');
         nodes.forEach((node) => {
           lines.push(`    ${node}`);
         });
         lines.push('  end');
-        lines.push(`  class ${laneId} departmentLane;`);
+
+        if (color) {
+          const { fill, stroke, text } = deriveLaneColors(color);
+          lines.push(
+            `  classDef ${laneId} fill:${fill},color:${text},stroke:${stroke},stroke-width:1.5px,stroke-dasharray:6 4;`
+          );
+          lines.push(`  class ${laneId} ${laneId};`);
+        } else {
+          lines.push(`  class ${laneId} departmentLane;`);
+        }
       });
 
       lines.push(`  finish((${endLabel})):::finish`);
