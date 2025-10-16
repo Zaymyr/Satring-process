@@ -387,22 +387,34 @@
     }
 
     .step-row {
-      display: grid;
-      grid-template-columns: auto auto minmax(0, 1fr) auto;
-      grid-template-rows: auto auto;
-      column-gap: 0.75rem;
-      row-gap: 0.55rem;
-      align-items: center;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
       padding: 0.65rem 0.75rem;
       border-radius: 14px;
       background: rgba(15, 23, 42, 0.55);
       border: 1px solid rgba(148, 163, 184, 0.35);
     }
 
-    .step-row > .icon-button,
-    .step-row > .step-label,
-    .step-row > .input-control {
-      align-self: center;
+    .step-header {
+      display: grid;
+      grid-template-columns: auto auto minmax(0, 1fr) auto;
+      gap: 0.75rem;
+      align-items: center;
+    }
+
+    .step-body {
+      display: flex;
+      flex-direction: column;
+      gap: 0.6rem;
+    }
+
+    .step-row--process .step-body {
+      padding-left: calc(4.5rem + 1.5rem);
+    }
+
+    .step-row--process.step-collapsed .step-body {
+      display: none;
     }
 
     .step-row--decision {
@@ -452,6 +464,19 @@
     }
 
     .step-row--decision.decision-collapsed .decision-toggle span {
+      transform: rotate(-90deg);
+    }
+
+    .step-toggle {
+      font-size: 1.05rem;
+    }
+
+    .step-toggle span {
+      display: inline-block;
+      transition: transform 0.2s ease;
+    }
+
+    .step-row--process.step-collapsed .step-toggle span {
       transform: rotate(-90deg);
     }
 
@@ -538,10 +563,6 @@
 
     .assignment-row--compact {
       grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-    }
-
-    .step-row .assignment-row {
-      grid-column: 2 / -1;
     }
 
     .branch-step .assignment-row {
@@ -1336,6 +1357,15 @@
           if (dragHandle) {
             dragHandle.setAttribute('aria-label', `Reorder step ${stepCount}`);
           }
+          const toggle = row.querySelector('.step-toggle');
+          if (toggle) {
+            const isCollapsed = row.classList.contains('step-collapsed');
+            toggle.setAttribute('aria-expanded', isCollapsed ? 'false' : 'true');
+            toggle.setAttribute(
+              'aria-label',
+              `${isCollapsed ? 'Expand' : 'Collapse'} Step ${stepCount} details`
+            );
+          }
         }
       });
 
@@ -1673,14 +1703,28 @@
         return row;
       }
 
+      row.classList.add('step-row--process');
+
+      const header = document.createElement('div');
+      header.className = 'step-header';
+      row.appendChild(header);
+
       const handle = createDragHandle('step');
-      row.appendChild(handle);
+      header.appendChild(handle);
       enableRowDrag(row, handle);
+
+      const toggle = document.createElement('button');
+      toggle.type = 'button';
+      toggle.className = 'icon-button step-toggle';
+      toggle.innerHTML = '<span aria-hidden="true">▾</span>';
+      toggle.setAttribute('aria-expanded', 'true');
+      toggle.setAttribute('aria-label', 'Collapse step details');
+      header.appendChild(toggle);
 
       const label = document.createElement('span');
       label.className = 'step-label';
       label.textContent = 'Step';
-      row.appendChild(label);
+      header.appendChild(label);
 
       const input = document.createElement('input');
       input.type = 'text';
@@ -1688,15 +1732,35 @@
       input.value = value;
       input.placeholder = 'Describe the step';
       input.addEventListener('input', handleInputChange);
-      row.appendChild(input);
+      header.appendChild(input);
 
       const removeButton = createRemoveButton(() => {
         row.remove();
       });
-      row.appendChild(removeButton);
+      header.appendChild(removeButton);
+
+      const body = document.createElement('div');
+      body.className = 'step-body';
+      row.appendChild(body);
 
       const assignmentRow = createAssignmentRow({ context: 'step' });
-      row.appendChild(assignmentRow);
+      body.appendChild(assignmentRow);
+
+      const updateToggleLabel = (isCollapsed) => {
+        const labelText = label.textContent?.trim() || 'Step';
+        toggle.setAttribute('aria-expanded', isCollapsed ? 'false' : 'true');
+        toggle.setAttribute(
+          'aria-label',
+          `${isCollapsed ? 'Expand' : 'Collapse'} ${labelText} details`
+        );
+      };
+
+      toggle.addEventListener('click', () => {
+        const isCollapsed = row.classList.toggle('step-collapsed');
+        updateToggleLabel(isCollapsed);
+      });
+
+      updateToggleLabel(false);
 
       return row;
     }
