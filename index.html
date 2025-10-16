@@ -1214,19 +1214,19 @@
         .replace(/>/g, '\\>');
     }
 
-    function collectAssignmentParts(container) {
+    function collectAssignments(container) {
       if (!container) {
-        return [];
+        return { department: null, role: null };
       }
 
-      const parts = [];
+      const assignment = { department: null, role: null };
 
       const departmentSelect = container.querySelector('.assignment-select[data-type="department"]');
       if (departmentSelect && departmentSelect.value) {
         const option = departmentSelect.selectedOptions?.[0];
         const text = option?.textContent?.trim();
         if (text) {
-          parts.push(sanitizeLabel(text, text));
+          assignment.department = sanitizeLabel(text, text);
         }
       }
 
@@ -1235,11 +1235,11 @@
         const option = roleSelect.selectedOptions?.[0];
         const text = option?.textContent?.trim();
         if (text) {
-          parts.push(sanitizeLabel(text, text));
+          assignment.role = sanitizeLabel(text, text);
         }
       }
 
-      return parts;
+      return assignment;
     }
 
     function createDragHandle(context = 'item') {
@@ -1743,9 +1743,12 @@
         const input = row.querySelector('.step-input');
         const fallbackLabel = row.querySelector('.step-label')?.textContent?.trim() || entryId;
         const label = sanitizeLabel(input?.value, fallbackLabel);
-        const assignmentParts = collectAssignmentParts(row);
-        const displayLabel =
-          assignmentParts.length > 0 ? `${label}\\n${assignmentParts.join(' • ')}` : label;
+        const assignments = collectAssignments(row);
+        const inlineParts = [];
+        if (assignments.role) {
+          inlineParts.push(assignments.role);
+        }
+        const displayLabel = inlineParts.length > 0 ? `${label}\\n${inlineParts.join(' • ')}` : label;
 
         const buildBranch = (branchType) => {
           const stepsContainer = row.querySelector(`.branch-steps[data-branch="${branchType}"]`);
@@ -1754,14 +1757,17 @@
             const branchFallback = stepRow.querySelector('.branch-step-label')?.textContent?.trim() ||
               `${branchType === 'yes' ? 'Yes' : 'No'} ${index + 1}`;
             const branchLabel = sanitizeLabel(branchInput?.value, branchFallback);
-            const branchAssignments = collectAssignmentParts(stepRow);
+            const branchAssignments = collectAssignments(stepRow);
+            const branchInlineParts = [];
+            if (branchAssignments.role) {
+              branchInlineParts.push(branchAssignments.role);
+            }
             const branchDisplayLabel =
-              branchAssignments.length > 0
-                ? `${branchLabel}\\n${branchAssignments.join(' • ')}`
-                : branchLabel;
+              branchInlineParts.length > 0 ? `${branchLabel}\\n${branchInlineParts.join(' • ')}` : branchLabel;
             return {
               id: `${entryId}_${branchType}${index + 1}`,
-              label: branchDisplayLabel
+              label: branchDisplayLabel,
+              departmentLane: branchAssignments.department
             };
           });
           const targetSelect = row.querySelector(`.branch-target[data-branch="${branchType}"]`);
@@ -1773,6 +1779,7 @@
           id: entryId,
           label: displayLabel,
           type,
+          departmentLane: assignments.department,
           branches: type === 'decision' ? { yes: buildBranch('yes'), no: buildBranch('no') } : undefined
         };
       });
@@ -1783,42 +1790,72 @@
         '  classDef step fill:#1f2937,color:#f8fafc,stroke:#334155,stroke-width:2px;',
         '  classDef decision fill:#fde68a,color:#78350f,stroke:#f59e0b,stroke-width:2px;',
         '  classDef finish fill:#fca5a5,color:#7f1d1d,stroke:#ef4444,stroke-width:2px;',
+        '  classDef departmentLane fill:#082f49,color:#bae6fd,stroke:#38bdf8,stroke-width:1.5px,stroke-dasharray:6 4;',
         `  start((${startLabel})):::start`
       ];
 
-      entries.forEach(({ id, label, type, branches }) => {
+      const linkStyleLines = [];
+      let edgeIndex = 0;
+
+      const addEdge = (from, to, options = {}) => {
+        const { label, type = '-->', hidden } = options;
+        const labelSegment = label ? `|${label}| ` : '';
+        lines.push(`  ${from} ${type}${labelSegment}${to}`);
+        if (hidden) {
+          linkStyleLines.push(
+            `  linkStyle ${edgeIndex} stroke-width:0px,stroke:transparent,color:transparent,opacity:0;`
+          );
+        }
+        edgeIndex += 1;
+      };
+
+      const addDepartmentLane = (nodeId, label) => {
+        if (!label) {
+          return;
+        }
+        const laneId = `${nodeId}_department`;
+        lines.push(`  ${laneId}["${label}"]:::departmentLane`);
+        addEdge(nodeId, laneId, { hidden: true });
+      };
+
+      entries.forEach(({ id, label, type, branches, departmentLane }) => {
         if (type === 'decision') {
           lines.push(`  ${id}{"${label}"}:::decision`);
+          addDepartmentLane(id, departmentLane);
           branches.yes.steps.forEach((step) => {
             lines.push(`  ${step.id}["${step.label}"]:::step`);
+            addDepartmentLane(step.id, step.departmentLane);
           });
           branches.no.steps.forEach((step) => {
             lines.push(`  ${step.id}["${step.label}"]:::step`);
+            addDepartmentLane(step.id, step.departmentLane);
           });
         } else {
           lines.push(`  ${id}["${label}"]:::step`);
+          addDepartmentLane(id, departmentLane);
         }
       });
 
       lines.push(`  finish((${endLabel})):::finish`);
 
       if (entries.length === 0) {
-        lines.push('  start --> finish');
+        addEdge('start', 'finish');
+        lines.push(...linkStyleLines);
         return lines.join('\n');
       }
 
-      lines.push(`  start --> ${entries[0].id}`);
+      addEdge('start', entries[0].id);
       for (let i = 0; i < entries.length - 1; i += 1) {
         const current = entries[i];
         const next = entries[i + 1];
         if (current.type !== 'decision') {
-          lines.push(`  ${current.id} --> ${next.id}`);
+          addEdge(current.id, next.id);
         }
       }
 
       const lastEntry = entries[entries.length - 1];
       if (lastEntry.type !== 'decision') {
-        lines.push(`  ${lastEntry.id} --> finish`);
+        addEdge(lastEntry.id, 'finish');
       }
 
       entries
@@ -1831,13 +1868,13 @@
             const branchSteps = branch.steps;
             const target = branch.target === 'finish' || !branch.target ? 'finish' : branch.target;
             if (branchSteps.length > 0) {
-              lines.push(`  ${entry.id} -->|${label}| ${branchSteps[0].id}`);
+              addEdge(entry.id, branchSteps[0].id, { label });
               for (let i = 0; i < branchSteps.length - 1; i += 1) {
-                lines.push(`  ${branchSteps[i].id} --> ${branchSteps[i + 1].id}`);
+                addEdge(branchSteps[i].id, branchSteps[i + 1].id);
               }
-              lines.push(`  ${branchSteps[branchSteps.length - 1].id} --> ${target}`);
+              addEdge(branchSteps[branchSteps.length - 1].id, target);
             } else {
-              lines.push(`  ${entry.id} -->|${label}| ${target}`);
+              addEdge(entry.id, target, { label });
             }
           };
 
@@ -1845,6 +1882,7 @@
           handleBranch(noBranch, 'No');
         });
 
+      lines.push(...linkStyleLines);
       return lines.join('\n');
     }
 
