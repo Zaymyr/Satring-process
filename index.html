@@ -1797,6 +1797,12 @@
       const linkStyleLines = [];
       let edgeIndex = 0;
 
+      const nodeDeclarations = [];
+
+      const registerNode = (nodeLine, departmentLabel) => {
+        nodeDeclarations.push({ line: nodeLine, departmentLabel });
+      };
+
       const addEdge = (from, to, options = {}) => {
         const { label, type = '-->', hidden } = options;
         const labelSegment = label ? `|${label}| ` : '';
@@ -1809,35 +1815,55 @@
         edgeIndex += 1;
       };
 
-      const addNodeWithDepartment = (nodeLine, nodeId, departmentLabel) => {
-        if (!departmentLabel) {
-          lines.push(`  ${nodeLine}`);
-          return;
-        }
-        const laneId = `${nodeId}_department`;
-        lines.push(`  subgraph ${laneId}["${departmentLabel}"]`);
-        lines.push('    direction TB');
-        lines.push(`    ${nodeLine}`);
-        lines.push('  end');
-        lines.push(`  class ${laneId} departmentLane;`);
-      };
-
       entries.forEach(({ id, label, type, branches, departmentLane }) => {
         if (type === 'decision') {
           const decisionLine = `${id}{"${label}"}:::decision`;
-          addNodeWithDepartment(decisionLine, id, departmentLane);
+          registerNode(decisionLine, departmentLane);
           branches.yes.steps.forEach((step) => {
             const branchLine = `${step.id}["${step.label}"]:::step`;
-            addNodeWithDepartment(branchLine, step.id, step.departmentLane);
+            registerNode(branchLine, step.departmentLane);
           });
           branches.no.steps.forEach((step) => {
             const branchLine = `${step.id}["${step.label}"]:::step`;
-            addNodeWithDepartment(branchLine, step.id, step.departmentLane);
+            registerNode(branchLine, step.departmentLane);
           });
         } else {
           const processLine = `${id}["${label}"]:::step`;
-          addNodeWithDepartment(processLine, id, departmentLane);
+          registerNode(processLine, departmentLane);
         }
+      });
+
+      const departmentOrder = [];
+      const departmentGroups = new Map();
+      let departmentCounter = 0;
+
+      nodeDeclarations.forEach(({ line, departmentLabel }) => {
+        if (!departmentLabel) {
+          lines.push(`  ${line}`);
+          return;
+        }
+
+        if (!departmentGroups.has(departmentLabel)) {
+          departmentCounter += 1;
+          departmentGroups.set(departmentLabel, {
+            laneId: `department_${departmentCounter}`,
+            nodes: []
+          });
+          departmentOrder.push(departmentLabel);
+        }
+
+        departmentGroups.get(departmentLabel).nodes.push(line);
+      });
+
+      departmentOrder.forEach((departmentLabel) => {
+        const { laneId, nodes } = departmentGroups.get(departmentLabel);
+        lines.push(`  subgraph ${laneId}["${departmentLabel}"]`);
+        lines.push('    direction TB');
+        nodes.forEach((node) => {
+          lines.push(`    ${node}`);
+        });
+        lines.push('  end');
+        lines.push(`  class ${laneId} departmentLane;`);
       });
 
       lines.push(`  finish((${endLabel})):::finish`);
