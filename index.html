@@ -388,13 +388,21 @@
 
     .step-row {
       display: grid;
-      grid-template-columns: auto auto 1fr auto;
-      gap: 0.75rem;
+      grid-template-columns: auto auto minmax(0, 1fr) auto;
+      grid-template-rows: auto auto;
+      column-gap: 0.75rem;
+      row-gap: 0.55rem;
       align-items: center;
       padding: 0.65rem 0.75rem;
       border-radius: 14px;
       background: rgba(15, 23, 42, 0.55);
       border: 1px solid rgba(148, 163, 184, 0.35);
+    }
+
+    .step-row > .icon-button,
+    .step-row > .step-label,
+    .step-row > .input-control {
+      align-self: center;
     }
 
     .step-row--decision {
@@ -489,8 +497,10 @@
 
     .branch-step {
       display: grid;
-      grid-template-columns: auto 1fr auto;
-      gap: 0.6rem;
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      grid-template-rows: auto auto;
+      column-gap: 0.6rem;
+      row-gap: 0.45rem;
       align-items: center;
       padding: 0.5rem 0.6rem;
       border-radius: 10px;
@@ -518,6 +528,68 @@
 
     .branch-step-input:focus {
       outline: none;
+    }
+
+    .assignment-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 0.5rem;
+    }
+
+    .assignment-row--compact {
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    }
+
+    .step-row .assignment-row {
+      grid-column: 2 / -1;
+    }
+
+    .branch-step .assignment-row {
+      grid-column: 1 / -1;
+    }
+
+    .assignment-field {
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+    }
+
+    .assignment-field-label {
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: rgba(226, 232, 240, 0.7);
+    }
+
+    .assignment-select {
+      width: 100%;
+      padding: 0.45rem 0.65rem;
+      border-radius: 12px;
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      background: rgba(15, 23, 42, 0.5);
+      color: inherit;
+      font-family: inherit;
+      font-size: 0.85rem;
+    }
+
+    .assignment-select:focus {
+      outline: 2px solid rgba(59, 130, 246, 0.75);
+      outline-offset: 2px;
+    }
+
+    .assignment-select:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .step-row[data-type='decision'] .assignment-field-label {
+      color: rgba(250, 250, 250, 0.75);
+    }
+
+    .step-row[data-type='decision'] .assignment-select {
+      border-color: rgba(245, 158, 11, 0.4);
+      background: rgba(30, 41, 59, 0.55);
     }
 
     .branch-footer {
@@ -751,6 +823,31 @@
         color: #0f172a;
       }
 
+      .assignment-field-label {
+        color: rgba(15, 23, 42, 0.6);
+      }
+
+      .step-row[data-type='decision'] .assignment-field-label {
+        color: rgba(146, 64, 14, 0.75);
+      }
+
+      .assignment-select {
+        background: rgba(241, 245, 249, 0.88);
+        border-color: rgba(148, 163, 184, 0.35);
+        color: #0f172a;
+      }
+
+      .step-row[data-type='decision'] .assignment-select {
+        background: rgba(253, 230, 138, 0.25);
+        border-color: rgba(245, 158, 11, 0.45);
+        color: rgba(120, 53, 15, 0.85);
+      }
+
+      .assignment-select:disabled {
+        background: rgba(226, 232, 240, 0.6);
+        color: rgba(15, 23, 42, 0.5);
+      }
+
       .info-header h2 {
         color: #1d4ed8;
       }
@@ -914,6 +1011,7 @@
     const body = document.body;
     const panelToggles = document.querySelectorAll('.panel-toggle');
     let draggedStepRow = null;
+    const entityCounters = { department: 0, role: 0 };
 
     body.dataset.leftCollapsed = 'false';
     body.dataset.rightCollapsed = 'false';
@@ -954,10 +1052,6 @@
     });
 
     function updateOrganizationSummary() {
-      if (!orgSummary) {
-        return;
-      }
-
       const countFilledEntries = (container) => {
         if (!container) {
           return 0;
@@ -969,20 +1063,133 @@
       const departmentCount = countFilledEntries(departmentList);
       const roleCount = countFilledEntries(roleList);
 
-      if (departmentCount === 0 && roleCount === 0) {
-        orgSummary.textContent = 'Start by adding departments and roles so your flow mirrors real teams.';
-        return;
+      if (orgSummary) {
+        if (departmentCount === 0 && roleCount === 0) {
+          orgSummary.textContent = 'Start by adding departments and roles so your flow mirrors real teams.';
+        } else {
+          const parts = [];
+          if (departmentCount > 0) {
+            parts.push(`${departmentCount} ${departmentCount === 1 ? 'department' : 'departments'}`);
+          }
+          if (roleCount > 0) {
+            parts.push(`${roleCount} ${roleCount === 1 ? 'role' : 'roles'}`);
+          }
+          orgSummary.textContent = `Tracking ${parts.join(' and ')} for this journey.`;
+        }
       }
 
-      const parts = [];
-      if (departmentCount > 0) {
-        parts.push(`${departmentCount} ${departmentCount === 1 ? 'department' : 'departments'}`);
-      }
-      if (roleCount > 0) {
-        parts.push(`${roleCount} ${roleCount === 1 ? 'role' : 'roles'}`);
+      updateAssignmentOptions();
+      renderDiagram();
+    }
+
+    function updateAssignmentOptions() {
+      const getEntityEntries = (type) => {
+        const container = type === 'department' ? departmentList : roleList;
+        if (!container) {
+          return [];
+        }
+
+        return Array.from(container.querySelectorAll('.entity-row'))
+          .map((row) => {
+            const id = row.dataset.entityId;
+            if (!id) {
+              return null;
+            }
+            const input = row.querySelector('.entity-input');
+            const order = Number(row.dataset.entityOrder) || 0;
+            const fallbackPrefix = type === 'department' ? 'Department' : 'Role';
+            const fallbackLabel = order > 0 ? `${fallbackPrefix} ${order}` : fallbackPrefix;
+            const label = (input?.value || '').trim() || fallbackLabel;
+            return { id, label };
+          })
+          .filter(Boolean);
+      };
+
+      const updateSelect = (select, entries, type) => {
+        const previousValue = select.value;
+        while (select.firstChild) {
+          select.removeChild(select.firstChild);
+        }
+
+        const typeLabel = type === 'department' ? 'department' : 'role';
+        const pluralLabel = type === 'department' ? 'departments' : 'roles';
+
+        const placeholder = document.createElement('option');
+        placeholder.value = '';
+        placeholder.textContent =
+          entries.length === 0 ? `Add ${pluralLabel} to assign` : `Unassigned ${typeLabel}`;
+        select.appendChild(placeholder);
+
+        entries.forEach(({ id, label }) => {
+          const option = document.createElement('option');
+          option.value = id;
+          option.textContent = label;
+          select.appendChild(option);
+        });
+
+        if (entries.some(({ id }) => id === previousValue)) {
+          select.value = previousValue;
+        } else {
+          select.value = '';
+        }
+
+        select.disabled = entries.length === 0;
+      };
+
+      const departmentEntries = getEntityEntries('department');
+      const roleEntries = getEntityEntries('role');
+
+      stepsList
+        .querySelectorAll('.assignment-select[data-type="department"]')
+        .forEach((select) => updateSelect(select, departmentEntries, 'department'));
+
+      stepsList
+        .querySelectorAll('.assignment-select[data-type="role"]')
+        .forEach((select) => updateSelect(select, roleEntries, 'role'));
+    }
+
+    function createAssignmentSelect(type, contextLabel) {
+      const select = document.createElement('select');
+      select.className = 'assignment-select';
+      select.dataset.type = type;
+      select.setAttribute('aria-label', `Assign ${type} for this ${contextLabel}`);
+      select.addEventListener('change', renderDiagram);
+      return select;
+    }
+
+    function createAssignmentField(type, context) {
+      const field = document.createElement('label');
+      field.className = 'assignment-field';
+
+      const fieldLabel = document.createElement('span');
+      fieldLabel.className = 'assignment-field-label';
+      fieldLabel.textContent = type === 'department' ? 'Department' : 'Role';
+      field.appendChild(fieldLabel);
+
+      const select = createAssignmentSelect(type, context);
+      field.appendChild(select);
+
+      return field;
+    }
+
+    function createAssignmentRow(options = {}) {
+      const { context = 'step', variant } = options;
+      const contextLabel =
+        context === 'decision' ? 'decision' : context === 'branch' ? 'branch step' : 'step';
+
+      const row = document.createElement('div');
+      row.className = 'assignment-row';
+      if (variant) {
+        row.classList.add(`assignment-row--${variant}`);
       }
 
-      orgSummary.textContent = `Tracking ${parts.join(' and ')} for this journey.`;
+      const departmentField = createAssignmentField('department', contextLabel);
+      row.appendChild(departmentField);
+
+      const roleField = createAssignmentField('role', contextLabel);
+      row.appendChild(roleField);
+
+      return row;
     }
 
     mermaid.initialize({
@@ -1005,6 +1212,34 @@
         .replace(/&/g, '\\&')
         .replace(/</g, '\\<')
         .replace(/>/g, '\\>');
+    }
+
+    function collectAssignmentParts(container) {
+      if (!container) {
+        return [];
+      }
+
+      const parts = [];
+
+      const departmentSelect = container.querySelector('.assignment-select[data-type="department"]');
+      if (departmentSelect && departmentSelect.value) {
+        const option = departmentSelect.selectedOptions?.[0];
+        const text = option?.textContent?.trim();
+        if (text) {
+          parts.push(sanitizeLabel(text, text));
+        }
+      }
+
+      const roleSelect = container.querySelector('.assignment-select[data-type="role"]');
+      if (roleSelect && roleSelect.value) {
+        const option = roleSelect.selectedOptions?.[0];
+        const text = option?.textContent?.trim();
+        if (text) {
+          parts.push(sanitizeLabel(text, text));
+        }
+      }
+
+      return parts;
     }
 
     function createDragHandle(context = 'item') {
@@ -1201,6 +1436,12 @@
       row.dataset.entityType = type;
       row.setAttribute('role', 'listitem');
 
+      const counterKey = type === 'department' ? 'department' : 'role';
+      entityCounters[counterKey] += 1;
+      const entityId = `${counterKey}-${entityCounters[counterKey]}`;
+      row.dataset.entityId = entityId;
+      row.dataset.entityOrder = String(entityCounters[counterKey]);
+
       const input = document.createElement('input');
       input.type = 'text';
       input.className = 'entity-input';
@@ -1299,6 +1540,9 @@
       }, 'Remove branch step');
       stepRow.appendChild(removeButton);
 
+      const assignmentRow = createAssignmentRow({ context: 'branch', variant: 'compact' });
+      stepRow.appendChild(assignmentRow);
+
       return stepRow;
     }
 
@@ -1324,6 +1568,7 @@
         const newStep = createBranchStepRow(branchType);
         stepsContainer.appendChild(newStep);
         updateStepLabels();
+        updateAssignmentOptions();
         renderDiagram();
         const input = newStep.querySelector('.branch-step-input');
         if (input) {
@@ -1416,6 +1661,9 @@
 
         row.appendChild(header);
 
+        const assignmentRow = createAssignmentRow({ context: 'decision' });
+        row.appendChild(assignmentRow);
+
         const branches = document.createElement('div');
         branches.className = 'decision-branches';
         branches.appendChild(createBranchSection('yes'));
@@ -1446,6 +1694,9 @@
         row.remove();
       });
       row.appendChild(removeButton);
+
+      const assignmentRow = createAssignmentRow({ context: 'step' });
+      row.appendChild(assignmentRow);
 
       return row;
     }
@@ -1492,16 +1743,25 @@
         const input = row.querySelector('.step-input');
         const fallbackLabel = row.querySelector('.step-label')?.textContent?.trim() || entryId;
         const label = sanitizeLabel(input?.value, fallbackLabel);
+        const assignmentParts = collectAssignmentParts(row);
+        const displayLabel =
+          assignmentParts.length > 0 ? `${label}\\n${assignmentParts.join(' • ')}` : label;
 
         const buildBranch = (branchType) => {
           const stepsContainer = row.querySelector(`.branch-steps[data-branch="${branchType}"]`);
           const branchSteps = Array.from(stepsContainer?.querySelectorAll('.branch-step') || []).map((stepRow, index) => {
             const branchInput = stepRow.querySelector('.branch-step-input');
-            const branchLabel = stepRow.querySelector('.branch-step-label')?.textContent?.trim() ||
+            const branchFallback = stepRow.querySelector('.branch-step-label')?.textContent?.trim() ||
               `${branchType === 'yes' ? 'Yes' : 'No'} ${index + 1}`;
+            const branchLabel = sanitizeLabel(branchInput?.value, branchFallback);
+            const branchAssignments = collectAssignmentParts(stepRow);
+            const branchDisplayLabel =
+              branchAssignments.length > 0
+                ? `${branchLabel}\\n${branchAssignments.join(' • ')}`
+                : branchLabel;
             return {
               id: `${entryId}_${branchType}${index + 1}`,
-              label: sanitizeLabel(branchInput?.value, branchLabel)
+              label: branchDisplayLabel
             };
           });
           const targetSelect = row.querySelector(`.branch-target[data-branch="${branchType}"]`);
@@ -1511,7 +1771,7 @@
 
         return {
           id: entryId,
-          label,
+          label: displayLabel,
           type,
           branches: type === 'decision' ? { yes: buildBranch('yes'), no: buildBranch('no') } : undefined
         };
@@ -1611,6 +1871,7 @@
       const row = createStepRow();
       stepsList.appendChild(row);
       updateStepLabels();
+      updateAssignmentOptions();
       renderDiagram();
       const input = row.querySelector('.step-input');
       if (input) {
@@ -1622,6 +1883,7 @@
       const row = createStepRow('', 'decision');
       stepsList.appendChild(row);
       updateStepLabels();
+      updateAssignmentOptions();
       renderDiagram();
       const input = row.querySelector('.step-input');
       if (input) {
@@ -1635,6 +1897,7 @@
     });
 
     updateStepLabels();
+    updateAssignmentOptions();
     renderDiagram();
   </script>
 </body>
