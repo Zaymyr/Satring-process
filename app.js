@@ -1016,7 +1016,10 @@ class DiagramRenderer {
     mermaid.initialize({
       startOnLoad: false,
       securityLevel: 'strict',
-      theme: window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'default'
+      theme: window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'default',
+      flowchart: {
+        curve: 'step'
+      }
     });
   }
 
