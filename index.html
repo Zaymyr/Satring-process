@@ -632,13 +632,36 @@
       return handle;
     }
 
-    function enableRowDrag(row) {
+    function enableRowDrag(row, handle) {
       row.draggable = true;
+      let handleActive = false;
+
+      if (handle) {
+        const resetHandleState = () => {
+          handleActive = false;
+        };
+
+        const activateHandleState = () => {
+          handleActive = true;
+        };
+
+        handle.addEventListener('pointerdown', activateHandleState);
+        handle.addEventListener('pointerup', resetHandleState);
+        handle.addEventListener('pointerleave', resetHandleState);
+        handle.addEventListener('lostpointercapture', resetHandleState);
+        handle.addEventListener('blur', resetHandleState);
+
+        handle.addEventListener('mousedown', activateHandleState);
+        handle.addEventListener('mouseup', resetHandleState);
+        handle.addEventListener('mouseleave', resetHandleState);
+      }
+
       row.addEventListener('dragstart', (event) => {
-        if (!event.target.closest('.drag-handle')) {
+        if (handle && !handleActive) {
           event.preventDefault();
           return;
         }
+        handleActive = false;
         draggedStepRow = row;
         row.classList.add('is-dragging');
         event.dataTransfer.effectAllowed = 'move';
@@ -876,7 +899,6 @@
       row.className = 'step-row';
       row.setAttribute('role', 'listitem');
       row.dataset.type = type === 'decision' ? 'decision' : 'process';
-      enableRowDrag(row);
 
       if (row.dataset.type === 'decision') {
         row.classList.add('step-row--decision');
@@ -922,6 +944,8 @@
           );
         });
 
+        enableRowDrag(row, handle);
+
         row.appendChild(header);
 
         const branches = document.createElement('div');
@@ -935,6 +959,7 @@
 
       const handle = createDragHandle('step');
       row.appendChild(handle);
+      enableRowDrag(row, handle);
 
       const label = document.createElement('span');
       label.className = 'step-label';
