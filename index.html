@@ -176,7 +176,7 @@
 
     .step-row {
       display: grid;
-      grid-template-columns: auto 1fr auto;
+      grid-template-columns: auto auto 1fr auto;
       gap: 0.75rem;
       align-items: center;
       padding: 0.65rem 0.75rem;
@@ -204,9 +204,22 @@
 
     .decision-header {
       display: grid;
-      grid-template-columns: auto auto 1fr auto;
+      grid-template-columns: auto auto auto 1fr auto;
       gap: 0.75rem;
       align-items: center;
+    }
+
+    .drag-handle {
+      cursor: grab;
+    }
+
+    .drag-handle:active {
+      cursor: grabbing;
+    }
+
+    .step-row.is-dragging {
+      opacity: 0.55;
+      border-style: dashed;
     }
 
     .decision-toggle {
@@ -586,6 +599,7 @@
     const addStepButton = document.getElementById('add-step');
     const addDecisionButton = document.getElementById('add-decision');
     const stepsList = document.getElementById('steps-list');
+    let draggedStepRow = null;
 
     mermaid.initialize({
       startOnLoad: false,
@@ -609,6 +623,38 @@
         .replace(/>/g, '\\>');
     }
 
+    function createDragHandle(context = 'item') {
+      const handle = document.createElement('button');
+      handle.type = 'button';
+      handle.className = 'icon-button drag-handle';
+      handle.innerHTML = '<span aria-hidden="true">☰</span>';
+      handle.setAttribute('aria-label', `Reorder ${context}`);
+      return handle;
+    }
+
+    function enableRowDrag(row) {
+      row.draggable = true;
+      row.addEventListener('dragstart', (event) => {
+        if (!event.target.closest('.drag-handle')) {
+          event.preventDefault();
+          return;
+        }
+        draggedStepRow = row;
+        row.classList.add('is-dragging');
+        event.dataTransfer.effectAllowed = 'move';
+        event.dataTransfer.setData('text/plain', row.dataset.entryId || '');
+      });
+
+      row.addEventListener('dragend', () => {
+        if (draggedStepRow === row) {
+          row.classList.remove('is-dragging');
+          draggedStepRow = null;
+          updateStepLabels();
+          renderDiagram();
+        }
+      });
+    }
+
     function updateStepLabels() {
       const rows = Array.from(stepsList.querySelectorAll('.step-row'));
       let stepCount = 0;
@@ -618,6 +664,7 @@
         const label = row.querySelector('.step-label');
         const input = row.querySelector('.step-input');
         const type = row.dataset.type === 'decision' ? 'decision' : 'process';
+        const dragHandle = row.querySelector('.drag-handle');
 
         if (type === 'decision') {
           decisionCount += 1;
@@ -628,6 +675,9 @@
           }
           if (input) {
             input.placeholder = `Describe decision ${decisionCount}`;
+          }
+          if (dragHandle) {
+            dragHandle.setAttribute('aria-label', `Reorder decision ${decisionCount}`);
           }
           updateBranchStepLabels(row, 'yes');
           updateBranchStepLabels(row, 'no');
@@ -640,6 +690,9 @@
           }
           if (input) {
             input.placeholder = `Describe step ${stepCount}`;
+          }
+          if (dragHandle) {
+            dragHandle.setAttribute('aria-label', `Reorder step ${stepCount}`);
           }
         }
       });
@@ -823,12 +876,16 @@
       row.className = 'step-row';
       row.setAttribute('role', 'listitem');
       row.dataset.type = type === 'decision' ? 'decision' : 'process';
+      enableRowDrag(row);
 
       if (row.dataset.type === 'decision') {
         row.classList.add('step-row--decision');
 
         const header = document.createElement('div');
         header.className = 'decision-header';
+
+        const handle = createDragHandle('decision');
+        header.appendChild(handle);
 
         const toggle = document.createElement('button');
         toggle.type = 'button';
@@ -876,6 +933,9 @@
         return row;
       }
 
+      const handle = createDragHandle('step');
+      row.appendChild(handle);
+
       const label = document.createElement('span');
       label.className = 'step-label';
       label.textContent = 'Step';
@@ -896,6 +956,29 @@
 
       return row;
     }
+
+    stepsList.addEventListener('dragover', (event) => {
+      if (!draggedStepRow) {
+        return;
+      }
+      event.preventDefault();
+      const targetRow = event.target.closest('.step-row');
+      if (!targetRow || targetRow === draggedStepRow) {
+        return;
+      }
+      const targetRect = targetRow.getBoundingClientRect();
+      const offset = event.clientY - targetRect.top;
+      const shouldInsertBefore = offset < targetRect.height / 2;
+      if (shouldInsertBefore) {
+        stepsList.insertBefore(draggedStepRow, targetRow);
+      } else {
+        stepsList.insertBefore(draggedStepRow, targetRow.nextSibling);
+      }
+    });
+
+    stepsList.addEventListener('drop', (event) => {
+      event.preventDefault();
+    });
 
     function buildDefinition() {
       const startLabel = sanitizeLabel(startInput.value, 'Start');
