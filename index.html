@@ -198,6 +198,69 @@
       list-style: none;
     }
 
+    .entity-section {
+      display: flex;
+      flex-direction: column;
+      gap: 0.9rem;
+    }
+
+    .entity-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+    }
+
+    .entity-header h3 {
+      margin: 0;
+      font-size: 1rem;
+      font-weight: 600;
+      letter-spacing: 0.01em;
+      text-transform: none;
+      color: #bfdbfe;
+    }
+
+    .entity-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .entity-list:empty::before {
+      content: attr(data-empty-text);
+      font-size: 0.88rem;
+      color: rgba(226, 232, 240, 0.55);
+    }
+
+    .entity-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 0.75rem;
+      align-items: center;
+      padding: 0.65rem 0.75rem;
+      border-radius: 14px;
+      background: rgba(15, 23, 42, 0.55);
+      border: 1px solid rgba(148, 163, 184, 0.35);
+    }
+
+    .entity-input {
+      width: 100%;
+      border: none;
+      background: transparent;
+      color: inherit;
+      font-size: 0.95rem;
+      font-family: inherit;
+      line-height: 1.4;
+    }
+
+    .entity-input::placeholder {
+      color: rgba(226, 232, 240, 0.45);
+    }
+
+    .entity-input:focus {
+      outline: none;
+    }
+
     .legend-swatch {
       width: 0.85rem;
       height: 0.85rem;
@@ -725,6 +788,27 @@
         color: #1e3a8a;
       }
 
+      .entity-header h3 {
+        color: #1d4ed8;
+      }
+
+      .entity-list:empty::before {
+        color: rgba(15, 23, 42, 0.45);
+      }
+
+      .entity-row {
+        background: rgba(241, 245, 249, 0.88);
+        border-color: rgba(148, 163, 184, 0.4);
+      }
+
+      .entity-input {
+        color: #0f172a;
+      }
+
+      .entity-input::placeholder {
+        color: rgba(15, 23, 42, 0.45);
+      }
+
       .helper-text {
         color: rgba(15, 23, 42, 0.55);
       }
@@ -737,28 +821,40 @@
     <aside class="side-panel info-panel" data-side="left">
       <button class="icon-button panel-toggle" type="button" aria-expanded="true" aria-controls="insights-panel">
         <span aria-hidden="true">⟨</span>
-        <span class="visually-hidden">Toggle overview panel</span>
+        <span class="visually-hidden">Toggle organization panel</span>
       </button>
-      <div class="panel-body" id="insights-panel" role="region" aria-label="Flow overview">
+      <div class="panel-body" id="insights-panel" role="region" aria-label="Organization workspace">
         <header class="info-header">
-          <h2>Journey overview</h2>
-          <p>Keep a summary of the process beside your diagram for quick context.</p>
+          <h2>Organization context</h2>
+          <p id="org-summary">Start by adding departments and roles so your flow mirrors real teams.</p>
         </header>
-        <section class="info-section">
-          <h3>Tips</h3>
-          <ul class="info-list">
-            <li>Drag the handle on any step to reorder the flow.</li>
-            <li>Collapse decision branches to stay focused while editing.</li>
-            <li>Use the finish target to control where each branch lands.</li>
-          </ul>
+        <section class="info-section entity-section" aria-labelledby="departments-title">
+          <div class="entity-header">
+            <h3 id="departments-title">Departments</h3>
+            <button id="add-department" class="secondary-button" type="button">Add department</button>
+          </div>
+          <div
+            id="department-list"
+            class="entity-list"
+            data-empty-text="Add departments to capture who owns each phase."
+            role="list"
+            aria-labelledby="departments-title"
+          ></div>
+          <p class="helper-text">Use departments to highlight which teams drive each milestone.</p>
         </section>
-        <section class="info-section">
-          <h3>Legend</h3>
-          <ul class="info-list info-list--legend">
-            <li><span class="legend-swatch legend-swatch--start"></span>Start and finish points</li>
-            <li><span class="legend-swatch legend-swatch--step"></span>Standard steps in the flow</li>
-            <li><span class="legend-swatch legend-swatch--decision"></span>Decision branches with yes / no paths</li>
-          </ul>
+        <section class="info-section entity-section" aria-labelledby="roles-title">
+          <div class="entity-header">
+            <h3 id="roles-title">Roles</h3>
+            <button id="add-role" class="secondary-button" type="button">Add role</button>
+          </div>
+          <div
+            id="role-list"
+            class="entity-list"
+            data-empty-text="Record the key roles collaborating in this journey."
+            role="list"
+            aria-labelledby="roles-title"
+          ></div>
+          <p class="helper-text">Pair roles with steps to clarify ownership and expectations.</p>
         </section>
       </div>
     </aside>
@@ -810,6 +906,11 @@
     const addStepButton = document.getElementById('add-step');
     const addDecisionButton = document.getElementById('add-decision');
     const stepsList = document.getElementById('steps-list');
+    const addDepartmentButton = document.getElementById('add-department');
+    const departmentList = document.getElementById('department-list');
+    const addRoleButton = document.getElementById('add-role');
+    const roleList = document.getElementById('role-list');
+    const orgSummary = document.getElementById('org-summary');
     const body = document.body;
     const panelToggles = document.querySelectorAll('.panel-toggle');
     let draggedStepRow = null;
@@ -819,7 +920,7 @@
 
     function setPanelToggleState(toggle, side, collapsed) {
       const icon = toggle.querySelector('span[aria-hidden="true"]');
-      const expandedLabel = side === 'left' ? 'overview panel' : 'builder panel';
+      const expandedLabel = side === 'left' ? 'organization panel' : 'builder panel';
       if (icon) {
         if (side === 'left') {
           icon.textContent = collapsed ? '⟩' : '⟨';
@@ -851,6 +952,38 @@
         }
       });
     });
+
+    function updateOrganizationSummary() {
+      if (!orgSummary) {
+        return;
+      }
+
+      const countFilledEntries = (container) => {
+        if (!container) {
+          return 0;
+        }
+        return Array.from(container.querySelectorAll('.entity-input')).filter((input) => input.value.trim().length > 0)
+          .length;
+      };
+
+      const departmentCount = countFilledEntries(departmentList);
+      const roleCount = countFilledEntries(roleList);
+
+      if (departmentCount === 0 && roleCount === 0) {
+        orgSummary.textContent = 'Start by adding departments and roles so your flow mirrors real teams.';
+        return;
+      }
+
+      const parts = [];
+      if (departmentCount > 0) {
+        parts.push(`${departmentCount} ${departmentCount === 1 ? 'department' : 'departments'}`);
+      }
+      if (roleCount > 0) {
+        parts.push(`${roleCount} ${roleCount === 1 ? 'role' : 'roles'}`);
+      }
+
+      orgSummary.textContent = `Tracking ${parts.join(' and ')} for this journey.`;
+    }
 
     mermaid.initialize({
       startOnLoad: false,
@@ -1045,7 +1178,8 @@
       renderDiagram();
     }
 
-    function createRemoveButton(onRemove, label = 'Remove item') {
+    function createRemoveButton(onRemove, label = 'Remove item', options = {}) {
+      const { skipDiagramUpdate = false } = options;
       const button = document.createElement('button');
       button.type = 'button';
       button.className = 'icon-button';
@@ -1053,11 +1187,94 @@
       button.setAttribute('aria-label', label);
       button.addEventListener('click', () => {
         onRemove();
-        updateStepLabels();
-        renderDiagram();
+        if (!skipDiagramUpdate) {
+          updateStepLabels();
+          renderDiagram();
+        }
       });
       return button;
     }
+
+    function createEntityRow(type, value = '') {
+      const row = document.createElement('div');
+      row.className = 'entity-row';
+      row.dataset.entityType = type;
+      row.setAttribute('role', 'listitem');
+
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.className = 'entity-input';
+      input.placeholder = type === 'department' ? 'Name the department' : 'Name the role';
+      input.value = value;
+      input.setAttribute('aria-label', type === 'department' ? 'Department name' : 'Role name');
+      input.addEventListener('input', updateOrganizationSummary);
+      input.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') {
+          event.preventDefault();
+          const newRow = appendEntityRow(type);
+          newRow?.querySelector('.entity-input')?.focus();
+        }
+      });
+      row.appendChild(input);
+
+      const removeButton = createRemoveButton(
+        () => {
+          row.remove();
+          updateOrganizationSummary();
+        },
+        type === 'department' ? 'Remove department' : 'Remove role',
+        { skipDiagramUpdate: true }
+      );
+      row.appendChild(removeButton);
+
+      return row;
+    }
+
+    function appendEntityRow(type, value = '') {
+      const container = type === 'department' ? departmentList : roleList;
+      if (!container) {
+        return null;
+      }
+
+      const row = createEntityRow(type, value);
+      container.appendChild(row);
+      updateOrganizationSummary();
+      return row;
+    }
+
+    if (addDepartmentButton) {
+      addDepartmentButton.addEventListener('click', () => {
+        const row = appendEntityRow('department');
+        const input = row?.querySelector('.entity-input');
+        if (input) {
+          requestAnimationFrame(() => input.focus());
+        }
+      });
+    }
+
+    if (addRoleButton) {
+      addRoleButton.addEventListener('click', () => {
+        const row = appendEntityRow('role');
+        const input = row?.querySelector('.entity-input');
+        if (input) {
+          requestAnimationFrame(() => input.focus());
+        }
+      });
+    }
+
+    if (departmentList && departmentList.childElementCount === 0) {
+      ['Operations', 'Customer Success'].forEach((name) => {
+        appendEntityRow('department', name);
+      });
+    }
+
+    if (roleList && roleList.childElementCount === 0) {
+      ['Process Owner', 'Reviewer'].forEach((name) => {
+        appendEntityRow('role', name);
+      });
+    }
+
+    updateOrganizationSummary();
 
     function createBranchStepRow(branchType, value = '') {
       const stepRow = document.createElement('div');
