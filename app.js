@@ -1158,7 +1158,7 @@ class DiagramRenderer {
     const roleClassLines = [];
     const roleAssignments = [];
     const queueRoleStyle = (node) => {
-      if (!node || !node.role || !node.role.color || node.type === 'decision') {
+      if (!node || !node.role || !node.role.color) {
         return;
       }
       const normalized = normalizeHexColor(node.role.color);
