@@ -311,6 +311,10 @@
       grid-template-columns: minmax(0, 1fr) auto auto;
     }
 
+    .entity-row[data-entity-type='role'] {
+      grid-template-columns: minmax(0, 1fr) auto auto;
+    }
+
     .entity-input {
       width: 100%;
       border: none;
@@ -488,13 +492,21 @@
     }
 
     .step-row {
+      --role-card-bg: rgba(15, 23, 42, 0.55);
+      --role-card-border: rgba(148, 163, 184, 0.35);
+      --role-card-text: rgba(226, 232, 240, 0.92);
+      --role-card-accent: rgba(226, 232, 240, 0.85);
+      --role-card-muted: rgba(226, 232, 240, 0.7);
+      --role-card-control-bg: rgba(15, 23, 42, 0.45);
+      --role-card-control-border: rgba(148, 163, 184, 0.35);
       display: flex;
       flex-direction: column;
       gap: 0.75rem;
       padding: 0.65rem 0.75rem;
       border-radius: 14px;
-      background: rgba(15, 23, 42, 0.55);
-      border: 1px solid rgba(148, 163, 184, 0.35);
+      background: var(--role-card-bg);
+      border: 1px solid var(--role-card-border);
+      color: var(--role-card-text);
     }
 
     .step-header {
@@ -559,16 +571,13 @@
       flex-direction: column;
       gap: 0.9rem;
       padding: 0.9rem 0.85rem;
-    }
-
-    .step-row[data-type='decision'] {
-      border-color: rgba(250, 204, 21, 0.5);
-      background: rgba(250, 204, 21, 0.12);
-      color: rgba(250, 250, 250, 0.92);
-    }
-
-    .step-row[data-type='decision'] .step-label {
-      color: rgba(250, 250, 250, 0.85);
+      --role-card-bg: rgba(250, 204, 21, 0.12);
+      --role-card-border: rgba(250, 204, 21, 0.5);
+      --role-card-text: rgba(250, 250, 250, 0.92);
+      --role-card-accent: rgba(250, 250, 250, 0.85);
+      --role-card-muted: rgba(250, 250, 250, 0.75);
+      --role-card-control-bg: rgba(30, 41, 59, 0.55);
+      --role-card-control-border: rgba(245, 158, 11, 0.4);
     }
 
     .decision-header {
@@ -658,6 +667,13 @@
     }
 
     .branch-step {
+      --role-card-bg: rgba(15, 23, 42, 0.55);
+      --role-card-border: rgba(148, 163, 184, 0.25);
+      --role-card-text: rgba(226, 232, 240, 0.88);
+      --role-card-accent: rgba(226, 232, 240, 0.8);
+      --role-card-muted: rgba(226, 232, 240, 0.65);
+      --role-card-control-bg: rgba(15, 23, 42, 0.45);
+      --role-card-control-border: rgba(148, 163, 184, 0.25);
       display: grid;
       grid-template-columns: auto minmax(0, 1fr) auto;
       grid-template-rows: auto auto;
@@ -666,14 +682,15 @@
       align-items: center;
       padding: 0.5rem 0.6rem;
       border-radius: 10px;
-      background: rgba(15, 23, 42, 0.55);
-      border: 1px solid rgba(148, 163, 184, 0.25);
+      background: var(--role-card-bg);
+      border: 1px solid var(--role-card-border);
+      color: var(--role-card-text);
     }
 
     .branch-step-label {
       font-size: 0.8rem;
       font-weight: 600;
-      color: rgba(226, 232, 240, 0.8);
+      color: var(--role-card-accent);
     }
 
     .branch-step-input {
@@ -685,7 +702,7 @@
     }
 
     .branch-step-input::placeholder {
-      color: rgba(226, 232, 240, 0.45);
+      color: var(--role-card-muted);
     }
 
     .branch-step-input:focus {
@@ -719,15 +736,15 @@
       font-weight: 600;
       text-transform: uppercase;
       letter-spacing: 0.05em;
-      color: rgba(226, 232, 240, 0.7);
+      color: var(--role-card-muted);
     }
 
     .assignment-select {
       width: 100%;
       padding: 0.45rem 0.65rem;
       border-radius: 12px;
-      border: 1px solid rgba(148, 163, 184, 0.35);
-      background: rgba(15, 23, 42, 0.5);
+      border: 1px solid var(--role-card-control-border);
+      background: var(--role-card-control-bg);
       color: inherit;
       font-family: inherit;
       font-size: 0.85rem;
@@ -744,12 +761,7 @@
     }
 
     .step-row[data-type='decision'] .assignment-field-label {
-      color: rgba(250, 250, 250, 0.75);
-    }
-
-    .step-row[data-type='decision'] .assignment-select {
-      border-color: rgba(245, 158, 11, 0.4);
-      background: rgba(30, 41, 59, 0.55);
+      color: var(--role-card-muted);
     }
 
     .branch-footer {
@@ -774,7 +786,7 @@
     .step-label {
       font-weight: 600;
       font-size: 0.9rem;
-      color: rgba(226, 232, 240, 0.85);
+      color: var(--role-card-accent);
       min-width: 64px;
     }
 
@@ -787,7 +799,7 @@
     }
 
     .step-input::placeholder {
-      color: rgba(226, 232, 240, 0.45);
+      color: var(--role-card-muted);
     }
 
     .step-input:focus {
@@ -951,22 +963,23 @@
       }
 
       .step-row {
-        background: rgba(241, 245, 249, 0.9);
-        border-color: rgba(148, 163, 184, 0.4);
+        --role-card-bg: rgba(241, 245, 249, 0.9);
+        --role-card-border: rgba(148, 163, 184, 0.4);
+        --role-card-text: rgba(15, 23, 42, 0.85);
+        --role-card-accent: rgba(15, 23, 42, 0.7);
+        --role-card-muted: rgba(15, 23, 42, 0.6);
+        --role-card-control-bg: rgba(241, 245, 249, 0.88);
+        --role-card-control-border: rgba(148, 163, 184, 0.35);
       }
 
-      .step-row[data-type='decision'] {
-        background: rgba(253, 230, 138, 0.35);
-        border-color: rgba(245, 158, 11, 0.45);
-        color: rgba(120, 53, 15, 0.85);
-      }
-
-      .step-label {
-        color: rgba(15, 23, 42, 0.7);
-      }
-
-      .step-row[data-type='decision'] .step-label {
-        color: rgba(146, 64, 14, 0.8);
+      .step-row--decision {
+        --role-card-bg: rgba(253, 230, 138, 0.35);
+        --role-card-border: rgba(245, 158, 11, 0.45);
+        --role-card-text: rgba(120, 53, 15, 0.85);
+        --role-card-accent: rgba(146, 64, 14, 0.8);
+        --role-card-muted: rgba(146, 64, 14, 0.7);
+        --role-card-control-bg: rgba(253, 230, 138, 0.25);
+        --role-card-control-border: rgba(245, 158, 11, 0.45);
       }
 
       .branch-section {
@@ -979,16 +992,13 @@
       }
 
       .branch-step {
-        background: rgba(241, 245, 249, 0.85);
-        border-color: rgba(148, 163, 184, 0.3);
-      }
-
-      .branch-step-label {
-        color: rgba(15, 23, 42, 0.65);
-      }
-
-      .branch-step-input::placeholder {
-        color: rgba(15, 23, 42, 0.45);
+        --role-card-bg: rgba(241, 245, 249, 0.85);
+        --role-card-border: rgba(148, 163, 184, 0.3);
+        --role-card-text: rgba(15, 23, 42, 0.75);
+        --role-card-accent: rgba(15, 23, 42, 0.65);
+        --role-card-muted: rgba(15, 23, 42, 0.5);
+        --role-card-control-bg: rgba(241, 245, 249, 0.85);
+        --role-card-control-border: rgba(148, 163, 184, 0.3);
       }
 
       .branch-footer {
@@ -1002,23 +1012,7 @@
       }
 
       .assignment-field-label {
-        color: rgba(15, 23, 42, 0.6);
-      }
-
-      .step-row[data-type='decision'] .assignment-field-label {
-        color: rgba(146, 64, 14, 0.75);
-      }
-
-      .assignment-select {
-        background: rgba(241, 245, 249, 0.88);
-        border-color: rgba(148, 163, 184, 0.35);
-        color: #0f172a;
-      }
-
-      .step-row[data-type='decision'] .assignment-select {
-        background: rgba(253, 230, 138, 0.25);
-        border-color: rgba(245, 158, 11, 0.45);
-        color: rgba(120, 53, 15, 0.85);
+        color: var(--role-card-muted);
       }
 
       .assignment-select:disabled {
@@ -1040,7 +1034,7 @@
       }
 
       .step-input::placeholder {
-        color: rgba(15, 23, 42, 0.45);
+        color: var(--role-card-muted);
       }
 
       .icon-button {
