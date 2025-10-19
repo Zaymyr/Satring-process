@@ -18,6 +18,7 @@
       --panel-toggle-offset: calc(var(--panel-toggle-width) * 0.55);
       --panel-collapsed-peek: calc(var(--panel-toggle-width) + 0.75rem);
       --diagram-footer-space: 9.5rem;
+      --diagram-footer-peek: 3.1rem;
     }
 
     body[data-left-collapsed='true'] {
@@ -29,7 +30,7 @@
     }
 
     body[data-footer-collapsed='true'] {
-      --diagram-footer-space: 5.25rem;
+      --diagram-footer-space: calc(var(--diagram-footer-peek) + 1.4rem);
     }
 
     *,
@@ -89,7 +90,7 @@
       position: absolute;
       left: 50%;
       bottom: 2rem;
-      transform: translateX(-50%);
+      transform: translate(-50%, 0);
       width: min(1100px, calc(100% - var(--left-panel-offset) - var(--right-panel-offset)));
       padding: 0.5rem 0.6rem;
       border-radius: 18px;
@@ -106,6 +107,8 @@
 
     .diagram-footer-panel[data-collapsed='true'] {
       padding-bottom: 0.45rem;
+      transform: translate(-50%, calc(100% - var(--diagram-footer-peek)));
+      box-shadow: 0 16px 45px rgba(15, 23, 42, 0.45);
     }
 
     .diagram-footer-toggle {
@@ -1026,6 +1029,10 @@
         margin: 0 1.5rem 1.5rem;
       }
 
+      .diagram-footer-panel[data-collapsed='true'] {
+        transform: none;
+      }
+
       .side-panel {
         position: relative;
         inset: auto;
@@ -1051,7 +1058,7 @@
       }
 
       body[data-footer-collapsed='true'] {
-        --diagram-footer-space: 4.75rem;
+        --diagram-footer-space: calc(var(--diagram-footer-peek) + 1.4rem);
       }
     }
 
