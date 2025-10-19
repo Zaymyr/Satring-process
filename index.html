@@ -51,36 +51,24 @@
 
     .app-header {
       width: 100%;
-      padding: clamp(1.5rem, 3vw, 2.5rem) clamp(1rem, 4vw, 3.5rem)
-        clamp(0.6rem, 2vw, 1.4rem);
+      padding: clamp(1.6rem, 3vw, 2.6rem) clamp(1.6rem, 5vw, 4rem)
+        clamp(1.1rem, 2.5vw, 1.8rem);
       display: flex;
       justify-content: center;
-      align-items: flex-start;
+      position: relative;
+      background: linear-gradient(
+        135deg,
+        rgba(37, 99, 235, 0.36) 0%,
+        rgba(14, 165, 233, 0.25) 45%,
+        rgba(15, 23, 42, 0.82) 100%
+      );
+      border-bottom: 1px solid rgba(148, 163, 184, 0.35);
+      box-shadow: 0 18px 55px rgba(15, 23, 42, 0.6);
+      overflow: hidden;
       z-index: 2;
     }
 
-    .app-header-surface {
-      position: relative;
-      width: min(
-        1100px,
-        max(
-          0px,
-          calc(100% - max(var(--left-panel-offset), 2rem) - max(var(--right-panel-offset), 2rem))
-        )
-      );
-      padding: clamp(1.1rem, 2.4vw, 1.6rem) clamp(1.6rem, 4vw, 2.75rem);
-      border-radius: 26px;
-      background: rgba(15, 23, 42, 0.82);
-      border: 1px solid rgba(148, 163, 184, 0.28);
-      box-shadow: 0 28px 75px rgba(15, 23, 42, 0.62);
-      backdrop-filter: blur(18px);
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      overflow: hidden;
-    }
-
-    .app-header-surface::before {
+    .app-header::before {
       content: '';
       position: absolute;
       inset: 0;
@@ -91,14 +79,8 @@
           transparent 60%
         ),
         radial-gradient(circle at center, rgba(14, 165, 233, 0.18), transparent 65%);
-      opacity: 0.75;
-      mix-blend-mode: screen;
+      opacity: 0.65;
       pointer-events: none;
-    }
-
-    .app-header-surface > * {
-      position: relative;
-      z-index: 1;
     }
 
     .app-title {
@@ -108,6 +90,9 @@
       letter-spacing: 0.12em;
       text-transform: uppercase;
       color: #e0f2fe;
+      text-align: center;
+      position: relative;
+      z-index: 1;
     }
 
     main {
@@ -1267,21 +1252,25 @@
         color: rgba(30, 64, 175, 0.75);
       }
 
-      .app-header-surface {
-        background: rgba(255, 255, 255, 0.92);
-        border-color: rgba(148, 163, 184, 0.35);
+      .app-header {
+        background: linear-gradient(
+          135deg,
+          rgba(191, 219, 254, 0.9) 0%,
+          rgba(125, 211, 252, 0.75) 45%,
+          rgba(226, 232, 240, 0.92) 100%
+        );
+        border-bottom-color: rgba(148, 163, 184, 0.5);
         box-shadow: 0 24px 60px rgba(59, 130, 246, 0.18);
       }
 
-      .app-header-surface::before {
+      .app-header::before {
         background: radial-gradient(
             circle at top,
             rgba(96, 165, 250, 0.28),
             transparent 65%
           ),
           radial-gradient(circle at center, rgba(56, 189, 248, 0.22), transparent 70%);
-        mix-blend-mode: normal;
-        opacity: 0.9;
+        opacity: 0.85;
       }
 
       .app-title {
@@ -1463,9 +1452,7 @@
 </head>
 <body>
   <header class="app-header">
-    <div class="app-header-surface">
-      <h1 class="app-title">Process Maker</h1>
-    </div>
+    <h1 class="app-title">Process Maker</h1>
   </header>
   <main>
     <aside class="side-panel info-panel" data-side="left">
