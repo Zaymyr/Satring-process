@@ -46,6 +46,28 @@
       background: #0f172a;
       color: #e2e8f0;
       display: flex;
+      flex-direction: column;
+    }
+
+    .app-header {
+      width: 100%;
+      padding: clamp(1rem, 2vw, 1.75rem) clamp(1.5rem, 4vw, 3rem);
+      background: rgba(15, 23, 42, 0.9);
+      border-bottom: 1px solid rgba(148, 163, 184, 0.25);
+      box-shadow: 0 18px 45px rgba(15, 23, 42, 0.55);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 2;
+    }
+
+    .app-title {
+      margin: 0;
+      font-size: clamp(1.75rem, 3vw, 2.5rem);
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: #e0f2fe;
     }
 
     main {
@@ -54,6 +76,7 @@
       display: flex;
       min-height: 0;
       overflow: hidden;
+      width: 100%;
       background: radial-gradient(circle at top left, rgba(37, 99, 235, 0.35), transparent 55%),
         radial-gradient(circle at bottom right, rgba(14, 165, 233, 0.25), transparent 50%);
     }
@@ -603,7 +626,7 @@
       border: 0;
     }
 
-    h1 {
+    .panel-title {
       margin: 0;
       font-size: clamp(1.4rem, 2.3vw, 2rem);
       font-weight: 600;
@@ -1203,7 +1226,17 @@
         color: rgba(30, 64, 175, 0.75);
       }
 
-      h1 {
+      .app-header {
+        background: rgba(255, 255, 255, 0.92);
+        border-bottom-color: rgba(148, 163, 184, 0.35);
+        box-shadow: 0 18px 40px rgba(59, 130, 246, 0.18);
+      }
+
+      .app-title {
+        color: #1d4ed8;
+      }
+
+      .panel-title {
         color: #1d4ed8;
       }
 
@@ -1377,6 +1410,9 @@
   </style>
 </head>
 <body>
+  <header class="app-header">
+    <h1 class="app-title">Process Maker</h1>
+  </header>
   <main>
     <aside class="side-panel info-panel" data-side="left">
       <button class="icon-button panel-toggle" type="button" aria-expanded="true" aria-controls="insights-panel">
@@ -1460,7 +1496,7 @@
       </button>
       <div class="panel-body" id="builder-panel" role="region" aria-label="Process builder controls">
         <header>
-          <h1>Mermaid Process Visualizer</h1>
+          <h2 class="panel-title">Mermaid Process Visualizer</h2>
           <p>Describe your process steps and instantly render them across the canvas.</p>
         </header>
         <div class="field-group">
