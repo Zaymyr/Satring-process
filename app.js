@@ -106,6 +106,15 @@ const deriveRoleCardStyles = (baseColor) => {
   return { fill, text, accent, muted, controlBg, border, controlBorder };
 };
 
+const deriveRoleNodeStyles = (baseColor) => {
+  const fill = normalizeHexColor(baseColor);
+  return {
+    fill,
+    stroke: mixColor(fill, -0.45),
+    text: getContrastingTextColor(fill)
+  };
+};
+
 const applyRoleCardTheme = (element, color) => {
   if (!element) {
     return;
@@ -1145,13 +1154,24 @@ class DiagramRenderer {
     const registerNode = (node) => {
       nodeDeclarations.push(node);
     };
-    const roleStyleLines = [];
+    const roleClassForColor = new Map();
+    const roleClassLines = [];
+    const roleAssignments = [];
     const queueRoleStyle = (node) => {
       if (!node || !node.role || !node.role.color || node.type === 'decision') {
         return;
       }
-      const { fill, border, text } = deriveRoleCardStyles(node.role.color);
-      roleStyleLines.push(`  style ${node.id} fill:${fill},stroke:${border},color:${text},stroke-width:2px;`);
+      const normalized = normalizeHexColor(node.role.color);
+      if (!roleClassForColor.has(normalized)) {
+        const className = `roleColor${roleClassForColor.size + 1}`;
+        const { fill, stroke, text } = deriveRoleNodeStyles(normalized);
+        roleClassForColor.set(normalized, className);
+        roleClassLines.push(
+          `  classDef ${className} fill:${fill},stroke:${stroke},color:${text},stroke-width:2px;`
+        );
+      }
+      const className = roleClassForColor.get(normalized);
+      roleAssignments.push(`  class ${node.id} ${className};`);
     };
     const addEdge = (from, to, options = {}) => {
       const { label, type = '-->', hidden } = options;
@@ -1278,7 +1298,8 @@ class DiagramRenderer {
         connectBranch(entry.branches.yes, 'Yes');
         connectBranch(entry.branches.no, 'No');
       });
-    lines.push(...roleStyleLines);
+    lines.push(...roleClassLines);
+    lines.push(...roleAssignments);
     lines.push(...linkStyleLines);
     return lines.join('\n');
   }
