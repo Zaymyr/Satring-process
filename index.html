@@ -249,17 +249,9 @@
       gap: 0.9rem;
     }
 
-    .entity-section[data-collapsed='true'] {
-      gap: 0.75rem;
-    }
-
-    .entity-section[data-collapsed='true'] [data-collapsible] {
-      display: none;
-    }
-
     .entity-header {
       display: grid;
-      grid-template-columns: auto minmax(0, 1fr) auto;
+      grid-template-columns: minmax(0, 1fr) auto;
       align-items: center;
       gap: 0.75rem;
     }
@@ -271,17 +263,6 @@
       letter-spacing: 0.01em;
       text-transform: none;
       color: #bfdbfe;
-    }
-
-    .entity-collapse {
-      width: 2.15rem;
-      height: 2.15rem;
-      border-radius: 12px;
-    }
-
-    .entity-collapse-icon {
-      font-size: 0.95rem;
-      transition: transform 0.25s ease;
     }
 
     .entity-list {
@@ -333,7 +314,21 @@
     }
 
     .entity-row[data-entity-type='department'] {
-      grid-template-columns: minmax(0, 1fr) auto auto auto;
+      grid-template-columns: auto minmax(0, 1fr) auto auto auto;
+    }
+
+    .department-collapse {
+      width: 2rem;
+      height: 2rem;
+    }
+
+    .department-collapse-icon {
+      transition: transform 0.2s ease;
+      font-size: 0.95rem;
+    }
+
+    .department-node[data-collapsed='true'] .role-list {
+      display: none;
     }
 
     .entity-row[data-entity-type='role'] {
@@ -1121,12 +1116,6 @@
         border-color: rgba(148, 163, 184, 0.4);
       }
 
-      .entity-collapse {
-        border-color: rgba(148, 163, 184, 0.5);
-        background: rgba(226, 232, 240, 0.6);
-        color: #1e3a8a;
-      }
-
       .entity-input {
         color: #0f172a;
       }
@@ -1177,22 +1166,8 @@
         </header>
         <section class="info-section entity-section" aria-labelledby="departments-title">
           <div class="entity-header">
-            <button
-              class="icon-button entity-collapse"
-              type="button"
-              aria-expanded="true"
-              aria-controls="department-list"
-              aria-label="Collapse Departments section"
-            >
-              <span class="entity-collapse-icon" aria-hidden="true">⌄</span>
-            </button>
             <h3 id="departments-title">Departments</h3>
-            <button
-              id="add-department"
-              class="secondary-button"
-              type="button"
-              data-collapsible="true"
-            >
+            <button id="add-department" class="secondary-button" type="button">
               Add department
             </button>
           </div>
@@ -1202,9 +1177,8 @@
             data-empty-text="Add departments to capture who owns each phase."
             role="list"
             aria-labelledby="departments-title"
-            data-collapsible="true"
           ></div>
-          <p class="helper-text" data-collapsible="true">
+          <p class="helper-text">
             Nest roles inside each department to show how responsibilities align.
           </p>
         </section>

@@ -259,12 +259,17 @@ class DepartmentTree {
       className: 'entity-row',
       dataset: { entityType: 'department', entityId: id }
     });
+    const { button: collapseButton, icon: collapseIcon } = createIconButton(
+      'Collapse department roles',
+      '\u25BE'
+    );
+    collapseButton.classList.add('department-collapse');
+    collapseButton.setAttribute('aria-expanded', 'true');
     const input = createElement('input', {
       className: 'entity-input',
       attrs: { type: 'text', placeholder: 'Name the department', 'aria-label': 'Department name' }
     });
     input.value = value;
-    row.appendChild(input);
 
     const colorInput = createElement('input', {
       className: 'entity-color',
@@ -295,25 +300,58 @@ class DepartmentTree {
       attrs: { type: 'button' },
       text: 'Add role'
     });
-    const updateRoleButtonLabel = () => {
-      const label = input.value.trim() || 'this department';
-      addRoleButton.setAttribute('aria-label', `Add role to ${label}`);
-      addRoleButton.title = `Add role to ${label}`;
-    };
     addRoleButton.addEventListener('click', () => {
       const roleRow = this.addRole(node);
       roleRow?.querySelector('.entity-input')?.focus();
     });
-    row.appendChild(addRoleButton);
 
     const { button: removeButton } = createIconButton('Remove department', '\u00D7', () => {
       node.remove();
       this.notifyChange();
     });
-    row.appendChild(removeButton);
+
+    const rolesContainer = createElement('div', {
+      className: 'role-list',
+      attrs: { role: 'group' }
+    });
+    rolesContainer.dataset.emptyText = 'Add roles to clarify who supports this department.';
+    const rolesId = `${id}-roles`;
+    rolesContainer.id = rolesId;
+    collapseButton.setAttribute('aria-controls', rolesId);
+
+    const getDepartmentLabel = () => input.value.trim() || 'this department';
+    const updateRoleButtonLabel = () => {
+      const label = getDepartmentLabel();
+      addRoleButton.setAttribute('aria-label', `Add role to ${label}`);
+      addRoleButton.title = `Add role to ${label}`;
+    };
+    const updateCollapseLabel = () => {
+      const collapsed = node.dataset.collapsed === 'true';
+      collapseButton.setAttribute(
+        'aria-label',
+        `${collapsed ? 'Expand' : 'Collapse'} ${getDepartmentLabel()} roles`
+      );
+    };
+    const setCollapsed = (collapsed) => {
+      node.dataset.collapsed = collapsed ? 'true' : 'false';
+      rolesContainer.hidden = collapsed;
+      collapseButton.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+      if (collapseIcon) {
+        collapseIcon.textContent = collapsed ? '\u25B8' : '\u25BE';
+      }
+      updateCollapseLabel();
+    };
+
+    collapseIcon?.classList.add('department-collapse-icon');
+
+    collapseButton.addEventListener('click', () => {
+      const collapsed = node.dataset.collapsed === 'true';
+      setCollapsed(!collapsed);
+    });
 
     input.addEventListener('input', () => {
       updateRoleButtonLabel();
+      updateCollapseLabel();
       this.notifyChange();
     });
     input.addEventListener('keydown', (event) => {
@@ -324,14 +362,11 @@ class DepartmentTree {
       }
     });
 
+    row.append(collapseButton, input, colorInput, addRoleButton, removeButton);
     node.appendChild(row);
-    const rolesContainer = createElement('div', {
-      className: 'role-list',
-      attrs: { role: 'group' }
-    });
-    rolesContainer.dataset.emptyText = 'Add roles to clarify who supports this department.';
     node.appendChild(rolesContainer);
     this.container.appendChild(node);
+    setCollapsed(false);
     updateRoleButtonLabel();
 
     const roles = Array.isArray(options.roles) ? options.roles : [];
