@@ -17,6 +17,8 @@
       --panel-toggle-height: 5.25rem;
       --panel-toggle-offset: calc(var(--panel-toggle-width) * 0.55);
       --panel-collapsed-peek: calc(var(--panel-toggle-width) + 0.75rem);
+      --diagram-footer-space: 9.5rem;
+      --diagram-footer-peek: 3.1rem;
     }
 
     body[data-left-collapsed='true'] {
@@ -25,6 +27,10 @@
 
     body[data-right-collapsed='true'] {
       --right-panel-offset: 2rem;
+    }
+
+    body[data-footer-collapsed='true'] {
+      --diagram-footer-space: calc(var(--diagram-footer-peek) + 1.4rem);
     }
 
     *,
@@ -61,7 +67,8 @@
     .diagram-area {
       position: absolute;
       inset: 0;
-      padding: 2rem var(--right-panel-offset) 2rem var(--left-panel-offset);
+      padding: 2rem var(--right-panel-offset) calc(2rem + var(--diagram-footer-space))
+        var(--left-panel-offset);
       overflow: auto;
       display: flex;
       justify-content: center;
@@ -77,6 +84,160 @@
       content: 'Your diagram will appear here';
       font-size: 1rem;
       color: rgba(226, 232, 240, 0.6);
+    }
+
+    .diagram-footer-panel {
+      position: absolute;
+      left: 50%;
+      bottom: 2rem;
+      transform: translate(-50%, 0);
+      width: min(1100px, calc(100% - var(--left-panel-offset) - var(--right-panel-offset)));
+      padding: 0.5rem 0.6rem;
+      border-radius: 18px;
+      background: rgba(15, 23, 42, 0.86);
+      border: 1px solid rgba(148, 163, 184, 0.3);
+      box-shadow: 0 24px 70px rgba(15, 23, 42, 0.6);
+      backdrop-filter: blur(18px);
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+      z-index: 1;
+      transition: background 0.3s ease, border-color 0.3s ease, transform 0.3s ease;
+    }
+
+    .diagram-footer-panel[data-collapsed='true'] {
+      padding-bottom: 0.45rem;
+      transform: translate(-50%, calc(100% - var(--diagram-footer-peek)));
+      box-shadow: 0 16px 45px rgba(15, 23, 42, 0.45);
+    }
+
+    .diagram-footer-toggle {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      padding: 0.65rem 0.85rem;
+      border-radius: 14px;
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      background: rgba(15, 23, 42, 0.55);
+      color: #f8fafc;
+      font-family: inherit;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+    }
+
+    .diagram-footer-toggle:hover,
+    .diagram-footer-toggle:focus-visible {
+      background: rgba(59, 130, 246, 0.25);
+      border-color: rgba(59, 130, 246, 0.5);
+      color: #bfdbfe;
+    }
+
+    .diagram-footer-toggle:focus-visible {
+      outline: none;
+      box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.4);
+    }
+
+    .diagram-footer-title {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .diagram-footer-icon {
+      font-size: 0.95rem;
+      transition: transform 0.2s ease;
+    }
+
+    .diagram-footer-panel[data-collapsed='false'] .diagram-footer-icon {
+      transform: rotate(180deg);
+    }
+
+    .diagram-footer-content {
+      padding: 0 0.85rem 0.85rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.6rem;
+    }
+
+    .diagram-footer-controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.6rem;
+    }
+
+    .diagram-footer-switch {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.55rem 0.8rem;
+      border-radius: 14px;
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      background: rgba(15, 23, 42, 0.55);
+      cursor: pointer;
+      transition: background 0.2s ease, border-color 0.2s ease;
+    }
+
+    .diagram-footer-switch:hover,
+    .diagram-footer-switch:focus-within {
+      background: rgba(59, 130, 246, 0.25);
+      border-color: rgba(59, 130, 246, 0.5);
+    }
+
+    .diagram-footer-toggle-input {
+      appearance: none;
+      width: 2.4rem;
+      height: 1.2rem;
+      border-radius: 999px;
+      background: rgba(148, 163, 184, 0.4);
+      position: relative;
+      outline: none;
+      transition: background 0.2s ease;
+      border: 1px solid rgba(148, 163, 184, 0.5);
+    }
+
+    .diagram-footer-toggle-input::after {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 0.2rem;
+      width: 0.9rem;
+      height: 0.9rem;
+      border-radius: 50%;
+      background: #f8fafc;
+      transform: translate(0, -50%);
+      transition: transform 0.2s ease, background 0.2s ease;
+      box-shadow: 0 2px 6px rgba(15, 23, 42, 0.35);
+    }
+
+    .diagram-footer-toggle-input:checked {
+      background: rgba(37, 99, 235, 0.55);
+      border-color: rgba(37, 99, 235, 0.6);
+    }
+
+    .diagram-footer-toggle-input:checked::after {
+      transform: translate(1.1rem, -50%);
+      background: #bfdbfe;
+    }
+
+    .diagram-footer-switch-label {
+      display: flex;
+      flex-direction: column;
+      gap: 0.1rem;
+      min-width: 8rem;
+    }
+
+    .diagram-footer-switch-title {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #f8fafc;
+    }
+
+    .diagram-footer-switch-status {
+      font-size: 0.75rem;
+      color: rgba(226, 232, 240, 0.75);
     }
 
     .side-panel {
@@ -249,17 +410,9 @@
       gap: 0.9rem;
     }
 
-    .entity-section[data-collapsed='true'] {
-      gap: 0.75rem;
-    }
-
-    .entity-section[data-collapsed='true'] [data-collapsible] {
-      display: none;
-    }
-
     .entity-header {
       display: grid;
-      grid-template-columns: auto minmax(0, 1fr) auto;
+      grid-template-columns: minmax(0, 1fr) auto;
       align-items: center;
       gap: 0.75rem;
     }
@@ -271,17 +424,6 @@
       letter-spacing: 0.01em;
       text-transform: none;
       color: #bfdbfe;
-    }
-
-    .entity-collapse {
-      width: 2.15rem;
-      height: 2.15rem;
-      border-radius: 12px;
-    }
-
-    .entity-collapse-icon {
-      font-size: 0.95rem;
-      transition: transform 0.25s ease;
     }
 
     .entity-list {
@@ -296,6 +438,31 @@
       color: rgba(226, 232, 240, 0.55);
     }
 
+    .department-tree {
+      gap: 1rem;
+    }
+
+    .department-node {
+      display: flex;
+      flex-direction: column;
+      gap: 0.65rem;
+    }
+
+    .role-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.6rem;
+      margin-left: 1.65rem;
+      padding-left: 1.1rem;
+      border-left: 1px solid rgba(148, 163, 184, 0.35);
+    }
+
+    .role-list:empty::before {
+      content: attr(data-empty-text);
+      font-size: 0.82rem;
+      color: rgba(226, 232, 240, 0.5);
+    }
+
     .entity-row {
       display: grid;
       grid-template-columns: 1fr auto;
@@ -308,11 +475,50 @@
     }
 
     .entity-row[data-entity-type='department'] {
-      grid-template-columns: minmax(0, 1fr) auto auto;
+      grid-template-columns: auto minmax(0, 1fr) auto auto auto;
+    }
+
+    .department-collapse {
+      width: 2rem;
+      height: 2rem;
+    }
+
+    .department-collapse-icon {
+      transition: transform 0.2s ease;
+      font-size: 0.95rem;
+    }
+
+    .department-node[data-collapsed='true'] .role-list {
+      display: none;
     }
 
     .entity-row[data-entity-type='role'] {
       grid-template-columns: minmax(0, 1fr) auto auto;
+    }
+
+    .add-role-button {
+      padding: 0.45rem 0.85rem;
+      border-radius: 12px;
+      border: 1px solid rgba(148, 163, 184, 0.4);
+      background: rgba(15, 23, 42, 0.35);
+      color: inherit;
+      font-size: 0.85rem;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+    }
+
+    .add-role-button:hover,
+    .add-role-button:focus-visible {
+      background: rgba(37, 99, 235, 0.2);
+      border-color: rgba(59, 130, 246, 0.5);
+      color: #bfdbfe;
+    }
+
+    .add-role-button:focus-visible {
+      outline: none;
+      box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.45);
     }
 
     .entity-input {
@@ -631,6 +837,7 @@
       gap: 0.75rem;
     }
 
+    .step-row--decision.decision-collapsed > .assignment-row,
     .step-row--decision.decision-collapsed .decision-branches {
       display: none;
     }
@@ -868,8 +1075,19 @@
 
       .diagram-area {
         position: relative;
-        padding: 1.5rem;
+        padding: 1.5rem 1.5rem calc(1.5rem + var(--diagram-footer-space));
         min-height: 55vh;
+      }
+
+      .diagram-footer-panel {
+        position: static;
+        transform: none;
+        width: calc(100% - 3rem);
+        margin: 0 1.5rem 1.5rem;
+      }
+
+      .diagram-footer-panel[data-collapsed='true'] {
+        transform: none;
       }
 
       .side-panel {
@@ -894,6 +1112,10 @@
 
       .steps-list {
         max-height: 40vh;
+      }
+
+      body[data-footer-collapsed='true'] {
+        --diagram-footer-space: calc(var(--diagram-footer-peek) + 1.4rem);
       }
     }
 
@@ -931,6 +1153,54 @@
         box-shadow: 0 26px 65px rgba(37, 99, 235, 0.35);
         background: linear-gradient(160deg, rgba(191, 219, 254, 0.95), rgba(59, 130, 246, 0.6));
         border-color: rgba(37, 99, 235, 0.55);
+      }
+
+      .diagram-footer-panel {
+        background: rgba(255, 255, 255, 0.92);
+        border-color: rgba(148, 163, 184, 0.35);
+        box-shadow: 0 28px 65px rgba(59, 130, 246, 0.18);
+      }
+
+      .diagram-footer-toggle {
+        background: rgba(241, 245, 249, 0.85);
+        color: #1e3a8a;
+        border-color: rgba(148, 163, 184, 0.35);
+      }
+
+      .diagram-footer-toggle:hover,
+      .diagram-footer-toggle:focus-visible {
+        background: rgba(191, 219, 254, 0.75);
+        border-color: rgba(59, 130, 246, 0.55);
+        color: #1d4ed8;
+      }
+
+      .diagram-footer-switch {
+        background: rgba(241, 245, 249, 0.9);
+        border-color: rgba(148, 163, 184, 0.4);
+      }
+
+      .diagram-footer-switch:hover,
+      .diagram-footer-switch:focus-within {
+        background: rgba(191, 219, 254, 0.6);
+        border-color: rgba(59, 130, 246, 0.55);
+      }
+
+      .diagram-footer-toggle-input {
+        background: rgba(148, 163, 184, 0.45);
+        border-color: rgba(148, 163, 184, 0.55);
+      }
+
+      .diagram-footer-toggle-input:checked {
+        background: rgba(59, 130, 246, 0.55);
+        border-color: rgba(59, 130, 246, 0.6);
+      }
+
+      .diagram-footer-switch-title {
+        color: #1f2937;
+      }
+
+      .diagram-footer-switch-status {
+        color: rgba(30, 64, 175, 0.75);
       }
 
       h1 {
@@ -1070,18 +1340,33 @@
         border-color: rgba(148, 163, 184, 0.4);
       }
 
-      .entity-collapse {
-        border-color: rgba(148, 163, 184, 0.5);
-        background: rgba(226, 232, 240, 0.6);
-        color: #1e3a8a;
-      }
-
       .entity-input {
         color: #0f172a;
       }
 
       .entity-input::placeholder {
         color: rgba(15, 23, 42, 0.45);
+      }
+
+      .role-list {
+        border-left-color: rgba(15, 23, 42, 0.12);
+      }
+
+      .role-list:empty::before {
+        color: rgba(15, 23, 42, 0.4);
+      }
+
+      .add-role-button {
+        background: rgba(148, 163, 184, 0.18);
+        border-color: rgba(148, 163, 184, 0.35);
+        color: #0f172a;
+      }
+
+      .add-role-button:hover,
+      .add-role-button:focus-visible {
+        background: rgba(59, 130, 246, 0.18);
+        border-color: rgba(37, 99, 235, 0.45);
+        color: #1d4ed8;
       }
 
       .helper-text {
@@ -1101,78 +1386,72 @@
       <div class="panel-body" id="insights-panel" role="region" aria-label="Organization workspace">
         <header class="info-header">
           <h2>Organization context</h2>
-          <p id="org-summary">Start by adding departments and roles so your flow mirrors real teams.</p>
+          <p id="org-summary">Start by adding departments and linking the roles that support them.</p>
         </header>
         <section class="info-section entity-section" aria-labelledby="departments-title">
           <div class="entity-header">
-            <button
-              class="icon-button entity-collapse"
-              type="button"
-              aria-expanded="true"
-              aria-controls="department-list"
-              aria-label="Collapse Departments section"
-            >
-              <span class="entity-collapse-icon" aria-hidden="true">⌄</span>
-            </button>
             <h3 id="departments-title">Departments</h3>
-            <button
-              id="add-department"
-              class="secondary-button"
-              type="button"
-              data-collapsible="true"
-            >
+            <button id="add-department" class="secondary-button" type="button">
               Add department
             </button>
           </div>
           <div
             id="department-list"
-            class="entity-list"
+            class="entity-list department-tree"
             data-empty-text="Add departments to capture who owns each phase."
             role="list"
             aria-labelledby="departments-title"
-            data-collapsible="true"
           ></div>
-          <p class="helper-text" data-collapsible="true">
-            Use departments to highlight which teams drive each milestone.
-          </p>
-        </section>
-        <section class="info-section entity-section" aria-labelledby="roles-title">
-          <div class="entity-header">
-            <button
-              class="icon-button entity-collapse"
-              type="button"
-              aria-expanded="true"
-              aria-controls="role-list"
-              aria-label="Collapse Roles section"
-            >
-              <span class="entity-collapse-icon" aria-hidden="true">⌄</span>
-            </button>
-            <h3 id="roles-title">Roles</h3>
-            <button
-              id="add-role"
-              class="secondary-button"
-              type="button"
-              data-collapsible="true"
-            >
-              Add role
-            </button>
-          </div>
-          <div
-            id="role-list"
-            class="entity-list"
-            data-empty-text="Record the key roles collaborating in this journey."
-            role="list"
-            aria-labelledby="roles-title"
-            data-collapsible="true"
-          ></div>
-          <p class="helper-text" data-collapsible="true">
-            Pair roles with steps to clarify ownership and expectations.
+          <p class="helper-text">
+            Nest roles inside each department to show how responsibilities align.
           </p>
         </section>
       </div>
     </aside>
     <div class="diagram-stage">
       <div id="diagram" class="diagram-area"></div>
+      <section id="diagram-footer" class="diagram-footer-panel" data-collapsed="true">
+        <button
+          id="diagram-footer-toggle"
+          class="diagram-footer-toggle"
+          type="button"
+          aria-expanded="false"
+          aria-controls="diagram-footer-content"
+        >
+          <span class="diagram-footer-title">Diagram layers</span>
+          <span class="diagram-footer-icon" aria-hidden="true">⌃</span>
+        </button>
+        <div id="diagram-footer-content" class="diagram-footer-content" hidden>
+          <div class="diagram-footer-controls" role="group" aria-label="Diagram layer visibility">
+            <label class="diagram-footer-switch">
+              <input
+                id="diagram-pref-departments"
+                class="diagram-footer-toggle-input"
+                type="checkbox"
+                data-diagram-preference="showDepartments"
+                checked
+              />
+              <span class="diagram-footer-switch-label">
+                <span class="diagram-footer-switch-title">Departments</span>
+                <span class="diagram-footer-switch-status" data-status-for="showDepartments">Visible</span>
+              </span>
+            </label>
+            <label class="diagram-footer-switch">
+              <input
+                id="diagram-pref-roles"
+                class="diagram-footer-toggle-input"
+                type="checkbox"
+                data-diagram-preference="showRoles"
+                checked
+              />
+              <span class="diagram-footer-switch-label">
+                <span class="diagram-footer-switch-title">Roles &amp; colors</span>
+                <span class="diagram-footer-switch-status" data-status-for="showRoles">Visible</span>
+              </span>
+            </label>
+          </div>
+        </div>
+      </section>
     </div>
     <aside class="side-panel controls-panel" data-side="right">
       <button class="icon-button panel-toggle" type="button" aria-expanded="true" aria-controls="builder-panel">

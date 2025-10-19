@@ -9,11 +9,14 @@ const dom = {
   stepsList: document.getElementById('steps-list'),
   addDepartmentButton: document.getElementById('add-department'),
   departmentList: document.getElementById('department-list'),
-  addRoleButton: document.getElementById('add-role'),
-  roleList: document.getElementById('role-list'),
   orgSummary: document.getElementById('org-summary'),
   panelToggles: document.querySelectorAll('.panel-toggle'),
-  entitySections: document.querySelectorAll('.entity-section')
+  entitySections: document.querySelectorAll('.entity-section'),
+  diagramFooter: document.getElementById('diagram-footer'),
+  diagramFooterToggle: document.getElementById('diagram-footer-toggle'),
+  diagramFooterContent: document.getElementById('diagram-footer-content'),
+  diagramPreferenceDepartments: document.getElementById('diagram-pref-departments'),
+  diagramPreferenceRoles: document.getElementById('diagram-pref-roles')
 };
 
 const defaultDepartmentColors = ['#0ea5e9', '#22c55e', '#f97316', '#a855f7', '#facc15', '#ef4444', '#14b8a6'];
@@ -209,19 +212,29 @@ class ColorPalette {
   }
 }
 
-class EntityList {
-  constructor({ type, container, addButton, onChange, palette, colorFallback }) {
-    this.type = type;
+class DepartmentTree {
+  constructor({
+    container,
+    addButton,
+    onChange,
+    departmentPalette,
+    rolePalette,
+    departmentColorFallback = '#082f49',
+    roleColorFallback = '#2563eb'
+  }) {
     this.container = container;
     this.addButton = addButton;
     this.onChange = onChange;
-    this.palette = palette;
-    this.colorFallback = normalizeHexColor(colorFallback || '#082f49');
-    this.counter = 0;
+    this.departmentPalette = departmentPalette;
+    this.rolePalette = rolePalette;
+    this.departmentColorFallback = normalizeHexColor(departmentColorFallback, '#082f49');
+    this.roleColorFallback = normalizeHexColor(roleColorFallback, '#2563eb');
+    this.departmentCounter = 0;
+    this.roleCounter = 0;
     if (this.addButton) {
       this.addButton.addEventListener('click', () => {
-        const row = this.add();
-        row?.querySelector('.entity-input')?.focus();
+        const node = this.addDepartment();
+        node?.querySelector('.entity-input')?.focus();
       });
     }
   }
@@ -232,141 +245,321 @@ class EntityList {
     }
   }
 
-  add(value = '', options = {}) {
+  isEmpty() {
+    return !this.container || this.container.childElementCount === 0;
+  }
+
+  addDepartment(value = '', options = {}) {
     if (!this.container) {
       return null;
     }
-    this.counter += 1;
-    const id = `${this.type}-${this.counter}`;
+    this.departmentCounter += 1;
+    const id = options.id || `department-${this.departmentCounter}`;
+    const node = createElement('div', {
+      className: 'department-node',
+      dataset: { entityId: id, entityType: 'department' },
+      attrs: { role: 'listitem' }
+    });
     const row = createElement('div', {
       className: 'entity-row',
-      dataset: { entityType: this.type, entityId: id, entityOrder: this.counter },
+      dataset: { entityType: 'department', entityId: id }
+    });
+    const { button: collapseButton, icon: collapseIcon } = createIconButton(
+      'Collapse department roles',
+      '\u25BE'
+    );
+    collapseButton.classList.add('department-collapse');
+    collapseButton.setAttribute('aria-expanded', 'true');
+    const input = createElement('input', {
+      className: 'entity-input',
+      attrs: { type: 'text', placeholder: 'Name the department', 'aria-label': 'Department name' }
+    });
+    input.value = value;
+
+    const colorInput = createElement('input', {
+      className: 'entity-color',
+      attrs: {
+        type: 'color',
+        'aria-label': 'Department color',
+        title: 'Pick department color'
+      }
+    });
+    const initialColor = normalizeHexColor(
+      options.color || this.departmentPalette?.next() || this.departmentColorFallback,
+      this.departmentColorFallback
+    );
+    colorInput.value = initialColor;
+    row.dataset.entityColor = initialColor;
+    colorInput.addEventListener('input', () => {
+      const normalized = normalizeHexColor(colorInput.value, this.departmentColorFallback);
+      row.dataset.entityColor = normalized;
+      if (colorInput.value !== normalized) {
+        colorInput.value = normalized;
+      }
+      this.notifyChange();
+    });
+    row.appendChild(colorInput);
+
+    const addRoleButton = createElement('button', {
+      className: 'add-role-button',
+      attrs: { type: 'button' },
+      text: 'Add role'
+    });
+    addRoleButton.addEventListener('click', () => {
+      const roleRow = this.addRole(node);
+      roleRow?.querySelector('.entity-input')?.focus();
+    });
+
+    const { button: removeButton } = createIconButton('Remove department', '\u00D7', () => {
+      node.remove();
+      this.notifyChange();
+    });
+
+    const rolesContainer = createElement('div', {
+      className: 'role-list',
+      attrs: { role: 'group' }
+    });
+    rolesContainer.dataset.emptyText = 'Add roles to clarify who supports this department.';
+    const rolesId = `${id}-roles`;
+    rolesContainer.id = rolesId;
+    collapseButton.setAttribute('aria-controls', rolesId);
+
+    const getDepartmentLabel = () => input.value.trim() || 'this department';
+    const updateRoleButtonLabel = () => {
+      const label = getDepartmentLabel();
+      addRoleButton.setAttribute('aria-label', `Add role to ${label}`);
+      addRoleButton.title = `Add role to ${label}`;
+    };
+    const updateCollapseLabel = () => {
+      const collapsed = node.dataset.collapsed === 'true';
+      collapseButton.setAttribute(
+        'aria-label',
+        `${collapsed ? 'Expand' : 'Collapse'} ${getDepartmentLabel()} roles`
+      );
+    };
+    const setCollapsed = (collapsed) => {
+      node.dataset.collapsed = collapsed ? 'true' : 'false';
+      rolesContainer.hidden = collapsed;
+      collapseButton.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+      if (collapseIcon) {
+        collapseIcon.textContent = collapsed ? '\u25B8' : '\u25BE';
+      }
+      updateCollapseLabel();
+    };
+
+    collapseIcon?.classList.add('department-collapse-icon');
+
+    collapseButton.addEventListener('click', () => {
+      const collapsed = node.dataset.collapsed === 'true';
+      setCollapsed(!collapsed);
+    });
+
+    input.addEventListener('input', () => {
+      updateRoleButtonLabel();
+      updateCollapseLabel();
+      this.notifyChange();
+    });
+    input.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        const newNode = this.addDepartment();
+        newNode?.querySelector('.entity-input')?.focus();
+      }
+    });
+
+    row.append(collapseButton, input, colorInput, addRoleButton, removeButton);
+    node.appendChild(row);
+    node.appendChild(rolesContainer);
+    this.container.appendChild(node);
+    setCollapsed(false);
+    updateRoleButtonLabel();
+
+    const roles = Array.isArray(options.roles) ? options.roles : [];
+    roles.forEach((role) => {
+      if (typeof role === 'string') {
+        this.addRole(node, role);
+      } else if (role && typeof role === 'object') {
+        this.addRole(node, role.value || '', role);
+      }
+    });
+
+    this.notifyChange();
+    return node;
+  }
+
+  addRole(departmentNode, value = '', options = {}) {
+    if (!departmentNode) {
+      return null;
+    }
+    const departmentId = departmentNode.dataset.entityId;
+    const rolesContainer = departmentNode.querySelector('.role-list');
+    if (!rolesContainer) {
+      return null;
+    }
+    this.roleCounter += 1;
+    const id = options.id || `role-${this.roleCounter}`;
+    const row = createElement('div', {
+      className: 'entity-row',
+      dataset: { entityType: 'role', entityId: id, parentDepartment: departmentId },
       attrs: { role: 'listitem' }
     });
     const input = createElement('input', {
       className: 'entity-input',
-      attrs: {
-        type: 'text',
-        placeholder: this.type === 'department' ? 'Name the department' : 'Name the role',
-        'aria-label': this.type === 'department' ? 'Department name' : 'Role name'
-      }
+      attrs: { type: 'text', placeholder: 'Name the role', 'aria-label': 'Role name' }
     });
     input.value = value;
     input.addEventListener('input', () => this.notifyChange());
     input.addEventListener('keydown', (event) => {
       if (event.key === 'Enter') {
         event.preventDefault();
-        const newRow = this.add();
+        const newRow = this.addRole(departmentNode);
         newRow?.querySelector('.entity-input')?.focus();
       }
     });
     row.appendChild(input);
 
-    if (this.palette) {
-      const colorInput = createElement('input', {
-        className: 'entity-color',
-        attrs: {
-          type: 'color',
-          'aria-label': this.type === 'department' ? 'Department color' : 'Role color',
-          title: this.type === 'department' ? 'Pick department color' : 'Pick role color'
-        }
-      });
-      const initialColor = normalizeHexColor(options.color || this.palette?.next() || this.colorFallback);
-      colorInput.value = initialColor;
-      row.dataset.entityColor = initialColor;
-      colorInput.addEventListener('input', () => {
-        const normalized = normalizeHexColor(colorInput.value);
-        row.dataset.entityColor = normalized;
-        if (colorInput.value !== normalized) {
-          colorInput.value = normalized;
-        }
-        this.notifyChange();
-      });
-      row.appendChild(colorInput);
-    }
-
-    const { button: removeButton } = createIconButton(
-      this.type === 'department' ? 'Remove department' : 'Remove role',
-      '\u00D7',
-      () => {
-        row.remove();
-        this.notifyChange();
+    const colorInput = createElement('input', {
+      className: 'entity-color',
+      attrs: {
+        type: 'color',
+        'aria-label': 'Role color',
+        title: 'Pick role color'
       }
+    });
+    const initialColor = normalizeHexColor(
+      options.color || this.rolePalette?.next() || this.roleColorFallback,
+      this.roleColorFallback
     );
+    colorInput.value = initialColor;
+    row.dataset.entityColor = initialColor;
+    colorInput.addEventListener('input', () => {
+      const normalized = normalizeHexColor(colorInput.value, this.roleColorFallback);
+      row.dataset.entityColor = normalized;
+      if (colorInput.value !== normalized) {
+        colorInput.value = normalized;
+      }
+      this.notifyChange();
+    });
+    row.appendChild(colorInput);
+
+    const { button: removeButton } = createIconButton('Remove role', '\u00D7', () => {
+      row.remove();
+      this.notifyChange();
+    });
     row.appendChild(removeButton);
 
-    this.container.appendChild(row);
+    rolesContainer.appendChild(row);
     this.notifyChange();
     return row;
   }
 
-  isEmpty() {
-    return !this.container || this.container.childElementCount === 0;
+  countDepartmentsFilled() {
+    if (!this.container) {
+      return 0;
+    }
+    return Array.from(
+      this.container.querySelectorAll(
+        ".department-node .entity-row[data-entity-type='department'] .entity-input"
+      )
+    ).filter((input) => input.value.trim().length > 0).length;
   }
 
-  getEntries() {
+  countRolesFilled() {
+    if (!this.container) {
+      return 0;
+    }
+    return Array.from(
+      this.container.querySelectorAll(
+        ".department-node .entity-row[data-entity-type='role'] .entity-input"
+      )
+    ).filter((input) => input.value.trim().length > 0).length;
+  }
+
+  getDepartments() {
     if (!this.container) {
       return [];
     }
-    const rows = Array.from(this.container.querySelectorAll('.entity-row'));
-    return rows
-      .map((row, index) => {
-        const id = row.dataset.entityId;
-        if (!id) {
+    const nodes = Array.from(this.container.querySelectorAll('.department-node'));
+    return nodes
+      .map((node, index) => {
+        const row = node.querySelector(".entity-row[data-entity-type='department']");
+        if (!row) {
           return null;
         }
         const input = row.querySelector('.entity-input');
-        row.dataset.entityOrder = String(index + 1);
-        const fallbackPrefix = this.type === 'department' ? 'Department' : 'Role';
-        const fallback = `${fallbackPrefix} ${index + 1}`;
+        const fallback = `Department ${index + 1}`;
         const label = (input?.value || '').trim() || fallback;
-        const entry = { id, label };
-        if (this.palette) {
-          const colorInput = row.querySelector('.entity-color');
-          const color = normalizeHexColor(
-            colorInput?.value || row.dataset.entityColor || this.colorFallback,
-            this.colorFallback
-          );
-          row.dataset.entityColor = color;
-          if (colorInput && colorInput.value !== color) {
-            colorInput.value = color;
-          }
-          entry.color = color;
+        node.dataset.entityOrder = String(index + 1);
+        const colorInput = row.querySelector('.entity-color');
+        const color = normalizeHexColor(
+          colorInput?.value || row.dataset.entityColor || this.departmentColorFallback,
+          this.departmentColorFallback
+        );
+        row.dataset.entityColor = color;
+        if (colorInput && colorInput.value !== color) {
+          colorInput.value = color;
         }
-        return entry;
+        return { id: node.dataset.entityId, label, color };
       })
       .filter(Boolean);
   }
 
-  countFilled() {
+  getRoles() {
     if (!this.container) {
-      return 0;
+      return [];
     }
-    return Array.from(this.container.querySelectorAll('.entity-input')).filter(
-      (input) => input.value.trim().length > 0
-    ).length;
+    const departments = this.getDepartments();
+    const departmentLookup = new Map(departments.map((entry) => [entry.id, entry]));
+    const nodes = Array.from(this.container.querySelectorAll('.department-node'));
+    const roles = [];
+    nodes.forEach((node, deptIndex) => {
+      const departmentId = node.dataset.entityId;
+      const departmentEntry = departmentLookup.get(departmentId);
+      const departmentLabel = departmentEntry?.label || `Department ${deptIndex + 1}`;
+      const rolesContainer = node.querySelector('.role-list');
+      if (!rolesContainer) {
+        return;
+      }
+      const rows = Array.from(rolesContainer.querySelectorAll(".entity-row[data-entity-type='role']"));
+      rows.forEach((row, roleIndex) => {
+        const input = row.querySelector('.entity-input');
+        const fallback = `Role ${roleIndex + 1}`;
+        const roleName = (input?.value || '').trim() || fallback;
+        row.dataset.entityOrder = String(roleIndex + 1);
+        const colorInput = row.querySelector('.entity-color');
+        const color = normalizeHexColor(
+          colorInput?.value || row.dataset.entityColor || this.roleColorFallback,
+          this.roleColorFallback
+        );
+        row.dataset.entityColor = color;
+        if (colorInput && colorInput.value !== color) {
+          colorInput.value = color;
+        }
+        const combinedLabel = departmentLabel ? `${roleName} • ${departmentLabel}` : roleName;
+        roles.push({
+          id: row.dataset.entityId,
+          label: combinedLabel,
+          color,
+          departmentId,
+          departmentLabel,
+          roleName
+        });
+      });
+    });
+    return roles;
   }
 }
 
 class OrgManager {
-  constructor({ departmentContainer, departmentButton, roleContainer, roleButton, summary }) {
-    const palette = new ColorPalette(defaultDepartmentColors);
-    this.departmentList = new EntityList({
-      type: 'department',
+  constructor({ departmentContainer, departmentButton, summary }) {
+    this.tree = new DepartmentTree({
       container: departmentContainer,
       addButton: departmentButton,
       onChange: () => this.handleChange(),
-      palette,
-      colorFallback: '#082f49'
-    });
-    const rolePalette = new ColorPalette(defaultRoleColors);
-    this.roleList = new EntityList({
-      type: 'role',
-      container: roleContainer,
-      addButton: roleButton,
-      onChange: () => this.handleChange(),
-      palette: rolePalette,
-      colorFallback: '#2563eb'
+      departmentPalette: new ColorPalette(defaultDepartmentColors),
+      rolePalette: new ColorPalette(defaultRoleColors),
+      departmentColorFallback: '#082f49',
+      roleColorFallback: '#2563eb'
     });
     this.summaryEl = summary;
     this.changeListeners = new Set();
@@ -375,11 +568,15 @@ class OrgManager {
   }
 
   ensureDefaults() {
-    if (this.departmentList.isEmpty()) {
-      ['Operations', 'Customer Success'].forEach((name) => this.departmentList.add(name));
-    }
-    if (this.roleList.isEmpty()) {
-      ['Process Owner', 'Reviewer'].forEach((name) => this.roleList.add(name));
+    if (this.tree.isEmpty()) {
+      const defaults = [
+        { name: 'Operations', roles: ['Process Owner'] },
+        { name: 'Customer Success', roles: ['Reviewer'] }
+      ];
+      defaults.forEach(({ name, roles }) => {
+        const node = this.tree.addDepartment(name);
+        (roles || []).forEach((roleName) => this.tree.addRole(node, roleName));
+      });
     }
   }
 
@@ -402,10 +599,10 @@ class OrgManager {
     if (!this.summaryEl) {
       return;
     }
-    const departmentCount = this.departmentList.countFilled();
-    const roleCount = this.roleList.countFilled();
+    const departmentCount = this.tree.countDepartmentsFilled();
+    const roleCount = this.tree.countRolesFilled();
     if (departmentCount === 0 && roleCount === 0) {
-      this.summaryEl.textContent = 'Start by adding departments and roles so your flow mirrors real teams.';
+      this.summaryEl.textContent = 'Start by adding departments and linking the roles that support them.';
       return;
     }
     const parts = [];
@@ -415,15 +612,15 @@ class OrgManager {
     if (roleCount > 0) {
       parts.push(`${roleCount} ${roleCount === 1 ? 'role' : 'roles'}`);
     }
-    this.summaryEl.textContent = `Tracking ${parts.join(' and ')} for this journey.`;
+    this.summaryEl.textContent = `Tracking ${parts.join(' and ')} across your journey.`;
   }
 
   getDepartments() {
-    return this.departmentList.getEntries();
+    return this.tree.getDepartments();
   }
 
   getRoles() {
-    return this.roleList.getEntries();
+    return this.tree.getRoles();
   }
 
   getAssignmentOptions() {
@@ -445,13 +642,17 @@ class OrgManager {
         entry.id,
         {
           id: entry.id,
-          label: sanitizeLabel(entry.label, entry.label),
-          color: entry.color
+          label: sanitizeLabel(entry.roleName || entry.label, entry.roleName || entry.label),
+          color: entry.color,
+          departmentId: entry.departmentId,
+          departmentLabel: entry.departmentLabel,
+          roleName: entry.roleName
         }
       ])
     );
   }
 }
+
 
 class AssignmentGroup {
   constructor({ context = 'step', variant, onChange }) {
@@ -461,6 +662,7 @@ class AssignmentGroup {
     this.element = createElement('div', {
       className: ['assignment-row', variant ? `assignment-row--${variant}` : ''].filter(Boolean).join(' ')
     });
+    this.allRoles = [];
     this.departmentSelect = this.createSelect('department', `Assign department for this ${contextLabel}`);
     this.roleSelect = this.createSelect('role', `Assign role for this ${contextLabel}`);
     this.element.appendChild(this.buildField('Department', this.departmentSelect));
@@ -473,7 +675,12 @@ class AssignmentGroup {
       dataset: { type },
       attrs: { 'aria-label': label }
     });
-    select.addEventListener('change', () => this.onChange());
+    select.addEventListener('change', () => {
+      if (type === 'department') {
+        this.filterRolesByDepartment();
+      }
+      this.onChange();
+    });
     return select;
   }
 
@@ -484,16 +691,17 @@ class AssignmentGroup {
     ]);
   }
 
-  populateSelect(select, entries) {
+  populateSelect(select, entries, placeholderOverride) {
     const previous = select.value;
     const category = select.dataset.type || (select === this.departmentSelect ? 'department' : 'role');
     select.innerHTML = '';
     const placeholder = createElement('option', {
       attrs: { value: '' },
       text:
-        entries.length === 0
+        placeholderOverride ||
+        (entries.length === 0
           ? `Add ${category === 'department' ? 'departments' : 'roles'} to assign`
-          : `Unassigned ${category}`
+          : `Unassigned ${category}`)
     });
     select.appendChild(placeholder);
     entries.forEach((entry) => {
@@ -516,7 +724,28 @@ class AssignmentGroup {
 
   updateOptions({ departments, roles }) {
     this.populateSelect(this.departmentSelect, departments);
-    this.populateSelect(this.roleSelect, roles);
+    this.allRoles = Array.isArray(roles) ? roles : [];
+    this.filterRolesByDepartment();
+  }
+
+  filterRolesByDepartment() {
+    if (!this.roleSelect) {
+      return;
+    }
+    const selectedDepartment = this.departmentSelect?.value || '';
+    const roleEntries = (selectedDepartment
+      ? this.allRoles.filter((role) => role.departmentId === selectedDepartment)
+      : this.allRoles
+    ).map((role) => ({
+      id: role.id,
+      label: role.roleName || role.label,
+      color: role.color
+    }));
+    const placeholderOverride =
+      selectedDepartment && this.allRoles.length > 0 && roleEntries.length === 0
+        ? 'No roles in this department'
+        : undefined;
+    this.populateSelect(this.roleSelect, roleEntries, placeholderOverride);
   }
 
   collect({ departmentLookup, roleLookup }) {
@@ -623,6 +852,8 @@ class BranchStepRow {
     return {
       id: `${parentId}_${this.branchType}${index}`,
       label: displayLabel,
+      baseLabel: label,
+      roleLabel: inlineParts[0] || null,
       departmentLane: assignment.department,
       role: assignment.role
     };
@@ -818,6 +1049,8 @@ class ProcessRow {
     return {
       id: this.id,
       label: displayLabel,
+      baseLabel: label,
+      roleLabel: inlineParts[0] || null,
       type: 'process',
       departmentLane: assignment.department,
       role: assignment.role
@@ -931,6 +1164,8 @@ class DecisionRow {
     return {
       id: this.id,
       label: displayLabel,
+      baseLabel: label,
+      roleLabel: inlineParts[0] || null,
       type: 'decision',
       departmentLane: assignment.department,
       role: assignment.role,
@@ -1120,17 +1355,32 @@ class StepManager {
 }
 
 class DiagramRenderer {
-  constructor({ diagramEl, stepManager, orgManager, startInput, endInput }) {
+  constructor({ diagramEl, stepManager, orgManager, startInput, endInput, preferences }) {
     this.diagramEl = diagramEl;
     this.stepManager = stepManager;
     this.orgManager = orgManager;
     this.startInput = startInput;
     this.endInput = endInput;
+    this.preferences = {
+      showDepartments: true,
+      showRoles: true,
+      ...(typeof preferences === 'object' && preferences !== null ? preferences : {})
+    };
     mermaid.initialize({
       startOnLoad: false,
       securityLevel: 'strict',
       theme: window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'default'
     });
+  }
+
+  updatePreferences(preferences) {
+    if (!preferences || typeof preferences !== 'object') {
+      return;
+    }
+    this.preferences = {
+      ...this.preferences,
+      ...preferences
+    };
   }
 
   buildDefinition() {
@@ -1139,6 +1389,8 @@ class DiagramRenderer {
     const departmentLookup = this.orgManager.getDepartmentLookup();
     const roleLookup = this.orgManager.getRoleLookup();
     const entries = this.stepManager.collectEntries({ departmentLookup, roleLookup });
+    const showDepartments = this.preferences?.showDepartments !== false;
+    const showRoles = this.preferences?.showRoles !== false;
     const lines = [
       'flowchart TD',
       '  classDef start fill:#22c55e,color:#052e16,stroke:#16a34a,stroke-width:2px;',
@@ -1158,7 +1410,7 @@ class DiagramRenderer {
     const roleClassLines = [];
     const roleAssignments = [];
     const queueRoleStyle = (node) => {
-      if (!node || !node.role || !node.role.color) {
+      if (!showRoles || !node || !node.role || !node.role.color) {
         return;
       }
       const normalized = normalizeHexColor(node.role.color);
@@ -1172,6 +1424,17 @@ class DiagramRenderer {
       }
       const className = roleClassForColor.get(normalized);
       roleAssignments.push(`  class ${node.id} ${className};`);
+    };
+    const emitNode = (node, indent) => {
+      const variant = node.variant === 'decision' ? 'decision' : 'step';
+      const labelText = showRoles
+        ? node.label ?? node.baseLabel ?? ''
+        : node.baseLabel ?? node.label ?? '';
+      const opening = variant === 'decision' ? '{' : '[';
+      const closing = variant === 'decision' ? '}' : ']';
+      const safeLabel = labelText || '';
+      lines.push(`${indent}${node.id}${opening}"${safeLabel}"${closing}:::${variant}`);
+      queueRoleStyle(node);
     };
     const addEdge = (from, to, options = {}) => {
       const { label, type = '-->', hidden } = options;
@@ -1188,7 +1451,9 @@ class DiagramRenderer {
       if (entry.type === 'decision') {
         registerNode({
           id: entry.id,
-          line: `${entry.id}{"${entry.label}"}:::decision`,
+          variant: 'decision',
+          label: entry.label,
+          baseLabel: entry.baseLabel,
           department: entry.departmentLane,
           role: entry.role,
           type: 'decision'
@@ -1196,7 +1461,9 @@ class DiagramRenderer {
         entry.branches.yes.steps.forEach((step) => {
           registerNode({
             id: step.id,
-            line: `${step.id}["${step.label}"]:::step`,
+            variant: 'step',
+            label: step.label,
+            baseLabel: step.baseLabel,
             department: step.departmentLane,
             role: step.role,
             type: 'branch'
@@ -1205,7 +1472,9 @@ class DiagramRenderer {
         entry.branches.no.steps.forEach((step) => {
           registerNode({
             id: step.id,
-            line: `${step.id}["${step.label}"]:::step`,
+            variant: 'step',
+            label: step.label,
+            baseLabel: step.baseLabel,
             department: step.departmentLane,
             role: step.role,
             type: 'branch'
@@ -1214,7 +1483,9 @@ class DiagramRenderer {
       } else {
         registerNode({
           id: entry.id,
-          line: `${entry.id}["${entry.label}"]:::step`,
+          variant: 'step',
+          label: entry.label,
+          baseLabel: entry.baseLabel,
           department: entry.departmentLane,
           role: entry.role,
           type: 'process'
@@ -1225,10 +1496,9 @@ class DiagramRenderer {
     const departmentOrder = [];
     let departmentCounter = 0;
     nodeDeclarations.forEach((node) => {
-      const { line, department } = node;
-      if (!department || !department.id) {
-        lines.push(`  ${line}`);
-        queueRoleStyle(node);
+      const { department } = node;
+      if (!showDepartments || !department || !department.id) {
+        emitNode(node, '  ');
         return;
       }
       if (!departmentGroups.has(department.id)) {
@@ -1243,25 +1513,26 @@ class DiagramRenderer {
       }
       departmentGroups.get(department.id).nodes.push(node);
     });
-    departmentOrder.forEach((departmentId) => {
-      const { laneId, label, color, nodes } = departmentGroups.get(departmentId);
-      lines.push(`  subgraph ${laneId}["${label}"]`);
-      lines.push('    direction TB');
-      nodes.forEach((node) => {
-        lines.push(`    ${node.line}`);
-        queueRoleStyle(node);
+    if (showDepartments) {
+      departmentOrder.forEach((departmentId) => {
+        const { laneId, label, color, nodes } = departmentGroups.get(departmentId);
+        lines.push(`  subgraph ${laneId}["${label}"]`);
+        lines.push('    direction TB');
+        nodes.forEach((node) => {
+          emitNode(node, '    ');
+        });
+        lines.push('  end');
+        if (color) {
+          const { fill, stroke, text } = deriveLaneColors(color);
+          lines.push(
+            `  classDef ${laneId} fill:${fill},color:${text},stroke:${stroke},stroke-width:1.5px,stroke-dasharray:6 4;`
+          );
+          lines.push(`  class ${laneId} ${laneId};`);
+        } else {
+          lines.push(`  class ${laneId} departmentLane;`);
+        }
       });
-      lines.push('  end');
-      if (color) {
-        const { fill, stroke, text } = deriveLaneColors(color);
-        lines.push(
-          `  classDef ${laneId} fill:${fill},color:${text},stroke:${stroke},stroke-width:1.5px,stroke-dasharray:6 4;`
-        );
-        lines.push(`  class ${laneId} ${laneId};`);
-      } else {
-        lines.push(`  class ${laneId} departmentLane;`);
-      }
-    });
+    }
     lines.push(`  finish((${endLabel})):::finish`);
     if (entries.length === 0) {
       addEdge('start', 'finish');
@@ -1298,8 +1569,10 @@ class DiagramRenderer {
         connectBranch(entry.branches.yes, 'Yes');
         connectBranch(entry.branches.no, 'No');
       });
-    lines.push(...roleClassLines);
-    lines.push(...roleAssignments);
+    if (showRoles) {
+      lines.push(...roleClassLines);
+      lines.push(...roleAssignments);
+    }
     lines.push(...linkStyleLines);
     return lines.join('\n');
   }
@@ -1401,13 +1674,99 @@ class PanelManager {
   }
 }
 
+class DiagramFooter {
+  constructor({ container, toggle, content, preferenceInputs, onPreferenceChange }) {
+    this.container = container || null;
+    this.toggle = toggle || null;
+    this.content = content || null;
+    this.preferenceInputs = preferenceInputs || {};
+    this.onPreferenceChange = typeof onPreferenceChange === 'function' ? onPreferenceChange : null;
+    this.icon = this.toggle?.querySelector('.diagram-footer-icon') || null;
+    this.preferences = {
+      showDepartments: true,
+      showRoles: true
+    };
+    const collapsed = this.container?.dataset.collapsed !== 'false';
+    this.setCollapsed(collapsed);
+    if (this.toggle) {
+      this.toggle.addEventListener('click', () => {
+        this.setCollapsed(!this.isCollapsed());
+      });
+    }
+    this.initPreferenceControls();
+  }
+
+  initPreferenceControls() {
+    const keys = ['showDepartments', 'showRoles'];
+    keys.forEach((key) => {
+      const input = this.preferenceInputs?.[key] || null;
+      const initial = input ? input.checked !== false : true;
+      this.preferences[key] = initial;
+      if (input) {
+        input.checked = initial;
+        input.addEventListener('change', () => {
+          this.preferences[key] = input.checked;
+          this.updatePreferenceLabel(key);
+          this.emitPreferenceChange();
+        });
+      }
+      this.updatePreferenceLabel(key);
+    });
+    this.emitPreferenceChange();
+  }
+
+  updatePreferenceLabel(key) {
+    if (!this.content) {
+      return;
+    }
+    const status = this.content.querySelector(`[data-status-for="${key}"]`);
+    if (status) {
+      status.textContent = this.preferences[key] ? 'Visible' : 'Hidden';
+    }
+  }
+
+  emitPreferenceChange() {
+    if (this.onPreferenceChange) {
+      this.onPreferenceChange(this.getPreferences());
+    }
+  }
+
+  getPreferences() {
+    return { ...this.preferences };
+  }
+
+  isCollapsed() {
+    return this.container ? this.container.dataset.collapsed !== 'false' : true;
+  }
+
+  setCollapsed(collapsed) {
+    if (this.container) {
+      this.container.dataset.collapsed = collapsed ? 'true' : 'false';
+    }
+    if (this.toggle) {
+      this.toggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+      this.toggle.setAttribute(
+        'aria-label',
+        `${collapsed ? 'Expand' : 'Collapse'} diagram layer controls`
+      );
+    }
+    if (this.content) {
+      this.content.hidden = collapsed;
+    }
+    if (this.icon) {
+      this.icon.textContent = collapsed ? '⌃' : '⌄';
+    }
+    if (document?.body) {
+      document.body.dataset.footerCollapsed = collapsed ? 'true' : 'false';
+    }
+  }
+}
+
 class App {
   constructor() {
     this.orgManager = new OrgManager({
       departmentContainer: dom.departmentList,
       departmentButton: dom.addDepartmentButton,
-      roleContainer: dom.roleList,
-      roleButton: dom.addRoleButton,
       summary: dom.orgSummary
     });
     this.stepManager = new StepManager({
@@ -1421,6 +1780,20 @@ class App {
       startInput: dom.startInput,
       endInput: dom.endInput
     });
+    this.diagramFooter = new DiagramFooter({
+      container: dom.diagramFooter,
+      toggle: dom.diagramFooterToggle,
+      content: dom.diagramFooterContent,
+      preferenceInputs: {
+        showDepartments: dom.diagramPreferenceDepartments,
+        showRoles: dom.diagramPreferenceRoles
+      },
+      onPreferenceChange: (preferences) => {
+        this.diagramRenderer.updatePreferences(preferences);
+        this.renderDiagram();
+      }
+    });
+    this.diagramRenderer.updatePreferences(this.diagramFooter.getPreferences());
     PanelManager.init(dom.panelToggles);
     CollapsibleSection.init(dom.entitySections);
     this.orgManager.onChange(() => {
