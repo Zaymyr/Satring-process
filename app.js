@@ -11,7 +11,11 @@ const dom = {
   departmentList: document.getElementById('department-list'),
   orgSummary: document.getElementById('org-summary'),
   panelToggles: document.querySelectorAll('.panel-toggle'),
-  entitySections: document.querySelectorAll('.entity-section')
+  entitySections: document.querySelectorAll('.entity-section'),
+  diagramFooter: document.getElementById('diagram-footer'),
+  diagramFooterToggle: document.getElementById('diagram-footer-toggle'),
+  diagramFooterContent: document.getElementById('diagram-footer-content'),
+  diagramDefinition: document.getElementById('diagram-definition')
 };
 
 const defaultDepartmentColors = ['#0ea5e9', '#22c55e', '#f97316', '#a855f7', '#facc15', '#ef4444', '#14b8a6'];
@@ -1344,12 +1348,13 @@ class StepManager {
 }
 
 class DiagramRenderer {
-  constructor({ diagramEl, stepManager, orgManager, startInput, endInput }) {
+  constructor({ diagramEl, stepManager, orgManager, startInput, endInput, onDefinition }) {
     this.diagramEl = diagramEl;
     this.stepManager = stepManager;
     this.orgManager = orgManager;
     this.startInput = startInput;
     this.endInput = endInput;
+    this.onDefinition = typeof onDefinition === 'function' ? onDefinition : null;
     mermaid.initialize({
       startOnLoad: false,
       securityLevel: 'strict',
@@ -1533,6 +1538,9 @@ class DiagramRenderer {
       return;
     }
     const definition = this.buildDefinition();
+    if (this.onDefinition) {
+      this.onDefinition(definition);
+    }
     this.diagramEl.innerHTML = '';
     if (!definition) {
       return;
@@ -1625,6 +1633,60 @@ class PanelManager {
   }
 }
 
+class DiagramFooter {
+  constructor({ container, toggle, content, definitionEl }) {
+    this.container = container || null;
+    this.toggle = toggle || null;
+    this.content = content || null;
+    this.definitionEl = definitionEl || null;
+    this.icon = this.toggle?.querySelector('.diagram-footer-icon') || null;
+    const collapsed = this.container?.dataset.collapsed !== 'false';
+    this.setCollapsed(collapsed);
+    if (this.toggle) {
+      this.toggle.addEventListener('click', () => {
+        this.setCollapsed(!this.isCollapsed());
+      });
+    }
+  }
+
+  isCollapsed() {
+    return this.container ? this.container.dataset.collapsed !== 'false' : true;
+  }
+
+  setCollapsed(collapsed) {
+    if (this.container) {
+      this.container.dataset.collapsed = collapsed ? 'true' : 'false';
+    }
+    if (this.toggle) {
+      this.toggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+      this.toggle.setAttribute(
+        'aria-label',
+        `${collapsed ? 'Expand' : 'Collapse'} diagram details`
+      );
+    }
+    if (this.content) {
+      this.content.hidden = collapsed;
+    }
+    if (this.icon) {
+      this.icon.textContent = collapsed ? '⌃' : '⌄';
+    }
+    if (document?.body) {
+      document.body.dataset.footerCollapsed = collapsed ? 'true' : 'false';
+    }
+  }
+
+  updateDefinition(definition) {
+    if (!this.definitionEl) {
+      return;
+    }
+    if (definition && definition.trim()) {
+      this.definitionEl.textContent = definition;
+    } else {
+      this.definitionEl.textContent = 'Add steps to generate the Mermaid definition.';
+    }
+  }
+}
+
 class App {
   constructor() {
     this.orgManager = new OrgManager({
@@ -1636,12 +1698,19 @@ class App {
       container: dom.stepsList,
       onChange: () => this.renderDiagram()
     });
+    this.diagramFooter = new DiagramFooter({
+      container: dom.diagramFooter,
+      toggle: dom.diagramFooterToggle,
+      content: dom.diagramFooterContent,
+      definitionEl: dom.diagramDefinition
+    });
     this.diagramRenderer = new DiagramRenderer({
       diagramEl: dom.diagram,
       stepManager: this.stepManager,
       orgManager: this.orgManager,
       startInput: dom.startInput,
-      endInput: dom.endInput
+      endInput: dom.endInput,
+      onDefinition: (definition) => this.diagramFooter.updateDefinition(definition)
     });
     PanelManager.init(dom.panelToggles);
     CollapsibleSection.init(dom.entitySections);
@@ -1663,6 +1732,7 @@ class App {
     });
     ['Plan', 'Build'].forEach((value) => this.stepManager.addProcessStep(value));
     this.stepManager.updateAssignments(this.orgManager.getAssignmentOptions());
+    this.diagramFooter.updateDefinition('');
     this.renderDiagram();
   }
 

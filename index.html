@@ -17,6 +17,7 @@
       --panel-toggle-height: 5.25rem;
       --panel-toggle-offset: calc(var(--panel-toggle-width) * 0.55);
       --panel-collapsed-peek: calc(var(--panel-toggle-width) + 0.75rem);
+      --diagram-footer-space: 9.5rem;
     }
 
     body[data-left-collapsed='true'] {
@@ -25,6 +26,10 @@
 
     body[data-right-collapsed='true'] {
       --right-panel-offset: 2rem;
+    }
+
+    body[data-footer-collapsed='true'] {
+      --diagram-footer-space: 5.25rem;
     }
 
     *,
@@ -61,7 +66,8 @@
     .diagram-area {
       position: absolute;
       inset: 0;
-      padding: 2rem var(--right-panel-offset) 2rem var(--left-panel-offset);
+      padding: 2rem var(--right-panel-offset) calc(2rem + var(--diagram-footer-space))
+        var(--left-panel-offset);
       overflow: auto;
       display: flex;
       justify-content: center;
@@ -77,6 +83,101 @@
       content: 'Your diagram will appear here';
       font-size: 1rem;
       color: rgba(226, 232, 240, 0.6);
+    }
+
+    .diagram-footer-panel {
+      position: absolute;
+      left: 50%;
+      bottom: 2rem;
+      transform: translateX(-50%);
+      width: min(1100px, calc(100% - var(--left-panel-offset) - var(--right-panel-offset)));
+      padding: 0.5rem 0.6rem;
+      border-radius: 18px;
+      background: rgba(15, 23, 42, 0.86);
+      border: 1px solid rgba(148, 163, 184, 0.3);
+      box-shadow: 0 24px 70px rgba(15, 23, 42, 0.6);
+      backdrop-filter: blur(18px);
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+      z-index: 1;
+      transition: background 0.3s ease, border-color 0.3s ease, transform 0.3s ease;
+    }
+
+    .diagram-footer-panel[data-collapsed='true'] {
+      padding-bottom: 0.45rem;
+    }
+
+    .diagram-footer-toggle {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      padding: 0.65rem 0.85rem;
+      border-radius: 14px;
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      background: rgba(15, 23, 42, 0.55);
+      color: #f8fafc;
+      font-family: inherit;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+    }
+
+    .diagram-footer-toggle:hover,
+    .diagram-footer-toggle:focus-visible {
+      background: rgba(59, 130, 246, 0.25);
+      border-color: rgba(59, 130, 246, 0.5);
+      color: #bfdbfe;
+    }
+
+    .diagram-footer-toggle:focus-visible {
+      outline: none;
+      box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.4);
+    }
+
+    .diagram-footer-title {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .diagram-footer-icon {
+      font-size: 0.95rem;
+      transition: transform 0.2s ease;
+    }
+
+    .diagram-footer-panel[data-collapsed='false'] .diagram-footer-icon {
+      transform: rotate(180deg);
+    }
+
+    .diagram-footer-content {
+      padding: 0 0.85rem 0.85rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.6rem;
+    }
+
+    .diagram-footer-note {
+      margin: 0;
+      font-size: 0.82rem;
+      color: rgba(226, 232, 240, 0.72);
+    }
+
+    .diagram-definition {
+      margin: 0;
+      border-radius: 12px;
+      padding: 0.75rem 1rem;
+      background: rgba(15, 23, 42, 0.65);
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      color: rgba(226, 232, 240, 0.85);
+      font-family: 'JetBrains Mono', 'Fira Code', 'Source Code Pro', monospace;
+      font-size: 0.8rem;
+      line-height: 1.55;
+      max-height: 10rem;
+      overflow: auto;
+      white-space: pre-wrap;
     }
 
     .side-panel {
@@ -914,8 +1015,15 @@
 
       .diagram-area {
         position: relative;
-        padding: 1.5rem;
+        padding: 1.5rem 1.5rem calc(1.5rem + var(--diagram-footer-space));
         min-height: 55vh;
+      }
+
+      .diagram-footer-panel {
+        position: static;
+        transform: none;
+        width: calc(100% - 3rem);
+        margin: 0 1.5rem 1.5rem;
       }
 
       .side-panel {
@@ -940,6 +1048,10 @@
 
       .steps-list {
         max-height: 40vh;
+      }
+
+      body[data-footer-collapsed='true'] {
+        --diagram-footer-space: 4.75rem;
       }
     }
 
@@ -977,6 +1089,35 @@
         box-shadow: 0 26px 65px rgba(37, 99, 235, 0.35);
         background: linear-gradient(160deg, rgba(191, 219, 254, 0.95), rgba(59, 130, 246, 0.6));
         border-color: rgba(37, 99, 235, 0.55);
+      }
+
+      .diagram-footer-panel {
+        background: rgba(255, 255, 255, 0.92);
+        border-color: rgba(148, 163, 184, 0.35);
+        box-shadow: 0 28px 65px rgba(59, 130, 246, 0.18);
+      }
+
+      .diagram-footer-toggle {
+        background: rgba(241, 245, 249, 0.85);
+        color: #1e3a8a;
+        border-color: rgba(148, 163, 184, 0.35);
+      }
+
+      .diagram-footer-toggle:hover,
+      .diagram-footer-toggle:focus-visible {
+        background: rgba(191, 219, 254, 0.75);
+        border-color: rgba(59, 130, 246, 0.55);
+        color: #1d4ed8;
+      }
+
+      .diagram-footer-note {
+        color: rgba(15, 23, 42, 0.65);
+      }
+
+      .diagram-definition {
+        background: rgba(248, 250, 252, 0.92);
+        border-color: rgba(148, 163, 184, 0.35);
+        color: rgba(15, 23, 42, 0.78);
       }
 
       h1 {
@@ -1186,6 +1327,24 @@
     </aside>
     <div class="diagram-stage">
       <div id="diagram" class="diagram-area"></div>
+      <section id="diagram-footer" class="diagram-footer-panel" data-collapsed="true">
+        <button
+          id="diagram-footer-toggle"
+          class="diagram-footer-toggle"
+          type="button"
+          aria-expanded="false"
+          aria-controls="diagram-footer-content"
+        >
+          <span class="diagram-footer-title">Diagram details</span>
+          <span class="diagram-footer-icon" aria-hidden="true">⌃</span>
+        </button>
+        <div id="diagram-footer-content" class="diagram-footer-content" hidden>
+          <p class="diagram-footer-note">
+            This Mermaid definition mirrors the diagram above. Copy it to reuse the flow elsewhere.
+          </p>
+          <pre id="diagram-definition" class="diagram-definition" tabindex="0">Add steps to generate the Mermaid definition.</pre>
+        </div>
+      </section>
     </div>
     <aside class="side-panel controls-panel" data-side="right">
       <button class="icon-button panel-toggle" type="button" aria-expanded="true" aria-controls="builder-panel">
