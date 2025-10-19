@@ -9,8 +9,6 @@ const dom = {
   stepsList: document.getElementById('steps-list'),
   addDepartmentButton: document.getElementById('add-department'),
   departmentList: document.getElementById('department-list'),
-  addRoleButton: document.getElementById('add-role'),
-  roleList: document.getElementById('role-list'),
   orgSummary: document.getElementById('org-summary'),
   panelToggles: document.querySelectorAll('.panel-toggle'),
   entitySections: document.querySelectorAll('.entity-section')
@@ -209,19 +207,29 @@ class ColorPalette {
   }
 }
 
-class EntityList {
-  constructor({ type, container, addButton, onChange, palette, colorFallback }) {
-    this.type = type;
+class DepartmentTree {
+  constructor({
+    container,
+    addButton,
+    onChange,
+    departmentPalette,
+    rolePalette,
+    departmentColorFallback = '#082f49',
+    roleColorFallback = '#2563eb'
+  }) {
     this.container = container;
     this.addButton = addButton;
     this.onChange = onChange;
-    this.palette = palette;
-    this.colorFallback = normalizeHexColor(colorFallback || '#082f49');
-    this.counter = 0;
+    this.departmentPalette = departmentPalette;
+    this.rolePalette = rolePalette;
+    this.departmentColorFallback = normalizeHexColor(departmentColorFallback, '#082f49');
+    this.roleColorFallback = normalizeHexColor(roleColorFallback, '#2563eb');
+    this.departmentCounter = 0;
+    this.roleCounter = 0;
     if (this.addButton) {
       this.addButton.addEventListener('click', () => {
-        const row = this.add();
-        row?.querySelector('.entity-input')?.focus();
+        const node = this.addDepartment();
+        node?.querySelector('.entity-input')?.focus();
       });
     }
   }
@@ -232,141 +240,286 @@ class EntityList {
     }
   }
 
-  add(value = '', options = {}) {
+  isEmpty() {
+    return !this.container || this.container.childElementCount === 0;
+  }
+
+  addDepartment(value = '', options = {}) {
     if (!this.container) {
       return null;
     }
-    this.counter += 1;
-    const id = `${this.type}-${this.counter}`;
+    this.departmentCounter += 1;
+    const id = options.id || `department-${this.departmentCounter}`;
+    const node = createElement('div', {
+      className: 'department-node',
+      dataset: { entityId: id, entityType: 'department' },
+      attrs: { role: 'listitem' }
+    });
     const row = createElement('div', {
       className: 'entity-row',
-      dataset: { entityType: this.type, entityId: id, entityOrder: this.counter },
+      dataset: { entityType: 'department', entityId: id }
+    });
+    const input = createElement('input', {
+      className: 'entity-input',
+      attrs: { type: 'text', placeholder: 'Name the department', 'aria-label': 'Department name' }
+    });
+    input.value = value;
+    row.appendChild(input);
+
+    const colorInput = createElement('input', {
+      className: 'entity-color',
+      attrs: {
+        type: 'color',
+        'aria-label': 'Department color',
+        title: 'Pick department color'
+      }
+    });
+    const initialColor = normalizeHexColor(
+      options.color || this.departmentPalette?.next() || this.departmentColorFallback,
+      this.departmentColorFallback
+    );
+    colorInput.value = initialColor;
+    row.dataset.entityColor = initialColor;
+    colorInput.addEventListener('input', () => {
+      const normalized = normalizeHexColor(colorInput.value, this.departmentColorFallback);
+      row.dataset.entityColor = normalized;
+      if (colorInput.value !== normalized) {
+        colorInput.value = normalized;
+      }
+      this.notifyChange();
+    });
+    row.appendChild(colorInput);
+
+    const addRoleButton = createElement('button', {
+      className: 'add-role-button',
+      attrs: { type: 'button' },
+      text: 'Add role'
+    });
+    const updateRoleButtonLabel = () => {
+      const label = input.value.trim() || 'this department';
+      addRoleButton.setAttribute('aria-label', `Add role to ${label}`);
+      addRoleButton.title = `Add role to ${label}`;
+    };
+    addRoleButton.addEventListener('click', () => {
+      const roleRow = this.addRole(node);
+      roleRow?.querySelector('.entity-input')?.focus();
+    });
+    row.appendChild(addRoleButton);
+
+    const { button: removeButton } = createIconButton('Remove department', '\u00D7', () => {
+      node.remove();
+      this.notifyChange();
+    });
+    row.appendChild(removeButton);
+
+    input.addEventListener('input', () => {
+      updateRoleButtonLabel();
+      this.notifyChange();
+    });
+    input.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        const newNode = this.addDepartment();
+        newNode?.querySelector('.entity-input')?.focus();
+      }
+    });
+
+    node.appendChild(row);
+    const rolesContainer = createElement('div', {
+      className: 'role-list',
+      attrs: { role: 'group' }
+    });
+    rolesContainer.dataset.emptyText = 'Add roles to clarify who supports this department.';
+    node.appendChild(rolesContainer);
+    this.container.appendChild(node);
+    updateRoleButtonLabel();
+
+    const roles = Array.isArray(options.roles) ? options.roles : [];
+    roles.forEach((role) => {
+      if (typeof role === 'string') {
+        this.addRole(node, role);
+      } else if (role && typeof role === 'object') {
+        this.addRole(node, role.value || '', role);
+      }
+    });
+
+    this.notifyChange();
+    return node;
+  }
+
+  addRole(departmentNode, value = '', options = {}) {
+    if (!departmentNode) {
+      return null;
+    }
+    const departmentId = departmentNode.dataset.entityId;
+    const rolesContainer = departmentNode.querySelector('.role-list');
+    if (!rolesContainer) {
+      return null;
+    }
+    this.roleCounter += 1;
+    const id = options.id || `role-${this.roleCounter}`;
+    const row = createElement('div', {
+      className: 'entity-row',
+      dataset: { entityType: 'role', entityId: id, parentDepartment: departmentId },
       attrs: { role: 'listitem' }
     });
     const input = createElement('input', {
       className: 'entity-input',
-      attrs: {
-        type: 'text',
-        placeholder: this.type === 'department' ? 'Name the department' : 'Name the role',
-        'aria-label': this.type === 'department' ? 'Department name' : 'Role name'
-      }
+      attrs: { type: 'text', placeholder: 'Name the role', 'aria-label': 'Role name' }
     });
     input.value = value;
     input.addEventListener('input', () => this.notifyChange());
     input.addEventListener('keydown', (event) => {
       if (event.key === 'Enter') {
         event.preventDefault();
-        const newRow = this.add();
+        const newRow = this.addRole(departmentNode);
         newRow?.querySelector('.entity-input')?.focus();
       }
     });
     row.appendChild(input);
 
-    if (this.palette) {
-      const colorInput = createElement('input', {
-        className: 'entity-color',
-        attrs: {
-          type: 'color',
-          'aria-label': this.type === 'department' ? 'Department color' : 'Role color',
-          title: this.type === 'department' ? 'Pick department color' : 'Pick role color'
-        }
-      });
-      const initialColor = normalizeHexColor(options.color || this.palette?.next() || this.colorFallback);
-      colorInput.value = initialColor;
-      row.dataset.entityColor = initialColor;
-      colorInput.addEventListener('input', () => {
-        const normalized = normalizeHexColor(colorInput.value);
-        row.dataset.entityColor = normalized;
-        if (colorInput.value !== normalized) {
-          colorInput.value = normalized;
-        }
-        this.notifyChange();
-      });
-      row.appendChild(colorInput);
-    }
-
-    const { button: removeButton } = createIconButton(
-      this.type === 'department' ? 'Remove department' : 'Remove role',
-      '\u00D7',
-      () => {
-        row.remove();
-        this.notifyChange();
+    const colorInput = createElement('input', {
+      className: 'entity-color',
+      attrs: {
+        type: 'color',
+        'aria-label': 'Role color',
+        title: 'Pick role color'
       }
+    });
+    const initialColor = normalizeHexColor(
+      options.color || this.rolePalette?.next() || this.roleColorFallback,
+      this.roleColorFallback
     );
+    colorInput.value = initialColor;
+    row.dataset.entityColor = initialColor;
+    colorInput.addEventListener('input', () => {
+      const normalized = normalizeHexColor(colorInput.value, this.roleColorFallback);
+      row.dataset.entityColor = normalized;
+      if (colorInput.value !== normalized) {
+        colorInput.value = normalized;
+      }
+      this.notifyChange();
+    });
+    row.appendChild(colorInput);
+
+    const { button: removeButton } = createIconButton('Remove role', '\u00D7', () => {
+      row.remove();
+      this.notifyChange();
+    });
     row.appendChild(removeButton);
 
-    this.container.appendChild(row);
+    rolesContainer.appendChild(row);
     this.notifyChange();
     return row;
   }
 
-  isEmpty() {
-    return !this.container || this.container.childElementCount === 0;
+  countDepartmentsFilled() {
+    if (!this.container) {
+      return 0;
+    }
+    return Array.from(
+      this.container.querySelectorAll(
+        ".department-node .entity-row[data-entity-type='department'] .entity-input"
+      )
+    ).filter((input) => input.value.trim().length > 0).length;
   }
 
-  getEntries() {
+  countRolesFilled() {
+    if (!this.container) {
+      return 0;
+    }
+    return Array.from(
+      this.container.querySelectorAll(
+        ".department-node .entity-row[data-entity-type='role'] .entity-input"
+      )
+    ).filter((input) => input.value.trim().length > 0).length;
+  }
+
+  getDepartments() {
     if (!this.container) {
       return [];
     }
-    const rows = Array.from(this.container.querySelectorAll('.entity-row'));
-    return rows
-      .map((row, index) => {
-        const id = row.dataset.entityId;
-        if (!id) {
+    const nodes = Array.from(this.container.querySelectorAll('.department-node'));
+    return nodes
+      .map((node, index) => {
+        const row = node.querySelector(".entity-row[data-entity-type='department']");
+        if (!row) {
           return null;
         }
         const input = row.querySelector('.entity-input');
-        row.dataset.entityOrder = String(index + 1);
-        const fallbackPrefix = this.type === 'department' ? 'Department' : 'Role';
-        const fallback = `${fallbackPrefix} ${index + 1}`;
+        const fallback = `Department ${index + 1}`;
         const label = (input?.value || '').trim() || fallback;
-        const entry = { id, label };
-        if (this.palette) {
-          const colorInput = row.querySelector('.entity-color');
-          const color = normalizeHexColor(
-            colorInput?.value || row.dataset.entityColor || this.colorFallback,
-            this.colorFallback
-          );
-          row.dataset.entityColor = color;
-          if (colorInput && colorInput.value !== color) {
-            colorInput.value = color;
-          }
-          entry.color = color;
+        node.dataset.entityOrder = String(index + 1);
+        const colorInput = row.querySelector('.entity-color');
+        const color = normalizeHexColor(
+          colorInput?.value || row.dataset.entityColor || this.departmentColorFallback,
+          this.departmentColorFallback
+        );
+        row.dataset.entityColor = color;
+        if (colorInput && colorInput.value !== color) {
+          colorInput.value = color;
         }
-        return entry;
+        return { id: node.dataset.entityId, label, color };
       })
       .filter(Boolean);
   }
 
-  countFilled() {
+  getRoles() {
     if (!this.container) {
-      return 0;
+      return [];
     }
-    return Array.from(this.container.querySelectorAll('.entity-input')).filter(
-      (input) => input.value.trim().length > 0
-    ).length;
+    const departments = this.getDepartments();
+    const departmentLookup = new Map(departments.map((entry) => [entry.id, entry]));
+    const nodes = Array.from(this.container.querySelectorAll('.department-node'));
+    const roles = [];
+    nodes.forEach((node, deptIndex) => {
+      const departmentId = node.dataset.entityId;
+      const departmentEntry = departmentLookup.get(departmentId);
+      const departmentLabel = departmentEntry?.label || `Department ${deptIndex + 1}`;
+      const rolesContainer = node.querySelector('.role-list');
+      if (!rolesContainer) {
+        return;
+      }
+      const rows = Array.from(rolesContainer.querySelectorAll(".entity-row[data-entity-type='role']"));
+      rows.forEach((row, roleIndex) => {
+        const input = row.querySelector('.entity-input');
+        const fallback = `Role ${roleIndex + 1}`;
+        const roleName = (input?.value || '').trim() || fallback;
+        row.dataset.entityOrder = String(roleIndex + 1);
+        const colorInput = row.querySelector('.entity-color');
+        const color = normalizeHexColor(
+          colorInput?.value || row.dataset.entityColor || this.roleColorFallback,
+          this.roleColorFallback
+        );
+        row.dataset.entityColor = color;
+        if (colorInput && colorInput.value !== color) {
+          colorInput.value = color;
+        }
+        const combinedLabel = departmentLabel ? `${roleName} • ${departmentLabel}` : roleName;
+        roles.push({
+          id: row.dataset.entityId,
+          label: combinedLabel,
+          color,
+          departmentId,
+          departmentLabel,
+          roleName
+        });
+      });
+    });
+    return roles;
   }
 }
 
 class OrgManager {
-  constructor({ departmentContainer, departmentButton, roleContainer, roleButton, summary }) {
-    const palette = new ColorPalette(defaultDepartmentColors);
-    this.departmentList = new EntityList({
-      type: 'department',
+  constructor({ departmentContainer, departmentButton, summary }) {
+    this.tree = new DepartmentTree({
       container: departmentContainer,
       addButton: departmentButton,
       onChange: () => this.handleChange(),
-      palette,
-      colorFallback: '#082f49'
-    });
-    const rolePalette = new ColorPalette(defaultRoleColors);
-    this.roleList = new EntityList({
-      type: 'role',
-      container: roleContainer,
-      addButton: roleButton,
-      onChange: () => this.handleChange(),
-      palette: rolePalette,
-      colorFallback: '#2563eb'
+      departmentPalette: new ColorPalette(defaultDepartmentColors),
+      rolePalette: new ColorPalette(defaultRoleColors),
+      departmentColorFallback: '#082f49',
+      roleColorFallback: '#2563eb'
     });
     this.summaryEl = summary;
     this.changeListeners = new Set();
@@ -375,11 +528,15 @@ class OrgManager {
   }
 
   ensureDefaults() {
-    if (this.departmentList.isEmpty()) {
-      ['Operations', 'Customer Success'].forEach((name) => this.departmentList.add(name));
-    }
-    if (this.roleList.isEmpty()) {
-      ['Process Owner', 'Reviewer'].forEach((name) => this.roleList.add(name));
+    if (this.tree.isEmpty()) {
+      const defaults = [
+        { name: 'Operations', roles: ['Process Owner'] },
+        { name: 'Customer Success', roles: ['Reviewer'] }
+      ];
+      defaults.forEach(({ name, roles }) => {
+        const node = this.tree.addDepartment(name);
+        (roles || []).forEach((roleName) => this.tree.addRole(node, roleName));
+      });
     }
   }
 
@@ -402,10 +559,10 @@ class OrgManager {
     if (!this.summaryEl) {
       return;
     }
-    const departmentCount = this.departmentList.countFilled();
-    const roleCount = this.roleList.countFilled();
+    const departmentCount = this.tree.countDepartmentsFilled();
+    const roleCount = this.tree.countRolesFilled();
     if (departmentCount === 0 && roleCount === 0) {
-      this.summaryEl.textContent = 'Start by adding departments and roles so your flow mirrors real teams.';
+      this.summaryEl.textContent = 'Start by adding departments and linking the roles that support them.';
       return;
     }
     const parts = [];
@@ -415,15 +572,15 @@ class OrgManager {
     if (roleCount > 0) {
       parts.push(`${roleCount} ${roleCount === 1 ? 'role' : 'roles'}`);
     }
-    this.summaryEl.textContent = `Tracking ${parts.join(' and ')} for this journey.`;
+    this.summaryEl.textContent = `Tracking ${parts.join(' and ')} across your journey.`;
   }
 
   getDepartments() {
-    return this.departmentList.getEntries();
+    return this.tree.getDepartments();
   }
 
   getRoles() {
-    return this.roleList.getEntries();
+    return this.tree.getRoles();
   }
 
   getAssignmentOptions() {
@@ -446,12 +603,16 @@ class OrgManager {
         {
           id: entry.id,
           label: sanitizeLabel(entry.label, entry.label),
-          color: entry.color
+          color: entry.color,
+          departmentId: entry.departmentId,
+          departmentLabel: entry.departmentLabel,
+          roleName: entry.roleName
         }
       ])
     );
   }
 }
+
 
 class AssignmentGroup {
   constructor({ context = 'step', variant, onChange }) {
@@ -1406,8 +1567,6 @@ class App {
     this.orgManager = new OrgManager({
       departmentContainer: dom.departmentList,
       departmentButton: dom.addDepartmentButton,
-      roleContainer: dom.roleList,
-      roleButton: dom.addRoleButton,
       summary: dom.orgSummary
     });
     this.stepManager = new StepManager({
