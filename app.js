@@ -12,10 +12,12 @@ const dom = {
   addRoleButton: document.getElementById('add-role'),
   roleList: document.getElementById('role-list'),
   orgSummary: document.getElementById('org-summary'),
-  panelToggles: document.querySelectorAll('.panel-toggle')
+  panelToggles: document.querySelectorAll('.panel-toggle'),
+  entitySections: document.querySelectorAll('.entity-section')
 };
 
 const defaultDepartmentColors = ['#0ea5e9', '#22c55e', '#f97316', '#a855f7', '#facc15', '#ef4444', '#14b8a6'];
+const defaultRoleColors = ['#38bdf8', '#f472b6', '#fde68a', '#c084fc', '#34d399', '#fb7185', '#f97316'];
 
 const sanitizeLabel = (raw, fallback) => {
   const safe = (raw ?? '').trim() || fallback;
@@ -92,6 +94,56 @@ const deriveLaneColors = (baseColor) => {
   };
 };
 
+const deriveRoleCardStyles = (baseColor) => {
+  const fill = normalizeHexColor(baseColor);
+  const text = getContrastingTextColor(fill);
+  const prefersLightText = text === '#f8fafc';
+  const accent = prefersLightText ? mixColor(fill, 0.55) : mixColor(fill, -0.45);
+  const muted = prefersLightText ? mixColor(fill, 0.7) : mixColor(fill, -0.25);
+  const controlBg = prefersLightText ? mixColor(fill, 0.35) : mixColor(fill, -0.1);
+  const border = mixColor(fill, -0.45);
+  const controlBorder = mixColor(fill, -0.55);
+  return { fill, text, accent, muted, controlBg, border, controlBorder };
+};
+
+const deriveRoleNodeStyles = (baseColor) => {
+  const fill = normalizeHexColor(baseColor);
+  return {
+    fill,
+    stroke: mixColor(fill, -0.45),
+    text: getContrastingTextColor(fill)
+  };
+};
+
+const applyRoleCardTheme = (element, color) => {
+  if (!element) {
+    return;
+  }
+  const properties = [
+    '--role-card-bg',
+    '--role-card-border',
+    '--role-card-text',
+    '--role-card-accent',
+    '--role-card-muted',
+    '--role-card-control-bg',
+    '--role-card-control-border'
+  ];
+  if (!color) {
+    properties.forEach((property) => element.style.removeProperty(property));
+    element.removeAttribute('data-role-color');
+    return;
+  }
+  const styles = deriveRoleCardStyles(color);
+  element.style.setProperty('--role-card-bg', styles.fill);
+  element.style.setProperty('--role-card-border', styles.border);
+  element.style.setProperty('--role-card-text', styles.text);
+  element.style.setProperty('--role-card-accent', styles.accent);
+  element.style.setProperty('--role-card-muted', styles.muted);
+  element.style.setProperty('--role-card-control-bg', styles.controlBg);
+  element.style.setProperty('--role-card-control-border', styles.controlBorder);
+  element.dataset.roleColor = styles.fill;
+};
+
 const createElement = (tag, options = {}, children = []) => {
   const element = document.createElement(tag);
   const { className, dataset, attrs, text, html, on } = options;
@@ -144,9 +196,9 @@ const createIconButton = (label, symbol, onClick) => {
   return { button, icon };
 };
 
-class DepartmentColorPalette {
-  constructor(colors = defaultDepartmentColors) {
-    this.colors = colors;
+class ColorPalette {
+  constructor(colors) {
+    this.colors = Array.isArray(colors) && colors.length > 0 ? colors : ['#38bdf8'];
     this.cursor = 0;
   }
 
@@ -158,12 +210,13 @@ class DepartmentColorPalette {
 }
 
 class EntityList {
-  constructor({ type, container, addButton, onChange, palette }) {
+  constructor({ type, container, addButton, onChange, palette, colorFallback }) {
     this.type = type;
     this.container = container;
     this.addButton = addButton;
     this.onChange = onChange;
     this.palette = palette;
+    this.colorFallback = normalizeHexColor(colorFallback || '#082f49');
     this.counter = 0;
     if (this.addButton) {
       this.addButton.addEventListener('click', () => {
@@ -209,12 +262,16 @@ class EntityList {
     });
     row.appendChild(input);
 
-    if (this.type === 'department') {
+    if (this.palette) {
       const colorInput = createElement('input', {
         className: 'entity-color',
-        attrs: { type: 'color', 'aria-label': 'Department color', title: 'Pick department color' }
+        attrs: {
+          type: 'color',
+          'aria-label': this.type === 'department' ? 'Department color' : 'Role color',
+          title: this.type === 'department' ? 'Pick department color' : 'Pick role color'
+        }
       });
-      const initialColor = normalizeHexColor(options.color || this.palette?.next() || '#082f49');
+      const initialColor = normalizeHexColor(options.color || this.palette?.next() || this.colorFallback);
       colorInput.value = initialColor;
       row.dataset.entityColor = initialColor;
       colorInput.addEventListener('input', () => {
@@ -263,16 +320,20 @@ class EntityList {
         const fallbackPrefix = this.type === 'department' ? 'Department' : 'Role';
         const fallback = `${fallbackPrefix} ${index + 1}`;
         const label = (input?.value || '').trim() || fallback;
-        if (this.type === 'department') {
+        const entry = { id, label };
+        if (this.palette) {
           const colorInput = row.querySelector('.entity-color');
-          const color = normalizeHexColor(colorInput?.value || row.dataset.entityColor || '#082f49');
+          const color = normalizeHexColor(
+            colorInput?.value || row.dataset.entityColor || this.colorFallback,
+            this.colorFallback
+          );
           row.dataset.entityColor = color;
           if (colorInput && colorInput.value !== color) {
             colorInput.value = color;
           }
-          return { id, label, color };
+          entry.color = color;
         }
-        return { id, label };
+        return entry;
       })
       .filter(Boolean);
   }
@@ -289,19 +350,23 @@ class EntityList {
 
 class OrgManager {
   constructor({ departmentContainer, departmentButton, roleContainer, roleButton, summary }) {
-    const palette = new DepartmentColorPalette();
+    const palette = new ColorPalette(defaultDepartmentColors);
     this.departmentList = new EntityList({
       type: 'department',
       container: departmentContainer,
       addButton: departmentButton,
       onChange: () => this.handleChange(),
-      palette
+      palette,
+      colorFallback: '#082f49'
     });
+    const rolePalette = new ColorPalette(defaultRoleColors);
     this.roleList = new EntityList({
       type: 'role',
       container: roleContainer,
       addButton: roleButton,
-      onChange: () => this.handleChange()
+      onChange: () => this.handleChange(),
+      palette: rolePalette,
+      colorFallback: '#2563eb'
     });
     this.summaryEl = summary;
     this.changeListeners = new Set();
@@ -375,7 +440,16 @@ class OrgManager {
   }
 
   getRoleLookup() {
-    return new Map(this.getRoles().map((entry) => [entry.id, sanitizeLabel(entry.label, entry.label)]));
+    return new Map(
+      this.getRoles().map((entry) => [
+        entry.id,
+        {
+          id: entry.id,
+          label: sanitizeLabel(entry.label, entry.label),
+          color: entry.color
+        }
+      ])
+    );
   }
 }
 
@@ -410,15 +484,16 @@ class AssignmentGroup {
     ]);
   }
 
-  populateSelect(select, entries, type) {
+  populateSelect(select, entries) {
     const previous = select.value;
+    const category = select.dataset.type || (select === this.departmentSelect ? 'department' : 'role');
     select.innerHTML = '';
     const placeholder = createElement('option', {
       attrs: { value: '' },
       text:
         entries.length === 0
-          ? `Add ${type === 'department' ? 'departments' : 'roles'} to assign`
-          : `Unassigned ${type}`
+          ? `Add ${category === 'department' ? 'departments' : 'roles'} to assign`
+          : `Unassigned ${category}`
     });
     select.appendChild(placeholder);
     entries.forEach((entry) => {
@@ -426,7 +501,7 @@ class AssignmentGroup {
         attrs: { value: entry.id },
         text: entry.label
       });
-      if (type === 'department') {
+      if (entry.color) {
         option.dataset.color = entry.color;
       }
       select.appendChild(option);
@@ -440,8 +515,8 @@ class AssignmentGroup {
   }
 
   updateOptions({ departments, roles }) {
-    this.populateSelect(this.departmentSelect, departments, 'department');
-    this.populateSelect(this.roleSelect, roles, 'role');
+    this.populateSelect(this.departmentSelect, departments);
+    this.populateSelect(this.roleSelect, roles);
   }
 
   collect({ departmentLookup, roleLookup }) {
@@ -470,11 +545,32 @@ class AssignmentGroup {
       } else if (option) {
         const label = option.textContent?.trim();
         if (label) {
-          assignment.role = sanitizeLabel(label, label);
+          assignment.role = {
+            id: this.roleSelect.value,
+            label: sanitizeLabel(label, label),
+            color: normalizeHexColor(option.dataset.color || '#2563eb', '#2563eb')
+          };
         }
       }
     }
     return assignment;
+  }
+
+  getSelectedRoleDetails() {
+    if (!this.roleSelect || !this.roleSelect.value) {
+      return null;
+    }
+    const option = this.roleSelect.selectedOptions?.[0];
+    if (!option) {
+      return null;
+    }
+    const label = option.textContent?.trim() || '';
+    const color = option.dataset.color ? normalizeHexColor(option.dataset.color) : null;
+    return {
+      id: this.roleSelect.value,
+      label,
+      color
+    };
   }
 }
 
@@ -497,6 +593,8 @@ class BranchStepRow {
     this.element.appendChild(this.input);
     this.element.appendChild(removeButton);
     this.element.appendChild(this.assignments.element);
+    this.assignments.roleSelect.addEventListener('change', () => this.applyRoleHighlight());
+    this.applyRoleHighlight();
     this.updateIndex(1);
   }
 
@@ -509,6 +607,7 @@ class BranchStepRow {
 
   updateAssignmentsOptions(options) {
     this.assignments.updateOptions(options);
+    this.applyRoleHighlight();
   }
 
   collect({ parentId, index, departmentLookup, roleLookup }) {
@@ -518,18 +617,23 @@ class BranchStepRow {
     const assignment = this.assignments.collect({ departmentLookup, roleLookup });
     const inlineParts = [];
     if (assignment.role) {
-      inlineParts.push(assignment.role);
+      inlineParts.push(assignment.role.label);
     }
     const displayLabel = inlineParts.length > 0 ? `${label}\\n${inlineParts.join(' • ')}` : label;
     return {
       id: `${parentId}_${this.branchType}${index}`,
       label: displayLabel,
-      departmentLane: assignment.department
+      departmentLane: assignment.department,
+      role: assignment.role
     };
   }
 
   focus() {
     this.input.focus();
+  }
+
+  applyRoleHighlight() {
+    applyRoleCardTheme(this.element);
   }
 }
 
@@ -680,6 +784,8 @@ class ProcessRow {
     this.assignments = new AssignmentGroup({ context: 'step', onChange });
     this.body.appendChild(this.assignments.element);
     this.element.appendChild(this.body);
+    this.assignments.roleSelect.addEventListener('change', () => this.applyRoleHighlight());
+    this.applyRoleHighlight();
     this.updateIndex(1);
   }
 
@@ -697,6 +803,7 @@ class ProcessRow {
 
   updateAssignmentsOptions(options) {
     this.assignments.updateOptions(options);
+    this.applyRoleHighlight();
   }
 
   collect({ departmentLookup, roleLookup }) {
@@ -705,14 +812,15 @@ class ProcessRow {
     const assignment = this.assignments.collect({ departmentLookup, roleLookup });
     const inlineParts = [];
     if (assignment.role) {
-      inlineParts.push(assignment.role);
+      inlineParts.push(assignment.role.label);
     }
     const displayLabel = inlineParts.length > 0 ? `${label}\\n${inlineParts.join(' • ')}` : label;
     return {
       id: this.id,
       label: displayLabel,
       type: 'process',
-      departmentLane: assignment.department
+      departmentLane: assignment.department,
+      role: assignment.role
     };
   }
 
@@ -722,6 +830,10 @@ class ProcessRow {
 
   focus() {
     this.input.focus();
+  }
+
+  applyRoleHighlight() {
+    applyRoleCardTheme(this.element);
   }
 }
 
@@ -813,7 +925,7 @@ class DecisionRow {
     const assignment = this.assignments.collect({ departmentLookup, roleLookup });
     const inlineParts = [];
     if (assignment.role) {
-      inlineParts.push(assignment.role);
+      inlineParts.push(assignment.role.label);
     }
     const displayLabel = inlineParts.length > 0 ? `${label}\\n${inlineParts.join(' • ')}` : label;
     return {
@@ -821,6 +933,7 @@ class DecisionRow {
       label: displayLabel,
       type: 'decision',
       departmentLane: assignment.department,
+      role: assignment.role,
       branches: {
         yes: {
           steps: this.branches.yes.getStepsData({ parentId: this.id, departmentLookup, roleLookup }),
@@ -1038,8 +1151,27 @@ class DiagramRenderer {
     const linkStyleLines = [];
     let edgeIndex = 0;
     const nodeDeclarations = [];
-    const registerNode = (line, departmentInfo) => {
-      nodeDeclarations.push({ line, department: departmentInfo });
+    const registerNode = (node) => {
+      nodeDeclarations.push(node);
+    };
+    const roleClassForColor = new Map();
+    const roleClassLines = [];
+    const roleAssignments = [];
+    const queueRoleStyle = (node) => {
+      if (!node || !node.role || !node.role.color) {
+        return;
+      }
+      const normalized = normalizeHexColor(node.role.color);
+      if (!roleClassForColor.has(normalized)) {
+        const className = `roleColor${roleClassForColor.size + 1}`;
+        const { fill, stroke, text } = deriveRoleNodeStyles(normalized);
+        roleClassForColor.set(normalized, className);
+        roleClassLines.push(
+          `  classDef ${className} fill:${fill},stroke:${stroke},color:${text},stroke-width:2px;`
+        );
+      }
+      const className = roleClassForColor.get(normalized);
+      roleAssignments.push(`  class ${node.id} ${className};`);
     };
     const addEdge = (from, to, options = {}) => {
       const { label, type = '-->', hidden } = options;
@@ -1054,23 +1186,49 @@ class DiagramRenderer {
     };
     entries.forEach((entry) => {
       if (entry.type === 'decision') {
-        registerNode(`${entry.id}{"${entry.label}"}:::decision`, entry.departmentLane);
+        registerNode({
+          id: entry.id,
+          line: `${entry.id}{"${entry.label}"}:::decision`,
+          department: entry.departmentLane,
+          role: entry.role,
+          type: 'decision'
+        });
         entry.branches.yes.steps.forEach((step) => {
-          registerNode(`${step.id}["${step.label}"]:::step`, step.departmentLane);
+          registerNode({
+            id: step.id,
+            line: `${step.id}["${step.label}"]:::step`,
+            department: step.departmentLane,
+            role: step.role,
+            type: 'branch'
+          });
         });
         entry.branches.no.steps.forEach((step) => {
-          registerNode(`${step.id}["${step.label}"]:::step`, step.departmentLane);
+          registerNode({
+            id: step.id,
+            line: `${step.id}["${step.label}"]:::step`,
+            department: step.departmentLane,
+            role: step.role,
+            type: 'branch'
+          });
         });
       } else {
-        registerNode(`${entry.id}["${entry.label}"]:::step`, entry.departmentLane);
+        registerNode({
+          id: entry.id,
+          line: `${entry.id}["${entry.label}"]:::step`,
+          department: entry.departmentLane,
+          role: entry.role,
+          type: 'process'
+        });
       }
     });
     const departmentGroups = new Map();
     const departmentOrder = [];
     let departmentCounter = 0;
-    nodeDeclarations.forEach(({ line, department }) => {
+    nodeDeclarations.forEach((node) => {
+      const { line, department } = node;
       if (!department || !department.id) {
         lines.push(`  ${line}`);
+        queueRoleStyle(node);
         return;
       }
       if (!departmentGroups.has(department.id)) {
@@ -1083,14 +1241,15 @@ class DiagramRenderer {
         });
         departmentOrder.push(department.id);
       }
-      departmentGroups.get(department.id).nodes.push(line);
+      departmentGroups.get(department.id).nodes.push(node);
     });
     departmentOrder.forEach((departmentId) => {
       const { laneId, label, color, nodes } = departmentGroups.get(departmentId);
       lines.push(`  subgraph ${laneId}["${label}"]`);
       lines.push('    direction TB');
       nodes.forEach((node) => {
-        lines.push(`    ${node}`);
+        lines.push(`    ${node.line}`);
+        queueRoleStyle(node);
       });
       lines.push('  end');
       if (color) {
@@ -1139,6 +1298,8 @@ class DiagramRenderer {
         connectBranch(entry.branches.yes, 'Yes');
         connectBranch(entry.branches.no, 'No');
       });
+    lines.push(...roleClassLines);
+    lines.push(...roleAssignments);
     lines.push(...linkStyleLines);
     return lines.join('\n');
   }
@@ -1158,6 +1319,49 @@ class DiagramRenderer {
     } catch (error) {
       this.diagramEl.innerHTML = `<pre style="color:#f97316; white-space:pre-wrap;">${error.message}</pre>`;
     }
+  }
+}
+
+class CollapsibleSection {
+  constructor(section) {
+    this.section = section;
+    this.button = section.querySelector('.entity-collapse');
+    if (!this.button) {
+      return;
+    }
+    this.heading = section.querySelector('h3');
+    this.icon = this.button.querySelector('.entity-collapse-icon');
+    this.targets = Array.from(section.querySelectorAll('[data-collapsible]'));
+    this.label = this.heading?.textContent?.trim() || 'section';
+    const initiallyCollapsed = section.dataset.collapsed === 'true';
+    this.setExpanded(!initiallyCollapsed);
+    this.button.addEventListener('click', () => {
+      const isCollapsed = this.section.dataset.collapsed === 'true';
+      this.setExpanded(isCollapsed);
+    });
+  }
+
+  setExpanded(expanded) {
+    this.section.dataset.collapsed = expanded ? 'false' : 'true';
+    this.button.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+    this.button.setAttribute(
+      'aria-label',
+      `${expanded ? 'Collapse' : 'Expand'} ${this.label}`
+    );
+    if (this.icon) {
+      this.icon.textContent = expanded ? '⌄' : '⌃';
+    }
+    this.targets.forEach((target) => {
+      if (expanded) {
+        target.hidden = false;
+      } else {
+        target.hidden = true;
+      }
+    });
+  }
+
+  static init(sections) {
+    return Array.from(sections, (section) => new CollapsibleSection(section));
   }
 }
 
@@ -1218,6 +1422,7 @@ class App {
       endInput: dom.endInput
     });
     PanelManager.init(dom.panelToggles);
+    CollapsibleSection.init(dom.entitySections);
     this.orgManager.onChange(() => {
       this.stepManager.updateAssignments(this.orgManager.getAssignmentOptions());
       this.renderDiagram();

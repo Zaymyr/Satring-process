@@ -13,6 +13,10 @@
       --panel-width: clamp(320px, 28vw, 420px);
       --left-panel-offset: calc(var(--panel-width) + 4rem);
       --right-panel-offset: calc(var(--panel-width) + 4rem);
+      --panel-toggle-width: 2.75rem;
+      --panel-toggle-height: 5.25rem;
+      --panel-toggle-offset: calc(var(--panel-toggle-width) * 0.55);
+      --panel-collapsed-peek: calc(var(--panel-toggle-width) + 0.75rem);
     }
 
     body[data-left-collapsed='true'] {
@@ -117,30 +121,71 @@
     }
 
     .side-panel[data-side='left'].is-collapsed {
-      transform: translateX(calc(-100% + 3rem));
+      transform: translateX(calc(-100% + var(--panel-collapsed-peek)));
     }
 
     .side-panel[data-side='right'].is-collapsed {
-      transform: translateX(calc(100% - 3rem));
+      transform: translateX(calc(100% - var(--panel-collapsed-peek)));
     }
 
     .panel-toggle {
       position: absolute;
-      top: 1.25rem;
-      width: 2.5rem;
-      height: 2.5rem;
-      display: grid;
-      place-items: center;
+      top: 50%;
+      transform: translateY(-50%);
+      width: var(--panel-toggle-width);
+      height: var(--panel-toggle-height);
+      display: flex;
+      align-items: center;
+      justify-content: center;
       border-radius: 999px;
+      background: linear-gradient(160deg, rgba(37, 99, 235, 0.55), rgba(14, 165, 233, 0.35));
+      border: 1px solid rgba(148, 163, 184, 0.45);
+      box-shadow: 0 18px 50px rgba(15, 23, 42, 0.65);
+      color: #f8fafc;
       z-index: 2;
+      overflow: hidden;
+      padding: 0;
+      transition: transform 0.25s ease, box-shadow 0.25s ease, background 0.3s ease;
     }
 
     .side-panel[data-side='left'] .panel-toggle {
-      right: -1.25rem;
+      right: calc(var(--panel-toggle-offset) * -1);
+      border-top-right-radius: 20px;
+      border-bottom-right-radius: 20px;
     }
 
     .side-panel[data-side='right'] .panel-toggle {
-      left: -1.25rem;
+      left: calc(var(--panel-toggle-offset) * -1);
+      border-top-left-radius: 20px;
+      border-bottom-left-radius: 20px;
+    }
+
+    .panel-toggle::before {
+      content: '';
+      position: absolute;
+      inset: 0.35rem;
+      border-radius: inherit;
+      background: rgba(15, 23, 42, 0.75);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+    }
+
+    .panel-toggle span[aria-hidden='true'] {
+      position: relative;
+      z-index: 1;
+      font-size: 1.35rem;
+      line-height: 1;
+    }
+
+    .panel-toggle:hover,
+    .panel-toggle:focus-visible {
+      transform: translateY(-50%) scale(1.03);
+      box-shadow: 0 22px 60px rgba(15, 23, 42, 0.7);
+      background: linear-gradient(160deg, rgba(59, 130, 246, 0.65), rgba(14, 165, 233, 0.45));
+    }
+
+    .panel-toggle:focus-visible {
+      outline: none;
+      border-color: rgba(59, 130, 246, 0.75);
     }
 
     .info-header {
@@ -204,10 +249,18 @@
       gap: 0.9rem;
     }
 
+    .entity-section[data-collapsed='true'] {
+      gap: 0.75rem;
+    }
+
+    .entity-section[data-collapsed='true'] [data-collapsible] {
+      display: none;
+    }
+
     .entity-header {
-      display: flex;
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr) auto;
       align-items: center;
-      justify-content: space-between;
       gap: 0.75rem;
     }
 
@@ -218,6 +271,17 @@
       letter-spacing: 0.01em;
       text-transform: none;
       color: #bfdbfe;
+    }
+
+    .entity-collapse {
+      width: 2.15rem;
+      height: 2.15rem;
+      border-radius: 12px;
+    }
+
+    .entity-collapse-icon {
+      font-size: 0.95rem;
+      transition: transform 0.25s ease;
     }
 
     .entity-list {
@@ -244,6 +308,10 @@
     }
 
     .entity-row[data-entity-type='department'] {
+      grid-template-columns: minmax(0, 1fr) auto auto;
+    }
+
+    .entity-row[data-entity-type='role'] {
       grid-template-columns: minmax(0, 1fr) auto auto;
     }
 
@@ -424,13 +492,21 @@
     }
 
     .step-row {
+      --role-card-bg: rgba(15, 23, 42, 0.55);
+      --role-card-border: rgba(148, 163, 184, 0.35);
+      --role-card-text: rgba(226, 232, 240, 0.92);
+      --role-card-accent: rgba(226, 232, 240, 0.85);
+      --role-card-muted: rgba(226, 232, 240, 0.7);
+      --role-card-control-bg: rgba(15, 23, 42, 0.45);
+      --role-card-control-border: rgba(148, 163, 184, 0.35);
       display: flex;
       flex-direction: column;
       gap: 0.75rem;
       padding: 0.65rem 0.75rem;
       border-radius: 14px;
-      background: rgba(15, 23, 42, 0.55);
-      border: 1px solid rgba(148, 163, 184, 0.35);
+      background: var(--role-card-bg);
+      border: 1px solid var(--role-card-border);
+      color: var(--role-card-text);
     }
 
     .step-header {
@@ -495,16 +571,13 @@
       flex-direction: column;
       gap: 0.9rem;
       padding: 0.9rem 0.85rem;
-    }
-
-    .step-row[data-type='decision'] {
-      border-color: rgba(250, 204, 21, 0.5);
-      background: rgba(250, 204, 21, 0.12);
-      color: rgba(250, 250, 250, 0.92);
-    }
-
-    .step-row[data-type='decision'] .step-label {
-      color: rgba(250, 250, 250, 0.85);
+      --role-card-bg: rgba(250, 204, 21, 0.12);
+      --role-card-border: rgba(250, 204, 21, 0.5);
+      --role-card-text: rgba(250, 250, 250, 0.92);
+      --role-card-accent: rgba(250, 250, 250, 0.85);
+      --role-card-muted: rgba(250, 250, 250, 0.75);
+      --role-card-control-bg: rgba(30, 41, 59, 0.55);
+      --role-card-control-border: rgba(245, 158, 11, 0.4);
     }
 
     .decision-header {
@@ -594,6 +667,13 @@
     }
 
     .branch-step {
+      --role-card-bg: rgba(15, 23, 42, 0.55);
+      --role-card-border: rgba(148, 163, 184, 0.25);
+      --role-card-text: rgba(226, 232, 240, 0.88);
+      --role-card-accent: rgba(226, 232, 240, 0.8);
+      --role-card-muted: rgba(226, 232, 240, 0.65);
+      --role-card-control-bg: rgba(15, 23, 42, 0.45);
+      --role-card-control-border: rgba(148, 163, 184, 0.25);
       display: grid;
       grid-template-columns: auto minmax(0, 1fr) auto;
       grid-template-rows: auto auto;
@@ -602,14 +682,15 @@
       align-items: center;
       padding: 0.5rem 0.6rem;
       border-radius: 10px;
-      background: rgba(15, 23, 42, 0.55);
-      border: 1px solid rgba(148, 163, 184, 0.25);
+      background: var(--role-card-bg);
+      border: 1px solid var(--role-card-border);
+      color: var(--role-card-text);
     }
 
     .branch-step-label {
       font-size: 0.8rem;
       font-weight: 600;
-      color: rgba(226, 232, 240, 0.8);
+      color: var(--role-card-accent);
     }
 
     .branch-step-input {
@@ -621,7 +702,7 @@
     }
 
     .branch-step-input::placeholder {
-      color: rgba(226, 232, 240, 0.45);
+      color: var(--role-card-muted);
     }
 
     .branch-step-input:focus {
@@ -655,15 +736,15 @@
       font-weight: 600;
       text-transform: uppercase;
       letter-spacing: 0.05em;
-      color: rgba(226, 232, 240, 0.7);
+      color: var(--role-card-muted);
     }
 
     .assignment-select {
       width: 100%;
       padding: 0.45rem 0.65rem;
       border-radius: 12px;
-      border: 1px solid rgba(148, 163, 184, 0.35);
-      background: rgba(15, 23, 42, 0.5);
+      border: 1px solid var(--role-card-control-border);
+      background: var(--role-card-control-bg);
       color: inherit;
       font-family: inherit;
       font-size: 0.85rem;
@@ -680,12 +761,7 @@
     }
 
     .step-row[data-type='decision'] .assignment-field-label {
-      color: rgba(250, 250, 250, 0.75);
-    }
-
-    .step-row[data-type='decision'] .assignment-select {
-      border-color: rgba(245, 158, 11, 0.4);
-      background: rgba(30, 41, 59, 0.55);
+      color: var(--role-card-muted);
     }
 
     .branch-footer {
@@ -710,7 +786,7 @@
     .step-label {
       font-weight: 600;
       font-size: 0.9rem;
-      color: rgba(226, 232, 240, 0.85);
+      color: var(--role-card-accent);
       min-width: 64px;
     }
 
@@ -723,7 +799,7 @@
     }
 
     .step-input::placeholder {
-      color: rgba(226, 232, 240, 0.45);
+      color: var(--role-card-muted);
     }
 
     .step-input:focus {
@@ -743,7 +819,7 @@
       transition: background 0.2s ease, transform 0.2s ease;
     }
 
-    .icon-button:hover {
+    .icon-button:not(.panel-toggle):hover {
       background: rgba(59, 130, 246, 0.2);
       transform: translateY(-1px);
     }
@@ -839,6 +915,24 @@
         color: #0f172a;
       }
 
+      .panel-toggle {
+        background: linear-gradient(160deg, rgba(191, 219, 254, 0.9), rgba(59, 130, 246, 0.45));
+        border-color: rgba(148, 163, 184, 0.5);
+        box-shadow: 0 22px 55px rgba(15, 23, 42, 0.15);
+        color: #1e3a8a;
+      }
+
+      .panel-toggle::before {
+        background: rgba(248, 250, 252, 0.9);
+      }
+
+      .panel-toggle:hover,
+      .panel-toggle:focus-visible {
+        box-shadow: 0 26px 65px rgba(37, 99, 235, 0.35);
+        background: linear-gradient(160deg, rgba(191, 219, 254, 0.95), rgba(59, 130, 246, 0.6));
+        border-color: rgba(37, 99, 235, 0.55);
+      }
+
       h1 {
         color: #1d4ed8;
       }
@@ -869,22 +963,23 @@
       }
 
       .step-row {
-        background: rgba(241, 245, 249, 0.9);
-        border-color: rgba(148, 163, 184, 0.4);
+        --role-card-bg: rgba(241, 245, 249, 0.9);
+        --role-card-border: rgba(148, 163, 184, 0.4);
+        --role-card-text: rgba(15, 23, 42, 0.85);
+        --role-card-accent: rgba(15, 23, 42, 0.7);
+        --role-card-muted: rgba(15, 23, 42, 0.6);
+        --role-card-control-bg: rgba(241, 245, 249, 0.88);
+        --role-card-control-border: rgba(148, 163, 184, 0.35);
       }
 
-      .step-row[data-type='decision'] {
-        background: rgba(253, 230, 138, 0.35);
-        border-color: rgba(245, 158, 11, 0.45);
-        color: rgba(120, 53, 15, 0.85);
-      }
-
-      .step-label {
-        color: rgba(15, 23, 42, 0.7);
-      }
-
-      .step-row[data-type='decision'] .step-label {
-        color: rgba(146, 64, 14, 0.8);
+      .step-row--decision {
+        --role-card-bg: rgba(253, 230, 138, 0.35);
+        --role-card-border: rgba(245, 158, 11, 0.45);
+        --role-card-text: rgba(120, 53, 15, 0.85);
+        --role-card-accent: rgba(146, 64, 14, 0.8);
+        --role-card-muted: rgba(146, 64, 14, 0.7);
+        --role-card-control-bg: rgba(253, 230, 138, 0.25);
+        --role-card-control-border: rgba(245, 158, 11, 0.45);
       }
 
       .branch-section {
@@ -897,16 +992,13 @@
       }
 
       .branch-step {
-        background: rgba(241, 245, 249, 0.85);
-        border-color: rgba(148, 163, 184, 0.3);
-      }
-
-      .branch-step-label {
-        color: rgba(15, 23, 42, 0.65);
-      }
-
-      .branch-step-input::placeholder {
-        color: rgba(15, 23, 42, 0.45);
+        --role-card-bg: rgba(241, 245, 249, 0.85);
+        --role-card-border: rgba(148, 163, 184, 0.3);
+        --role-card-text: rgba(15, 23, 42, 0.75);
+        --role-card-accent: rgba(15, 23, 42, 0.65);
+        --role-card-muted: rgba(15, 23, 42, 0.5);
+        --role-card-control-bg: rgba(241, 245, 249, 0.85);
+        --role-card-control-border: rgba(148, 163, 184, 0.3);
       }
 
       .branch-footer {
@@ -920,23 +1012,7 @@
       }
 
       .assignment-field-label {
-        color: rgba(15, 23, 42, 0.6);
-      }
-
-      .step-row[data-type='decision'] .assignment-field-label {
-        color: rgba(146, 64, 14, 0.75);
-      }
-
-      .assignment-select {
-        background: rgba(241, 245, 249, 0.88);
-        border-color: rgba(148, 163, 184, 0.35);
-        color: #0f172a;
-      }
-
-      .step-row[data-type='decision'] .assignment-select {
-        background: rgba(253, 230, 138, 0.25);
-        border-color: rgba(245, 158, 11, 0.45);
-        color: rgba(120, 53, 15, 0.85);
+        color: var(--role-card-muted);
       }
 
       .assignment-select:disabled {
@@ -958,7 +1034,7 @@
       }
 
       .step-input::placeholder {
-        color: rgba(15, 23, 42, 0.45);
+        color: var(--role-card-muted);
       }
 
       .icon-button {
@@ -994,6 +1070,12 @@
         border-color: rgba(148, 163, 184, 0.4);
       }
 
+      .entity-collapse {
+        border-color: rgba(148, 163, 184, 0.5);
+        background: rgba(226, 232, 240, 0.6);
+        color: #1e3a8a;
+      }
+
       .entity-input {
         color: #0f172a;
       }
@@ -1023,8 +1105,24 @@
         </header>
         <section class="info-section entity-section" aria-labelledby="departments-title">
           <div class="entity-header">
+            <button
+              class="icon-button entity-collapse"
+              type="button"
+              aria-expanded="true"
+              aria-controls="department-list"
+              aria-label="Collapse Departments section"
+            >
+              <span class="entity-collapse-icon" aria-hidden="true">⌄</span>
+            </button>
             <h3 id="departments-title">Departments</h3>
-            <button id="add-department" class="secondary-button" type="button">Add department</button>
+            <button
+              id="add-department"
+              class="secondary-button"
+              type="button"
+              data-collapsible="true"
+            >
+              Add department
+            </button>
           </div>
           <div
             id="department-list"
@@ -1032,13 +1130,32 @@
             data-empty-text="Add departments to capture who owns each phase."
             role="list"
             aria-labelledby="departments-title"
+            data-collapsible="true"
           ></div>
-          <p class="helper-text">Use departments to highlight which teams drive each milestone.</p>
+          <p class="helper-text" data-collapsible="true">
+            Use departments to highlight which teams drive each milestone.
+          </p>
         </section>
         <section class="info-section entity-section" aria-labelledby="roles-title">
           <div class="entity-header">
+            <button
+              class="icon-button entity-collapse"
+              type="button"
+              aria-expanded="true"
+              aria-controls="role-list"
+              aria-label="Collapse Roles section"
+            >
+              <span class="entity-collapse-icon" aria-hidden="true">⌄</span>
+            </button>
             <h3 id="roles-title">Roles</h3>
-            <button id="add-role" class="secondary-button" type="button">Add role</button>
+            <button
+              id="add-role"
+              class="secondary-button"
+              type="button"
+              data-collapsible="true"
+            >
+              Add role
+            </button>
           </div>
           <div
             id="role-list"
@@ -1046,8 +1163,11 @@
             data-empty-text="Record the key roles collaborating in this journey."
             role="list"
             aria-labelledby="roles-title"
+            data-collapsible="true"
           ></div>
-          <p class="helper-text">Pair roles with steps to clarify ownership and expectations.</p>
+          <p class="helper-text" data-collapsible="true">
+            Pair roles with steps to clarify ownership and expectations.
+          </p>
         </section>
       </div>
     </aside>
