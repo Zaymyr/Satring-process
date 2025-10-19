@@ -265,14 +265,18 @@ class DepartmentTree {
       dataset: { entityType: 'department', entityId: id }
     });
     const { button: collapseButton, icon: collapseIcon } = createIconButton(
-      'Collapse department roles',
+      'Réduire les rôles du département',
       '\u25BE'
     );
     collapseButton.classList.add('department-collapse');
     collapseButton.setAttribute('aria-expanded', 'true');
     const input = createElement('input', {
       className: 'entity-input',
-      attrs: { type: 'text', placeholder: 'Name the department', 'aria-label': 'Department name' }
+      attrs: {
+        type: 'text',
+        placeholder: 'Nommer le département',
+        'aria-label': 'Nom du département'
+      }
     });
     input.value = value;
 
@@ -280,8 +284,8 @@ class DepartmentTree {
       className: 'entity-color',
       attrs: {
         type: 'color',
-        'aria-label': 'Department color',
-        title: 'Pick department color'
+        'aria-label': 'Couleur du département',
+        title: 'Choisir la couleur du département'
       }
     });
     const initialColor = normalizeHexColor(
@@ -303,14 +307,14 @@ class DepartmentTree {
     const addRoleButton = createElement('button', {
       className: 'add-role-button',
       attrs: { type: 'button' },
-      text: 'Add role'
+      text: 'Ajouter un rôle'
     });
     addRoleButton.addEventListener('click', () => {
       const roleRow = this.addRole(node);
       roleRow?.querySelector('.entity-input')?.focus();
     });
 
-    const { button: removeButton } = createIconButton('Remove department', '\u00D7', () => {
+    const { button: removeButton } = createIconButton('Supprimer le département', '\u00D7', () => {
       node.remove();
       this.notifyChange();
     });
@@ -319,22 +323,22 @@ class DepartmentTree {
       className: 'role-list',
       attrs: { role: 'group' }
     });
-    rolesContainer.dataset.emptyText = 'Add roles to clarify who supports this department.';
+    rolesContainer.dataset.emptyText = 'Ajoutez des rôles pour préciser qui soutient ce département.';
     const rolesId = `${id}-roles`;
     rolesContainer.id = rolesId;
     collapseButton.setAttribute('aria-controls', rolesId);
 
-    const getDepartmentLabel = () => input.value.trim() || 'this department';
+    const getDepartmentLabel = () => input.value.trim() || 'ce département';
     const updateRoleButtonLabel = () => {
       const label = getDepartmentLabel();
-      addRoleButton.setAttribute('aria-label', `Add role to ${label}`);
-      addRoleButton.title = `Add role to ${label}`;
+      addRoleButton.setAttribute('aria-label', `Ajouter un rôle à ${label}`);
+      addRoleButton.title = `Ajouter un rôle à ${label}`;
     };
     const updateCollapseLabel = () => {
       const collapsed = node.dataset.collapsed === 'true';
       collapseButton.setAttribute(
         'aria-label',
-        `${collapsed ? 'Expand' : 'Collapse'} ${getDepartmentLabel()} roles`
+        `${collapsed ? 'Développer' : 'Réduire'} les rôles de ${getDepartmentLabel()}`
       );
     };
     const setCollapsed = (collapsed) => {
@@ -405,7 +409,7 @@ class DepartmentTree {
     });
     const input = createElement('input', {
       className: 'entity-input',
-      attrs: { type: 'text', placeholder: 'Name the role', 'aria-label': 'Role name' }
+      attrs: { type: 'text', placeholder: 'Nommer le rôle', 'aria-label': 'Nom du rôle' }
     });
     input.value = value;
     input.addEventListener('input', () => this.notifyChange());
@@ -422,8 +426,8 @@ class DepartmentTree {
       className: 'entity-color',
       attrs: {
         type: 'color',
-        'aria-label': 'Role color',
-        title: 'Pick role color'
+        'aria-label': 'Couleur du rôle',
+        title: 'Choisir la couleur du rôle'
       }
     });
     const initialColor = normalizeHexColor(
@@ -442,7 +446,7 @@ class DepartmentTree {
     });
     row.appendChild(colorInput);
 
-    const { button: removeButton } = createIconButton('Remove role', '\u00D7', () => {
+    const { button: removeButton } = createIconButton('Supprimer le rôle', '\u00D7', () => {
       row.remove();
       this.notifyChange();
     });
@@ -487,7 +491,7 @@ class DepartmentTree {
           return null;
         }
         const input = row.querySelector('.entity-input');
-        const fallback = `Department ${index + 1}`;
+        const fallback = `Département ${index + 1}`;
         const label = (input?.value || '').trim() || fallback;
         node.dataset.entityOrder = String(index + 1);
         const colorInput = row.querySelector('.entity-color');
@@ -515,7 +519,7 @@ class DepartmentTree {
     nodes.forEach((node, deptIndex) => {
       const departmentId = node.dataset.entityId;
       const departmentEntry = departmentLookup.get(departmentId);
-      const departmentLabel = departmentEntry?.label || `Department ${deptIndex + 1}`;
+      const departmentLabel = departmentEntry?.label || `Département ${deptIndex + 1}`;
       const rolesContainer = node.querySelector('.role-list');
       if (!rolesContainer) {
         return;
@@ -523,7 +527,7 @@ class DepartmentTree {
       const rows = Array.from(rolesContainer.querySelectorAll(".entity-row[data-entity-type='role']"));
       rows.forEach((row, roleIndex) => {
         const input = row.querySelector('.entity-input');
-        const fallback = `Role ${roleIndex + 1}`;
+        const fallback = `Rôle ${roleIndex + 1}`;
         const roleName = (input?.value || '').trim() || fallback;
         row.dataset.entityOrder = String(roleIndex + 1);
         const colorInput = row.querySelector('.entity-color');
@@ -570,8 +574,8 @@ class OrgManager {
   ensureDefaults() {
     if (this.tree.isEmpty()) {
       const defaults = [
-        { name: 'Operations', roles: ['Process Owner'] },
-        { name: 'Customer Success', roles: ['Reviewer'] }
+        { name: 'Opérations', roles: ['Responsable du processus'] },
+        { name: 'Succès client', roles: ['Réviseur'] }
       ];
       defaults.forEach(({ name, roles }) => {
         const node = this.tree.addDepartment(name);
@@ -602,17 +606,20 @@ class OrgManager {
     const departmentCount = this.tree.countDepartmentsFilled();
     const roleCount = this.tree.countRolesFilled();
     if (departmentCount === 0 && roleCount === 0) {
-      this.summaryEl.textContent = 'Start by adding departments and linking the roles that support them.';
+      this.summaryEl.textContent =
+        'Commencez par ajouter des départements et relier les rôles qui les soutiennent.';
       return;
     }
     const parts = [];
     if (departmentCount > 0) {
-      parts.push(`${departmentCount} ${departmentCount === 1 ? 'department' : 'departments'}`);
+      parts.push(
+        `${departmentCount} ${departmentCount === 1 ? 'département' : 'départements'}`
+      );
     }
     if (roleCount > 0) {
-      parts.push(`${roleCount} ${roleCount === 1 ? 'role' : 'roles'}`);
+      parts.push(`${roleCount} ${roleCount === 1 ? 'rôle' : 'rôles'}`);
     }
-    this.summaryEl.textContent = `Tracking ${parts.join(' and ')} across your journey.`;
+    this.summaryEl.textContent = `Suivi de ${parts.join(' et ')} tout au long de votre parcours.`;
   }
 
   getDepartments() {
@@ -658,15 +665,18 @@ class AssignmentGroup {
   constructor({ context = 'step', variant, onChange }) {
     this.onChange = onChange;
     const contextLabel =
-      context === 'decision' ? 'decision' : context === 'branch' ? 'branch step' : 'step';
+      context === 'decision' ? 'décision' : context === 'branch' ? 'étape de branche' : 'étape';
     this.element = createElement('div', {
       className: ['assignment-row', variant ? `assignment-row--${variant}` : ''].filter(Boolean).join(' ')
     });
     this.allRoles = [];
-    this.departmentSelect = this.createSelect('department', `Assign department for this ${contextLabel}`);
-    this.roleSelect = this.createSelect('role', `Assign role for this ${contextLabel}`);
-    this.element.appendChild(this.buildField('Department', this.departmentSelect));
-    this.element.appendChild(this.buildField('Role', this.roleSelect));
+    this.departmentSelect = this.createSelect(
+      'department',
+      `Attribuer un département à cette ${contextLabel}`
+    );
+    this.roleSelect = this.createSelect('role', `Attribuer un rôle à cette ${contextLabel}`);
+    this.element.appendChild(this.buildField('Département', this.departmentSelect));
+    this.element.appendChild(this.buildField('Rôle', this.roleSelect));
   }
 
   createSelect(type, label) {
@@ -694,14 +704,15 @@ class AssignmentGroup {
   populateSelect(select, entries, placeholderOverride) {
     const previous = select.value;
     const category = select.dataset.type || (select === this.departmentSelect ? 'department' : 'role');
+    const categoryPlural = category === 'department' ? 'des départements' : 'des rôles';
     select.innerHTML = '';
     const placeholder = createElement('option', {
       attrs: { value: '' },
       text:
         placeholderOverride ||
         (entries.length === 0
-          ? `Add ${category === 'department' ? 'departments' : 'roles'} to assign`
-          : `Unassigned ${category}`)
+          ? `Ajoutez ${categoryPlural} à attribuer`
+          : `${category === 'department' ? 'Département' : 'Rôle'} non attribué`)
     });
     select.appendChild(placeholder);
     entries.forEach((entry) => {
@@ -743,7 +754,7 @@ class AssignmentGroup {
     }));
     const placeholderOverride =
       selectedDepartment && this.allRoles.length > 0 && roleEntries.length === 0
-        ? 'No roles in this department'
+        ? 'Aucun rôle dans ce département'
         : undefined;
     this.populateSelect(this.roleSelect, roleEntries, placeholderOverride);
   }
@@ -816,7 +827,7 @@ class BranchStepRow {
       attrs: { type: 'text' }
     });
     this.input.addEventListener('input', onChange);
-    const { button: removeButton } = createIconButton('Remove branch step', '\u00D7', onRemove);
+    const { button: removeButton } = createIconButton("Supprimer l'étape de branche", '\u00D7', onRemove);
     this.assignments = new AssignmentGroup({ context: 'branch', variant: 'compact', onChange });
     this.element.appendChild(this.labelEl);
     this.element.appendChild(this.input);
@@ -828,10 +839,10 @@ class BranchStepRow {
   }
 
   updateIndex(index) {
-    const branchName = this.branchType === 'yes' ? 'Yes' : 'No';
+    const branchName = this.branchType === 'yes' ? 'Oui' : 'Non';
     this.index = index;
     this.labelEl.textContent = `${branchName} ${index}`;
-    this.input.placeholder = `Describe ${branchName.toLowerCase()} path ${index}`;
+    this.input.placeholder = `Décrivez le parcours « ${branchName} » ${index}`;
   }
 
   updateAssignmentsOptions(options) {
@@ -841,7 +852,8 @@ class BranchStepRow {
 
   collect({ parentId, index, departmentLookup, roleLookup }) {
     const branchLabel = this.branchType === 'yes' ? 'yes' : 'no';
-    const fallback = `${branchLabel.charAt(0).toUpperCase() + branchLabel.slice(1)} ${index}`;
+    const branchName = this.branchType === 'yes' ? 'Oui' : 'Non';
+    const fallback = `${branchName} ${index}`;
     const label = sanitizeLabel(this.input.value, fallback);
     const assignment = this.assignments.collect({ departmentLookup, roleLookup });
     const inlineParts = [];
@@ -874,7 +886,7 @@ class BranchSection {
     this.onChange = onChange;
     this.getAssignmentOptions = getAssignmentOptions;
     this.steps = [];
-    const labelText = branchType === 'yes' ? 'Yes branch' : 'No branch';
+    const labelText = branchType === 'yes' ? 'Branche Oui' : 'Branche Non';
     this.element = createElement('div', {
       className: 'branch-section',
       dataset: { branch: branchType }
@@ -885,7 +897,7 @@ class BranchSection {
     const addButton = createElement('button', {
       className: 'secondary-button',
       attrs: { type: 'button' },
-      text: 'Add step'
+      text: 'Ajouter une étape'
     });
     addButton.addEventListener('click', () => {
       const step = this.addStep();
@@ -898,7 +910,7 @@ class BranchSection {
       dataset: { branch: branchType }
     });
     this.element.appendChild(this.stepsContainer);
-    const footerLabel = createElement('span', { className: 'branch-label', text: 'Close on' });
+    const footerLabel = createElement('span', { className: 'branch-label', text: 'Se termine sur' });
     this.targetSelect = createElement('select', {
       className: 'branch-target',
       dataset: { branch: branchType }
@@ -948,7 +960,9 @@ class BranchSection {
   updateTargetOptions(options, parentId) {
     const previous = this.targetSelect.value;
     this.targetSelect.innerHTML = '';
-    this.targetSelect.appendChild(createElement('option', { attrs: { value: 'finish' }, text: 'Finish' }));
+    this.targetSelect.appendChild(
+      createElement('option', { attrs: { value: 'finish' }, text: 'Fin' })
+    );
     options.forEach((option) => {
       if (option.id === parentId) {
         return;
@@ -984,31 +998,34 @@ class ProcessRow {
       dataset: { type: 'process' }
     });
     const header = createElement('div', { className: 'step-header' });
-    const { button: handle } = createIconButton('Reorder step', '☰');
+    const { button: handle } = createIconButton("Réorganiser l'étape", '☰');
     handle.classList.add('drag-handle');
     header.appendChild(handle);
     this.dragHandle = handle;
-    const { button: toggle, icon } = createIconButton('Collapse step details', '▾');
+    const { button: toggle, icon } = createIconButton('Réduire les détails de l\'étape', '▾');
     toggle.classList.add('step-toggle');
     toggle.addEventListener('click', () => {
       const collapsed = this.element.classList.toggle('step-collapsed');
       toggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
-      toggle.setAttribute('aria-label', `${collapsed ? 'Expand' : 'Collapse'} ${this.labelEl.textContent} details`);
+      toggle.setAttribute(
+        'aria-label',
+        `${collapsed ? 'Développer' : 'Réduire'} les détails de l'étape ${this.index}`
+      );
       icon.textContent = collapsed ? '▸' : '▾';
     });
     header.appendChild(toggle);
     this.toggle = toggle;
     this.toggleIcon = icon;
-    this.labelEl = createElement('span', { className: 'step-label', text: 'Step' });
+    this.labelEl = createElement('span', { className: 'step-label', text: 'Étape' });
     header.appendChild(this.labelEl);
     this.input = createElement('input', {
       className: 'input-control step-input',
-      attrs: { type: 'text', placeholder: 'Describe the step' }
+      attrs: { type: 'text', placeholder: "Décrivez l'étape" }
     });
     this.input.value = value;
     this.input.addEventListener('input', onChange);
     header.appendChild(this.input);
-    const { button: removeButton } = createIconButton('Remove step', '\u00D7', onRemove);
+    const { button: removeButton } = createIconButton("Supprimer l'étape", '\u00D7', onRemove);
     header.appendChild(removeButton);
     this.element.appendChild(header);
     this.body = createElement('div', { className: 'step-body' });
@@ -1024,12 +1041,15 @@ class ProcessRow {
     this.index = index;
     this.id = `step${index}`;
     this.element.dataset.entryId = this.id;
-    this.labelEl.textContent = `Step ${index}`;
-    this.input.placeholder = `Describe step ${index}`;
-    this.dragHandle.setAttribute('aria-label', `Reorder step ${index}`);
+    this.labelEl.textContent = `Étape ${index}`;
+    this.input.placeholder = `Décrivez l'étape ${index}`;
+    this.dragHandle.setAttribute('aria-label', `Réorganiser l'étape ${index}`);
     const collapsed = this.element.classList.contains('step-collapsed');
     this.toggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
-    this.toggle.setAttribute('aria-label', `${collapsed ? 'Expand' : 'Collapse'} Step ${index} details`);
+    this.toggle.setAttribute(
+      'aria-label',
+      `${collapsed ? 'Développer' : 'Réduire'} les détails de l'étape ${index}`
+    );
   }
 
   updateAssignmentsOptions(options) {
@@ -1038,7 +1058,7 @@ class ProcessRow {
   }
 
   collect({ departmentLookup, roleLookup }) {
-    const fallback = `Step ${this.index}`;
+    const fallback = `Étape ${this.index}`;
     const label = sanitizeLabel(this.input.value, fallback);
     const assignment = this.assignments.collect({ departmentLookup, roleLookup });
     const inlineParts = [];
@@ -1058,7 +1078,7 @@ class ProcessRow {
   }
 
   getDisplayName() {
-    return (this.input.value || '').trim() || `Step ${this.index}`;
+    return (this.input.value || '').trim() || `Étape ${this.index}`;
   }
 
   focus() {
@@ -1080,34 +1100,34 @@ class DecisionRow {
       dataset: { type: 'decision' }
     });
     const header = createElement('div', { className: 'decision-header' });
-    const { button: handle } = createIconButton('Reorder decision', '☰');
+    const { button: handle } = createIconButton('Réorganiser la décision', '☰');
     handle.classList.add('drag-handle');
     header.appendChild(handle);
     this.dragHandle = handle;
-    const { button: toggle, icon } = createIconButton('Collapse decision branches', '▾');
+    const { button: toggle, icon } = createIconButton('Réduire les branches de la décision', '▾');
     toggle.classList.add('decision-toggle');
     toggle.addEventListener('click', () => {
       const collapsed = this.element.classList.toggle('decision-collapsed');
       toggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
       toggle.setAttribute(
         'aria-label',
-        `${collapsed ? 'Expand' : 'Collapse'} ${this.labelEl.textContent} branches`
+        `${collapsed ? 'Développer' : 'Réduire'} les branches de la décision ${this.index}`
       );
       icon.textContent = collapsed ? '▸' : '▾';
     });
     header.appendChild(toggle);
     this.toggle = toggle;
     this.toggleIcon = icon;
-    this.labelEl = createElement('span', { className: 'step-label', text: 'Decision' });
+    this.labelEl = createElement('span', { className: 'step-label', text: 'Décision' });
     header.appendChild(this.labelEl);
     this.input = createElement('input', {
       className: 'input-control step-input',
-      attrs: { type: 'text', placeholder: 'Describe the decision' }
+      attrs: { type: 'text', placeholder: 'Décrivez la décision' }
     });
     this.input.value = value;
     this.input.addEventListener('input', onChange);
     header.appendChild(this.input);
-    const { button: removeButton } = createIconButton('Remove decision', '\u00D7', onRemove);
+    const { button: removeButton } = createIconButton('Supprimer la décision', '\u00D7', onRemove);
     header.appendChild(removeButton);
     this.element.appendChild(header);
     this.assignments = new AssignmentGroup({ context: 'decision', onChange });
@@ -1128,14 +1148,14 @@ class DecisionRow {
     this.index = index;
     this.id = `decision${index}`;
     this.element.dataset.entryId = this.id;
-    this.labelEl.textContent = `Decision ${index}`;
-    this.input.placeholder = `Describe decision ${index}`;
-    this.dragHandle.setAttribute('aria-label', `Reorder decision ${index}`);
+    this.labelEl.textContent = `Décision ${index}`;
+    this.input.placeholder = `Décrivez la décision ${index}`;
+    this.dragHandle.setAttribute('aria-label', `Réorganiser la décision ${index}`);
     const collapsed = this.element.classList.contains('decision-collapsed');
     this.toggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
     this.toggle.setAttribute(
       'aria-label',
-      `${collapsed ? 'Expand' : 'Collapse'} Decision ${index} branches`
+      `${collapsed ? 'Développer' : 'Réduire'} les branches de la décision ${index}`
     );
     this.branches.yes.updateLabels();
     this.branches.no.updateLabels();
@@ -1153,7 +1173,7 @@ class DecisionRow {
   }
 
   collect({ departmentLookup, roleLookup }) {
-    const fallback = `Decision ${this.index}`;
+    const fallback = `Décision ${this.index}`;
     const label = sanitizeLabel(this.input.value, fallback);
     const assignment = this.assignments.collect({ departmentLookup, roleLookup });
     const inlineParts = [];
@@ -1183,7 +1203,7 @@ class DecisionRow {
   }
 
   getDisplayName() {
-    return (this.input.value || '').trim() || `Decision ${this.index}`;
+    return (this.input.value || '').trim() || `Décision ${this.index}`;
   }
 
   focus() {
@@ -1384,8 +1404,8 @@ class DiagramRenderer {
   }
 
   buildDefinition() {
-    const startLabel = sanitizeLabel(this.startInput.value, 'Start');
-    const endLabel = sanitizeLabel(this.endInput.value, 'End');
+    const startLabel = sanitizeLabel(this.startInput.value, 'Début');
+    const endLabel = sanitizeLabel(this.endInput.value, 'Fin');
     const departmentLookup = this.orgManager.getDepartmentLookup();
     const roleLookup = this.orgManager.getRoleLookup();
     const entries = this.stepManager.collectEntries({ departmentLookup, roleLookup });
@@ -1566,8 +1586,8 @@ class DiagramRenderer {
             addEdge(entry.id, target, { label });
           }
         };
-        connectBranch(entry.branches.yes, 'Yes');
-        connectBranch(entry.branches.no, 'No');
+        connectBranch(entry.branches.yes, 'Oui');
+        connectBranch(entry.branches.no, 'Non');
       });
     if (showRoles) {
       lines.push(...roleClassLines);
@@ -1619,7 +1639,7 @@ class CollapsibleSection {
     this.button.setAttribute('aria-expanded', expanded ? 'true' : 'false');
     this.button.setAttribute(
       'aria-label',
-      `${expanded ? 'Collapse' : 'Expand'} ${this.label}`
+      `${expanded ? 'Réduire' : 'Développer'} ${this.label}`
     );
     if (this.icon) {
       this.icon.textContent = expanded ? '⌄' : '⌃';
@@ -1652,9 +1672,11 @@ class PanelManager {
       const icon = toggle.querySelector('span[aria-hidden="true"]');
       const updateState = (collapsed) => {
         toggle.setAttribute('aria-expanded', String(!collapsed));
+        const panelLabel =
+          side === 'left' ? "le panneau de l'organisation" : 'le panneau de création';
         toggle.setAttribute(
           'aria-label',
-          `${collapsed ? 'Expand' : 'Collapse'} ${side === 'left' ? 'organization panel' : 'builder panel'}`
+          `${collapsed ? 'Développer' : 'Réduire'} ${panelLabel}`
         );
         if (icon) {
           icon.textContent = side === 'left' ? (collapsed ? '⟩' : '⟨') : collapsed ? '⟨' : '⟩';
@@ -1721,7 +1743,7 @@ class DiagramFooter {
     }
     const status = this.content.querySelector(`[data-status-for="${key}"]`);
     if (status) {
-      status.textContent = this.preferences[key] ? 'Visible' : 'Hidden';
+      status.textContent = this.preferences[key] ? 'Visible' : 'Masqué';
     }
   }
 
@@ -1747,7 +1769,7 @@ class DiagramFooter {
       this.toggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
       this.toggle.setAttribute(
         'aria-label',
-        `${collapsed ? 'Expand' : 'Collapse'} diagram layer controls`
+        `${collapsed ? 'Développer' : 'Réduire'} les contrôles des couches du diagramme`
       );
     }
     if (this.content) {
@@ -1812,7 +1834,7 @@ class App {
       this.stepManager.focusRow(row);
       this.renderDiagram();
     });
-    ['Plan', 'Build'].forEach((value) => this.stepManager.addProcessStep(value));
+    ['Planifier', 'Construire'].forEach((value) => this.stepManager.addProcessStep(value));
     this.stepManager.updateAssignments(this.orgManager.getAssignmentOptions());
     this.renderDiagram();
   }
