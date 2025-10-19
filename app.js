@@ -16,7 +16,8 @@ const dom = {
   diagramFooterToggle: document.getElementById('diagram-footer-toggle'),
   diagramFooterContent: document.getElementById('diagram-footer-content'),
   diagramPreferenceDepartments: document.getElementById('diagram-pref-departments'),
-  diagramPreferenceRoles: document.getElementById('diagram-pref-roles')
+  diagramPreferenceRoles: document.getElementById('diagram-pref-roles'),
+  diagramOrientationToggle: document.getElementById('diagram-orientation-toggle')
 };
 
 const defaultDepartmentColors = ['#0ea5e9', '#22c55e', '#f97316', '#a855f7', '#facc15', '#ef4444', '#14b8a6'];
@@ -1384,6 +1385,7 @@ class DiagramRenderer {
     this.preferences = {
       showDepartments: true,
       showRoles: true,
+      orientation: 'TD',
       ...(typeof preferences === 'object' && preferences !== null ? preferences : {})
     };
     mermaid.initialize({
@@ -1397,10 +1399,14 @@ class DiagramRenderer {
     if (!preferences || typeof preferences !== 'object') {
       return;
     }
-    this.preferences = {
+    const next = {
       ...this.preferences,
       ...preferences
     };
+    next.showDepartments = next.showDepartments !== false;
+    next.showRoles = next.showRoles !== false;
+    next.orientation = next.orientation === 'RL' ? 'RL' : 'TD';
+    this.preferences = next;
   }
 
   buildDefinition() {
@@ -1411,8 +1417,9 @@ class DiagramRenderer {
     const entries = this.stepManager.collectEntries({ departmentLookup, roleLookup });
     const showDepartments = this.preferences?.showDepartments !== false;
     const showRoles = this.preferences?.showRoles !== false;
+    const orientation = this.preferences?.orientation === 'RL' ? 'RL' : 'TD';
     const lines = [
-      'flowchart TD',
+      `flowchart ${orientation}`,
       '  classDef start fill:#22c55e,color:#052e16,stroke:#16a34a,stroke-width:2px;',
       '  classDef step fill:#1f2937,color:#f8fafc,stroke:#334155,stroke-width:2px;',
       '  classDef decision fill:#fde68a,color:#78350f,stroke:#f59e0b,stroke-width:2px;',
@@ -1697,16 +1704,27 @@ class PanelManager {
 }
 
 class DiagramFooter {
-  constructor({ container, toggle, content, preferenceInputs, onPreferenceChange }) {
+  constructor({
+    container,
+    toggle,
+    content,
+    preferenceInputs,
+    orientationToggle,
+    onPreferenceChange
+  }) {
     this.container = container || null;
     this.toggle = toggle || null;
     this.content = content || null;
     this.preferenceInputs = preferenceInputs || {};
     this.onPreferenceChange = typeof onPreferenceChange === 'function' ? onPreferenceChange : null;
     this.icon = this.toggle?.querySelector('.diagram-footer-icon') || null;
+    this.orientationToggle = orientationToggle || null;
+    this.orientationStatus = this.orientationToggle?.querySelector('[data-orientation-status]') || null;
+    this.orientationIcon = this.orientationToggle?.querySelector('.diagram-footer-orientation-icon') || null;
     this.preferences = {
       showDepartments: true,
-      showRoles: true
+      showRoles: true,
+      orientation: 'TD'
     };
     const collapsed = this.container?.dataset.collapsed !== 'false';
     this.setCollapsed(collapsed);
@@ -1715,7 +1733,9 @@ class DiagramFooter {
         this.setCollapsed(!this.isCollapsed());
       });
     }
+    this.initOrientationControl();
     this.initPreferenceControls();
+    this.emitPreferenceChange();
   }
 
   initPreferenceControls() {
@@ -1734,7 +1754,6 @@ class DiagramFooter {
       }
       this.updatePreferenceLabel(key);
     });
-    this.emitPreferenceChange();
   }
 
   updatePreferenceLabel(key) {
@@ -1744,6 +1763,46 @@ class DiagramFooter {
     const status = this.content.querySelector(`[data-status-for="${key}"]`);
     if (status) {
       status.textContent = this.preferences[key] ? 'Visible' : 'Masqué';
+    }
+  }
+
+  initOrientationControl() {
+    if (!this.orientationToggle) {
+      this.preferences.orientation = 'TD';
+      return;
+    }
+    const initial = this.orientationToggle.dataset.orientation === 'RL' ? 'RL' : 'TD';
+    this.setOrientation(initial, { silent: true });
+    this.orientationToggle.addEventListener('click', () => {
+      const next = this.preferences.orientation === 'TD' ? 'RL' : 'TD';
+      this.setOrientation(next);
+    });
+  }
+
+  setOrientation(value, { silent = false } = {}) {
+    const orientation = value === 'RL' ? 'RL' : 'TD';
+    this.preferences.orientation = orientation;
+    if (this.orientationToggle) {
+      this.orientationToggle.dataset.orientation = orientation;
+      this.orientationToggle.setAttribute('aria-pressed', orientation === 'RL' ? 'true' : 'false');
+      this.orientationToggle.setAttribute(
+        'aria-label',
+        `Orientation du diagramme : ${orientation === 'RL' ? 'de droite à gauche' : 'de haut en bas'}`
+      );
+    }
+    this.updateOrientationUi();
+    if (!silent) {
+      this.emitPreferenceChange();
+    }
+  }
+
+  updateOrientationUi() {
+    if (this.orientationStatus) {
+      this.orientationStatus.textContent =
+        this.preferences.orientation === 'RL' ? 'De droite à gauche' : 'De haut en bas';
+    }
+    if (this.orientationIcon) {
+      this.orientationIcon.textContent = this.preferences.orientation === 'RL' ? '↔︎' : '↕︎';
     }
   }
 
@@ -1769,7 +1828,7 @@ class DiagramFooter {
       this.toggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
       this.toggle.setAttribute(
         'aria-label',
-        `${collapsed ? 'Développer' : 'Réduire'} les contrôles des couches du diagramme`
+        `${collapsed ? 'Développer' : 'Réduire'} les options du diagramme`
       );
     }
     if (this.content) {
@@ -1810,6 +1869,7 @@ class App {
         showDepartments: dom.diagramPreferenceDepartments,
         showRoles: dom.diagramPreferenceRoles
       },
+      orientationToggle: dom.diagramOrientationToggle,
       onPreferenceChange: (preferences) => {
         this.diagramRenderer.updatePreferences(preferences);
         this.renderDiagram();

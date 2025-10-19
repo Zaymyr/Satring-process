@@ -277,6 +277,66 @@
       color: rgba(226, 232, 240, 0.75);
     }
 
+    .diagram-footer-orientation {
+      display: inline-flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      padding: 0.55rem 0.85rem;
+      border-radius: 14px;
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      background: rgba(15, 23, 42, 0.55);
+      color: #f8fafc;
+      font-family: inherit;
+      cursor: pointer;
+      transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+      min-width: 12rem;
+    }
+
+    .diagram-footer-orientation:hover,
+    .diagram-footer-orientation:focus-visible {
+      background: rgba(59, 130, 246, 0.25);
+      border-color: rgba(59, 130, 246, 0.5);
+      color: #bfdbfe;
+    }
+
+    .diagram-footer-orientation:focus-visible {
+      outline: none;
+      box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.4);
+    }
+
+    .diagram-footer-orientation[aria-pressed='true'] {
+      background: rgba(37, 99, 235, 0.35);
+      border-color: rgba(37, 99, 235, 0.55);
+      color: #e0f2fe;
+    }
+
+    .diagram-footer-orientation-label {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 0.1rem;
+    }
+
+    .diagram-footer-orientation-title {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: inherit;
+    }
+
+    .diagram-footer-orientation-status {
+      font-size: 0.75rem;
+      color: rgba(226, 232, 240, 0.75);
+    }
+
+    .diagram-footer-orientation[aria-pressed='true'] .diagram-footer-orientation-status {
+      color: rgba(191, 219, 254, 0.95);
+    }
+
+    .diagram-footer-orientation-icon {
+      font-size: 1rem;
+    }
+
     .side-panel {
       position: absolute;
       top: 2rem;
@@ -1240,6 +1300,25 @@
         border-color: rgba(59, 130, 246, 0.55);
       }
 
+      .diagram-footer-orientation {
+        background: rgba(241, 245, 249, 0.9);
+        border-color: rgba(148, 163, 184, 0.4);
+        color: #1f2937;
+      }
+
+      .diagram-footer-orientation:hover,
+      .diagram-footer-orientation:focus-visible {
+        background: rgba(191, 219, 254, 0.6);
+        border-color: rgba(59, 130, 246, 0.55);
+        color: #1d4ed8;
+      }
+
+      .diagram-footer-orientation[aria-pressed='true'] {
+        background: rgba(191, 219, 254, 0.7);
+        border-color: rgba(59, 130, 246, 0.55);
+        color: #1d4ed8;
+      }
+
       .diagram-footer-toggle-input {
         background: rgba(148, 163, 184, 0.45);
         border-color: rgba(148, 163, 184, 0.55);
@@ -1255,6 +1334,10 @@
       }
 
       .diagram-footer-switch-status {
+        color: rgba(30, 64, 175, 0.75);
+      }
+
+      .diagram-footer-orientation-status {
         color: rgba(30, 64, 175, 0.75);
       }
 
@@ -1484,11 +1567,11 @@
           aria-expanded="false"
           aria-controls="diagram-footer-content"
         >
-          <span class="diagram-footer-title">Couches du diagramme</span>
+          <span class="diagram-footer-title">Options du diagramme</span>
           <span class="diagram-footer-icon" aria-hidden="true">⌃</span>
         </button>
         <div id="diagram-footer-content" class="diagram-footer-content" hidden>
-          <div class="diagram-footer-controls" role="group" aria-label="Visibilité des couches du diagramme">
+          <div class="diagram-footer-controls" role="group" aria-label="Options du diagramme">
             <label class="diagram-footer-switch">
               <input
                 id="diagram-pref-departments"
@@ -1515,6 +1598,22 @@
                 <span class="diagram-footer-switch-status" data-status-for="showRoles">Visible</span>
               </span>
             </label>
+            <button
+              id="diagram-orientation-toggle"
+              class="diagram-footer-orientation"
+              type="button"
+              aria-pressed="false"
+              data-orientation="TD"
+            >
+              <span class="diagram-footer-orientation-label">
+                <span class="diagram-footer-orientation-title">Orientation</span>
+                <span
+                  class="diagram-footer-orientation-status"
+                  data-orientation-status
+                >De haut en bas</span>
+              </span>
+              <span class="diagram-footer-orientation-icon" aria-hidden="true">↕︎</span>
+            </button>
           </div>
         </div>
       </section>
