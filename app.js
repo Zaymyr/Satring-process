@@ -637,7 +637,7 @@ class OrgManager {
         entry.id,
         {
           id: entry.id,
-          label: sanitizeLabel(entry.label, entry.label),
+          label: sanitizeLabel(entry.roleName || entry.label, entry.roleName || entry.label),
           color: entry.color,
           departmentId: entry.departmentId,
           departmentLabel: entry.departmentLabel,
@@ -657,6 +657,7 @@ class AssignmentGroup {
     this.element = createElement('div', {
       className: ['assignment-row', variant ? `assignment-row--${variant}` : ''].filter(Boolean).join(' ')
     });
+    this.allRoles = [];
     this.departmentSelect = this.createSelect('department', `Assign department for this ${contextLabel}`);
     this.roleSelect = this.createSelect('role', `Assign role for this ${contextLabel}`);
     this.element.appendChild(this.buildField('Department', this.departmentSelect));
@@ -669,7 +670,12 @@ class AssignmentGroup {
       dataset: { type },
       attrs: { 'aria-label': label }
     });
-    select.addEventListener('change', () => this.onChange());
+    select.addEventListener('change', () => {
+      if (type === 'department') {
+        this.filterRolesByDepartment();
+      }
+      this.onChange();
+    });
     return select;
   }
 
@@ -680,16 +686,17 @@ class AssignmentGroup {
     ]);
   }
 
-  populateSelect(select, entries) {
+  populateSelect(select, entries, placeholderOverride) {
     const previous = select.value;
     const category = select.dataset.type || (select === this.departmentSelect ? 'department' : 'role');
     select.innerHTML = '';
     const placeholder = createElement('option', {
       attrs: { value: '' },
       text:
-        entries.length === 0
+        placeholderOverride ||
+        (entries.length === 0
           ? `Add ${category === 'department' ? 'departments' : 'roles'} to assign`
-          : `Unassigned ${category}`
+          : `Unassigned ${category}`)
     });
     select.appendChild(placeholder);
     entries.forEach((entry) => {
@@ -712,7 +719,28 @@ class AssignmentGroup {
 
   updateOptions({ departments, roles }) {
     this.populateSelect(this.departmentSelect, departments);
-    this.populateSelect(this.roleSelect, roles);
+    this.allRoles = Array.isArray(roles) ? roles : [];
+    this.filterRolesByDepartment();
+  }
+
+  filterRolesByDepartment() {
+    if (!this.roleSelect) {
+      return;
+    }
+    const selectedDepartment = this.departmentSelect?.value || '';
+    const roleEntries = (selectedDepartment
+      ? this.allRoles.filter((role) => role.departmentId === selectedDepartment)
+      : this.allRoles
+    ).map((role) => ({
+      id: role.id,
+      label: role.roleName || role.label,
+      color: role.color
+    }));
+    const placeholderOverride =
+      selectedDepartment && this.allRoles.length > 0 && roleEntries.length === 0
+        ? 'No roles in this department'
+        : undefined;
+    this.populateSelect(this.roleSelect, roleEntries, placeholderOverride);
   }
 
   collect({ departmentLookup, roleLookup }) {
