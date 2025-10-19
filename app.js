@@ -1405,7 +1405,7 @@ class DiagramRenderer {
     };
     next.showDepartments = next.showDepartments !== false;
     next.showRoles = next.showRoles !== false;
-    next.orientation = next.orientation === 'RL' ? 'RL' : 'TD';
+    next.orientation = next.orientation === 'LR' ? 'LR' : 'TD';
     this.preferences = next;
   }
 
@@ -1417,7 +1417,7 @@ class DiagramRenderer {
     const entries = this.stepManager.collectEntries({ departmentLookup, roleLookup });
     const showDepartments = this.preferences?.showDepartments !== false;
     const showRoles = this.preferences?.showRoles !== false;
-    const orientation = this.preferences?.orientation === 'RL' ? 'RL' : 'TD';
+    const orientation = this.preferences?.orientation === 'LR' ? 'LR' : 'TD';
     const lines = [
       `flowchart ${orientation}`,
       '  classDef start fill:#22c55e,color:#052e16,stroke:#16a34a,stroke-width:2px;',
@@ -1771,23 +1771,23 @@ class DiagramFooter {
       this.preferences.orientation = 'TD';
       return;
     }
-    const initial = this.orientationToggle.dataset.orientation === 'RL' ? 'RL' : 'TD';
+    const initial = this.orientationToggle.dataset.orientation === 'LR' ? 'LR' : 'TD';
     this.setOrientation(initial, { silent: true });
     this.orientationToggle.addEventListener('click', () => {
-      const next = this.preferences.orientation === 'TD' ? 'RL' : 'TD';
+      const next = this.preferences.orientation === 'TD' ? 'LR' : 'TD';
       this.setOrientation(next);
     });
   }
 
   setOrientation(value, { silent = false } = {}) {
-    const orientation = value === 'RL' ? 'RL' : 'TD';
+    const orientation = value === 'LR' ? 'LR' : 'TD';
     this.preferences.orientation = orientation;
     if (this.orientationToggle) {
       this.orientationToggle.dataset.orientation = orientation;
-      this.orientationToggle.setAttribute('aria-pressed', orientation === 'RL' ? 'true' : 'false');
+      this.orientationToggle.setAttribute('aria-pressed', orientation === 'LR' ? 'true' : 'false');
       this.orientationToggle.setAttribute(
         'aria-label',
-        `Orientation du diagramme : ${orientation === 'RL' ? 'de droite à gauche' : 'de haut en bas'}`
+        `Orientation du diagramme : ${orientation === 'LR' ? 'de gauche à droite' : 'de haut en bas'}`
       );
     }
     this.updateOrientationUi();
@@ -1799,10 +1799,10 @@ class DiagramFooter {
   updateOrientationUi() {
     if (this.orientationStatus) {
       this.orientationStatus.textContent =
-        this.preferences.orientation === 'RL' ? 'De droite à gauche' : 'De haut en bas';
+        this.preferences.orientation === 'LR' ? 'De gauche à droite' : 'De haut en bas';
     }
     if (this.orientationIcon) {
-      this.orientationIcon.textContent = this.preferences.orientation === 'RL' ? '↔︎' : '↕︎';
+      this.orientationIcon.textContent = this.preferences.orientation === 'LR' ? '↔︎' : '↕︎';
     }
   }
 
