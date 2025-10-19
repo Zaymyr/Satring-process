@@ -15,7 +15,8 @@ const dom = {
   diagramFooter: document.getElementById('diagram-footer'),
   diagramFooterToggle: document.getElementById('diagram-footer-toggle'),
   diagramFooterContent: document.getElementById('diagram-footer-content'),
-  diagramDefinition: document.getElementById('diagram-definition')
+  diagramPreferenceDepartments: document.getElementById('diagram-pref-departments'),
+  diagramPreferenceRoles: document.getElementById('diagram-pref-roles')
 };
 
 const defaultDepartmentColors = ['#0ea5e9', '#22c55e', '#f97316', '#a855f7', '#facc15', '#ef4444', '#14b8a6'];
@@ -851,6 +852,8 @@ class BranchStepRow {
     return {
       id: `${parentId}_${this.branchType}${index}`,
       label: displayLabel,
+      baseLabel: label,
+      roleLabel: inlineParts[0] || null,
       departmentLane: assignment.department,
       role: assignment.role
     };
@@ -1046,6 +1049,8 @@ class ProcessRow {
     return {
       id: this.id,
       label: displayLabel,
+      baseLabel: label,
+      roleLabel: inlineParts[0] || null,
       type: 'process',
       departmentLane: assignment.department,
       role: assignment.role
@@ -1159,6 +1164,8 @@ class DecisionRow {
     return {
       id: this.id,
       label: displayLabel,
+      baseLabel: label,
+      roleLabel: inlineParts[0] || null,
       type: 'decision',
       departmentLane: assignment.department,
       role: assignment.role,
@@ -1348,18 +1355,32 @@ class StepManager {
 }
 
 class DiagramRenderer {
-  constructor({ diagramEl, stepManager, orgManager, startInput, endInput, onDefinition }) {
+  constructor({ diagramEl, stepManager, orgManager, startInput, endInput, preferences }) {
     this.diagramEl = diagramEl;
     this.stepManager = stepManager;
     this.orgManager = orgManager;
     this.startInput = startInput;
     this.endInput = endInput;
-    this.onDefinition = typeof onDefinition === 'function' ? onDefinition : null;
+    this.preferences = {
+      showDepartments: true,
+      showRoles: true,
+      ...(typeof preferences === 'object' && preferences !== null ? preferences : {})
+    };
     mermaid.initialize({
       startOnLoad: false,
       securityLevel: 'strict',
       theme: window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'default'
     });
+  }
+
+  updatePreferences(preferences) {
+    if (!preferences || typeof preferences !== 'object') {
+      return;
+    }
+    this.preferences = {
+      ...this.preferences,
+      ...preferences
+    };
   }
 
   buildDefinition() {
@@ -1368,6 +1389,8 @@ class DiagramRenderer {
     const departmentLookup = this.orgManager.getDepartmentLookup();
     const roleLookup = this.orgManager.getRoleLookup();
     const entries = this.stepManager.collectEntries({ departmentLookup, roleLookup });
+    const showDepartments = this.preferences?.showDepartments !== false;
+    const showRoles = this.preferences?.showRoles !== false;
     const lines = [
       'flowchart TD',
       '  classDef start fill:#22c55e,color:#052e16,stroke:#16a34a,stroke-width:2px;',
@@ -1387,7 +1410,7 @@ class DiagramRenderer {
     const roleClassLines = [];
     const roleAssignments = [];
     const queueRoleStyle = (node) => {
-      if (!node || !node.role || !node.role.color) {
+      if (!showRoles || !node || !node.role || !node.role.color) {
         return;
       }
       const normalized = normalizeHexColor(node.role.color);
@@ -1401,6 +1424,17 @@ class DiagramRenderer {
       }
       const className = roleClassForColor.get(normalized);
       roleAssignments.push(`  class ${node.id} ${className};`);
+    };
+    const emitNode = (node, indent) => {
+      const variant = node.variant === 'decision' ? 'decision' : 'step';
+      const labelText = showRoles
+        ? node.label ?? node.baseLabel ?? ''
+        : node.baseLabel ?? node.label ?? '';
+      const opening = variant === 'decision' ? '{' : '[';
+      const closing = variant === 'decision' ? '}' : ']';
+      const safeLabel = labelText || '';
+      lines.push(`${indent}${node.id}${opening}"${safeLabel}"${closing}:::${variant}`);
+      queueRoleStyle(node);
     };
     const addEdge = (from, to, options = {}) => {
       const { label, type = '-->', hidden } = options;
@@ -1417,7 +1451,9 @@ class DiagramRenderer {
       if (entry.type === 'decision') {
         registerNode({
           id: entry.id,
-          line: `${entry.id}{"${entry.label}"}:::decision`,
+          variant: 'decision',
+          label: entry.label,
+          baseLabel: entry.baseLabel,
           department: entry.departmentLane,
           role: entry.role,
           type: 'decision'
@@ -1425,7 +1461,9 @@ class DiagramRenderer {
         entry.branches.yes.steps.forEach((step) => {
           registerNode({
             id: step.id,
-            line: `${step.id}["${step.label}"]:::step`,
+            variant: 'step',
+            label: step.label,
+            baseLabel: step.baseLabel,
             department: step.departmentLane,
             role: step.role,
             type: 'branch'
@@ -1434,7 +1472,9 @@ class DiagramRenderer {
         entry.branches.no.steps.forEach((step) => {
           registerNode({
             id: step.id,
-            line: `${step.id}["${step.label}"]:::step`,
+            variant: 'step',
+            label: step.label,
+            baseLabel: step.baseLabel,
             department: step.departmentLane,
             role: step.role,
             type: 'branch'
@@ -1443,7 +1483,9 @@ class DiagramRenderer {
       } else {
         registerNode({
           id: entry.id,
-          line: `${entry.id}["${entry.label}"]:::step`,
+          variant: 'step',
+          label: entry.label,
+          baseLabel: entry.baseLabel,
           department: entry.departmentLane,
           role: entry.role,
           type: 'process'
@@ -1454,10 +1496,9 @@ class DiagramRenderer {
     const departmentOrder = [];
     let departmentCounter = 0;
     nodeDeclarations.forEach((node) => {
-      const { line, department } = node;
-      if (!department || !department.id) {
-        lines.push(`  ${line}`);
-        queueRoleStyle(node);
+      const { department } = node;
+      if (!showDepartments || !department || !department.id) {
+        emitNode(node, '  ');
         return;
       }
       if (!departmentGroups.has(department.id)) {
@@ -1472,25 +1513,26 @@ class DiagramRenderer {
       }
       departmentGroups.get(department.id).nodes.push(node);
     });
-    departmentOrder.forEach((departmentId) => {
-      const { laneId, label, color, nodes } = departmentGroups.get(departmentId);
-      lines.push(`  subgraph ${laneId}["${label}"]`);
-      lines.push('    direction TB');
-      nodes.forEach((node) => {
-        lines.push(`    ${node.line}`);
-        queueRoleStyle(node);
+    if (showDepartments) {
+      departmentOrder.forEach((departmentId) => {
+        const { laneId, label, color, nodes } = departmentGroups.get(departmentId);
+        lines.push(`  subgraph ${laneId}["${label}"]`);
+        lines.push('    direction TB');
+        nodes.forEach((node) => {
+          emitNode(node, '    ');
+        });
+        lines.push('  end');
+        if (color) {
+          const { fill, stroke, text } = deriveLaneColors(color);
+          lines.push(
+            `  classDef ${laneId} fill:${fill},color:${text},stroke:${stroke},stroke-width:1.5px,stroke-dasharray:6 4;`
+          );
+          lines.push(`  class ${laneId} ${laneId};`);
+        } else {
+          lines.push(`  class ${laneId} departmentLane;`);
+        }
       });
-      lines.push('  end');
-      if (color) {
-        const { fill, stroke, text } = deriveLaneColors(color);
-        lines.push(
-          `  classDef ${laneId} fill:${fill},color:${text},stroke:${stroke},stroke-width:1.5px,stroke-dasharray:6 4;`
-        );
-        lines.push(`  class ${laneId} ${laneId};`);
-      } else {
-        lines.push(`  class ${laneId} departmentLane;`);
-      }
-    });
+    }
     lines.push(`  finish((${endLabel})):::finish`);
     if (entries.length === 0) {
       addEdge('start', 'finish');
@@ -1527,8 +1569,10 @@ class DiagramRenderer {
         connectBranch(entry.branches.yes, 'Yes');
         connectBranch(entry.branches.no, 'No');
       });
-    lines.push(...roleClassLines);
-    lines.push(...roleAssignments);
+    if (showRoles) {
+      lines.push(...roleClassLines);
+      lines.push(...roleAssignments);
+    }
     lines.push(...linkStyleLines);
     return lines.join('\n');
   }
@@ -1538,9 +1582,6 @@ class DiagramRenderer {
       return;
     }
     const definition = this.buildDefinition();
-    if (this.onDefinition) {
-      this.onDefinition(definition);
-    }
     this.diagramEl.innerHTML = '';
     if (!definition) {
       return;
@@ -1634,12 +1675,17 @@ class PanelManager {
 }
 
 class DiagramFooter {
-  constructor({ container, toggle, content, definitionEl }) {
+  constructor({ container, toggle, content, preferenceInputs, onPreferenceChange }) {
     this.container = container || null;
     this.toggle = toggle || null;
     this.content = content || null;
-    this.definitionEl = definitionEl || null;
+    this.preferenceInputs = preferenceInputs || {};
+    this.onPreferenceChange = typeof onPreferenceChange === 'function' ? onPreferenceChange : null;
     this.icon = this.toggle?.querySelector('.diagram-footer-icon') || null;
+    this.preferences = {
+      showDepartments: true,
+      showRoles: true
+    };
     const collapsed = this.container?.dataset.collapsed !== 'false';
     this.setCollapsed(collapsed);
     if (this.toggle) {
@@ -1647,6 +1693,46 @@ class DiagramFooter {
         this.setCollapsed(!this.isCollapsed());
       });
     }
+    this.initPreferenceControls();
+  }
+
+  initPreferenceControls() {
+    const keys = ['showDepartments', 'showRoles'];
+    keys.forEach((key) => {
+      const input = this.preferenceInputs?.[key] || null;
+      const initial = input ? input.checked !== false : true;
+      this.preferences[key] = initial;
+      if (input) {
+        input.checked = initial;
+        input.addEventListener('change', () => {
+          this.preferences[key] = input.checked;
+          this.updatePreferenceLabel(key);
+          this.emitPreferenceChange();
+        });
+      }
+      this.updatePreferenceLabel(key);
+    });
+    this.emitPreferenceChange();
+  }
+
+  updatePreferenceLabel(key) {
+    if (!this.content) {
+      return;
+    }
+    const status = this.content.querySelector(`[data-status-for="${key}"]`);
+    if (status) {
+      status.textContent = this.preferences[key] ? 'Visible' : 'Hidden';
+    }
+  }
+
+  emitPreferenceChange() {
+    if (this.onPreferenceChange) {
+      this.onPreferenceChange(this.getPreferences());
+    }
+  }
+
+  getPreferences() {
+    return { ...this.preferences };
   }
 
   isCollapsed() {
@@ -1661,7 +1747,7 @@ class DiagramFooter {
       this.toggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
       this.toggle.setAttribute(
         'aria-label',
-        `${collapsed ? 'Expand' : 'Collapse'} diagram details`
+        `${collapsed ? 'Expand' : 'Collapse'} diagram layer controls`
       );
     }
     if (this.content) {
@@ -1672,17 +1758,6 @@ class DiagramFooter {
     }
     if (document?.body) {
       document.body.dataset.footerCollapsed = collapsed ? 'true' : 'false';
-    }
-  }
-
-  updateDefinition(definition) {
-    if (!this.definitionEl) {
-      return;
-    }
-    if (definition && definition.trim()) {
-      this.definitionEl.textContent = definition;
-    } else {
-      this.definitionEl.textContent = 'Add steps to generate the Mermaid definition.';
     }
   }
 }
@@ -1698,20 +1773,27 @@ class App {
       container: dom.stepsList,
       onChange: () => this.renderDiagram()
     });
-    this.diagramFooter = new DiagramFooter({
-      container: dom.diagramFooter,
-      toggle: dom.diagramFooterToggle,
-      content: dom.diagramFooterContent,
-      definitionEl: dom.diagramDefinition
-    });
     this.diagramRenderer = new DiagramRenderer({
       diagramEl: dom.diagram,
       stepManager: this.stepManager,
       orgManager: this.orgManager,
       startInput: dom.startInput,
-      endInput: dom.endInput,
-      onDefinition: (definition) => this.diagramFooter.updateDefinition(definition)
+      endInput: dom.endInput
     });
+    this.diagramFooter = new DiagramFooter({
+      container: dom.diagramFooter,
+      toggle: dom.diagramFooterToggle,
+      content: dom.diagramFooterContent,
+      preferenceInputs: {
+        showDepartments: dom.diagramPreferenceDepartments,
+        showRoles: dom.diagramPreferenceRoles
+      },
+      onPreferenceChange: (preferences) => {
+        this.diagramRenderer.updatePreferences(preferences);
+        this.renderDiagram();
+      }
+    });
+    this.diagramRenderer.updatePreferences(this.diagramFooter.getPreferences());
     PanelManager.init(dom.panelToggles);
     CollapsibleSection.init(dom.entitySections);
     this.orgManager.onChange(() => {
@@ -1732,7 +1814,6 @@ class App {
     });
     ['Plan', 'Build'].forEach((value) => this.stepManager.addProcessStep(value));
     this.stepManager.updateAssignments(this.orgManager.getAssignmentOptions());
-    this.diagramFooter.updateDefinition('');
     this.renderDiagram();
   }
 

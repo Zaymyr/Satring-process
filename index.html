@@ -162,25 +162,82 @@
       gap: 0.6rem;
     }
 
-    .diagram-footer-note {
-      margin: 0;
-      font-size: 0.82rem;
-      color: rgba(226, 232, 240, 0.72);
+    .diagram-footer-controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.6rem;
     }
 
-    .diagram-definition {
-      margin: 0;
-      border-radius: 12px;
-      padding: 0.75rem 1rem;
-      background: rgba(15, 23, 42, 0.65);
+    .diagram-footer-switch {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.55rem 0.8rem;
+      border-radius: 14px;
       border: 1px solid rgba(148, 163, 184, 0.35);
-      color: rgba(226, 232, 240, 0.85);
-      font-family: 'JetBrains Mono', 'Fira Code', 'Source Code Pro', monospace;
-      font-size: 0.8rem;
-      line-height: 1.55;
-      max-height: 10rem;
-      overflow: auto;
-      white-space: pre-wrap;
+      background: rgba(15, 23, 42, 0.55);
+      cursor: pointer;
+      transition: background 0.2s ease, border-color 0.2s ease;
+    }
+
+    .diagram-footer-switch:hover,
+    .diagram-footer-switch:focus-within {
+      background: rgba(59, 130, 246, 0.25);
+      border-color: rgba(59, 130, 246, 0.5);
+    }
+
+    .diagram-footer-toggle-input {
+      appearance: none;
+      width: 2.4rem;
+      height: 1.2rem;
+      border-radius: 999px;
+      background: rgba(148, 163, 184, 0.4);
+      position: relative;
+      outline: none;
+      transition: background 0.2s ease;
+      border: 1px solid rgba(148, 163, 184, 0.5);
+    }
+
+    .diagram-footer-toggle-input::after {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 0.2rem;
+      width: 0.9rem;
+      height: 0.9rem;
+      border-radius: 50%;
+      background: #f8fafc;
+      transform: translate(0, -50%);
+      transition: transform 0.2s ease, background 0.2s ease;
+      box-shadow: 0 2px 6px rgba(15, 23, 42, 0.35);
+    }
+
+    .diagram-footer-toggle-input:checked {
+      background: rgba(37, 99, 235, 0.55);
+      border-color: rgba(37, 99, 235, 0.6);
+    }
+
+    .diagram-footer-toggle-input:checked::after {
+      transform: translate(1.1rem, -50%);
+      background: #bfdbfe;
+    }
+
+    .diagram-footer-switch-label {
+      display: flex;
+      flex-direction: column;
+      gap: 0.1rem;
+      min-width: 8rem;
+    }
+
+    .diagram-footer-switch-title {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #f8fafc;
+    }
+
+    .diagram-footer-switch-status {
+      font-size: 0.75rem;
+      color: rgba(226, 232, 240, 0.75);
     }
 
     .side-panel {
@@ -1117,14 +1174,33 @@
         color: #1d4ed8;
       }
 
-      .diagram-footer-note {
-        color: rgba(15, 23, 42, 0.65);
+      .diagram-footer-switch {
+        background: rgba(241, 245, 249, 0.9);
+        border-color: rgba(148, 163, 184, 0.4);
       }
 
-      .diagram-definition {
-        background: rgba(248, 250, 252, 0.92);
-        border-color: rgba(148, 163, 184, 0.35);
-        color: rgba(15, 23, 42, 0.78);
+      .diagram-footer-switch:hover,
+      .diagram-footer-switch:focus-within {
+        background: rgba(191, 219, 254, 0.6);
+        border-color: rgba(59, 130, 246, 0.55);
+      }
+
+      .diagram-footer-toggle-input {
+        background: rgba(148, 163, 184, 0.45);
+        border-color: rgba(148, 163, 184, 0.55);
+      }
+
+      .diagram-footer-toggle-input:checked {
+        background: rgba(59, 130, 246, 0.55);
+        border-color: rgba(59, 130, 246, 0.6);
+      }
+
+      .diagram-footer-switch-title {
+        color: #1f2937;
+      }
+
+      .diagram-footer-switch-status {
+        color: rgba(30, 64, 175, 0.75);
       }
 
       h1 {
@@ -1342,14 +1418,38 @@
           aria-expanded="false"
           aria-controls="diagram-footer-content"
         >
-          <span class="diagram-footer-title">Diagram details</span>
+          <span class="diagram-footer-title">Diagram layers</span>
           <span class="diagram-footer-icon" aria-hidden="true">⌃</span>
         </button>
         <div id="diagram-footer-content" class="diagram-footer-content" hidden>
-          <p class="diagram-footer-note">
-            This Mermaid definition mirrors the diagram above. Copy it to reuse the flow elsewhere.
-          </p>
-          <pre id="diagram-definition" class="diagram-definition" tabindex="0">Add steps to generate the Mermaid definition.</pre>
+          <div class="diagram-footer-controls" role="group" aria-label="Diagram layer visibility">
+            <label class="diagram-footer-switch">
+              <input
+                id="diagram-pref-departments"
+                class="diagram-footer-toggle-input"
+                type="checkbox"
+                data-diagram-preference="showDepartments"
+                checked
+              />
+              <span class="diagram-footer-switch-label">
+                <span class="diagram-footer-switch-title">Departments</span>
+                <span class="diagram-footer-switch-status" data-status-for="showDepartments">Visible</span>
+              </span>
+            </label>
+            <label class="diagram-footer-switch">
+              <input
+                id="diagram-pref-roles"
+                class="diagram-footer-toggle-input"
+                type="checkbox"
+                data-diagram-preference="showRoles"
+                checked
+              />
+              <span class="diagram-footer-switch-label">
+                <span class="diagram-footer-switch-title">Roles &amp; colors</span>
+                <span class="diagram-footer-switch-status" data-status-for="showRoles">Visible</span>
+              </span>
+            </label>
+          </div>
         </div>
       </section>
     </div>
