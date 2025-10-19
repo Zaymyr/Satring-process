@@ -624,12 +624,7 @@ class BranchStepRow {
   }
 
   applyRoleHighlight() {
-    const details = this.assignments.getSelectedRoleDetails();
-    if (details?.color) {
-      applyRoleCardTheme(this.element, details.color);
-    } else {
-      applyRoleCardTheme(this.element);
-    }
+    applyRoleCardTheme(this.element);
   }
 }
 
@@ -829,12 +824,7 @@ class ProcessRow {
   }
 
   applyRoleHighlight() {
-    const details = this.assignments.getSelectedRoleDetails();
-    if (details?.color) {
-      applyRoleCardTheme(this.element, details.color);
-    } else {
-      applyRoleCardTheme(this.element);
-    }
+    applyRoleCardTheme(this.element);
   }
 }
 
