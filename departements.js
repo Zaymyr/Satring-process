@@ -1,6 +1,4 @@
 const dom = {
-  panel: document.querySelector('.side-panel'),
-  panelToggle: document.querySelector('.panel-toggle'),
   addDepartmentButton: document.getElementById('add-department'),
   departmentList: document.getElementById('department-list'),
   orgSummary: document.getElementById('org-summary'),
@@ -860,24 +858,6 @@ if (dom.detailForm) {
     metadataStore.set(currentSelection.id, metadata);
     updateMetrics();
     refreshDetailPanel();
-  });
-}
-
-if (dom.panel && dom.panelToggle) {
-  dom.panelToggle.addEventListener('click', () => {
-    const collapsed = dom.panel.classList.toggle('is-collapsed');
-    dom.panelToggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
-    const icon = dom.panelToggle.querySelector('span[aria-hidden="true"]');
-    if (icon) {
-      icon.textContent = collapsed ? '⟩' : '⟨';
-    }
-    const label = collapsed ? 'Développer' : 'Réduire';
-    const controlLabel = `${label} le panneau des départements`;
-    dom.panelToggle.setAttribute('aria-label', controlLabel);
-    const hiddenLabel = dom.panelToggle.querySelector('.visually-hidden');
-    if (hiddenLabel) {
-      hiddenLabel.textContent = controlLabel;
-    }
   });
 }
 

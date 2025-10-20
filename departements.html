@@ -144,41 +144,6 @@
       background: rgba(15, 23, 42, 0.68);
       box-shadow: 0 18px 45px rgba(15, 23, 42, 0.55);
       overflow: hidden;
-      transition: transform 0.3s ease, opacity 0.3s ease;
-    }
-
-    .side-panel.is-collapsed {
-      transform: translateX(-12px);
-      opacity: 0.3;
-    }
-
-    .panel-toggle {
-      position: absolute;
-      top: 1.5rem;
-      right: -1.1rem;
-      z-index: 2;
-      border-radius: 16px;
-      width: 2.75rem;
-      height: 5.1rem;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      border: 1px solid rgba(148, 163, 184, 0.45);
-      background: rgba(15, 23, 42, 0.85);
-      color: inherit;
-      cursor: pointer;
-      transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
-    }
-
-    .side-panel.is-collapsed .panel-toggle {
-      right: -0.4rem;
-    }
-
-    .panel-toggle:hover,
-    .panel-toggle:focus-visible {
-      background: rgba(37, 99, 235, 0.35);
-      border-color: rgba(59, 130, 246, 0.65);
-      outline: none;
     }
 
     .visually-hidden {
@@ -588,11 +553,6 @@
     }
 
     @media (max-width: 600px) {
-      .panel-toggle {
-        top: 1rem;
-        right: -0.75rem;
-      }
-
       .detail-field textarea {
         min-height: 4.25rem;
       }
@@ -616,10 +576,6 @@
   </header>
   <main>
     <aside class="side-panel info-panel" data-side="left">
-      <button class="icon-button panel-toggle" type="button" aria-expanded="true" aria-controls="org-panel">
-        <span aria-hidden="true">⟨</span>
-        <span class="visually-hidden">Réduire le panneau des départements</span>
-      </button>
       <div class="panel-body" id="org-panel" role="region" aria-label="Arborescence des départements">
         <header class="info-header">
           <h2>Arborescence de l'organisation</h2>
