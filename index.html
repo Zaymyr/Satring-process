@@ -3,34 +3,12 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Visualiseur de processus Mermaid</title>
+  <title>Accueil — Visualiseur de processus Mermaid</title>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
-  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs" type="module"></script>
   <style>
     :root {
       color-scheme: light dark;
-      --panel-width: clamp(320px, 28vw, 420px);
-      --left-panel-offset: calc(var(--panel-width) + 4rem);
-      --right-panel-offset: calc(var(--panel-width) + 4rem);
-      --panel-toggle-width: 2.75rem;
-      --panel-toggle-height: 5.25rem;
-      --panel-toggle-offset: calc(var(--panel-toggle-width) * 0.55);
-      --panel-collapsed-peek: calc(var(--panel-toggle-width) + 0.75rem);
-      --diagram-footer-space: 9.5rem;
-      --diagram-footer-peek: 3.1rem;
-    }
-
-    body[data-left-collapsed='true'] {
-      --left-panel-offset: 2rem;
-    }
-
-    body[data-right-collapsed='true'] {
-      --right-panel-offset: 2rem;
-    }
-
-    body[data-footer-collapsed='true'] {
-      --diagram-footer-space: calc(var(--diagram-footer-peek) + 1.4rem);
     }
 
     *,
@@ -72,6 +50,27 @@
       gap: 0.35rem;
     }
 
+    h1 {
+      margin: 0;
+      font-size: clamp(1.4rem, 2.3vw, 2rem);
+      font-weight: 600;
+      color: #93c5fd;
+    }
+
+    .app-header__info p {
+      margin: 0;
+      color: rgba(226, 232, 240, 0.78);
+      font-size: 0.98rem;
+      line-height: 1.5;
+    }
+
+    .app-header__meta {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      align-items: flex-end;
+    }
+
     .app-header__status {
       padding: 0.4rem 0.9rem;
       border-radius: 999px;
@@ -85,1472 +84,233 @@
       box-shadow: 0 10px 30px rgba(15, 23, 42, 0.45);
     }
 
+    .app-header__nav {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.35rem;
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      background: rgba(15, 23, 42, 0.55);
+      box-shadow: 0 12px 32px rgba(15, 23, 42, 0.35);
+    }
+
+    .app-header__link {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0.45rem 0.9rem;
+      border-radius: 999px;
+      text-decoration: none;
+      color: #e2e8f0;
+      font-weight: 600;
+      font-size: 0.85rem;
+      transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
+    }
+
+    .app-header__link:hover,
+    .app-header__link:focus-visible {
+      background: rgba(37, 99, 235, 0.35);
+      transform: translateY(-1px);
+      outline: none;
+    }
+
+    .app-header__link[aria-current="page"] {
+      background: linear-gradient(135deg, #60a5fa, #38bdf8);
+      color: #0b1220;
+      box-shadow: 0 12px 28px rgba(59, 130, 246, 0.35);
+    }
+
     main {
       flex: 1;
-      position: relative;
-      display: flex;
-      min-height: 0;
-      overflow: hidden;
+      display: grid;
+      grid-template-columns: clamp(280px, 26vw, 360px) 1fr;
+      gap: clamp(1.5rem, 4vw, 3rem);
+      padding: clamp(1.5rem, 3vw, 3rem);
       background: radial-gradient(circle at top left, rgba(37, 99, 235, 0.35), transparent 55%),
         radial-gradient(circle at bottom right, rgba(14, 165, 233, 0.25), transparent 50%);
     }
 
-    .diagram-stage {
-      position: relative;
-      flex: 1;
-      min-width: 0;
-    }
-
-    .diagram-area {
-      position: absolute;
-      inset: 0;
-      padding: 2rem 0 calc(2rem + var(--diagram-footer-space)) 0;
-      overflow: hidden;
-      touch-action: none;
-    }
-
-    .diagram-pan-viewport {
-      position: absolute;
-      inset: 0;
-    }
-
-    .diagram-pan-content {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      display: block;
-      min-width: 1px;
-      min-height: 1px;
-      transform-origin: center center;
-      will-change: transform;
-    }
-
-    .diagram-pan-content > * {
-      pointer-events: auto;
-    }
-
-    .diagram-pan-content svg {
-      display: block;
-      width: 100%;
-      height: 100%;
-      max-width: none;
-      shape-rendering: geometricPrecision;
-      text-rendering: optimizeLegibility;
-      image-rendering: optimizeQuality;
-    }
-
-    .diagram-area[data-has-diagram='true'] {
-      cursor: grab;
-    }
-
-    .diagram-area[data-has-diagram='true'][data-dragging='true'] {
-      cursor: grabbing;
-    }
-
-    .diagram-area[data-has-diagram='false']::before {
-      content: 'Votre diagramme apparaîtra ici';
-      font-size: 1rem;
-      color: rgba(226, 232, 240, 0.6);
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      pointer-events: none;
-    }
-
-    .diagram-footer-panel {
-      position: absolute;
-      left: 50%;
-      bottom: 2rem;
-      transform: translate(-50%, 0);
-      width: min(1100px, calc(100% - var(--left-panel-offset) - var(--right-panel-offset)));
-      padding: 0.5rem 0.6rem;
+    .home-sidebar {
+      border: 1px solid rgba(148, 163, 184, 0.35);
       border-radius: 18px;
-      background: rgba(15, 23, 42, 0.86);
-      border: 1px solid rgba(148, 163, 184, 0.3);
-      box-shadow: 0 24px 70px rgba(15, 23, 42, 0.6);
-      backdrop-filter: blur(18px);
-      display: flex;
-      flex-direction: column;
-      gap: 0.35rem;
-      z-index: 1;
-      transition: background 0.3s ease, border-color 0.3s ease, transform 0.3s ease;
-    }
-
-    .diagram-footer-panel[data-collapsed='true'] {
-      padding-bottom: 0.45rem;
-      transform: translate(-50%, calc(100% - var(--diagram-footer-peek)));
-      box-shadow: 0 16px 45px rgba(15, 23, 42, 0.45);
-    }
-
-    .diagram-footer-toggle {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 0.75rem;
-      padding: 0.65rem 0.85rem;
-      border-radius: 14px;
-      border: 1px solid rgba(148, 163, 184, 0.35);
-      background: rgba(15, 23, 42, 0.55);
-      color: #f8fafc;
-      font-family: inherit;
-      font-size: 0.95rem;
-      font-weight: 600;
-      cursor: pointer;
-      transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
-    }
-
-    .diagram-footer-toggle:hover,
-    .diagram-footer-toggle:focus-visible {
-      background: rgba(59, 130, 246, 0.25);
-      border-color: rgba(59, 130, 246, 0.5);
-      color: #bfdbfe;
-    }
-
-    .diagram-footer-toggle:focus-visible {
-      outline: none;
-      box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.4);
-    }
-
-    .diagram-footer-title {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-    }
-
-    .diagram-footer-icon {
-      font-size: 0.95rem;
-      transition: transform 0.2s ease;
-    }
-
-    .diagram-footer-panel[data-collapsed='false'] .diagram-footer-icon {
-      transform: rotate(180deg);
-    }
-
-    .diagram-footer-content {
-      padding: 0 0.85rem 0.85rem;
-      display: flex;
-      flex-direction: column;
-      gap: 0.6rem;
-    }
-
-    .diagram-footer-controls {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.6rem;
-    }
-
-    .diagram-footer-switch {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.75rem;
-      padding: 0.55rem 0.8rem;
-      border-radius: 14px;
-      border: 1px solid rgba(148, 163, 184, 0.35);
-      background: rgba(15, 23, 42, 0.55);
-      cursor: pointer;
-      transition: background 0.2s ease, border-color 0.2s ease;
-    }
-
-    .diagram-footer-switch:hover,
-    .diagram-footer-switch:focus-within {
-      background: rgba(59, 130, 246, 0.25);
-      border-color: rgba(59, 130, 246, 0.5);
-    }
-
-    .diagram-footer-toggle-input {
-      appearance: none;
-      width: 2.4rem;
-      height: 1.2rem;
-      border-radius: 999px;
-      background: rgba(148, 163, 184, 0.4);
-      position: relative;
-      outline: none;
-      transition: background 0.2s ease;
-      border: 1px solid rgba(148, 163, 184, 0.5);
-    }
-
-    .diagram-footer-toggle-input::after {
-      content: '';
-      position: absolute;
-      top: 50%;
-      left: 0.2rem;
-      width: 0.9rem;
-      height: 0.9rem;
-      border-radius: 50%;
-      background: #f8fafc;
-      transform: translate(0, -50%);
-      transition: transform 0.2s ease, background 0.2s ease;
-      box-shadow: 0 2px 6px rgba(15, 23, 42, 0.35);
-    }
-
-    .diagram-footer-toggle-input:checked {
-      background: rgba(37, 99, 235, 0.55);
-      border-color: rgba(37, 99, 235, 0.6);
-    }
-
-    .diagram-footer-toggle-input:checked::after {
-      transform: translate(1.1rem, -50%);
-      background: #bfdbfe;
-    }
-
-    .diagram-footer-switch-label {
-      display: flex;
-      flex-direction: column;
-      gap: 0.1rem;
-      min-width: 8rem;
-    }
-
-    .diagram-footer-switch-title {
-      font-size: 0.85rem;
-      font-weight: 600;
-      color: #f8fafc;
-    }
-
-    .diagram-footer-switch-status {
-      font-size: 0.75rem;
-      color: rgba(226, 232, 240, 0.75);
-    }
-
-    .diagram-footer-orientation {
-      display: inline-flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 0.75rem;
-      padding: 0.55rem 0.85rem;
-      border-radius: 14px;
-      border: 1px solid rgba(148, 163, 184, 0.35);
-      background: rgba(15, 23, 42, 0.55);
-      color: #f8fafc;
-      font-family: inherit;
-      cursor: pointer;
-      transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
-      min-width: 12rem;
-    }
-
-    .diagram-footer-orientation:hover,
-    .diagram-footer-orientation:focus-visible {
-      background: rgba(59, 130, 246, 0.25);
-      border-color: rgba(59, 130, 246, 0.5);
-      color: #bfdbfe;
-    }
-
-    .diagram-footer-orientation:focus-visible {
-      outline: none;
-      box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.4);
-    }
-
-    .diagram-footer-orientation[aria-pressed='true'] {
-      background: rgba(37, 99, 235, 0.35);
-      border-color: rgba(37, 99, 235, 0.55);
-      color: #e0f2fe;
-    }
-
-    .diagram-footer-orientation-label {
-      display: flex;
-      flex-direction: column;
-      align-items: flex-start;
-      gap: 0.1rem;
-    }
-
-    .diagram-footer-orientation-title {
-      font-size: 0.85rem;
-      font-weight: 600;
-      color: inherit;
-    }
-
-    .diagram-footer-orientation-status {
-      font-size: 0.75rem;
-      color: rgba(226, 232, 240, 0.75);
-    }
-
-    .diagram-footer-orientation[aria-pressed='true'] .diagram-footer-orientation-status {
-      color: rgba(191, 219, 254, 0.95);
-    }
-
-    .diagram-footer-orientation-icon {
-      font-size: 1rem;
-    }
-
-    .side-panel {
-      position: absolute;
-      top: 2rem;
-      bottom: 2rem;
-      width: var(--panel-width);
-      padding: 2rem;
-      display: flex;
-      flex-direction: column;
-      gap: 1.5rem;
-      border-radius: 24px;
-      background: rgba(15, 23, 42, 0.82);
-      border: 1px solid rgba(148, 163, 184, 0.25);
-      box-shadow: 0 30px 80px rgba(15, 23, 42, 0.6);
-      backdrop-filter: blur(20px);
-      z-index: 1;
-      min-height: 0;
-      transition: transform 0.35s ease;
-    }
-
-    .side-panel[data-side='left'] {
-      left: 2rem;
-    }
-
-    .side-panel[data-side='right'] {
-      right: 2rem;
-    }
-
-    .side-panel .panel-body {
+      padding: 1.5rem;
+      background: rgba(15, 23, 42, 0.68);
+      box-shadow: 0 18px 45px rgba(15, 23, 42, 0.55);
       display: flex;
       flex-direction: column;
       gap: 1.25rem;
-      height: 100%;
-      overflow: auto;
-      transition: opacity 0.3s ease;
     }
 
-    .side-panel.is-collapsed .panel-body {
-      opacity: 0;
-      pointer-events: none;
+    .home-sidebar h2 {
+      margin: 0;
+      font-size: 1.1rem;
+      color: #bfdbfe;
     }
 
-    .side-panel[data-side='left'].is-collapsed {
-      transform: translateX(calc(-100% + var(--panel-collapsed-peek)));
-    }
-
-    .side-panel[data-side='right'].is-collapsed {
-      transform: translateX(calc(100% - var(--panel-collapsed-peek)));
-    }
-
-    .panel-toggle {
-      position: absolute;
-      top: 50%;
-      transform: translateY(-50%);
-      width: var(--panel-toggle-width);
-      height: var(--panel-toggle-height);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      border-radius: 999px;
-      background: linear-gradient(160deg, rgba(37, 99, 235, 0.55), rgba(14, 165, 233, 0.35));
-      border: 1px solid rgba(148, 163, 184, 0.45);
-      box-shadow: 0 18px 50px rgba(15, 23, 42, 0.65);
-      color: #f8fafc;
-      z-index: 2;
-      overflow: hidden;
+    .home-tree {
+      list-style: none;
+      margin: 0;
       padding: 0;
-      transition: transform 0.25s ease, box-shadow 0.25s ease, background 0.3s ease;
-    }
-
-    .side-panel[data-side='left'] .panel-toggle {
-      right: calc(var(--panel-toggle-offset) * -1);
-      border-top-right-radius: 20px;
-      border-bottom-right-radius: 20px;
-    }
-
-    .side-panel[data-side='right'] .panel-toggle {
-      left: calc(var(--panel-toggle-offset) * -1);
-      border-top-left-radius: 20px;
-      border-bottom-left-radius: 20px;
-    }
-
-    .panel-toggle::before {
-      content: '';
-      position: absolute;
-      inset: 0.35rem;
-      border-radius: inherit;
-      background: rgba(15, 23, 42, 0.75);
-      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
-    }
-
-    .panel-toggle span[aria-hidden='true'] {
-      position: relative;
-      z-index: 1;
-      font-size: 1.35rem;
-      line-height: 1;
-    }
-
-    .panel-toggle:hover,
-    .panel-toggle:focus-visible {
-      transform: translateY(-50%) scale(1.03);
-      box-shadow: 0 22px 60px rgba(15, 23, 42, 0.7);
-      background: linear-gradient(160deg, rgba(59, 130, 246, 0.65), rgba(14, 165, 233, 0.45));
-    }
-
-    .panel-toggle:focus-visible {
-      outline: none;
-      border-color: rgba(59, 130, 246, 0.75);
-    }
-
-    .info-header {
-      display: flex;
-      flex-direction: column;
-      gap: 0.5rem;
-    }
-
-    .info-header h2 {
-      margin: 0;
-      font-size: clamp(1.1rem, 2vw, 1.5rem);
-      font-weight: 600;
-      color: #bfdbfe;
-    }
-
-    .info-section {
-      display: flex;
-      flex-direction: column;
-      gap: 0.55rem;
-    }
-
-    .info-section h3 {
-      margin: 0;
-      font-size: 0.95rem;
-      font-weight: 600;
-      letter-spacing: 0.02em;
-      text-transform: uppercase;
-      color: rgba(226, 232, 240, 0.75);
-    }
-
-    .info-list {
-      margin: 0;
-      padding-left: 1rem;
-      display: flex;
-      flex-direction: column;
-      gap: 0.5rem;
-      color: rgba(226, 232, 240, 0.75);
-      font-size: 0.9rem;
-    }
-
-    .info-list li {
-      list-style: disc;
-    }
-
-    .info-list--legend {
-      list-style: none;
-      padding-left: 0;
-      gap: 0.75rem;
-    }
-
-    .info-list--legend li {
-      display: flex;
-      align-items: center;
-      gap: 0.6rem;
-      list-style: none;
-    }
-
-    .entity-section {
-      display: flex;
-      flex-direction: column;
-      gap: 0.9rem;
-    }
-
-    .entity-header {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) auto;
-      align-items: center;
-      gap: 0.75rem;
-    }
-
-    .entity-header h3 {
-      margin: 0;
-      font-size: 1rem;
-      font-weight: 600;
-      letter-spacing: 0.01em;
-      text-transform: none;
-      color: #bfdbfe;
-    }
-
-    .entity-list {
-      display: flex;
-      flex-direction: column;
-      gap: 0.75rem;
-    }
-
-    .entity-list:empty::before {
-      content: attr(data-empty-text);
-      font-size: 0.88rem;
-      color: rgba(226, 232, 240, 0.55);
-    }
-
-    .department-tree {
-      gap: 1rem;
-    }
-
-    .department-node {
       display: flex;
       flex-direction: column;
       gap: 0.65rem;
     }
 
-    .role-list {
+    .home-tree [role="treeitem"] > .tree-label {
       display: flex;
-      flex-direction: column;
-      gap: 0.6rem;
-      margin-left: 1.65rem;
-      padding-left: 1.1rem;
-      border-left: 1px solid rgba(148, 163, 184, 0.35);
-    }
-
-    .role-list:empty::before {
-      content: attr(data-empty-text);
-      font-size: 0.82rem;
-      color: rgba(226, 232, 240, 0.5);
-    }
-
-    .entity-row {
-      display: grid;
-      grid-template-columns: 1fr auto;
-      gap: 0.75rem;
       align-items: center;
-      padding: 0.65rem 0.75rem;
+      gap: 0.5rem;
+      padding: 0.65rem 0.85rem;
       border-radius: 14px;
-      background: rgba(15, 23, 42, 0.55);
-      border: 1px solid rgba(148, 163, 184, 0.35);
-    }
-
-    .entity-row[data-entity-type='department'] {
-      grid-template-columns: auto minmax(0, 1fr) auto auto auto;
-    }
-
-    .department-collapse {
-      width: 2rem;
-      height: 2rem;
-    }
-
-    .department-collapse-icon {
-      transition: transform 0.2s ease;
-      font-size: 0.95rem;
-    }
-
-    .department-node[data-collapsed='true'] .role-list {
-      display: none;
-    }
-
-    .entity-row[data-entity-type='role'] {
-      grid-template-columns: minmax(0, 1fr) auto auto;
-    }
-
-    .add-role-button {
-      padding: 0.45rem 0.85rem;
-      border-radius: 12px;
-      border: 1px solid rgba(148, 163, 184, 0.4);
-      background: rgba(15, 23, 42, 0.35);
-      color: inherit;
-      font-size: 0.85rem;
-      font-weight: 600;
-      font-family: inherit;
-      cursor: pointer;
-      transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
-    }
-
-    .add-role-button:hover,
-    .add-role-button:focus-visible {
-      background: rgba(37, 99, 235, 0.2);
-      border-color: rgba(59, 130, 246, 0.5);
-      color: #bfdbfe;
-    }
-
-    .add-role-button:focus-visible {
-      outline: none;
-      box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.45);
-    }
-
-    .entity-input {
-      width: 100%;
-      border: none;
-      background: transparent;
-      color: inherit;
-      font-size: 0.95rem;
-      font-family: inherit;
-      line-height: 1.4;
-    }
-
-    .entity-input::placeholder {
-      color: rgba(226, 232, 240, 0.45);
-    }
-
-    .entity-input:focus {
-      outline: none;
-    }
-
-    .entity-color {
-      -webkit-appearance: none;
-      appearance: none;
-      width: 2.25rem;
-      height: 2.25rem;
-      border-radius: 8px;
-      border: 1px solid rgba(148, 163, 184, 0.45);
-      background: transparent;
-      cursor: pointer;
-      padding: 0;
-      justify-self: end;
-    }
-
-    .entity-color::-webkit-color-swatch-wrapper {
-      padding: 0;
-      border-radius: inherit;
-    }
-
-    .entity-color::-webkit-color-swatch {
-      border: none;
-      border-radius: inherit;
-    }
-
-    .entity-color::-moz-color-swatch {
-      border: none;
-      border-radius: inherit;
-    }
-
-    .entity-color:focus-visible {
-      outline: 2px solid #38bdf8;
-      outline-offset: 2px;
-    }
-
-    .legend-swatch {
-      width: 0.85rem;
-      height: 0.85rem;
-      border-radius: 4px;
-      box-shadow: 0 0 0 2px rgba(15, 23, 42, 0.45);
-      flex-shrink: 0;
-    }
-
-    .legend-swatch--start {
-      background: linear-gradient(135deg, #22c55e, #4ade80);
-    }
-
-    .legend-swatch--step {
-      background: linear-gradient(135deg, #2563eb, #60a5fa);
-    }
-
-    .legend-swatch--decision {
-      background: linear-gradient(135deg, #f59e0b, #facc15);
-    }
-
-    .visually-hidden {
-      position: absolute;
-      width: 1px;
-      height: 1px;
-      padding: 0;
-      margin: -1px;
-      overflow: hidden;
-      clip: rect(0, 0, 0, 0);
-      border: 0;
-    }
-
-    h1 {
-      margin: 0;
-      font-size: clamp(1.4rem, 2.3vw, 2rem);
-      font-weight: 600;
-      color: #93c5fd;
-    }
-
-    .panel-intro {
-      margin: 0;
-      font-size: 0.95rem;
-      color: rgba(226, 232, 240, 0.78);
-    }
-
-    p {
-      margin: 0;
-      color: rgba(226, 232, 240, 0.75);
-      line-height: 1.5;
-    }
-
-    .field-group {
-      display: flex;
-      flex-direction: column;
-      gap: 0.75rem;
-    }
-
-    label,
-    .field-label {
-      font-weight: 600;
+      background: rgba(37, 99, 235, 0.18);
       color: #e2e8f0;
-    }
-
-    .input-control {
-      width: 100%;
-      padding: 0.75rem 1rem;
-      border-radius: 14px;
-      border: 1px solid rgba(148, 163, 184, 0.4);
-      font-family: inherit;
-      font-size: 0.95rem;
-      line-height: 1.4;
-      background-color: rgba(15, 23, 42, 0.45);
-      color: #f8fafc;
-    }
-
-    .input-control:focus {
-      outline: 2px solid rgba(59, 130, 246, 0.8);
-      outline-offset: 2px;
-    }
-
-    .steps-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 1rem;
-    }
-
-    .steps-actions {
-      display: flex;
-      gap: 0.5rem;
-      flex-wrap: nowrap;
-      justify-content: flex-end;
-    }
-
-    .steps-actions .secondary-button {
-      white-space: nowrap;
-    }
-
-    .steps-list {
-      display: flex;
-      flex-direction: column;
-      gap: 0.75rem;
-      max-height: min(45vh, 360px);
-      overflow-y: auto;
-      padding-right: 0.25rem;
-      scrollbar-gutter: stable both-edges;
-    }
-
-    .steps-list::-webkit-scrollbar {
-      width: 8px;
-    }
-
-    .steps-list::-webkit-scrollbar-track {
-      background: rgba(148, 163, 184, 0.15);
-      border-radius: 999px;
-    }
-
-    .steps-list::-webkit-scrollbar-thumb {
-      background: rgba(96, 165, 250, 0.45);
-      border-radius: 999px;
-    }
-
-    .steps-list::-webkit-scrollbar-thumb:hover {
-      background: rgba(59, 130, 246, 0.6);
-    }
-
-    .steps-list:empty::before {
-      content: 'Ajoutez des étapes ou des décisions pour enrichir le parcours entre le début et la fin.';
-      font-size: 0.9rem;
-      color: rgba(226, 232, 240, 0.55);
-    }
-
-    .step-row {
-      --role-card-bg: rgba(15, 23, 42, 0.55);
-      --role-card-border: rgba(148, 163, 184, 0.35);
-      --role-card-text: rgba(226, 232, 240, 0.92);
-      --role-card-accent: rgba(226, 232, 240, 0.85);
-      --role-card-muted: rgba(226, 232, 240, 0.7);
-      --role-card-control-bg: rgba(15, 23, 42, 0.45);
-      --role-card-control-border: rgba(148, 163, 184, 0.35);
-      display: flex;
-      flex-direction: column;
-      gap: 0.75rem;
-      padding: 0.65rem 0.75rem;
-      border-radius: 14px;
-      background: var(--role-card-bg);
-      border: 1px solid var(--role-card-border);
-      color: var(--role-card-text);
-    }
-
-    .step-header {
-      display: grid;
-      grid-template-columns: auto auto auto minmax(0, 1fr) auto;
-      gap: 0.75rem;
-      align-items: center;
-    }
-
-    .step-body {
-      display: flex;
-      flex-direction: column;
-      gap: 0.6rem;
-    }
-
-    .step-row--process {
-      display: grid;
-      grid-template-columns: auto auto auto minmax(0, 1fr) auto;
-      column-gap: 0.75rem;
-      row-gap: 0.75rem;
-      align-items: center;
-    }
-
-    .step-row--process .step-header {
-      display: contents;
-    }
-
-    .step-row--process .drag-handle {
-      grid-column: 1;
-    }
-
-    .step-row--process .step-toggle {
-      grid-column: 2;
-    }
-
-    .step-row--process .step-label {
-      grid-column: 3;
-      align-self: center;
-    }
-
-    .step-row--process .step-input {
-      grid-column: 4;
-      width: 100%;
-    }
-
-    .step-row--process .step-header .icon-button:last-of-type {
-      grid-column: 5;
-      justify-self: end;
-    }
-
-    .step-row--process .step-body {
-      grid-column: 1 / -1;
-      padding-left: 0;
-    }
-
-    .step-row--process.step-collapsed .step-body {
-      display: none;
-    }
-
-    .step-row--decision {
-      display: flex;
-      flex-direction: column;
-      gap: 0.9rem;
-      padding: 0.9rem 0.85rem;
-      --role-card-bg: rgba(250, 204, 21, 0.12);
-      --role-card-border: rgba(250, 204, 21, 0.5);
-      --role-card-text: rgba(250, 250, 250, 0.92);
-      --role-card-accent: rgba(250, 250, 250, 0.85);
-      --role-card-muted: rgba(250, 250, 250, 0.75);
-      --role-card-control-bg: rgba(30, 41, 59, 0.55);
-      --role-card-control-border: rgba(245, 158, 11, 0.4);
-    }
-
-    .decision-header {
-      display: grid;
-      grid-template-columns: auto auto auto 1fr auto;
-      gap: 0.75rem;
-      align-items: center;
-    }
-
-    .drag-handle {
-      cursor: grab;
-    }
-
-    .drag-handle:active {
-      cursor: grabbing;
-    }
-
-    .step-row.is-dragging {
-      opacity: 0.55;
-      border-style: dashed;
-    }
-
-    .decision-toggle {
-      font-size: 1.05rem;
-    }
-
-    .decision-toggle span {
-      display: inline-block;
-      transition: transform 0.2s ease;
-    }
-
-    .step-row--decision.decision-collapsed .decision-toggle span {
-      transform: rotate(-90deg);
-    }
-
-    .step-toggle {
-      font-size: 1.05rem;
-    }
-
-    .step-toggle span {
-      display: inline-block;
-      transition: transform 0.2s ease;
-    }
-
-    .step-row--process.step-collapsed .step-toggle span {
-      transform: rotate(-90deg);
-    }
-
-    .decision-branches {
-      display: grid;
-      gap: 0.75rem;
-    }
-
-    .step-row--decision.decision-collapsed > .assignment-row,
-    .step-row--decision.decision-collapsed .decision-branches {
-      display: none;
-    }
-
-    .branch-section {
-      display: flex;
-      flex-direction: column;
-      gap: 0.6rem;
-      padding: 0.75rem;
-      border-radius: 12px;
-      background: rgba(15, 23, 42, 0.45);
-      border: 1px solid rgba(148, 163, 184, 0.25);
-    }
-
-    .branch-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 0.75rem;
-    }
-
-    .branch-label {
       font-weight: 600;
-      font-size: 0.85rem;
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-      color: rgba(226, 232, 240, 0.75);
     }
 
-    .branch-steps {
-      display: flex;
-      flex-direction: column;
-      gap: 0.6rem;
-    }
-
-    .branch-step {
-      --role-card-bg: rgba(15, 23, 42, 0.55);
-      --role-card-border: rgba(148, 163, 184, 0.25);
-      --role-card-text: rgba(226, 232, 240, 0.88);
-      --role-card-accent: rgba(226, 232, 240, 0.8);
-      --role-card-muted: rgba(226, 232, 240, 0.65);
-      --role-card-control-bg: rgba(15, 23, 42, 0.45);
-      --role-card-control-border: rgba(148, 163, 184, 0.25);
-      display: grid;
-      grid-template-columns: auto minmax(0, 1fr) auto;
-      grid-template-rows: auto auto;
-      column-gap: 0.6rem;
-      row-gap: 0.45rem;
-      align-items: center;
-      padding: 0.5rem 0.6rem;
-      border-radius: 10px;
-      background: var(--role-card-bg);
-      border: 1px solid var(--role-card-border);
-      color: var(--role-card-text);
-    }
-
-    .branch-step-label {
-      font-size: 0.8rem;
-      font-weight: 600;
-      color: var(--role-card-accent);
-    }
-
-    .branch-step-input {
-      width: 100%;
-      border: none;
-      background: transparent;
-      color: inherit;
+    .home-tree [role="group"] {
+      margin: 0.35rem 0 0 1rem;
       padding: 0;
-    }
-
-    .branch-step-input::placeholder {
-      color: var(--role-card-muted);
-    }
-
-    .branch-step-input:focus {
-      outline: none;
-    }
-
-    .assignment-row {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr);
-      gap: 0.5rem;
-      width: 100%;
-    }
-
-    .assignment-row--compact {
-      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-    }
-
-    .branch-step .assignment-row {
-      grid-column: 1 / -1;
-    }
-
-    .assignment-field {
+      list-style: none;
       display: flex;
       flex-direction: column;
-      gap: 0.35rem;
-      width: 100%;
+      gap: 0.45rem;
     }
 
-    .assignment-field-label {
-      font-size: 0.7rem;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      color: var(--role-card-muted);
-    }
-
-    .assignment-select {
-      width: 100%;
-      padding: 0.45rem 0.65rem;
+    .home-tree a {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.55rem 0.85rem;
       border-radius: 12px;
-      border: 1px solid var(--role-card-control-border);
-      background: var(--role-card-control-bg);
       color: inherit;
-      font-family: inherit;
-      font-size: 0.85rem;
+      text-decoration: none;
+      background: rgba(15, 23, 42, 0.55);
+      border: 1px solid transparent;
+      transition: border-color 0.2s ease, transform 0.2s ease, background 0.2s ease;
     }
 
-    .assignment-select:focus {
-      outline: 2px solid rgba(59, 130, 246, 0.75);
-      outline-offset: 2px;
-    }
-
-    .assignment-select:disabled {
+    .home-tree a::before {
+      content: '↳';
       opacity: 0.6;
-      cursor: not-allowed;
     }
 
-    .step-row[data-type='decision'] .assignment-field-label {
-      color: var(--role-card-muted);
-    }
-
-    .branch-footer {
-      display: flex;
-      flex-direction: column;
-      gap: 0.35rem;
-      font-size: 0.8rem;
-      color: rgba(226, 232, 240, 0.7);
-    }
-
-    .branch-target {
-      width: 100%;
-      padding: 0.45rem 0.75rem;
-      border-radius: 10px;
-      border: 1px solid rgba(148, 163, 184, 0.35);
-      background: rgba(15, 23, 42, 0.45);
-      color: inherit;
-      font-size: 0.85rem;
-      font-family: inherit;
-    }
-
-    .step-label {
-      font-weight: 600;
-      font-size: 0.9rem;
-      color: var(--role-card-accent);
-      min-width: 64px;
-    }
-
-    .step-input {
-      width: 100%;
-      border: none;
-      background: transparent;
-      color: inherit;
-      padding: 0;
-    }
-
-    .step-input::placeholder {
-      color: var(--role-card-muted);
-    }
-
-    .step-input:focus {
+    .home-tree a:focus-visible,
+    .home-tree a:hover {
+      border-color: rgba(96, 165, 250, 0.8);
+      background: rgba(37, 99, 235, 0.25);
+      transform: translateX(4px);
       outline: none;
     }
 
-    .icon-button {
-      display: grid;
-      place-items: center;
-      width: 2.25rem;
-      height: 2.25rem;
+    .home-content {
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      border-radius: 22px;
+      padding: clamp(1.75rem, 4vw, 3rem);
+      background: rgba(15, 23, 42, 0.72);
+      box-shadow: 0 24px 65px rgba(15, 23, 42, 0.55);
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    .home-content h2 {
+      margin: 0;
+      font-size: clamp(1.3rem, 2.1vw, 1.8rem);
+      color: #f1f5f9;
+    }
+
+    .home-content p {
+      margin: 0;
+      color: rgba(226, 232, 240, 0.78);
+      line-height: 1.6;
+      font-size: 1rem;
+    }
+
+    .home-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+    }
+
+    .primary-link {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      padding: 0.75rem 1.35rem;
       border-radius: 999px;
-      border: 1px solid rgba(148, 163, 184, 0.4);
-      background: rgba(15, 23, 42, 0.6);
-      color: rgba(226, 232, 240, 0.8);
-      cursor: pointer;
-      transition: background 0.2s ease, transform 0.2s ease;
+      font-weight: 600;
+      text-decoration: none;
+      color: #0b1220;
+      background: linear-gradient(135deg, #60a5fa, #38bdf8);
+      box-shadow: 0 18px 40px rgba(59, 130, 246, 0.35);
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
     }
 
-    .icon-button:not(.panel-toggle):hover {
-      background: rgba(59, 130, 246, 0.2);
-      transform: translateY(-1px);
+    .primary-link:hover,
+    .primary-link:focus-visible {
+      transform: translateY(-2px);
+      box-shadow: 0 22px 50px rgba(59, 130, 246, 0.45);
+      outline: none;
     }
 
-    .secondary-button {
-      padding: 0.55rem 1.1rem;
+    .secondary-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.75rem 1.15rem;
       border-radius: 999px;
       border: 1px solid rgba(148, 163, 184, 0.45);
-      background: transparent;
+      text-decoration: none;
+      color: #e2e8f0;
+      background: rgba(15, 23, 42, 0.55);
+      transition: border-color 0.2s ease, background 0.2s ease;
+    }
+
+    .secondary-link:hover,
+    .secondary-link:focus-visible {
+      border-color: rgba(96, 165, 250, 0.75);
+      background: rgba(37, 99, 235, 0.25);
+      outline: none;
+    }
+
+    .home-highlights {
+      display: grid;
+      gap: 1rem;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    }
+
+    .highlight-card {
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      border-radius: 18px;
+      padding: 1.25rem;
+      background: rgba(15, 23, 42, 0.6);
+      display: flex;
+      flex-direction: column;
+      gap: 0.6rem;
+    }
+
+    .highlight-card h3 {
+      margin: 0;
+      font-size: 1.05rem;
       color: #bfdbfe;
-      font-weight: 600;
-      font-size: 0.9rem;
-      cursor: pointer;
-      transition: background 0.2s ease, color 0.2s ease;
     }
 
-    .secondary-button:hover {
-      background: rgba(59, 130, 246, 0.2);
-      color: #f8fafc;
-    }
-
-    .helper-text {
-      font-size: 0.85rem;
-      color: rgba(226, 232, 240, 0.6);
-    }
-
-    .panel-footer {
-      font-size: 0.85rem;
-      color: rgba(226, 232, 240, 0.65);
-      text-align: center;
-    }
-
-    .panel-footer a {
-      color: inherit;
+    .highlight-card p {
+      margin: 0;
+      font-size: 0.95rem;
+      color: rgba(226, 232, 240, 0.75);
     }
 
     @media (max-width: 960px) {
       main {
-        flex-direction: column;
+        grid-template-columns: 1fr;
       }
 
-      :root {
-        --left-panel-offset: 1.5rem;
-        --right-panel-offset: 1.5rem;
+      .home-sidebar {
+        order: 2;
       }
-
-      .diagram-area {
-        position: relative;
-        padding: 1.5rem 0 calc(1.5rem + var(--diagram-footer-space)) 0;
-        min-height: 55vh;
-      }
-
-      .diagram-footer-panel {
-        position: static;
-        transform: none;
-        width: calc(100% - 3rem);
-        margin: 0 1.5rem 1.5rem;
-      }
-
-      .diagram-footer-panel[data-collapsed='true'] {
-        transform: none;
-      }
-
-      .side-panel {
-        position: relative;
-        inset: auto;
-        width: auto;
-        margin: 1.5rem;
-        padding: 1.5rem;
-        box-shadow: 0 20px 60px rgba(15, 23, 42, 0.55);
-        max-height: none;
-        transform: none !important;
-      }
-
-      .side-panel .panel-body {
-        opacity: 1 !important;
-        pointer-events: auto;
-      }
-
-      .panel-toggle {
-        display: none;
-      }
-
-      .steps-list {
-        max-height: 40vh;
-      }
-
-      body[data-footer-collapsed='true'] {
-        --diagram-footer-space: calc(var(--diagram-footer-peek) + 1.4rem);
-      }
-    }
-
-    @media (prefers-color-scheme: light) {
-      body {
-        background: #f1f5f9;
-        color: #0f172a;
-      }
-
-      .app-header {
-        background: linear-gradient(135deg, rgba(191, 219, 254, 0.85), rgba(165, 243, 252, 0.65));
-        border-bottom-color: rgba(148, 163, 184, 0.35);
-        box-shadow: 0 22px 55px rgba(59, 130, 246, 0.18);
-      }
-
-      .app-header__status {
-        background: rgba(255, 255, 255, 0.85);
-        border-color: rgba(148, 163, 184, 0.45);
-        color: #1d4ed8;
-      }
-
-      main {
-        background: radial-gradient(circle at top left, rgba(59, 130, 246, 0.2), transparent 55%),
-          radial-gradient(circle at bottom right, rgba(56, 189, 248, 0.18), transparent 50%);
-      }
-
-      .side-panel {
-        background: rgba(255, 255, 255, 0.92);
-        border-color: rgba(148, 163, 184, 0.35);
-        box-shadow: 0 35px 80px rgba(59, 130, 246, 0.22);
-        color: #0f172a;
-      }
-
-      .panel-toggle {
-        background: linear-gradient(160deg, rgba(191, 219, 254, 0.9), rgba(59, 130, 246, 0.45));
-        border-color: rgba(148, 163, 184, 0.5);
-        box-shadow: 0 22px 55px rgba(15, 23, 42, 0.15);
-        color: #1e3a8a;
-      }
-
-      .panel-toggle::before {
-        background: rgba(248, 250, 252, 0.9);
-      }
-
-      .panel-toggle:hover,
-      .panel-toggle:focus-visible {
-        box-shadow: 0 26px 65px rgba(37, 99, 235, 0.35);
-        background: linear-gradient(160deg, rgba(191, 219, 254, 0.95), rgba(59, 130, 246, 0.6));
-        border-color: rgba(37, 99, 235, 0.55);
-      }
-
-      .diagram-footer-panel {
-        background: rgba(255, 255, 255, 0.92);
-        border-color: rgba(148, 163, 184, 0.35);
-        box-shadow: 0 28px 65px rgba(59, 130, 246, 0.18);
-      }
-
-      .diagram-footer-toggle {
-        background: rgba(241, 245, 249, 0.85);
-        color: #1e3a8a;
-        border-color: rgba(148, 163, 184, 0.35);
-      }
-
-      .diagram-footer-toggle:hover,
-      .diagram-footer-toggle:focus-visible {
-        background: rgba(191, 219, 254, 0.75);
-        border-color: rgba(59, 130, 246, 0.55);
-        color: #1d4ed8;
-      }
-
-      .diagram-footer-switch {
-        background: rgba(241, 245, 249, 0.9);
-        border-color: rgba(148, 163, 184, 0.4);
-      }
-
-      .diagram-footer-switch:hover,
-      .diagram-footer-switch:focus-within {
-        background: rgba(191, 219, 254, 0.6);
-        border-color: rgba(59, 130, 246, 0.55);
-      }
-
-      .diagram-footer-orientation {
-        background: rgba(241, 245, 249, 0.9);
-        border-color: rgba(148, 163, 184, 0.4);
-        color: #1f2937;
-      }
-
-      .diagram-footer-orientation:hover,
-      .diagram-footer-orientation:focus-visible {
-        background: rgba(191, 219, 254, 0.6);
-        border-color: rgba(59, 130, 246, 0.55);
-        color: #1d4ed8;
-      }
-
-      .diagram-footer-orientation[aria-pressed='true'] {
-        background: rgba(191, 219, 254, 0.7);
-        border-color: rgba(59, 130, 246, 0.55);
-        color: #1d4ed8;
-      }
-
-      .diagram-footer-toggle-input {
-        background: rgba(148, 163, 184, 0.45);
-        border-color: rgba(148, 163, 184, 0.55);
-      }
-
-      .diagram-footer-toggle-input:checked {
-        background: rgba(59, 130, 246, 0.55);
-        border-color: rgba(59, 130, 246, 0.6);
-      }
-
-      .diagram-footer-switch-title {
-        color: #1f2937;
-      }
-
-      .diagram-footer-switch-status {
-        color: rgba(30, 64, 175, 0.75);
-      }
-
-      .diagram-footer-orientation-status {
-        color: rgba(30, 64, 175, 0.75);
-      }
-
-      h1 {
-        color: #1d4ed8;
-      }
-
-      .panel-intro {
-        color: rgba(15, 23, 42, 0.65);
-      }
-
-      p,
-      label,
-      .field-label,
-      .panel-footer {
-        color: rgba(15, 23, 42, 0.75);
-      }
-
-      .input-control {
-        background-color: rgba(241, 245, 249, 0.85);
-        color: #0f172a;
-        border-color: rgba(148, 163, 184, 0.4);
-      }
-
-      .steps-list:empty::before {
-        color: rgba(15, 23, 42, 0.55);
-      }
-
-      .steps-list::-webkit-scrollbar-track {
-        background: rgba(148, 163, 184, 0.25);
-      }
-
-      .steps-list::-webkit-scrollbar-thumb {
-        background: rgba(59, 130, 246, 0.45);
-      }
-
-      .step-row {
-        --role-card-bg: rgba(241, 245, 249, 0.9);
-        --role-card-border: rgba(148, 163, 184, 0.4);
-        --role-card-text: rgba(15, 23, 42, 0.85);
-        --role-card-accent: rgba(15, 23, 42, 0.7);
-        --role-card-muted: rgba(15, 23, 42, 0.6);
-        --role-card-control-bg: rgba(241, 245, 249, 0.88);
-        --role-card-control-border: rgba(148, 163, 184, 0.35);
-      }
-
-      .step-row--decision {
-        --role-card-bg: rgba(253, 230, 138, 0.35);
-        --role-card-border: rgba(245, 158, 11, 0.45);
-        --role-card-text: rgba(120, 53, 15, 0.85);
-        --role-card-accent: rgba(146, 64, 14, 0.8);
-        --role-card-muted: rgba(146, 64, 14, 0.7);
-        --role-card-control-bg: rgba(253, 230, 138, 0.25);
-        --role-card-control-border: rgba(245, 158, 11, 0.45);
-      }
-
-      .branch-section {
-        background: rgba(255, 255, 255, 0.88);
-        border-color: rgba(148, 163, 184, 0.35);
-      }
-
-      .branch-label {
-        color: rgba(15, 23, 42, 0.6);
-      }
-
-      .branch-step {
-        --role-card-bg: rgba(241, 245, 249, 0.85);
-        --role-card-border: rgba(148, 163, 184, 0.3);
-        --role-card-text: rgba(15, 23, 42, 0.75);
-        --role-card-accent: rgba(15, 23, 42, 0.65);
-        --role-card-muted: rgba(15, 23, 42, 0.5);
-        --role-card-control-bg: rgba(241, 245, 249, 0.85);
-        --role-card-control-border: rgba(148, 163, 184, 0.3);
-      }
-
-      .branch-footer {
-        color: rgba(15, 23, 42, 0.6);
-      }
-
-      .branch-target {
-        background: rgba(241, 245, 249, 0.85);
-        border-color: rgba(148, 163, 184, 0.35);
-        color: #0f172a;
-      }
-
-      .assignment-field-label {
-        color: var(--role-card-muted);
-      }
-
-      .assignment-select:disabled {
-        background: rgba(226, 232, 240, 0.6);
-        color: rgba(15, 23, 42, 0.5);
-      }
-
-      .info-header h2 {
-        color: #1d4ed8;
-      }
-
-      .info-section h3,
-      .info-list {
-        color: rgba(15, 23, 42, 0.65);
-      }
-
-      .legend-swatch {
-        box-shadow: 0 0 0 2px rgba(148, 163, 184, 0.35);
-      }
-
-      .step-input::placeholder {
-        color: var(--role-card-muted);
-      }
-
-      .icon-button {
-        background: rgba(148, 163, 184, 0.2);
-        color: rgba(15, 23, 42, 0.75);
-        border-color: rgba(148, 163, 184, 0.4);
-      }
-
-      .icon-button:hover {
-        background: rgba(37, 99, 235, 0.12);
-      }
-
-      .secondary-button {
-        border-color: rgba(148, 163, 184, 0.5);
-        color: #1d4ed8;
-      }
-
-      .secondary-button:hover {
-        background: rgba(59, 130, 246, 0.15);
-        color: #1e3a8a;
-      }
-
-      .entity-header h3 {
-        color: #1d4ed8;
-      }
-
-      .entity-list:empty::before {
-        color: rgba(15, 23, 42, 0.45);
-      }
-
-      .entity-row {
-        background: rgba(241, 245, 249, 0.88);
-        border-color: rgba(148, 163, 184, 0.4);
-      }
-
-      .entity-input {
-        color: #0f172a;
-      }
-
-      .entity-input::placeholder {
-        color: rgba(15, 23, 42, 0.45);
-      }
-
-      .role-list {
-        border-left-color: rgba(15, 23, 42, 0.12);
-      }
-
-      .role-list:empty::before {
-        color: rgba(15, 23, 42, 0.4);
-      }
-
-      .add-role-button {
-        background: rgba(148, 163, 184, 0.18);
-        border-color: rgba(148, 163, 184, 0.35);
-        color: #0f172a;
-      }
-
-      .add-role-button:hover,
-      .add-role-button:focus-visible {
-        background: rgba(59, 130, 246, 0.18);
-        border-color: rgba(37, 99, 235, 0.45);
-        color: #1d4ed8;
-      }
-
-      .helper-text {
-        color: rgba(15, 23, 42, 0.55);
-      }
-
     }
   </style>
 </head>
@@ -1560,133 +320,58 @@
       <h1>Visualiseur de processus Mermaid</h1>
       <p>Décrivez les étapes de votre processus et générez-les instantanément sur le canevas.</p>
     </div>
-    <span class="app-header__status">Espace de travail du diagramme de flux</span>
+    <div class="app-header__meta">
+      <span class="app-header__status">Centre de démarrage</span>
+      <nav class="app-header__nav" aria-label="Navigation globale">
+        <a class="app-header__link" href="index.html" aria-current="page">Accueil</a>
+        <a class="app-header__link" href="diagram.html">Diagramme</a>
+      </nav>
+    </div>
   </header>
   <main>
-    <aside class="side-panel info-panel" data-side="left">
-      <button class="icon-button panel-toggle" type="button" aria-expanded="true" aria-controls="insights-panel">
-        <span aria-hidden="true">⟨</span>
-        <span class="visually-hidden">Afficher ou masquer le panneau de l'organisation</span>
-      </button>
-      <div class="panel-body" id="insights-panel" role="region" aria-label="Espace de travail de l'organisation">
-        <header class="info-header">
-          <h2>Contexte de l'organisation</h2>
-          <p id="org-summary">Commencez par ajouter des départements et relier les rôles qui les soutiennent.</p>
-        </header>
-        <section class="info-section entity-section" aria-labelledby="departments-title">
-          <div class="entity-header">
-            <h3 id="departments-title">Départements</h3>
-            <button id="add-department" class="secondary-button" type="button">
-              Ajouter un département
-            </button>
-          </div>
-          <div
-            id="department-list"
-            class="entity-list department-tree"
-            data-empty-text="Ajoutez des départements pour identifier le responsable de chaque phase."
-            role="list"
-            aria-labelledby="departments-title"
-          ></div>
-          <p class="helper-text">
-            Imbriquez des rôles dans chaque département pour montrer comment les responsabilités s'articulent.
-          </p>
-        </section>
-      </div>
+    <aside class="home-sidebar" aria-label="Navigation principale">
+      <h2>Explorer l'espace de travail</h2>
+      <nav aria-label="Pages de l'application">
+        <ul class="home-tree" role="tree">
+          <li role="treeitem" aria-expanded="true">
+            <div class="tree-label">Processus Mermaid</div>
+            <ul role="group">
+              <li role="treeitem" class="tree-leaf">
+                <a href="diagram.html">Espace de travail du diagramme</a>
+              </li>
+            </ul>
+          </li>
+        </ul>
+      </nav>
     </aside>
-    <div class="diagram-stage">
-      <div id="diagram" class="diagram-area"></div>
-      <section id="diagram-footer" class="diagram-footer-panel" data-collapsed="true">
-        <button
-          id="diagram-footer-toggle"
-          class="diagram-footer-toggle"
-          type="button"
-          aria-expanded="false"
-          aria-controls="diagram-footer-content"
-        >
-          <span class="diagram-footer-title">Options du diagramme</span>
-          <span class="diagram-footer-icon" aria-hidden="true">⌃</span>
-        </button>
-        <div id="diagram-footer-content" class="diagram-footer-content" hidden>
-          <div class="diagram-footer-controls" role="group" aria-label="Options du diagramme">
-            <label class="diagram-footer-switch">
-              <input
-                id="diagram-pref-departments"
-                class="diagram-footer-toggle-input"
-                type="checkbox"
-                data-diagram-preference="showDepartments"
-                checked
-              />
-              <span class="diagram-footer-switch-label">
-                <span class="diagram-footer-switch-title">Départements</span>
-                <span class="diagram-footer-switch-status" data-status-for="showDepartments">Visible</span>
-              </span>
-            </label>
-            <label class="diagram-footer-switch">
-              <input
-                id="diagram-pref-roles"
-                class="diagram-footer-toggle-input"
-                type="checkbox"
-                data-diagram-preference="showRoles"
-                checked
-              />
-              <span class="diagram-footer-switch-label">
-                <span class="diagram-footer-switch-title">Rôles et couleurs</span>
-                <span class="diagram-footer-switch-status" data-status-for="showRoles">Visible</span>
-              </span>
-            </label>
-            <button
-              id="diagram-orientation-toggle"
-              class="diagram-footer-orientation"
-              type="button"
-              aria-pressed="false"
-              data-orientation="TD"
-            >
-              <span class="diagram-footer-orientation-label">
-                <span class="diagram-footer-orientation-title">Orientation</span>
-                <span
-                  class="diagram-footer-orientation-status"
-                  data-orientation-status
-                >De haut en bas</span>
-              </span>
-              <span class="diagram-footer-orientation-icon" aria-hidden="true">↕︎</span>
-            </button>
-          </div>
-        </div>
-      </section>
-    </div>
-    <aside class="side-panel controls-panel" data-side="right">
-      <button class="icon-button panel-toggle" type="button" aria-expanded="true" aria-controls="builder-panel">
-        <span aria-hidden="true">⟩</span>
-        <span class="visually-hidden">Afficher ou masquer le panneau de création</span>
-      </button>
-      <div class="panel-body" id="builder-panel" role="region" aria-label="Contrôles du créateur de processus">
-        <p class="panel-intro">Utilisez les contrôles ci-dessous pour construire, modifier et attribuer la responsabilité de votre flux.</p>
-        <div class="field-group">
-          <label for="start-text">Étape de début</label>
-          <input id="start-text" class="input-control" type="text" placeholder="Nommez votre point de départ" value="Lancement" />
-        </div>
-        <div class="field-group">
-          <div class="steps-header">
-            <span class="field-label">Étapes du processus</span>
-            <div class="steps-actions">
-              <button id="add-step" class="secondary-button" type="button">Ajouter une étape</button>
-              <button id="add-decision" class="secondary-button" type="button">Ajouter une décision</button>
-            </div>
-          </div>
-          <div id="steps-list" class="steps-list" role="list"></div>
-          <p class="helper-text">Chaque étape ou décision apparaîtra entre les cercles de début et de fin.</p>
-        </div>
-        <div class="field-group">
-          <label for="end-text">Étape finale</label>
-          <input id="end-text" class="input-control" type="text" placeholder="Nommez la ligne d'arrivée" value="Mise en production" />
-        </div>
-        <div class="panel-footer">
-          Créé avec <a href="https://mermaid.js.org" target="_blank" rel="noopener noreferrer">Mermaid</a>
-        </div>
+    <section class="home-content">
+      <h2>Bienvenue dans votre studio de modélisation des processus</h2>
+      <p>
+        Préparez votre prochain diagramme Mermaid dans un espace conçu pour la clarté et la collaboration.
+        Accédez au générateur visuel pour tracer vos flux, définir les responsabilités et présenter chaque étape
+        de manière élégante.
+      </p>
+      <div class="home-actions">
+        <a class="primary-link" href="diagram.html">Ouvrir le générateur de diagrammes</a>
+        <a class="secondary-link" href="https://mermaid.js.org" target="_blank" rel="noopener noreferrer">
+          Découvrir Mermaid
+        </a>
       </div>
-    </aside>
+      <div class="home-highlights">
+        <article class="highlight-card">
+          <h3>Construire</h3>
+          <p>Ajoutez des départements, organisez vos rôles et créez des étapes en quelques clics.</p>
+        </article>
+        <article class="highlight-card">
+          <h3>Visualiser</h3>
+          <p>Générez automatiquement un diagramme Mermaid clair, adapté aux présentations et aux ateliers.</p>
+        </article>
+        <article class="highlight-card">
+          <h3>Partager</h3>
+          <p>Exportez ou partagez votre processus avec votre équipe pour garder tout le monde aligné.</p>
+        </article>
+      </div>
+    </section>
   </main>
-
-  <script type="module" src="app.js"></script>
 </body>
 </html>
