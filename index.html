@@ -104,15 +104,31 @@
     .diagram-area {
       position: absolute;
       inset: 0;
-      padding: 2rem var(--right-panel-offset) calc(2rem + var(--diagram-footer-space))
-        var(--left-panel-offset);
-      overflow: auto;
-      display: flex;
-      justify-content: center;
-      align-items: center;
+      padding: 2rem 0 calc(2rem + var(--diagram-footer-space)) 0;
+      overflow: hidden;
+      touch-action: none;
     }
 
-    .diagram-area svg {
+    .diagram-pan-viewport {
+      position: absolute;
+      inset: 0;
+    }
+
+    .diagram-pan-content {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .diagram-pan-content > * {
+      pointer-events: auto;
+    }
+
+    .diagram-pan-content svg {
       max-width: min(1400px, 100%);
       height: auto;
     }
@@ -125,10 +141,15 @@
       cursor: grabbing;
     }
 
-    .diagram-area:empty::before {
+    .diagram-area[data-has-diagram='false']::before {
       content: 'Votre diagramme apparaîtra ici';
       font-size: 1rem;
       color: rgba(226, 232, 240, 0.6);
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      pointer-events: none;
     }
 
     .diagram-footer-panel {
@@ -1186,7 +1207,7 @@
 
       .diagram-area {
         position: relative;
-        padding: 1.5rem 1.5rem calc(1.5rem + var(--diagram-footer-space));
+        padding: 1.5rem 0 calc(1.5rem + var(--diagram-footer-space)) 0;
         min-height: 55vh;
       }
 

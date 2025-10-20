@@ -1376,8 +1376,18 @@ class StepManager {
 }
 
 class DiagramRenderer {
-  constructor({ diagramEl, stepManager, orgManager, startInput, endInput, preferences }) {
+  constructor({
+    diagramEl,
+    diagramContentEl,
+    stepManager,
+    orgManager,
+    startInput,
+    endInput,
+    preferences,
+    onRender
+  }) {
     this.diagramEl = diagramEl;
+    this.diagramContentEl = diagramContentEl || diagramEl;
     this.stepManager = stepManager;
     this.orgManager = orgManager;
     this.startInput = startInput;
@@ -1388,6 +1398,7 @@ class DiagramRenderer {
       orientation: 'TD',
       ...(typeof preferences === 'object' && preferences !== null ? preferences : {})
     };
+    this.onRender = typeof onRender === 'function' ? onRender : null;
     mermaid.initialize({
       startOnLoad: false,
       securityLevel: 'strict',
@@ -1605,28 +1616,40 @@ class DiagramRenderer {
   }
 
   async render() {
-    if (!this.diagramEl) {
+    if (!this.diagramEl || !this.diagramContentEl) {
       return;
     }
     const definition = this.buildDefinition();
-    this.diagramEl.innerHTML = '';
+    this.diagramContentEl.innerHTML = '';
     if (this.diagramEl?.dataset) {
-      this.diagramEl.dataset.hasDiagram = 'false';
+      this.diagramEl.dataset.hasDiagram = 'pending';
       this.diagramEl.dataset.dragging = 'false';
     }
     if (!definition) {
+      if (this.diagramEl?.dataset) {
+        this.diagramEl.dataset.hasDiagram = 'false';
+      }
+      if (this.onRender) {
+        this.onRender({ hasDiagram: false });
+      }
       return;
     }
     try {
       const { svg } = await mermaid.render(`diagram-${Date.now()}`, definition);
-      this.diagramEl.innerHTML = svg;
+      this.diagramContentEl.innerHTML = svg;
       if (this.diagramEl?.dataset) {
         this.diagramEl.dataset.hasDiagram = 'true';
       }
+      if (this.onRender) {
+        this.onRender({ hasDiagram: true, svgElement: this.diagramContentEl.firstElementChild });
+      }
     } catch (error) {
-      this.diagramEl.innerHTML = `<pre style="color:#f97316; white-space:pre-wrap;">${error.message}</pre>`;
+      this.diagramContentEl.innerHTML = `<pre style="color:#f97316; white-space:pre-wrap;">${error.message}</pre>`;
       if (this.diagramEl?.dataset) {
-        this.diagramEl.dataset.hasDiagram = 'false';
+        this.diagramEl.dataset.hasDiagram = 'error';
+      }
+      if (this.onRender) {
+        this.onRender({ hasDiagram: false, error });
       }
     }
   }
@@ -1639,17 +1662,48 @@ class DiagramPanController {
     this.pointerId = null;
     this.startX = 0;
     this.startY = 0;
-    this.startScrollLeft = 0;
-    this.startScrollTop = 0;
+    this.offsetX = 0;
+    this.offsetY = 0;
+    this.startOffsetX = 0;
+    this.startOffsetY = 0;
     this.handlePointerDown = this.handlePointerDown.bind(this);
     this.handlePointerMove = this.handlePointerMove.bind(this);
     this.handlePointerUp = this.handlePointerUp.bind(this);
+    if (this.element) {
+      this.viewport = document.createElement('div');
+      this.viewport.className = 'diagram-pan-viewport';
+      this.content = document.createElement('div');
+      this.content.className = 'diagram-pan-content';
+      this.viewport.appendChild(this.content);
+      this.element.appendChild(this.viewport);
+      if (this.element.dataset) {
+        if (!this.element.dataset.hasDiagram) {
+          this.element.dataset.hasDiagram = 'false';
+        }
+        this.element.dataset.dragging = 'false';
+      }
+      this.updateTransform();
+    } else {
+      this.viewport = null;
+      this.content = null;
+    }
     if (this.element) {
       this.element.addEventListener('pointerdown', this.handlePointerDown);
       this.element.addEventListener('pointermove', this.handlePointerMove);
       this.element.addEventListener('pointerup', this.handlePointerUp);
       this.element.addEventListener('pointercancel', this.handlePointerUp);
     }
+  }
+
+  getContentElement() {
+    return this.content || null;
+  }
+
+  resetPosition() {
+    this.offsetX = 0;
+    this.offsetY = 0;
+    this.updateTransform();
+    this.setDraggingState(false);
   }
 
   hasDiagram() {
@@ -1659,7 +1713,7 @@ class DiagramPanController {
     if (this.element.dataset && this.element.dataset.hasDiagram) {
       return this.element.dataset.hasDiagram === 'true';
     }
-    return this.element.children.length > 0;
+    return this.content ? this.content.children.length > 0 : this.element.children.length > 0;
   }
 
   setDraggingState(active) {
@@ -1671,6 +1725,13 @@ class DiagramPanController {
       this.element.dataset.dragging = active ? 'true' : 'false';
     }
     if (!active) {
+      if (this.pointerId !== null && this.element.releasePointerCapture) {
+        try {
+          this.element.releasePointerCapture(this.pointerId);
+        } catch (error) {
+          // Ignore if pointer capture was not active.
+        }
+      }
       this.pointerId = null;
     }
   }
@@ -1682,8 +1743,8 @@ class DiagramPanController {
     this.pointerId = event.pointerId;
     this.startX = event.clientX;
     this.startY = event.clientY;
-    this.startScrollLeft = this.element.scrollLeft;
-    this.startScrollTop = this.element.scrollTop;
+    this.startOffsetX = this.offsetX;
+    this.startOffsetY = this.offsetY;
     if (this.element.setPointerCapture) {
       this.element.setPointerCapture(this.pointerId);
     }
@@ -1696,8 +1757,9 @@ class DiagramPanController {
     }
     const deltaX = event.clientX - this.startX;
     const deltaY = event.clientY - this.startY;
-    this.element.scrollLeft = this.startScrollLeft - deltaX;
-    this.element.scrollTop = this.startScrollTop - deltaY;
+    this.offsetX = this.startOffsetX + deltaX;
+    this.offsetY = this.startOffsetY + deltaY;
+    this.updateTransform();
     event.preventDefault();
   }
 
@@ -1705,14 +1767,14 @@ class DiagramPanController {
     if (!this.isDragging || event.pointerId !== this.pointerId) {
       return;
     }
-    if (this.element?.releasePointerCapture) {
-      try {
-        this.element.releasePointerCapture(this.pointerId);
-      } catch (error) {
-        // Ignore failures to release pointer capture if it is already released.
-      }
-    }
     this.setDraggingState(false);
+  }
+
+  updateTransform() {
+    if (!this.content) {
+      return;
+    }
+    this.content.style.transform = `translate(calc(-50% + ${this.offsetX}px), calc(-50% + ${this.offsetY}px))`;
   }
 }
 
@@ -1948,14 +2010,22 @@ class App {
       container: dom.stepsList,
       onChange: () => this.renderDiagram()
     });
+    this.diagramPanController = new DiagramPanController(dom.diagram);
+    this.diagramHasContent = false;
     this.diagramRenderer = new DiagramRenderer({
       diagramEl: dom.diagram,
+      diagramContentEl: this.diagramPanController.getContentElement(),
       stepManager: this.stepManager,
       orgManager: this.orgManager,
       startInput: dom.startInput,
-      endInput: dom.endInput
+      endInput: dom.endInput,
+      onRender: ({ hasDiagram }) => {
+        if (!this.diagramHasContent || !hasDiagram) {
+          this.diagramPanController.resetPosition();
+        }
+        this.diagramHasContent = hasDiagram;
+      }
     });
-    this.diagramPanController = new DiagramPanController(dom.diagram);
     this.diagramFooter = new DiagramFooter({
       container: dom.diagramFooter,
       toggle: dom.diagramFooterToggle,
