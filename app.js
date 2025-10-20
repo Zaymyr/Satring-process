@@ -1610,15 +1610,109 @@ class DiagramRenderer {
     }
     const definition = this.buildDefinition();
     this.diagramEl.innerHTML = '';
+    if (this.diagramEl?.dataset) {
+      this.diagramEl.dataset.hasDiagram = 'false';
+      this.diagramEl.dataset.dragging = 'false';
+    }
     if (!definition) {
       return;
     }
     try {
       const { svg } = await mermaid.render(`diagram-${Date.now()}`, definition);
       this.diagramEl.innerHTML = svg;
+      if (this.diagramEl?.dataset) {
+        this.diagramEl.dataset.hasDiagram = 'true';
+      }
     } catch (error) {
       this.diagramEl.innerHTML = `<pre style="color:#f97316; white-space:pre-wrap;">${error.message}</pre>`;
+      if (this.diagramEl?.dataset) {
+        this.diagramEl.dataset.hasDiagram = 'false';
+      }
     }
+  }
+}
+
+class DiagramPanController {
+  constructor(element) {
+    this.element = element || null;
+    this.isDragging = false;
+    this.pointerId = null;
+    this.startX = 0;
+    this.startY = 0;
+    this.startScrollLeft = 0;
+    this.startScrollTop = 0;
+    this.handlePointerDown = this.handlePointerDown.bind(this);
+    this.handlePointerMove = this.handlePointerMove.bind(this);
+    this.handlePointerUp = this.handlePointerUp.bind(this);
+    if (this.element) {
+      this.element.addEventListener('pointerdown', this.handlePointerDown);
+      this.element.addEventListener('pointermove', this.handlePointerMove);
+      this.element.addEventListener('pointerup', this.handlePointerUp);
+      this.element.addEventListener('pointercancel', this.handlePointerUp);
+    }
+  }
+
+  hasDiagram() {
+    if (!this.element) {
+      return false;
+    }
+    if (this.element.dataset && this.element.dataset.hasDiagram) {
+      return this.element.dataset.hasDiagram === 'true';
+    }
+    return this.element.children.length > 0;
+  }
+
+  setDraggingState(active) {
+    if (!this.element) {
+      return;
+    }
+    this.isDragging = active;
+    if (this.element.dataset) {
+      this.element.dataset.dragging = active ? 'true' : 'false';
+    }
+    if (!active) {
+      this.pointerId = null;
+    }
+  }
+
+  handlePointerDown(event) {
+    if (!this.element || this.isDragging || event.button !== 0 || !this.hasDiagram()) {
+      return;
+    }
+    this.pointerId = event.pointerId;
+    this.startX = event.clientX;
+    this.startY = event.clientY;
+    this.startScrollLeft = this.element.scrollLeft;
+    this.startScrollTop = this.element.scrollTop;
+    if (this.element.setPointerCapture) {
+      this.element.setPointerCapture(this.pointerId);
+    }
+    this.setDraggingState(true);
+  }
+
+  handlePointerMove(event) {
+    if (!this.isDragging || event.pointerId !== this.pointerId || !this.element) {
+      return;
+    }
+    const deltaX = event.clientX - this.startX;
+    const deltaY = event.clientY - this.startY;
+    this.element.scrollLeft = this.startScrollLeft - deltaX;
+    this.element.scrollTop = this.startScrollTop - deltaY;
+    event.preventDefault();
+  }
+
+  handlePointerUp(event) {
+    if (!this.isDragging || event.pointerId !== this.pointerId) {
+      return;
+    }
+    if (this.element?.releasePointerCapture) {
+      try {
+        this.element.releasePointerCapture(this.pointerId);
+      } catch (error) {
+        // Ignore failures to release pointer capture if it is already released.
+      }
+    }
+    this.setDraggingState(false);
   }
 }
 
@@ -1861,6 +1955,7 @@ class App {
       startInput: dom.startInput,
       endInput: dom.endInput
     });
+    this.diagramPanController = new DiagramPanController(dom.diagram);
     this.diagramFooter = new DiagramFooter({
       container: dom.diagramFooter,
       toggle: dom.diagramFooterToggle,

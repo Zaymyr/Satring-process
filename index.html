@@ -117,6 +117,14 @@
       height: auto;
     }
 
+    .diagram-area[data-has-diagram='true'] {
+      cursor: grab;
+    }
+
+    .diagram-area[data-has-diagram='true'][data-dragging='true'] {
+      cursor: grabbing;
+    }
+
     .diagram-area:empty::before {
       content: 'Votre diagramme apparaîtra ici';
       font-size: 1rem;
