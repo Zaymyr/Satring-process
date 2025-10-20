@@ -1,0 +1,920 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gestion des départements et rôles — Visualiseur de processus Mermaid</title>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      color-scheme: light dark;
+    }
+
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #0f172a;
+      color: #e2e8f0;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .app-header {
+      width: 100%;
+      padding: 1.5rem clamp(1.5rem, 5vw, 3rem);
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1.25rem;
+      background: linear-gradient(135deg, rgba(37, 99, 235, 0.35), rgba(14, 165, 233, 0.18));
+      border-bottom: 1px solid rgba(148, 163, 184, 0.25);
+      box-shadow: 0 18px 45px rgba(15, 23, 42, 0.55);
+      backdrop-filter: blur(14px);
+      position: sticky;
+      top: 0;
+      z-index: 3;
+    }
+
+    .app-header__info {
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(1.4rem, 2.3vw, 2rem);
+      font-weight: 600;
+      color: #93c5fd;
+    }
+
+    .app-header__info p {
+      margin: 0;
+      color: rgba(226, 232, 240, 0.78);
+      font-size: 0.98rem;
+      line-height: 1.5;
+    }
+
+    .app-header__meta {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      align-items: flex-end;
+    }
+
+    .app-header__status {
+      padding: 0.4rem 0.9rem;
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      background: rgba(15, 23, 42, 0.55);
+      color: #bfdbfe;
+      font-weight: 600;
+      font-size: 0.85rem;
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+      box-shadow: 0 10px 30px rgba(15, 23, 42, 0.45);
+    }
+
+    .app-header__nav {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.35rem;
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      background: rgba(15, 23, 42, 0.55);
+      box-shadow: 0 12px 32px rgba(15, 23, 42, 0.35);
+    }
+
+    .app-header__link {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0.45rem 0.9rem;
+      border-radius: 999px;
+      text-decoration: none;
+      color: #e2e8f0;
+      font-weight: 600;
+      font-size: 0.85rem;
+      transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
+    }
+
+    .app-header__link:hover,
+    .app-header__link:focus-visible {
+      background: rgba(37, 99, 235, 0.35);
+      transform: translateY(-1px);
+      outline: none;
+    }
+
+    .app-header__link[aria-current="page"] {
+      background: linear-gradient(135deg, #60a5fa, #38bdf8);
+      color: #0b1220;
+      box-shadow: 0 12px 28px rgba(59, 130, 246, 0.35);
+    }
+
+    main {
+      flex: 1;
+      display: grid;
+      gap: clamp(1.5rem, 3vw, 2.5rem);
+      grid-template-columns: minmax(280px, 1fr) minmax(280px, 1fr) minmax(320px, 1.3fr);
+      padding: clamp(1.5rem, 3vw, 3rem);
+      background: radial-gradient(circle at top left, rgba(37, 99, 235, 0.35), transparent 55%),
+        radial-gradient(circle at bottom right, rgba(14, 165, 233, 0.25), transparent 50%);
+    }
+
+    .panel {
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      border-radius: 18px;
+      padding: clamp(1.25rem, 2.5vw, 1.75rem);
+      background: rgba(15, 23, 42, 0.68);
+      box-shadow: 0 18px 45px rgba(15, 23, 42, 0.55);
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .panel h2 {
+      margin: 0;
+      font-size: 1.15rem;
+      color: #bfdbfe;
+      display: flex;
+      align-items: center;
+      gap: 0.65rem;
+    }
+
+    .panel h2 span {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 2rem;
+      height: 2rem;
+      border-radius: 50%;
+      background: rgba(59, 130, 246, 0.25);
+      color: #93c5fd;
+      font-weight: 600;
+      font-size: 0.85rem;
+    }
+
+    .panel p {
+      margin: 0;
+      color: rgba(226, 232, 240, 0.75);
+      font-size: 0.95rem;
+      line-height: 1.5;
+    }
+
+    form {
+      display: grid;
+      gap: 1rem;
+    }
+
+    .field {
+      display: grid;
+      gap: 0.4rem;
+    }
+
+    label {
+      font-weight: 600;
+      font-size: 0.85rem;
+      color: rgba(191, 219, 254, 0.95);
+    }
+
+    input,
+    textarea,
+    select {
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      border-radius: 12px;
+      background: rgba(15, 23, 42, 0.75);
+      color: #e2e8f0;
+      padding: 0.65rem 0.75rem;
+      font: inherit;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 110px;
+    }
+
+    input:focus-visible,
+    textarea:focus-visible,
+    select:focus-visible {
+      border-color: rgba(96, 165, 250, 0.8);
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.35);
+      outline: none;
+    }
+
+    .action-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      align-items: center;
+    }
+
+    button,
+    .button-link {
+      border: none;
+      border-radius: 999px;
+      padding: 0.55rem 1.1rem;
+      font: inherit;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.4rem;
+      transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+    }
+
+    button.primary {
+      background: linear-gradient(135deg, #60a5fa, #38bdf8);
+      color: #0b1220;
+      box-shadow: 0 12px 28px rgba(59, 130, 246, 0.35);
+    }
+
+    button.secondary,
+    .button-link.secondary {
+      background: rgba(37, 99, 235, 0.25);
+      color: #e2e8f0;
+      border: 1px solid rgba(148, 163, 184, 0.35);
+    }
+
+    button.ghost {
+      background: transparent;
+      color: rgba(226, 232, 240, 0.85);
+      border: 1px solid rgba(148, 163, 184, 0.3);
+    }
+
+    button:hover,
+    button:focus-visible,
+    .button-link:hover,
+    .button-link:focus-visible {
+      transform: translateY(-1px);
+      box-shadow: 0 12px 28px rgba(59, 130, 246, 0.25);
+      outline: none;
+    }
+
+    button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+
+    .list,
+    .assignment-table {
+      display: grid;
+      gap: 0.75rem;
+    }
+
+    .empty-state {
+      margin: 0;
+      padding: 1rem;
+      border-radius: 14px;
+      border: 1px dashed rgba(148, 163, 184, 0.35);
+      color: rgba(226, 232, 240, 0.65);
+      background: rgba(15, 23, 42, 0.45);
+      text-align: center;
+      font-size: 0.92rem;
+    }
+
+    .item-card {
+      display: grid;
+      gap: 0.75rem;
+      padding: 1rem;
+      border-radius: 16px;
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      background: rgba(15, 23, 42, 0.7);
+      box-shadow: 0 12px 32px rgba(15, 23, 42, 0.45);
+      position: relative;
+    }
+
+    .item-card header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+    }
+
+    .item-card strong {
+      font-size: 1.05rem;
+      color: #f1f5f9;
+    }
+
+    .item-card small {
+      color: rgba(148, 163, 184, 0.85);
+      font-size: 0.8rem;
+    }
+
+    .department-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: rgba(226, 232, 240, 0.85);
+    }
+
+    .department-badge span {
+      display: inline-flex;
+      width: 0.85rem;
+      height: 0.85rem;
+      border-radius: 50%;
+      border: 2px solid rgba(15, 23, 42, 0.7);
+    }
+
+    .assignment-table table {
+      width: 100%;
+      border-collapse: collapse;
+      border-spacing: 0;
+      background: rgba(15, 23, 42, 0.55);
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      border-radius: 16px;
+      overflow: hidden;
+    }
+
+    .assignment-table th,
+    .assignment-table td {
+      padding: 0.75rem 1rem;
+      text-align: left;
+      font-size: 0.9rem;
+      border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+    }
+
+    .assignment-table tbody tr:last-child td {
+      border-bottom: none;
+    }
+
+    .table-empty {
+      padding: 1.25rem;
+      text-align: center;
+      font-size: 0.92rem;
+      color: rgba(226, 232, 240, 0.65);
+      background: rgba(15, 23, 42, 0.45);
+    }
+
+    .status-banner {
+      position: sticky;
+      top: 1rem;
+      align-self: flex-start;
+      padding: 0.75rem 1rem;
+      border-radius: 14px;
+      border: 1px solid transparent;
+      background: rgba(15, 23, 42, 0.65);
+      color: #e2e8f0;
+      font-size: 0.9rem;
+      box-shadow: 0 12px 32px rgba(15, 23, 42, 0.4);
+      transition: opacity 0.2s ease;
+    }
+
+    .status-banner[data-variant="success"] {
+      border-color: rgba(45, 212, 191, 0.55);
+      background: rgba(45, 212, 191, 0.15);
+      color: #5eead4;
+    }
+
+    .status-banner[data-variant="warning"] {
+      border-color: rgba(250, 204, 21, 0.6);
+      background: rgba(250, 204, 21, 0.15);
+      color: #fcd34d;
+    }
+
+    .status-banner[data-variant="danger"] {
+      border-color: rgba(248, 113, 113, 0.55);
+      background: rgba(248, 113, 113, 0.15);
+      color: #fca5a5;
+    }
+
+    .status-banner[hidden] {
+      display: none;
+    }
+
+    .role-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.35rem;
+      font-size: 0.78rem;
+    }
+
+    .role-tag {
+      padding: 0.3rem 0.6rem;
+      border-radius: 999px;
+      background: rgba(59, 130, 246, 0.25);
+      color: #bfdbfe;
+      border: 1px solid rgba(96, 165, 250, 0.3);
+      font-weight: 600;
+    }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      font-size: 0.82rem;
+      color: rgba(226, 232, 240, 0.7);
+    }
+
+    .legend span {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .legend i {
+      width: 0.75rem;
+      height: 0.75rem;
+      border-radius: 50%;
+      display: inline-flex;
+      background: currentColor;
+      opacity: 0.75;
+    }
+
+    @media (max-width: 1280px) {
+      main {
+        grid-template-columns: repeat(2, minmax(260px, 1fr));
+      }
+    }
+
+    @media (max-width: 900px) {
+      main {
+        grid-template-columns: 1fr;
+      }
+
+      .status-banner {
+        position: static;
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header class="app-header">
+    <div class="app-header__info">
+      <h1>Gestion des départements & rôles</h1>
+      <p>Structurez vos équipes, affectez les rôles et synchronisez-les avec vos diagrammes Mermaid.</p>
+    </div>
+    <div class="app-header__meta">
+      <span class="app-header__status">Organisation</span>
+      <nav class="app-header__nav" aria-label="Navigation globale">
+        <a class="app-header__link" href="index.html">Accueil</a>
+        <a class="app-header__link" href="departements.html" aria-current="page">Départements & Rôles</a>
+        <a class="app-header__link" href="diagram.html">Diagramme</a>
+      </nav>
+    </div>
+  </header>
+  <main>
+    <aside id="management-status" class="status-banner" role="status" aria-live="polite" hidden></aside>
+
+    <section class="panel" aria-labelledby="departments-title">
+      <h2 id="departments-title"><span>1</span>Départements</h2>
+      <p>Capturez vos structures d'équipes avec un nom, une mission et un code couleur partagé avec le diagramme.</p>
+      <form id="department-form">
+        <div class="field">
+          <label for="department-name">Nom du département</label>
+          <input type="text" id="department-name" name="department-name" placeholder="Ex. Opérations" required />
+        </div>
+        <div class="field">
+          <label for="department-description">Description</label>
+          <textarea id="department-description" name="department-description" placeholder="En charge de ..."></textarea>
+        </div>
+        <div class="field">
+          <label for="department-color">Couleur de référence</label>
+          <input type="color" id="department-color" name="department-color" value="#2563eb" />
+        </div>
+        <div class="action-group">
+          <button type="submit" class="primary">Ajouter le département</button>
+          <button type="reset" class="ghost">Réinitialiser</button>
+        </div>
+      </form>
+      <div class="list" id="department-list" aria-live="polite"></div>
+    </section>
+
+    <section class="panel" aria-labelledby="roles-title">
+      <h2 id="roles-title"><span>2</span>Rôles</h2>
+      <p>Définissez les rôles disponibles, leurs responsabilités clés et leur périmètre d'action.</p>
+      <form id="role-form">
+        <div class="field">
+          <label for="role-name">Titre du rôle</label>
+          <input type="text" id="role-name" name="role-name" placeholder="Ex. Responsable Qualité" required />
+        </div>
+        <div class="field">
+          <label for="role-mission">Responsabilités principales</label>
+          <textarea id="role-mission" name="role-mission" placeholder="Assure la conformité ..."></textarea>
+        </div>
+        <div class="field">
+          <label for="role-scope">Périmètre</label>
+          <input type="text" id="role-scope" name="role-scope" placeholder="Processus, projets, outils..." />
+        </div>
+        <div class="action-group">
+          <button type="submit" class="primary">Ajouter le rôle</button>
+          <button type="reset" class="ghost">Réinitialiser</button>
+        </div>
+      </form>
+      <div class="list" id="role-list" aria-live="polite"></div>
+    </section>
+
+    <section class="panel" aria-labelledby="assignment-title">
+      <h2 id="assignment-title"><span>3</span>Affectations</h2>
+      <p>Associez les rôles à leurs départements pour préparer votre future carte des responsabilités.</p>
+      <form id="assignment-form">
+        <div class="field">
+          <label for="assignment-department">Département</label>
+          <select id="assignment-department" name="assignment-department" required></select>
+        </div>
+        <div class="field">
+          <label for="assignment-role">Rôle</label>
+          <select id="assignment-role" name="assignment-role" required></select>
+        </div>
+        <div class="action-group">
+          <button type="submit" class="secondary">Associer le rôle</button>
+          <button type="button" class="ghost" id="clear-assignments">Tout effacer</button>
+        </div>
+      </form>
+      <div class="legend" aria-hidden="true">
+        <span><i style="color:#22d3ee"></i> Départements actifs</span>
+        <span><i style="color:#34d399"></i> Rôles disponibles</span>
+        <span><i style="color:#fbbf24"></i> Affectations créées</span>
+      </div>
+      <div class="assignment-table" id="assignment-table" aria-live="polite"></div>
+    </section>
+  </main>
+  <script>
+    const state = {
+      departments: [],
+      roles: [],
+      assignments: []
+    };
+
+    const generateId = () => {
+      if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+        return crypto.randomUUID();
+      }
+      return `id-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    };
+
+    const dom = {
+      status: document.getElementById('management-status'),
+      departmentForm: document.getElementById('department-form'),
+      departmentName: document.getElementById('department-name'),
+      departmentDescription: document.getElementById('department-description'),
+      departmentColor: document.getElementById('department-color'),
+      departmentList: document.getElementById('department-list'),
+      roleForm: document.getElementById('role-form'),
+      roleName: document.getElementById('role-name'),
+      roleMission: document.getElementById('role-mission'),
+      roleScope: document.getElementById('role-scope'),
+      roleList: document.getElementById('role-list'),
+      assignmentForm: document.getElementById('assignment-form'),
+      assignmentDepartment: document.getElementById('assignment-department'),
+      assignmentRole: document.getElementById('assignment-role'),
+      assignmentTable: document.getElementById('assignment-table'),
+      clearAssignments: document.getElementById('clear-assignments')
+    };
+
+    const showStatus = (message, variant = 'success') => {
+      if (!dom.status) return;
+      dom.status.textContent = message;
+      dom.status.dataset.variant = variant;
+      dom.status.hidden = false;
+      clearTimeout(dom.status._timeoutId);
+      dom.status._timeoutId = setTimeout(() => {
+        dom.status.hidden = true;
+      }, 4000);
+    };
+
+    const renderDepartments = () => {
+      const container = dom.departmentList;
+      container.innerHTML = '';
+      if (state.departments.length === 0) {
+        const empty = document.createElement('p');
+        empty.className = 'empty-state';
+        empty.textContent = 'Ajoutez votre premier département pour commencer la cartographie.';
+        container.appendChild(empty);
+        return;
+      }
+
+      state.departments.forEach((department, index) => {
+        const card = document.createElement('article');
+        card.className = 'item-card';
+        card.dataset.index = String(index);
+
+        const header = document.createElement('header');
+        const title = document.createElement('div');
+        title.innerHTML = `<strong>${department.name}</strong>`;
+        const badge = document.createElement('div');
+        badge.className = 'department-badge';
+        const color = document.createElement('span');
+        color.style.background = department.color;
+        badge.appendChild(color);
+        const badgeLabel = document.createElement('span');
+        badgeLabel.textContent = `${department.roleCount} rôle(s)`;
+        badge.appendChild(badgeLabel);
+        header.appendChild(title);
+        header.appendChild(badge);
+
+        const description = document.createElement('p');
+        description.textContent = department.description || 'Pas encore de description fournie.';
+
+        const actions = document.createElement('div');
+        actions.className = 'action-group';
+        const remove = document.createElement('button');
+        remove.type = 'button';
+        remove.className = 'ghost';
+        remove.textContent = 'Supprimer';
+        remove.addEventListener('click', () => removeDepartment(index));
+        actions.appendChild(remove);
+
+        card.appendChild(header);
+        card.appendChild(description);
+        if (department.roles.length > 0) {
+          const roles = document.createElement('div');
+          roles.className = 'role-tags';
+          department.roles.forEach((roleName) => {
+            const tag = document.createElement('span');
+            tag.className = 'role-tag';
+            tag.textContent = roleName;
+            roles.appendChild(tag);
+          });
+          card.appendChild(roles);
+        }
+        card.appendChild(actions);
+        container.appendChild(card);
+      });
+    };
+
+    const renderRoles = () => {
+      const container = dom.roleList;
+      container.innerHTML = '';
+      if (state.roles.length === 0) {
+        const empty = document.createElement('p');
+        empty.className = 'empty-state';
+        empty.textContent = 'Définissez vos rôles clés pour les rendre disponibles dans les organigrammes.';
+        container.appendChild(empty);
+        return;
+      }
+
+      state.roles.forEach((role, index) => {
+        const card = document.createElement('article');
+        card.className = 'item-card';
+        card.dataset.index = String(index);
+
+        const header = document.createElement('header');
+        const title = document.createElement('div');
+        title.innerHTML = `<strong>${role.name}</strong>`;
+        const scope = document.createElement('small');
+        scope.textContent = role.scope ? `Périmètre : ${role.scope}` : 'Périmètre à préciser';
+        header.appendChild(title);
+        header.appendChild(scope);
+
+        const description = document.createElement('p');
+        description.textContent = role.mission || 'Ajoutez une mission pour clarifier la responsabilité.';
+
+        const actions = document.createElement('div');
+        actions.className = 'action-group';
+        const remove = document.createElement('button');
+        remove.type = 'button';
+        remove.className = 'ghost';
+        remove.textContent = 'Supprimer';
+        remove.addEventListener('click', () => removeRole(index));
+        actions.appendChild(remove);
+
+        card.appendChild(header);
+        card.appendChild(description);
+        card.appendChild(actions);
+        container.appendChild(card);
+      });
+    };
+
+    const renderAssignmentSelectors = () => {
+      dom.assignmentDepartment.innerHTML = '';
+      dom.assignmentRole.innerHTML = '';
+
+      const defaultOption = (text) => {
+        const option = document.createElement('option');
+        option.value = '';
+        option.textContent = text;
+        option.disabled = true;
+        option.selected = true;
+        return option;
+      };
+
+      dom.assignmentDepartment.appendChild(defaultOption('Sélectionnez un département'));
+      dom.assignmentRole.appendChild(defaultOption('Sélectionnez un rôle'));
+
+      state.departments.forEach((department, index) => {
+        const option = document.createElement('option');
+        option.value = String(index);
+        option.textContent = department.name;
+        dom.assignmentDepartment.appendChild(option);
+      });
+
+      state.roles.forEach((role, index) => {
+        const option = document.createElement('option');
+        option.value = String(index);
+        option.textContent = role.name;
+        dom.assignmentRole.appendChild(option);
+      });
+
+      dom.assignmentDepartment.disabled = state.departments.length === 0;
+      dom.assignmentRole.disabled = state.roles.length === 0;
+    };
+
+    const renderAssignments = () => {
+      const container = dom.assignmentTable;
+      container.innerHTML = '';
+      if (state.assignments.length === 0) {
+        const empty = document.createElement('div');
+        empty.className = 'table-empty';
+        empty.textContent = 'Aucune affectation pour le moment. Associez un rôle à un département pour commencer.';
+        container.appendChild(empty);
+        return;
+      }
+
+      const table = document.createElement('table');
+      const thead = document.createElement('thead');
+      const headRow = document.createElement('tr');
+      ['Département', 'Rôle', 'Actions'].forEach((label) => {
+        const th = document.createElement('th');
+        th.scope = 'col';
+        th.textContent = label;
+        headRow.appendChild(th);
+      });
+      thead.appendChild(headRow);
+
+      const tbody = document.createElement('tbody');
+      state.assignments.forEach((assignment, index) => {
+        const row = document.createElement('tr');
+        const deptCell = document.createElement('td');
+        deptCell.textContent = assignment.department.name;
+        const roleCell = document.createElement('td');
+        roleCell.textContent = assignment.role.name;
+        const actionCell = document.createElement('td');
+        const remove = document.createElement('button');
+        remove.type = 'button';
+        remove.className = 'ghost';
+        remove.textContent = 'Retirer';
+        remove.addEventListener('click', () => removeAssignment(index));
+        actionCell.appendChild(remove);
+        row.appendChild(deptCell);
+        row.appendChild(roleCell);
+        row.appendChild(actionCell);
+        tbody.appendChild(row);
+      });
+
+      table.appendChild(thead);
+      table.appendChild(tbody);
+      container.appendChild(table);
+    };
+
+    const updateDepartmentRoleCounts = () => {
+      state.departments.forEach((department) => {
+        const roles = state.assignments
+          .filter((assignment) => assignment.department.id === department.id)
+          .map((assignment) => assignment.role.name);
+        department.roles = roles;
+        department.roleCount = roles.length;
+      });
+    };
+
+    const removeDepartment = (index) => {
+      const department = state.departments[index];
+      if (!department) return;
+      state.departments.splice(index, 1);
+      state.assignments = state.assignments.filter((assignment) => assignment.department.id !== department.id);
+      showStatus(`Le département "${department.name}" a été supprimé.`, 'warning');
+      updateDepartmentRoleCounts();
+      renderAll();
+    };
+
+    const removeRole = (index) => {
+      const role = state.roles[index];
+      if (!role) return;
+      state.roles.splice(index, 1);
+      state.assignments = state.assignments.filter((assignment) => assignment.role.id !== role.id);
+      showStatus(`Le rôle "${role.name}" a été supprimé.`, 'warning');
+      updateDepartmentRoleCounts();
+      renderAll();
+    };
+
+    const removeAssignment = (index) => {
+      const assignment = state.assignments[index];
+      if (!assignment) return;
+      state.assignments.splice(index, 1);
+      showStatus(`Le rôle "${assignment.role.name}" n'est plus affecté à ${assignment.department.name}.`, 'warning');
+      updateDepartmentRoleCounts();
+      renderAll();
+    };
+
+    dom.departmentForm.addEventListener('submit', (event) => {
+      event.preventDefault();
+      const name = dom.departmentName.value.trim();
+      if (!name) {
+        showStatus('Veuillez indiquer un nom pour le département.', 'danger');
+        return;
+      }
+      const alreadyExists = state.departments.some((department) => department.name.toLowerCase() === name.toLowerCase());
+      if (alreadyExists) {
+        showStatus('Ce département existe déjà. Utilisez un autre nom.', 'danger');
+        return;
+      }
+      const department = {
+        id: generateId(),
+        name,
+        description: dom.departmentDescription.value.trim(),
+        color: dom.departmentColor.value || '#2563eb',
+        roles: [],
+        roleCount: 0
+      };
+      state.departments.push(department);
+      dom.departmentForm.reset();
+      dom.departmentColor.value = department.color;
+      showStatus(`Département "${department.name}" ajouté.`, 'success');
+      renderAll();
+      dom.departmentName.focus();
+    });
+
+    dom.roleForm.addEventListener('submit', (event) => {
+      event.preventDefault();
+      const name = dom.roleName.value.trim();
+      if (!name) {
+        showStatus('Veuillez indiquer un titre pour le rôle.', 'danger');
+        return;
+      }
+      const alreadyExists = state.roles.some((role) => role.name.toLowerCase() === name.toLowerCase());
+      if (alreadyExists) {
+        showStatus('Ce rôle existe déjà. Utilisez un autre titre.', 'danger');
+        return;
+      }
+      const role = {
+        id: generateId(),
+        name,
+        mission: dom.roleMission.value.trim(),
+        scope: dom.roleScope.value.trim()
+      };
+      state.roles.push(role);
+      dom.roleForm.reset();
+      showStatus(`Rôle "${role.name}" ajouté.`, 'success');
+      renderAll();
+      dom.roleName.focus();
+    });
+
+    dom.assignmentForm.addEventListener('submit', (event) => {
+      event.preventDefault();
+      const departmentIndex = Number(dom.assignmentDepartment.value);
+      const roleIndex = Number(dom.assignmentRole.value);
+      const department = state.departments[departmentIndex];
+      const role = state.roles[roleIndex];
+      if (!department || !role) {
+        showStatus('Sélectionnez un département et un rôle valides.', 'danger');
+        return;
+      }
+      const exists = state.assignments.some((assignment) =>
+        assignment.department.id === department.id && assignment.role.id === role.id
+      );
+      if (exists) {
+        showStatus('Ce rôle est déjà affecté à ce département.', 'danger');
+        return;
+      }
+      state.assignments.push({ department, role });
+      showStatus(`Le rôle "${role.name}" est affecté à ${department.name}.`, 'success');
+      updateDepartmentRoleCounts();
+      renderAssignments();
+      renderDepartments();
+      dom.assignmentForm.reset();
+      renderAssignmentSelectors();
+    });
+
+    dom.clearAssignments.addEventListener('click', () => {
+      if (state.assignments.length === 0) {
+        showStatus('Aucune affectation à effacer.', 'warning');
+        return;
+      }
+      state.assignments = [];
+      showStatus('Toutes les affectations ont été effacées.', 'warning');
+      updateDepartmentRoleCounts();
+      renderAssignments();
+      renderDepartments();
+      renderAssignmentSelectors();
+    });
+
+    const renderAll = () => {
+      updateDepartmentRoleCounts();
+      renderDepartments();
+      renderRoles();
+      renderAssignments();
+      renderAssignmentSelectors();
+    };
+
+    renderAll();
+  </script>
+</body>
+</html>

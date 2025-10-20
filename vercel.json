@@ -14,6 +14,7 @@
   ],
   "rewrites": [
     { "source": "/", "destination": "/index.html" },
-    { "source": "/diagram", "destination": "/diagram.html" }
+    { "source": "/diagram", "destination": "/diagram.html" },
+    { "source": "/departements", "destination": "/departements.html" }
   ]
 }
