@@ -1,3 +1,5 @@
+import { writeWorkspaceSnapshot } from './data/workspaceSnapshot.js';
+
 const dom = {
   addDepartmentButton: document.getElementById('add-department'),
   departmentList: document.getElementById('department-list'),
@@ -13,44 +15,6 @@ const dom = {
   metricRoles: document.getElementById('metric-roles-count'),
   metricDetails: document.getElementById('metric-details-count')
 };
-
-const workspaceSnapshot = (() => {
-  const STORAGE_KEY = 'mermaidWorkspaceSnapshot';
-  const read = () => {
-    if (typeof window === 'undefined' || !window.localStorage) {
-      return {};
-    }
-    try {
-      const raw = window.localStorage.getItem(STORAGE_KEY);
-      if (!raw) {
-        return {};
-      }
-      const parsed = JSON.parse(raw);
-      return typeof parsed === 'object' && parsed !== null ? parsed : {};
-    } catch {
-      return {};
-    }
-  };
-  const write = (partial) => {
-    if (typeof window === 'undefined' || !window.localStorage) {
-      return;
-    }
-    const current = read();
-    const next = { ...current };
-    Object.entries(partial || {}).forEach(([key, value]) => {
-      if (value === undefined) {
-        return;
-      }
-      next[key] = value;
-    });
-    try {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-    } catch {
-      /* Ignore storage errors */
-    }
-  };
-  return { key: STORAGE_KEY, read, write };
-})();
 
 dom.departmentList?.setAttribute(
   'data-empty-text',
@@ -748,7 +712,7 @@ const updateMetrics = () => {
     dom.metricDetails.textContent = String(detailTotal);
   }
 
-  workspaceSnapshot.write({
+  writeWorkspaceSnapshot({
     departmentCount: departmentTotal,
     roleCount: roleTotal,
     detailCount: detailTotal,

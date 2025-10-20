@@ -35,3 +35,30 @@ Whenever you push new commits to the connected branch, Vercel automatically trig
 ## Deployment configuration
 
 The bundled `vercel.json` keeps Vercel in static hosting mode (no deprecated builders) while adding friendly defaults like clean URLs, cache-control headers, and a catch-all rewrite back to `index.html` for any deep links.
+
+## Connecting Supabase for shared metrics
+
+The UI can synchronise the workspace counters (departments, roles, diagram steps, etc.) through Supabase. To enable the
+integration:
+
+1. Create the table by running the included migration in your Supabase project:
+
+   ```bash
+   supabase migration up
+   ```
+
+   The migration adds a `workspace_snapshots` table that stores the aggregated metrics for your workspace.
+
+2. Retrieve your Supabase project URL and anon key from the dashboard and expose them to the pages. The simplest way is to fill
+   the placeholders that are already present in each HTML `<head>`:
+
+   ```html
+   <meta name="supabase-url" content="https://your-project.supabase.co" />
+   <meta name="supabase-anon-key" content="your-public-anon-key" />
+   ```
+
+   You can also set a global `window.__SUPABASE_CONFIG__ = { url: '...', anonKey: '...' };` before the module scripts run if you
+   prefer injecting the credentials from another script tag.
+
+Once configured, the application stores metrics in Supabase while keeping localStorage as a fallback when the credentials are
+missing or the network is unavailable.
