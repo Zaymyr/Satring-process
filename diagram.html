@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Visualiseur de processus Mermaid</title>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs" type="module"></script>
+</head>
+<body class="page-diagram">
+  <header class="app-header">
+    <div class="app-header__info">
+      <h1>Visualiseur de processus Mermaid</h1>
+      <p>Décrivez les étapes de votre processus et générez-les instantanément sur le canevas.</p>
+    </div>
+    <div class="app-header__meta">
+      <span class="app-header__status">Espace de travail du diagramme de flux</span>
+      <nav class="app-header__nav" aria-label="Navigation globale">
+        <a class="app-header__link" href="index.html">Accueil</a>
+        <a class="app-header__link" href="departements.html">Départements &amp; Rôles</a>
+        <a class="app-header__link" href="diagram.html" aria-current="page">Diagramme</a>
+      </nav>
+    </div>
+  </header>
+  <main class="workspace-shell">
+    <aside class="workspace-surface workspace-panel side-panel info-panel" data-side="left">
+      <button class="icon-button panel-toggle" type="button" aria-expanded="true" aria-controls="insights-panel">
+        <span aria-hidden="true">⟨</span>
+        <span class="visually-hidden">Afficher ou masquer le panneau de l'organisation</span>
+      </button>
+      <div class="panel-body" id="insights-panel" role="region" aria-label="Espace de travail de l'organisation">
+        <header class="info-header">
+          <h2>Contexte de l'organisation</h2>
+          <p id="org-summary">Commencez par ajouter des départements et relier les rôles qui les soutiennent.</p>
+        </header>
+        <section class="info-section entity-section" aria-labelledby="departments-title">
+          <div class="entity-header">
+            <h3 id="departments-title">Départements</h3>
+            <button id="add-department" class="secondary-button" type="button">
+              Ajouter un département
+            </button>
+          </div>
+          <div
+            id="department-list"
+            class="entity-list department-tree"
+            data-empty-text="Ajoutez des départements pour identifier le responsable de chaque phase."
+            role="list"
+            aria-labelledby="departments-title"
+          ></div>
+          <p class="helper-text">
+            Imbriquez des rôles dans chaque département pour montrer comment les responsabilités s'articulent.
+          </p>
+        </section>
+      </div>
+    </aside>
+    <div class="diagram-stage">
+      <div id="diagram" class="diagram-area"></div>
+      <section id="diagram-footer" class="diagram-footer-panel" data-collapsed="true">
+        <button
+          id="diagram-footer-toggle"
+          class="diagram-footer-toggle"
+          type="button"
+          aria-expanded="false"
+          aria-controls="diagram-footer-content"
+        >
+          <span class="diagram-footer-title">Options du diagramme</span>
+          <span class="diagram-footer-icon" aria-hidden="true">⌃</span>
+        </button>
+        <div id="diagram-footer-content" class="diagram-footer-content" hidden>
+          <div class="diagram-footer-controls" role="group" aria-label="Options du diagramme">
+            <label class="diagram-footer-switch">
+              <input
+                id="diagram-pref-departments"
+                class="diagram-footer-toggle-input"
+                type="checkbox"
+                data-diagram-preference="showDepartments"
+                checked
+              />
+              <span class="diagram-footer-switch-label">
+                <span class="diagram-footer-switch-title">Départements</span>
+                <span class="diagram-footer-switch-status" data-status-for="showDepartments">Visible</span>
+              </span>
+            </label>
+            <label class="diagram-footer-switch">
+              <input
+                id="diagram-pref-roles"
+                class="diagram-footer-toggle-input"
+                type="checkbox"
+                data-diagram-preference="showRoles"
+                checked
+              />
+              <span class="diagram-footer-switch-label">
+                <span class="diagram-footer-switch-title">Rôles et couleurs</span>
+                <span class="diagram-footer-switch-status" data-status-for="showRoles">Visible</span>
+              </span>
+            </label>
+            <button
+              id="diagram-orientation-toggle"
+              class="diagram-footer-orientation"
+              type="button"
+              aria-pressed="false"
+              data-orientation="TD"
+            >
+              <span class="diagram-footer-orientation-label">
+                <span class="diagram-footer-orientation-title">Orientation</span>
+                <span
+                  class="diagram-footer-orientation-status"
+                  data-orientation-status
+                >De haut en bas</span>
+              </span>
+              <span class="diagram-footer-orientation-icon" aria-hidden="true">↕︎</span>
+            </button>
+          </div>
+        </div>
+      </section>
+    </div>
+    <aside class="workspace-surface workspace-panel side-panel controls-panel" data-side="right">
+      <button class="icon-button panel-toggle" type="button" aria-expanded="true" aria-controls="builder-panel">
+        <span aria-hidden="true">⟩</span>
+        <span class="visually-hidden">Afficher ou masquer le panneau de création</span>
+      </button>
+      <div class="panel-body" id="builder-panel" role="region" aria-label="Contrôles du créateur de processus">
+        <p class="panel-intro">Utilisez les contrôles ci-dessous pour construire, modifier et attribuer la responsabilité de votre flux.</p>
+        <div class="field-group">
+          <label for="start-text">Étape de début</label>
+          <input id="start-text" class="input-control" type="text" placeholder="Nommez votre point de départ" value="Lancement" />
+        </div>
+        <div class="field-group">
+          <div class="steps-header">
+            <span class="field-label">Étapes du processus</span>
+            <div class="steps-actions">
+              <button id="add-step" class="secondary-button" type="button">Ajouter une étape</button>
+              <button id="add-decision" class="secondary-button" type="button">Ajouter une décision</button>
+            </div>
+          </div>
+          <div id="steps-list" class="steps-list" role="list"></div>
+          <p class="helper-text">Chaque étape ou décision apparaîtra entre les cercles de début et de fin.</p>
+        </div>
+        <div class="field-group">
+          <label for="end-text">Étape finale</label>
+          <input id="end-text" class="input-control" type="text" placeholder="Nommez la ligne d'arrivée" value="Mise en production" />
+        </div>
+        <div class="panel-footer">
+          Créé avec <a href="https://mermaid.js.org" target="_blank" rel="noopener noreferrer">Mermaid</a>
+        </div>
+      </div>
+    </aside>
+  </main>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>

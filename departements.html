@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gestion des départements — Visualiseur de processus Mermaid</title>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body class="page-departments">
+  <header class="app-header">
+    <div class="app-header__info">
+      <h1>Gestion des départements et des rôles</h1>
+      <p>Structurez votre organisation et capturez les informations essentielles pour chaque équipe et rôle clé.</p>
+    </div>
+    <div class="app-header__meta">
+      <span class="app-header__status">Administration des équipes</span>
+      <nav class="app-header__nav" aria-label="Navigation globale">
+        <a class="app-header__link" href="index.html">Accueil</a>
+        <a class="app-header__link" href="departements.html" aria-current="page">Départements &amp; Rôles</a>
+        <a class="app-header__link" href="diagram.html">Diagramme</a>
+      </nav>
+    </div>
+  </header>
+  <main class="workspace-shell">
+    <aside class="workspace-surface workspace-panel side-panel info-panel" data-side="left">
+      <div class="panel-body" id="org-panel" role="region" aria-label="Arborescence des départements">
+        <header class="info-header">
+          <h2>Arborescence de l'organisation</h2>
+          <p id="org-summary">Ajoutez vos départements et imbriquez les rôles pour cartographier votre structure.</p>
+        </header>
+        <section class="entity-section" aria-labelledby="departments-title">
+          <div class="entity-header">
+            <h3 id="departments-title">Départements</h3>
+            <button id="add-department" class="secondary-button" type="button">Ajouter un département</button>
+          </div>
+          <div
+            id="department-list"
+            class="entity-list department-tree"
+            data-empty-text="Ajoutez des départements pour commencer à organiser vos équipes."
+            role="list"
+            aria-labelledby="departments-title"
+          ></div>
+          <p class="helper-text">Cliquez sur un département ou un rôle pour gérer ses détails et ses responsabilités.</p>
+        </section>
+      </div>
+    </aside>
+    <section class="workspace-surface detail-workspace" aria-labelledby="detail-title">
+      <header class="detail-header">
+        <h2 id="detail-title">Détails de l'équipe</h2>
+        <p id="detail-description">Sélectionnez un élément de l'arborescence pour compléter les informations facultatives et suivre les contacts clés.</p>
+      </header>
+      <p id="detail-selection-summary" class="detail-selection-summary" hidden></p>
+      <div id="detail-empty" class="detail-empty">
+        Sélectionnez un département ou un rôle dans le panneau de gauche pour afficher ses informations et compléter les champs facultatifs.
+      </div>
+      <form id="detail-form" class="detail-form" hidden novalidate>
+        <div class="detail-grid">
+          <div class="detail-field">
+            <label for="detail-name">Nom</label>
+            <input id="detail-name" type="text" placeholder="Nommer l'élément sélectionné" autocomplete="off" />
+          </div>
+          <div class="detail-field">
+            <label for="detail-color">Couleur</label>
+            <input id="detail-color" type="color" aria-label="Couleur de l'élément sélectionné" />
+          </div>
+        </div>
+        <hr class="detail-divider" />
+        <div class="detail-field" data-entity="department">
+          <label for="detail-department-lead">Responsable</label>
+          <input id="detail-department-lead" type="text" placeholder="Nom du responsable du département" data-meta-key="lead" data-entity="department" />
+        </div>
+        <div class="detail-field" data-entity="department">
+          <label for="detail-department-description">Description</label>
+          <textarea id="detail-department-description" placeholder="Décrivez la mission principale du département" data-meta-key="description" data-entity="department"></textarea>
+        </div>
+        <div class="detail-field" data-entity="department">
+          <label for="detail-department-objectives">Objectifs</label>
+          <textarea id="detail-department-objectives" placeholder="Listez les objectifs prioritaires" data-meta-key="objectives" data-entity="department"></textarea>
+        </div>
+        <div class="detail-field" data-entity="department">
+          <label for="detail-department-notes">Notes complémentaires</label>
+          <textarea id="detail-department-notes" placeholder="Ajoutez des notes libres ou des points d'attention" data-meta-key="notes" data-entity="department"></textarea>
+        </div>
+        <div class="detail-field" data-entity="role" hidden>
+          <label for="detail-role-owner">Titulaire du rôle</label>
+          <input id="detail-role-owner" type="text" placeholder="Personne occupant le rôle" data-meta-key="owner" data-entity="role" />
+        </div>
+        <div class="detail-field" data-entity="role" hidden>
+          <label for="detail-role-responsibilities">Responsabilités</label>
+          <textarea id="detail-role-responsibilities" placeholder="Décrivez les responsabilités principales" data-meta-key="responsibilities" data-entity="role"></textarea>
+        </div>
+        <div class="detail-field" data-entity="role" hidden>
+          <label for="detail-role-skills">Compétences clés</label>
+          <textarea id="detail-role-skills" placeholder="Compétences ou certifications requises" data-meta-key="skills" data-entity="role"></textarea>
+        </div>
+        <div class="detail-field" data-entity="role" hidden>
+          <label for="detail-role-notes">Notes complémentaires</label>
+          <textarea id="detail-role-notes" placeholder="Ajoutez des notes libres ou des points d'attention" data-meta-key="notes" data-entity="role"></textarea>
+        </div>
+      </form>
+      <div class="detail-badges" id="detail-badges" hidden></div>
+      <div class="metrics-grid">
+        <article class="metric-card">
+          <span class="metric-value" id="metric-departments-count">0</span>
+          <span class="metric-label">Départements suivis</span>
+        </article>
+        <article class="metric-card">
+          <span class="metric-value" id="metric-roles-count">0</span>
+          <span class="metric-label">Rôles documentés</span>
+        </article>
+        <article class="metric-card">
+          <span class="metric-value" id="metric-details-count">0</span>
+          <span class="metric-label">Fiches enrichies</span>
+        </article>
+      </div>
+      <section aria-label="Conseils de structuration">
+        <ul class="tips-list">
+          <li>Assignez une couleur par département pour les retrouver facilement dans le diagramme.</li>
+          <li>Renseignez les notes pour partager le contexte avec vos équipes transverses.</li>
+          <li>Ajoutez les rôles directement dans l'arborescence pour garder une vision hiérarchique.</li>
+        </ul>
+      </section>
+    </section>
+  </main>
+  <script type="module" src="departements.js"></script>
+</body>
+</html>
