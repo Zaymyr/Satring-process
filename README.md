@@ -62,3 +62,64 @@ integration:
 
 Once configured, the application stores metrics in Supabase while keeping localStorage as a fallback when the credentials are
 missing or the network is unavailable.
+
+## Working with the Supabase CLI locally
+
+To develop against a local Supabase stack, install the [Supabase CLI](https://supabase.com/docs/guides/cli) (for example with
+`npm install --global supabase`). With the CLI on your `PATH`, you can boot the local services with:
+
+```bash
+supabase start
+```
+
+The command starts PostgreSQL, the Studio UI, and any other configured services. Recent CLI versions no longer replay your SQL
+migrations automatically, so once the stack is up you must apply them yourself:
+
+```bash
+supabase migration up --local
+# or equivalently
+supabase db reset --force
+```
+
+Both commands process every file in `supabase/migrations/` against the local database; use whichever fits your workflow. The
+`--force` flag on `supabase db reset` skips the confirmation prompt so it can run in non-interactive shells.
+
+When you are ready to push those migrations to your hosted Supabase project, authenticate the CLI (`supabase login`) and run:
+
+```bash
+supabase db push --project-ref <your-project-ref>
+```
+
+Replace `<your-project-ref>` with the identifier shown in the Supabase dashboard (it looks like `abcd1234efgh5678`). The CLI
+will compare the local migrations with the remote schema and apply any pending changes.
+
+If you prefer a repeatable command (for CI or constrained shells), the repository ships with a thin wrapper that checks the
+required environment variables before delegating to the CLI:
+
+```bash
+export SUPABASE_PROJECT_REF=abcd1234efgh5678
+# optional: export SUPABASE_BIN=./bin/supabase
+scripts/push-supabase-migrations.sh
+```
+
+Any extra arguments you pass to the script are forwarded to `supabase db push`, so you can add flags like `--dry-run` when
+needed. The wrapper exits early if the CLI is missing or `SUPABASE_PROJECT_REF` is unset, making it easier to catch
+misconfigurations in automated environments.
+
+### Installing the CLI from this repository
+
+If you cannot reach the npm registry directly, the repository includes a helper script that downloads the official Supabase CLI release tarball and places the binary in `./bin` (or another directory of your choice):
+
+```bash
+scripts/install-supabase-cli.sh
+```
+
+The script accepts the optional environment variables `SUPABASE_VERSION` (default `1.187.3`) and `SUPABASE_INSTALL_DIR` to control the release version and install location. When network egress is blocked, download the matching tarball (`supabase_<version>_<os>_<arch>.tar.gz`) from another machine, copy it into the workspace, and point the installer at it:
+
+```bash
+SUPABASE_CLI_TARBALL=/path/to/supabase_1.187.3_linux_amd64.tar.gz \
+  scripts/install-supabase-cli.sh
+```
+
+With `SUPABASE_CLI_TARBALL` set, the script skips the download step entirely and extracts the provided archive, which works in offline or proxied environments where direct access to `github.com` is unavailable.
+
