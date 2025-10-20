@@ -20,6 +20,44 @@ const dom = {
   diagramOrientationToggle: document.getElementById('diagram-orientation-toggle')
 };
 
+const workspaceSnapshot = (() => {
+  const STORAGE_KEY = 'mermaidWorkspaceSnapshot';
+  const read = () => {
+    if (typeof window === 'undefined' || !window.localStorage) {
+      return {};
+    }
+    try {
+      const raw = window.localStorage.getItem(STORAGE_KEY);
+      if (!raw) {
+        return {};
+      }
+      const parsed = JSON.parse(raw);
+      return typeof parsed === 'object' && parsed !== null ? parsed : {};
+    } catch {
+      return {};
+    }
+  };
+  const write = (partial) => {
+    if (typeof window === 'undefined' || !window.localStorage) {
+      return;
+    }
+    const current = read();
+    const next = { ...current };
+    Object.entries(partial || {}).forEach(([key, value]) => {
+      if (value === undefined) {
+        return;
+      }
+      next[key] = value;
+    });
+    try {
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+    } catch {
+      /* Ignore storage errors */
+    }
+  };
+  return { key: STORAGE_KEY, read, write };
+})();
+
 const defaultDepartmentColors = ['#0ea5e9', '#22c55e', '#f97316', '#a855f7', '#facc15', '#ef4444', '#14b8a6'];
 const defaultRoleColors = ['#38bdf8', '#f472b6', '#fde68a', '#c084fc', '#34d399', '#fb7185', '#f97316'];
 
@@ -1373,6 +1411,10 @@ class StepManager {
   focusRow(row) {
     row?.focus();
   }
+
+  getRowCount() {
+    return this.rows.length;
+  }
 }
 
 class DiagramRenderer {
@@ -2238,6 +2280,15 @@ class App {
 
   renderDiagram() {
     this.diagramRenderer.render();
+    const departmentTotal = this.orgManager?.getDepartments().length || 0;
+    const roleTotal = this.orgManager?.getRoles().length || 0;
+    const processTotal = this.stepManager?.getRowCount() || 0;
+    workspaceSnapshot.write({
+      departmentCount: departmentTotal,
+      roleCount: roleTotal,
+      diagramProcessCount: processTotal,
+      lastDiagramUpdate: new Date().toISOString()
+    });
   }
 }
 

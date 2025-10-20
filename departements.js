@@ -14,6 +14,44 @@ const dom = {
   metricDetails: document.getElementById('metric-details-count')
 };
 
+const workspaceSnapshot = (() => {
+  const STORAGE_KEY = 'mermaidWorkspaceSnapshot';
+  const read = () => {
+    if (typeof window === 'undefined' || !window.localStorage) {
+      return {};
+    }
+    try {
+      const raw = window.localStorage.getItem(STORAGE_KEY);
+      if (!raw) {
+        return {};
+      }
+      const parsed = JSON.parse(raw);
+      return typeof parsed === 'object' && parsed !== null ? parsed : {};
+    } catch {
+      return {};
+    }
+  };
+  const write = (partial) => {
+    if (typeof window === 'undefined' || !window.localStorage) {
+      return;
+    }
+    const current = read();
+    const next = { ...current };
+    Object.entries(partial || {}).forEach(([key, value]) => {
+      if (value === undefined) {
+        return;
+      }
+      next[key] = value;
+    });
+    try {
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+    } catch {
+      /* Ignore storage errors */
+    }
+  };
+  return { key: STORAGE_KEY, read, write };
+})();
+
 dom.departmentList?.setAttribute(
   'data-empty-text',
   dom.departmentList?.getAttribute('data-empty-text') ||
@@ -696,15 +734,26 @@ const updateSummary = () => {
 };
 
 const updateMetrics = () => {
+  const departmentTotal = tree.getDepartments().length;
+  const roleTotal = tree.getRoles().length;
+  const detailTotal = countEnrichedEntries();
+
   if (dom.metricDepartments) {
-    dom.metricDepartments.textContent = String(tree.getDepartments().length);
+    dom.metricDepartments.textContent = String(departmentTotal);
   }
   if (dom.metricRoles) {
-    dom.metricRoles.textContent = String(tree.getRoles().length);
+    dom.metricRoles.textContent = String(roleTotal);
   }
   if (dom.metricDetails) {
-    dom.metricDetails.textContent = String(countEnrichedEntries());
+    dom.metricDetails.textContent = String(detailTotal);
   }
+
+  workspaceSnapshot.write({
+    departmentCount: departmentTotal,
+    roleCount: roleTotal,
+    detailCount: detailTotal,
+    lastOrganigramUpdate: new Date().toISOString()
+  });
 };
 
 const buildBadge = (label, value) => {

@@ -49,12 +49,28 @@
         Accédez au générateur visuel pour tracer vos flux, définir les responsabilités et présenter chaque étape
         de manière élégante.
       </p>
-      <div class="home-actions">
-        <a class="primary-link" href="diagram.html">Ouvrir le générateur de diagrammes</a>
-        <a class="secondary-link" href="departements.html">Gérer les départements &amp; rôles</a>
-        <a class="secondary-link" href="https://mermaid.js.org" target="_blank" rel="noopener noreferrer">
-          Découvrir Mermaid
-        </a>
+      <div class="home-metrics" role="list" aria-label="Statistiques de votre espace de travail">
+        <article class="metric-card" role="listitem">
+          <header class="metric-header">
+            <h3>Départements suivis</h3>
+            <p class="metric-caption">Structures d'équipe configurées</p>
+          </header>
+          <p class="metric-value" id="metric-home-departments" data-default="0">0</p>
+        </article>
+        <article class="metric-card" role="listitem">
+          <header class="metric-header">
+            <h3>Rôles définis</h3>
+            <p class="metric-caption">Responsabilités identifiées</p>
+          </header>
+          <p class="metric-value" id="metric-home-roles" data-default="0">0</p>
+        </article>
+        <article class="metric-card" role="listitem">
+          <header class="metric-header">
+            <h3>Étapes du processus</h3>
+            <p class="metric-caption">Nœuds actifs dans vos diagrammes</p>
+          </header>
+          <p class="metric-value" id="metric-home-diagrams" data-default="0">0</p>
+        </article>
       </div>
       <div class="home-highlights">
         <article class="highlight-card">
@@ -72,5 +88,7 @@
       </div>
     </section>
   </main>
+
+  <script type="module" src="home.js"></script>
 </body>
 </html>
