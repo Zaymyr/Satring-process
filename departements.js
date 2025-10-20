@@ -1,4 +1,10 @@
 import { writeWorkspaceSnapshot } from './data/workspaceSnapshot.js';
+import {
+  canUseDepartmentsApi,
+  deleteDepartments,
+  fetchDepartments,
+  upsertDepartments
+} from './data/departmentsRepository.js';
 
 const dom = {
   addDepartmentButton: document.getElementById('add-department'),
@@ -36,6 +42,13 @@ const defaultMetadata = {
 const metadataKeys = {
   department: ['lead', 'description', 'objectives', 'notes'],
   role: ['owner', 'responsibilities', 'skills', 'notes']
+};
+
+const REMOTE_SYNC_DELAY = 600;
+const remoteSyncState = {
+  isHydrating: false,
+  persistTimeout: null,
+  lastSignature: null
 };
 
 const sanitizeString = (value) => (typeof value === 'string' ? value.trim() : '');
@@ -648,6 +661,9 @@ const tree = new DepartmentTree({
     updateSummary();
     updateMetrics();
     refreshDetailPanel();
+    if (!remoteSyncState.isHydrating) {
+      schedulePersistDepartments();
+    }
   },
   onSelect: (selection) => {
     currentSelection = selection;
@@ -658,6 +674,9 @@ const tree = new DepartmentTree({
       removeMetadata(id);
       if (Array.isArray(roles)) {
         removeMetadata(roles);
+      }
+      if (!remoteSyncState.isHydrating) {
+        void removeDepartmentsRemotely(id);
       }
     } else if (type === 'role') {
       removeMetadata(id);
@@ -673,6 +692,157 @@ const tree = new DepartmentTree({
   departmentColorFallback: '#082f49',
   roleColorFallback: '#2563eb'
 });
+
+const getMetadataForSync = (type, id) => {
+  const metadata = metadataStore.get(id);
+  if (!metadata || metadata.type !== type) {
+    const keys = metadataKeys[type] || [];
+    return keys.reduce((acc, key) => ({ ...acc, [key]: '' }), {});
+  }
+  const keys = metadataKeys[type] || [];
+  return keys.reduce((acc, key) => {
+    acc[key] = sanitizeString(metadata[key]);
+    return acc;
+  }, {});
+};
+
+const buildDepartmentPayloads = () => {
+  if (!tree) {
+    return [];
+  }
+  const departments = tree.getDepartments();
+  const roles = tree.getRoles();
+  const rolesByDepartment = new Map();
+  roles.forEach((role) => {
+    if (!role || !role.departmentId) {
+      return;
+    }
+    if (!rolesByDepartment.has(role.departmentId)) {
+      rolesByDepartment.set(role.departmentId, []);
+    }
+    rolesByDepartment.get(role.departmentId).push(role);
+  });
+  return departments.map((department) => {
+    const departmentRoles = rolesByDepartment.get(department.id) || [];
+    return {
+      id: department.id,
+      name: department.label,
+      color: department.color,
+      metadata: getMetadataForSync('department', department.id),
+      roles: departmentRoles.map((role) => ({
+        id: role.id,
+        name: role.label,
+        color: role.color,
+        metadata: getMetadataForSync('role', role.id)
+      }))
+    };
+  });
+};
+
+const applyMetadataFromRemote = (type, id, metadata) => {
+  const entry = ensureMetadata(type, id);
+  const keys = metadataKeys[type] || [];
+  keys.forEach((key) => {
+    const value = metadata && typeof metadata[key] === 'string' ? metadata[key] : '';
+    entry[key] = sanitizeString(value);
+  });
+  metadataStore.set(id, entry);
+};
+
+const applyDepartmentRecord = (record) => {
+  if (!record || typeof record !== 'object') {
+    return;
+  }
+  const departmentId = record.id;
+  const roles = Array.isArray(record.roles) ? record.roles : [];
+  const departmentNode = tree.addDepartment(record.name || '', {
+    id: departmentId,
+    color: record.color,
+    roles: roles.map((role) => ({
+      id: role.id,
+      value: role.name,
+      color: role.color
+    }))
+  });
+  if (departmentNode) {
+    applyMetadataFromRemote('department', departmentId, record.metadata);
+    roles.forEach((role) => {
+      applyMetadataFromRemote('role', role.id, role.metadata);
+    });
+  }
+};
+
+const persistDepartmentsToRemote = async () => {
+  if (!canUseDepartmentsApi()) {
+    return;
+  }
+  const payload = buildDepartmentPayloads();
+  const signature = JSON.stringify(payload);
+  if (signature === remoteSyncState.lastSignature) {
+    return;
+  }
+  const success = await upsertDepartments(payload);
+  if (success) {
+    remoteSyncState.lastSignature = signature;
+  }
+};
+
+function schedulePersistDepartments() {
+  if (!canUseDepartmentsApi()) {
+    return;
+  }
+  if (remoteSyncState.persistTimeout) {
+    clearTimeout(remoteSyncState.persistTimeout);
+  }
+  remoteSyncState.persistTimeout = setTimeout(() => {
+    remoteSyncState.persistTimeout = null;
+    void persistDepartmentsToRemote();
+  }, REMOTE_SYNC_DELAY);
+}
+
+async function removeDepartmentsRemotely(ids) {
+  if (!canUseDepartmentsApi()) {
+    return;
+  }
+  const values = Array.isArray(ids) ? ids : [ids];
+  const filtered = values.filter((value) => typeof value === 'string' && value.trim().length > 0);
+  if (filtered.length === 0) {
+    return;
+  }
+  const success = await deleteDepartments(filtered);
+  if (success) {
+    remoteSyncState.lastSignature = null;
+  }
+}
+
+const hydrateDepartmentsFromRemote = async () => {
+  if (!canUseDepartmentsApi()) {
+    return;
+  }
+  remoteSyncState.isHydrating = true;
+  if (remoteSyncState.persistTimeout) {
+    clearTimeout(remoteSyncState.persistTimeout);
+    remoteSyncState.persistTimeout = null;
+  }
+  metadataStore.clear();
+  currentSelection = null;
+  tree.clearSelection();
+  if (dom.departmentList) {
+    dom.departmentList.innerHTML = '';
+  }
+  tree.departmentCounter = 0;
+  tree.roleCounter = 0;
+  try {
+    const records = await fetchDepartments();
+    records.forEach((record) => applyDepartmentRecord(record));
+  } finally {
+    remoteSyncState.isHydrating = false;
+    updateSummary();
+    updateMetrics();
+    refreshDetailPanel();
+    remoteSyncState.lastSignature = JSON.stringify(buildDepartmentPayloads());
+  }
+};
 
 const updateSummary = () => {
   if (!dom.orgSummary) {
@@ -871,8 +1041,13 @@ if (dom.detailForm) {
     metadataStore.set(currentSelection.id, metadata);
     updateMetrics();
     refreshDetailPanel();
+    if (!remoteSyncState.isHydrating) {
+      schedulePersistDepartments();
+    }
   });
 }
+
+void hydrateDepartmentsFromRemote();
 
 updateSummary();
 updateMetrics();
