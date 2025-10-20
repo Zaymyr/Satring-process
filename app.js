@@ -1376,8 +1376,18 @@ class StepManager {
 }
 
 class DiagramRenderer {
-  constructor({ diagramEl, stepManager, orgManager, startInput, endInput, preferences }) {
+  constructor({
+    diagramEl,
+    diagramContentEl,
+    stepManager,
+    orgManager,
+    startInput,
+    endInput,
+    preferences,
+    onRender
+  }) {
     this.diagramEl = diagramEl;
+    this.diagramContentEl = diagramContentEl || diagramEl;
     this.stepManager = stepManager;
     this.orgManager = orgManager;
     this.startInput = startInput;
@@ -1388,6 +1398,7 @@ class DiagramRenderer {
       orientation: 'TD',
       ...(typeof preferences === 'object' && preferences !== null ? preferences : {})
     };
+    this.onRender = typeof onRender === 'function' ? onRender : null;
     mermaid.initialize({
       startOnLoad: false,
       securityLevel: 'strict',
@@ -1605,20 +1616,331 @@ class DiagramRenderer {
   }
 
   async render() {
-    if (!this.diagramEl) {
+    if (!this.diagramEl || !this.diagramContentEl) {
       return;
     }
     const definition = this.buildDefinition();
-    this.diagramEl.innerHTML = '';
+    this.diagramContentEl.innerHTML = '';
+    if (this.diagramEl?.dataset) {
+      this.diagramEl.dataset.hasDiagram = 'pending';
+      this.diagramEl.dataset.dragging = 'false';
+    }
     if (!definition) {
+      if (this.diagramEl?.dataset) {
+        this.diagramEl.dataset.hasDiagram = 'false';
+      }
+      if (this.onRender) {
+        this.onRender({ hasDiagram: false });
+      }
       return;
     }
     try {
       const { svg } = await mermaid.render(`diagram-${Date.now()}`, definition);
-      this.diagramEl.innerHTML = svg;
+      this.diagramContentEl.innerHTML = svg;
+      if (this.diagramEl?.dataset) {
+        this.diagramEl.dataset.hasDiagram = 'true';
+      }
+      if (this.onRender) {
+        this.onRender({ hasDiagram: true, svgElement: this.diagramContentEl.firstElementChild });
+      }
     } catch (error) {
-      this.diagramEl.innerHTML = `<pre style="color:#f97316; white-space:pre-wrap;">${error.message}</pre>`;
+      this.diagramContentEl.innerHTML = `<pre style="color:#f97316; white-space:pre-wrap;">${error.message}</pre>`;
+      if (this.diagramEl?.dataset) {
+        this.diagramEl.dataset.hasDiagram = 'error';
+      }
+      if (this.onRender) {
+        this.onRender({ hasDiagram: false, error });
+      }
     }
+  }
+}
+
+class DiagramPanController {
+  constructor(element) {
+    this.element = element || null;
+    this.isDragging = false;
+    this.pointerId = null;
+    this.startX = 0;
+    this.startY = 0;
+    this.offsetX = 0;
+    this.offsetY = 0;
+    this.startOffsetX = 0;
+    this.startOffsetY = 0;
+    this.baseScale = 1;
+    this.userScale = 1;
+    this.minZoomFactor = 0.2;
+    this.maxZoomFactor = 6;
+    this.contentWidth = 0;
+    this.contentHeight = 0;
+    this.resizeObserver = null;
+    this.windowResizeHandler = null;
+    this.handlePointerDown = this.handlePointerDown.bind(this);
+    this.handlePointerMove = this.handlePointerMove.bind(this);
+    this.handlePointerUp = this.handlePointerUp.bind(this);
+    this.handleWheel = this.handleWheel.bind(this);
+    if (this.element) {
+      this.viewport = document.createElement('div');
+      this.viewport.className = 'diagram-pan-viewport';
+      this.content = document.createElement('div');
+      this.content.className = 'diagram-pan-content';
+      this.viewport.appendChild(this.content);
+      this.element.appendChild(this.viewport);
+      if (typeof ResizeObserver !== 'undefined') {
+        this.resizeObserver = new ResizeObserver(() => {
+          this.updateBaseScale({ maintainVisualPosition: true });
+        });
+        this.resizeObserver.observe(this.viewport);
+      } else if (typeof window !== 'undefined' && window?.addEventListener) {
+        this.windowResizeHandler = () => {
+          this.updateBaseScale({ maintainVisualPosition: true });
+        };
+        window.addEventListener('resize', this.windowResizeHandler);
+      }
+      if (this.element.dataset) {
+        if (!this.element.dataset.hasDiagram) {
+          this.element.dataset.hasDiagram = 'false';
+        }
+        this.element.dataset.dragging = 'false';
+      }
+      this.updateTransform();
+    } else {
+      this.viewport = null;
+      this.content = null;
+    }
+    if (this.element) {
+      this.element.addEventListener('pointerdown', this.handlePointerDown);
+      this.element.addEventListener('pointermove', this.handlePointerMove);
+      this.element.addEventListener('pointerup', this.handlePointerUp);
+      this.element.addEventListener('pointercancel', this.handlePointerUp);
+      try {
+        this.element.addEventListener('wheel', this.handleWheel, { passive: false });
+      } catch (error) {
+        this.element.addEventListener('wheel', this.handleWheel);
+      }
+    }
+  }
+
+  getContentElement() {
+    return this.content || null;
+  }
+
+  resetPosition() {
+    this.offsetX = 0;
+    this.offsetY = 0;
+    this.userScale = 1;
+    this.updateTransform();
+    this.setDraggingState(false);
+  }
+
+  hasDiagram() {
+    if (!this.element) {
+      return false;
+    }
+    if (this.element.dataset && this.element.dataset.hasDiagram) {
+      return this.element.dataset.hasDiagram === 'true';
+    }
+    return this.content ? this.content.children.length > 0 : this.element.children.length > 0;
+  }
+
+  setDraggingState(active) {
+    if (!this.element) {
+      return;
+    }
+    this.isDragging = active;
+    if (this.element.dataset) {
+      this.element.dataset.dragging = active ? 'true' : 'false';
+    }
+    if (!active) {
+      if (this.pointerId !== null && this.element.releasePointerCapture) {
+        try {
+          this.element.releasePointerCapture(this.pointerId);
+        } catch (error) {
+          // Ignore if pointer capture was not active.
+        }
+      }
+      this.pointerId = null;
+    }
+  }
+
+  handlePointerDown(event) {
+    if (!this.element || this.isDragging || event.button !== 0 || !this.hasDiagram()) {
+      return;
+    }
+    this.pointerId = event.pointerId;
+    this.startX = event.clientX;
+    this.startY = event.clientY;
+    this.startOffsetX = this.offsetX;
+    this.startOffsetY = this.offsetY;
+    if (this.element.setPointerCapture) {
+      this.element.setPointerCapture(this.pointerId);
+    }
+    this.setDraggingState(true);
+  }
+
+  handlePointerMove(event) {
+    if (!this.isDragging || event.pointerId !== this.pointerId || !this.element) {
+      return;
+    }
+    const deltaX = event.clientX - this.startX;
+    const deltaY = event.clientY - this.startY;
+    this.offsetX = this.startOffsetX + deltaX;
+    this.offsetY = this.startOffsetY + deltaY;
+    this.updateTransform();
+    event.preventDefault();
+  }
+
+  handlePointerUp(event) {
+    if (!this.isDragging || event.pointerId !== this.pointerId) {
+      return;
+    }
+    this.setDraggingState(false);
+  }
+
+  handleWheel(event) {
+    if (!this.element || !this.hasDiagram()) {
+      return;
+    }
+    const { deltaY, ctrlKey } = event;
+    const preferZoom = ctrlKey || Math.abs(deltaY) > Math.abs(event.deltaX);
+    if (!preferZoom) {
+      return;
+    }
+    const scaleRatio = Math.exp(-deltaY * 0.0015);
+    const nextUserScale = this.clampZoomFactor(this.userScale * scaleRatio);
+    if (nextUserScale === this.userScale) {
+      return;
+    }
+    if (this.viewport) {
+      const rect = this.viewport.getBoundingClientRect();
+      const pointerX = event.clientX - rect.left;
+      const pointerY = event.clientY - rect.top;
+      const centerX = rect.width / 2;
+      const centerY = rect.height / 2;
+      const relativeX = pointerX - centerX;
+      const relativeY = pointerY - centerY;
+      const ratio = nextUserScale / this.userScale;
+      this.offsetX = this.offsetX * ratio + relativeX * (1 - ratio);
+      this.offsetY = this.offsetY * ratio + relativeY * (1 - ratio);
+    }
+    this.userScale = nextUserScale;
+    this.updateTransform();
+    event.preventDefault();
+  }
+
+  updateTransform() {
+    if (!this.content) {
+      return;
+    }
+    const scale = this.getScale();
+    this.content.style.transform = `translate(-50%, -50%) translate(${this.offsetX}px, ${this.offsetY}px) scale(${scale})`;
+    if (this.element?.dataset) {
+      this.element.dataset.zoom = scale.toFixed(3);
+    }
+  }
+
+  getScale() {
+    return this.baseScale * this.userScale;
+  }
+
+  clampZoomFactor(value) {
+    return Math.min(this.maxZoomFactor, Math.max(this.minZoomFactor, value));
+  }
+
+  clampUserScale() {
+    const clamped = this.clampZoomFactor(this.userScale);
+    if (clamped === this.userScale) {
+      return;
+    }
+    const base = this.userScale === 0 ? 1 : this.userScale;
+    const ratio = clamped / base;
+    this.userScale = clamped;
+    this.offsetX *= ratio;
+    this.offsetY *= ratio;
+  }
+
+  syncContentMetrics(svgElement, { preservePosition = false } = {}) {
+    if (!this.content || !this.viewport) {
+      return;
+    }
+    if (!svgElement) {
+      this.contentWidth = 0;
+      this.contentHeight = 0;
+      this.content.style.width = '';
+      this.content.style.height = '';
+      this.updateBaseScale({ maintainVisualPosition: false });
+      return;
+    }
+    let width = 0;
+    let height = 0;
+    try {
+      const box = svgElement.getBBox?.();
+      if (box && box.width > 0 && box.height > 0) {
+        width = box.width;
+        height = box.height;
+      }
+    } catch (error) {
+      // Ignore getBBox errors and use fallbacks.
+    }
+    if (!(width > 0 && height > 0)) {
+      const viewBox = svgElement.viewBox?.baseVal;
+      if (viewBox && viewBox.width > 0 && viewBox.height > 0) {
+        width = viewBox.width;
+        height = viewBox.height;
+      } else {
+        const rect = svgElement.getBoundingClientRect();
+        width = rect.width;
+        height = rect.height;
+      }
+    }
+    if (!(width > 0)) {
+      width = 1;
+    }
+    if (!(height > 0)) {
+      height = 1;
+    }
+    this.contentWidth = width;
+    this.contentHeight = height;
+    this.content.style.width = `${width}px`;
+    this.content.style.height = `${height}px`;
+    svgElement.style.width = '100%';
+    svgElement.style.height = '100%';
+    svgElement.style.maxWidth = 'none';
+    svgElement.style.maxHeight = 'none';
+    svgElement.setAttribute('preserveAspectRatio', svgElement.getAttribute('preserveAspectRatio') || 'xMidYMid meet');
+    this.updateBaseScale({ maintainVisualPosition: preservePosition });
+  }
+
+  updateBaseScale({ maintainVisualPosition = true } = {}) {
+    if (!this.viewport) {
+      return;
+    }
+    const viewportWidth = this.viewport.clientWidth;
+    const viewportHeight = this.viewport.clientHeight;
+    const hasContent = this.contentWidth > 0 && this.contentHeight > 0;
+    let nextBaseScale = 1;
+    if (hasContent && viewportWidth > 0 && viewportHeight > 0) {
+      const fitScale = Math.min(
+        viewportWidth / this.contentWidth,
+        viewportHeight / this.contentHeight
+      );
+      if (Number.isFinite(fitScale) && fitScale > 0) {
+        nextBaseScale = fitScale;
+      }
+    }
+    if (!(nextBaseScale > 0)) {
+      nextBaseScale = 1;
+    }
+    const previousBase = this.baseScale === 0 ? 1 : this.baseScale;
+    const baseRatio = nextBaseScale / previousBase;
+    this.baseScale = nextBaseScale;
+    if (maintainVisualPosition && hasContent) {
+      this.offsetX *= baseRatio;
+      this.offsetY *= baseRatio;
+      const inverseRatio = baseRatio === 0 ? 1 : 1 / baseRatio;
+      this.userScale *= inverseRatio;
+    }
+    this.clampUserScale();
+    this.updateTransform();
   }
 }
 
@@ -1854,12 +2176,27 @@ class App {
       container: dom.stepsList,
       onChange: () => this.renderDiagram()
     });
+    this.diagramPanController = new DiagramPanController(dom.diagram);
+    this.diagramHasContent = false;
     this.diagramRenderer = new DiagramRenderer({
       diagramEl: dom.diagram,
+      diagramContentEl: this.diagramPanController.getContentElement(),
       stepManager: this.stepManager,
       orgManager: this.orgManager,
       startInput: dom.startInput,
-      endInput: dom.endInput
+      endInput: dom.endInput,
+      onRender: ({ hasDiagram, svgElement }) => {
+        const hadDiagramBefore = this.diagramHasContent;
+        if (this.diagramPanController && typeof this.diagramPanController.syncContentMetrics === 'function') {
+          this.diagramPanController.syncContentMetrics(svgElement || null, {
+            preservePosition: hadDiagramBefore
+          });
+        }
+        if (!hadDiagramBefore || !hasDiagram) {
+          this.diagramPanController.resetPosition();
+        }
+        this.diagramHasContent = hasDiagram;
+      }
     });
     this.diagramFooter = new DiagramFooter({
       container: dom.diagramFooter,
