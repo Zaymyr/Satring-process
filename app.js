@@ -1666,9 +1666,13 @@ class DiagramPanController {
     this.offsetY = 0;
     this.startOffsetX = 0;
     this.startOffsetY = 0;
+    this.scale = 1;
+    this.minScale = 0.25;
+    this.maxScale = 3;
     this.handlePointerDown = this.handlePointerDown.bind(this);
     this.handlePointerMove = this.handlePointerMove.bind(this);
     this.handlePointerUp = this.handlePointerUp.bind(this);
+    this.handleWheel = this.handleWheel.bind(this);
     if (this.element) {
       this.viewport = document.createElement('div');
       this.viewport.className = 'diagram-pan-viewport';
@@ -1692,6 +1696,11 @@ class DiagramPanController {
       this.element.addEventListener('pointermove', this.handlePointerMove);
       this.element.addEventListener('pointerup', this.handlePointerUp);
       this.element.addEventListener('pointercancel', this.handlePointerUp);
+      try {
+        this.element.addEventListener('wheel', this.handleWheel, { passive: false });
+      } catch (error) {
+        this.element.addEventListener('wheel', this.handleWheel);
+      }
     }
   }
 
@@ -1702,6 +1711,7 @@ class DiagramPanController {
   resetPosition() {
     this.offsetX = 0;
     this.offsetY = 0;
+    this.scale = 1;
     this.updateTransform();
     this.setDraggingState(false);
   }
@@ -1770,11 +1780,42 @@ class DiagramPanController {
     this.setDraggingState(false);
   }
 
+  handleWheel(event) {
+    if (!this.element || !this.hasDiagram()) {
+      return;
+    }
+    const { deltaY, ctrlKey } = event;
+    const preferZoom = ctrlKey || Math.abs(deltaY) > Math.abs(event.deltaX);
+    if (!preferZoom) {
+      return;
+    }
+    const scaleRatio = Math.exp(-deltaY * 0.0015);
+    const nextScale = Math.min(this.maxScale, Math.max(this.minScale, this.scale * scaleRatio));
+    if (nextScale === this.scale) {
+      return;
+    }
+    if (this.viewport) {
+      const rect = this.viewport.getBoundingClientRect();
+      const pointerX = event.clientX - rect.left;
+      const pointerY = event.clientY - rect.top;
+      const centerX = rect.width / 2;
+      const centerY = rect.height / 2;
+      const relativeX = pointerX - centerX;
+      const relativeY = pointerY - centerY;
+      const ratio = nextScale / this.scale;
+      this.offsetX = this.offsetX * ratio + relativeX * (1 - ratio);
+      this.offsetY = this.offsetY * ratio + relativeY * (1 - ratio);
+    }
+    this.scale = nextScale;
+    this.updateTransform();
+    event.preventDefault();
+  }
+
   updateTransform() {
     if (!this.content) {
       return;
     }
-    this.content.style.transform = `translate(calc(-50% + ${this.offsetX}px), calc(-50% + ${this.offsetY}px))`;
+    this.content.style.transform = `translate(-50%, -50%) translate(${this.offsetX}px, ${this.offsetY}px) scale(${this.scale})`;
   }
 }
 
