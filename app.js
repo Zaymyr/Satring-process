@@ -1666,9 +1666,14 @@ class DiagramPanController {
     this.offsetY = 0;
     this.startOffsetX = 0;
     this.startOffsetY = 0;
-    this.scale = 1;
-    this.minScale = 0.25;
-    this.maxScale = 3;
+    this.baseScale = 1;
+    this.userScale = 1;
+    this.minZoomFactor = 0.2;
+    this.maxZoomFactor = 6;
+    this.contentWidth = 0;
+    this.contentHeight = 0;
+    this.resizeObserver = null;
+    this.windowResizeHandler = null;
     this.handlePointerDown = this.handlePointerDown.bind(this);
     this.handlePointerMove = this.handlePointerMove.bind(this);
     this.handlePointerUp = this.handlePointerUp.bind(this);
@@ -1680,6 +1685,17 @@ class DiagramPanController {
       this.content.className = 'diagram-pan-content';
       this.viewport.appendChild(this.content);
       this.element.appendChild(this.viewport);
+      if (typeof ResizeObserver !== 'undefined') {
+        this.resizeObserver = new ResizeObserver(() => {
+          this.updateBaseScale({ maintainVisualPosition: true });
+        });
+        this.resizeObserver.observe(this.viewport);
+      } else if (typeof window !== 'undefined' && window?.addEventListener) {
+        this.windowResizeHandler = () => {
+          this.updateBaseScale({ maintainVisualPosition: true });
+        };
+        window.addEventListener('resize', this.windowResizeHandler);
+      }
       if (this.element.dataset) {
         if (!this.element.dataset.hasDiagram) {
           this.element.dataset.hasDiagram = 'false';
@@ -1711,7 +1727,7 @@ class DiagramPanController {
   resetPosition() {
     this.offsetX = 0;
     this.offsetY = 0;
-    this.scale = 1;
+    this.userScale = 1;
     this.updateTransform();
     this.setDraggingState(false);
   }
@@ -1790,8 +1806,8 @@ class DiagramPanController {
       return;
     }
     const scaleRatio = Math.exp(-deltaY * 0.0015);
-    const nextScale = Math.min(this.maxScale, Math.max(this.minScale, this.scale * scaleRatio));
-    if (nextScale === this.scale) {
+    const nextUserScale = this.clampZoomFactor(this.userScale * scaleRatio);
+    if (nextUserScale === this.userScale) {
       return;
     }
     if (this.viewport) {
@@ -1802,11 +1818,11 @@ class DiagramPanController {
       const centerY = rect.height / 2;
       const relativeX = pointerX - centerX;
       const relativeY = pointerY - centerY;
-      const ratio = nextScale / this.scale;
+      const ratio = nextUserScale / this.userScale;
       this.offsetX = this.offsetX * ratio + relativeX * (1 - ratio);
       this.offsetY = this.offsetY * ratio + relativeY * (1 - ratio);
     }
-    this.scale = nextScale;
+    this.userScale = nextUserScale;
     this.updateTransform();
     event.preventDefault();
   }
@@ -1815,7 +1831,116 @@ class DiagramPanController {
     if (!this.content) {
       return;
     }
-    this.content.style.transform = `translate(-50%, -50%) translate(${this.offsetX}px, ${this.offsetY}px) scale(${this.scale})`;
+    const scale = this.getScale();
+    this.content.style.transform = `translate(-50%, -50%) translate(${this.offsetX}px, ${this.offsetY}px) scale(${scale})`;
+    if (this.element?.dataset) {
+      this.element.dataset.zoom = scale.toFixed(3);
+    }
+  }
+
+  getScale() {
+    return this.baseScale * this.userScale;
+  }
+
+  clampZoomFactor(value) {
+    return Math.min(this.maxZoomFactor, Math.max(this.minZoomFactor, value));
+  }
+
+  clampUserScale() {
+    const clamped = this.clampZoomFactor(this.userScale);
+    if (clamped === this.userScale) {
+      return;
+    }
+    const base = this.userScale === 0 ? 1 : this.userScale;
+    const ratio = clamped / base;
+    this.userScale = clamped;
+    this.offsetX *= ratio;
+    this.offsetY *= ratio;
+  }
+
+  syncContentMetrics(svgElement, { preservePosition = false } = {}) {
+    if (!this.content || !this.viewport) {
+      return;
+    }
+    if (!svgElement) {
+      this.contentWidth = 0;
+      this.contentHeight = 0;
+      this.content.style.width = '';
+      this.content.style.height = '';
+      this.updateBaseScale({ maintainVisualPosition: false });
+      return;
+    }
+    let width = 0;
+    let height = 0;
+    try {
+      const box = svgElement.getBBox?.();
+      if (box && box.width > 0 && box.height > 0) {
+        width = box.width;
+        height = box.height;
+      }
+    } catch (error) {
+      // Ignore getBBox errors and use fallbacks.
+    }
+    if (!(width > 0 && height > 0)) {
+      const viewBox = svgElement.viewBox?.baseVal;
+      if (viewBox && viewBox.width > 0 && viewBox.height > 0) {
+        width = viewBox.width;
+        height = viewBox.height;
+      } else {
+        const rect = svgElement.getBoundingClientRect();
+        width = rect.width;
+        height = rect.height;
+      }
+    }
+    if (!(width > 0)) {
+      width = 1;
+    }
+    if (!(height > 0)) {
+      height = 1;
+    }
+    this.contentWidth = width;
+    this.contentHeight = height;
+    this.content.style.width = `${width}px`;
+    this.content.style.height = `${height}px`;
+    svgElement.style.width = '100%';
+    svgElement.style.height = '100%';
+    svgElement.style.maxWidth = 'none';
+    svgElement.style.maxHeight = 'none';
+    svgElement.setAttribute('preserveAspectRatio', svgElement.getAttribute('preserveAspectRatio') || 'xMidYMid meet');
+    this.updateBaseScale({ maintainVisualPosition: preservePosition });
+  }
+
+  updateBaseScale({ maintainVisualPosition = true } = {}) {
+    if (!this.viewport) {
+      return;
+    }
+    const viewportWidth = this.viewport.clientWidth;
+    const viewportHeight = this.viewport.clientHeight;
+    const hasContent = this.contentWidth > 0 && this.contentHeight > 0;
+    let nextBaseScale = 1;
+    if (hasContent && viewportWidth > 0 && viewportHeight > 0) {
+      const fitScale = Math.min(
+        viewportWidth / this.contentWidth,
+        viewportHeight / this.contentHeight
+      );
+      if (Number.isFinite(fitScale) && fitScale > 0) {
+        nextBaseScale = fitScale;
+      }
+    }
+    if (!(nextBaseScale > 0)) {
+      nextBaseScale = 1;
+    }
+    const previousBase = this.baseScale === 0 ? 1 : this.baseScale;
+    const baseRatio = nextBaseScale / previousBase;
+    this.baseScale = nextBaseScale;
+    if (maintainVisualPosition && hasContent) {
+      this.offsetX *= baseRatio;
+      this.offsetY *= baseRatio;
+      const inverseRatio = baseRatio === 0 ? 1 : 1 / baseRatio;
+      this.userScale *= inverseRatio;
+    }
+    this.clampUserScale();
+    this.updateTransform();
   }
 }
 
@@ -2060,8 +2185,14 @@ class App {
       orgManager: this.orgManager,
       startInput: dom.startInput,
       endInput: dom.endInput,
-      onRender: ({ hasDiagram }) => {
-        if (!this.diagramHasContent || !hasDiagram) {
+      onRender: ({ hasDiagram, svgElement }) => {
+        const hadDiagramBefore = this.diagramHasContent;
+        if (this.diagramPanController && typeof this.diagramPanController.syncContentMetrics === 'function') {
+          this.diagramPanController.syncContentMetrics(svgElement || null, {
+            preservePosition: hadDiagramBefore
+          });
+        }
+        if (!hadDiagramBefore || !hasDiagram) {
           this.diagramPanController.resetPosition();
         }
         this.diagramHasContent = hasDiagram;
