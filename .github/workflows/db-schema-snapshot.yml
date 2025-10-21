@@ -27,15 +27,16 @@ jobs:
         run: mkdir -p docs/db
 
       # Schema-only dump (includes tables, indexes, policies, functions — no data)
-      - name: Dump schema with pg_dump
+      - name: Dump schema with pg_dump 17 (Docker)
         env:
-          SUPABASE_DB_URL_SESSION: ${{ secrets.SUPABASE_DB_URL_SESSION }}  # session pooler, port 5432 + sslmode=require
+          SUPABASE_DB_URL_SESSION: ${{ secrets.SUPABASE_DB_URL_SESSION }}
         run: |
-          pg_dump "$SUPABASE_DB_URL_SESSION" \
-            --schema-only \
-            --no-owner \
-            --no-privileges \
-            --file docs/db/schema.sql
+          docker run --rm \
+          -e PGPASSWORD="$(echo "$SUPABASE_DB_URL_SESSION" | sed -n 's/.*:\([^:@]*\)@.*/\1/p')" \
+          -v "$PWD:/work" -w /work \
+          postgres:17-alpine \
+          sh -lc 'pg_dump "$SUPABASE_DB_URL_SESSION" --schema-only --no-owner --no-privileges --file docs/db/schema.sql'
+
 
       # (Optional) Public-only dump too
       # - name: Dump public schema only
