@@ -13,12 +13,17 @@ jobs:
 
       - name: Setup Supabase CLI
         uses: supabase/setup-cli@v1
+        with:
+          version: latest  # (or pin a specific v2.x.y if you want)
+
+      - run: supabase --version
+
 
       - name: Link project
-        run: |
-          export SUPABASE_ACCESS_TOKEN=${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          supabase link --project-ref ${{ secrets.SUPABASE_PROJECT_REF }}
-
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: supabase link --project-ref ${{ secrets.SUPABASE_PROJECT_REF }}
 
       - name: Push migrations
         run: supabase db push
+
