@@ -1,5 +1,7 @@
 import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
-import { writeWorkspaceSnapshot } from './data/workspaceSnapshot.js';
+import { configureWorkspaceSnapshot, writeWorkspaceSnapshot } from './data/workspaceSnapshot.js';
+
+configureWorkspaceSnapshot();
 
 const dom = {
   diagram: document.getElementById('diagram'),

@@ -1,10 +1,12 @@
-import { writeWorkspaceSnapshot } from './data/workspaceSnapshot.js';
+import { configureWorkspaceSnapshot, writeWorkspaceSnapshot } from './data/workspaceSnapshot.js';
 import {
   canUseDepartmentsApi,
   deleteDepartments,
   fetchDepartments,
   upsertDepartments
 } from './data/departmentsRepository.js';
+
+configureWorkspaceSnapshot();
 
 const dom = {
   addDepartmentButton: document.getElementById('add-department'),

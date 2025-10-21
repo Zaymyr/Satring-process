@@ -1,8 +1,11 @@
 import {
+  configureWorkspaceSnapshot,
   getWorkspaceSnapshotSync,
   readWorkspaceSnapshot,
   subscribeWorkspaceSnapshot
 } from './data/workspaceSnapshot.js';
+
+configureWorkspaceSnapshot();
 
 const STORAGE_KEY = 'mermaidWorkspaceSnapshot';
 
