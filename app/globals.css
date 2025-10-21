@@ -1,0 +1,53 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+body {
+  @apply bg-slate-50 text-slate-900 font-sans;
+}
+
+.main-shell {
+  @apply min-h-screen flex flex-col;
+}
+
+.page-container {
+  @apply flex-1 flex flex-col gap-8 p-6 lg:p-10;
+}
+
+.section-card {
+  @apply rounded-2xl border border-slate-200 bg-white shadow-sm;
+}
+
+.section-card__header {
+  @apply border-b border-slate-200 px-6 py-4;
+}
+
+.section-card__body {
+  @apply px-6 py-6;
+}
+
+.metric-grid {
+  @apply grid gap-4 sm:grid-cols-2 xl:grid-cols-4;
+}
+
+.metric-card {
+  @apply rounded-xl border border-slate-200 bg-slate-50 px-4 py-6 transition hover:shadow-md;
+}
+
+.metric-card__label {
+  @apply text-sm font-medium text-slate-600;
+}
+
+.metric-card__value {
+  @apply mt-2 text-3xl font-semibold;
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
