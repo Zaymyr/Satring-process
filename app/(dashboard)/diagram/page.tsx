@@ -45,7 +45,7 @@ export default function DiagramPage() {
         </CardHeader>
         <CardContent>
           <code className="block rounded-lg bg-slate-900 p-4 text-xs text-slate-100">
-            curl -H "Authorization: Bearer &lt;token&gt;" https://votre-app.vercel.app/api/workspace-snapshot
+            curl -H &quot;Authorization: Bearer &lt;token&gt;&quot; https://votre-app.vercel.app/api/workspace-snapshot
           </code>
         </CardContent>
       </Card>
