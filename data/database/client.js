@@ -5,6 +5,23 @@ import { normalizeString } from '../utils.js';
 const isBrowser = () => typeof window !== 'undefined';
 const isDocumentAvailable = () => typeof document !== 'undefined';
 
+const toDataAttributeName = (name) =>
+  typeof name === 'string'
+    ? name
+        .trim()
+        .replace(/([a-z0-9])([A-Z])/g, '$1-$2')
+        .replace(/[_\s]+/g, '-')
+        .replace(/^-+/, '')
+        .toLowerCase()
+    : '';
+
+const toDatasetKey = (name) =>
+  typeof name === 'string'
+    ? name
+        .trim()
+        .replace(/[-_\s]+(.)?/g, (_, chr) => (chr ? chr.toUpperCase() : ''))
+    : '';
+
 const readMetaContent = (name) => {
   if (!isDocumentAvailable()) {
     return '';
@@ -17,25 +34,51 @@ const readDataAttribute = (attr) => {
   if (!isDocumentAvailable()) {
     return '';
   }
-  const element = document.querySelector(`[data-${attr}]`);
-  if (!element || !element.dataset) {
+  const attrName = toDataAttributeName(attr);
+  if (!attrName) {
     return '';
   }
-  return normalizeString(element.dataset[attr]);
+  const datasetKey = toDatasetKey(attr);
+  const element = document.querySelector(`[data-${attrName}]`);
+  if (!element || !element.dataset || !datasetKey) {
+    return '';
+  }
+  return normalizeString(element.dataset[datasetKey]);
 };
 
 const readScriptDataset = () => {
   if (!isDocumentAvailable()) {
     return { url: '', anonKey: '' };
   }
-  const script = document.currentScript;
-  if (!script || !script.dataset) {
-    return { url: '', anonKey: '' };
-  }
-  return {
-    url: normalizeString(script.dataset.supabaseUrl),
-    anonKey: normalizeString(script.dataset.supabaseAnonKey)
+
+  const visitScript = (script) => {
+    if (!script || !script.dataset) {
+      return null;
+    }
+    const url = normalizeString(script.dataset.supabaseUrl);
+    const anonKey = normalizeString(script.dataset.supabaseAnonKey);
+    if (!url && !anonKey) {
+      return null;
+    }
+    return { url, anonKey };
   };
+
+  const current = visitScript(document.currentScript);
+  if (current) {
+    return current;
+  }
+
+  const candidates = document.querySelectorAll(
+    'script[data-supabase-url], script[data-supabase-anon-key]'
+  );
+  for (const script of candidates) {
+    const datasetConfig = visitScript(script);
+    if (datasetConfig) {
+      return datasetConfig;
+    }
+  }
+
+  return { url: '', anonKey: '' };
 };
 
 const readGlobalConfig = () => {
