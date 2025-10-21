@@ -20,6 +20,27 @@ jobs:
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         run: supabase link --project-ref ${{ secrets.SUPABASE_PROJECT_REF }}
+      # Optional: inspect who holds locks
+      - name: Inspect sessions
+        env:
+          SUPABASE_DB_URL_SESSION: ${{ secrets.SUPABASE_DB_URL_SESSION }}
+        run: |
+          docker run --rm -e SUPABASE_DB_URL_SESSION="$SUPABASE_DB_URL_SESSION" postgres:17-alpine \
+          sh -lc 'psql "$SUPABASE_DB_URL_SESSION" -c "select now(), pid, usename, application_name, state, wait_event_type, wait_event, query from pg_stat_activity where datname=current_database() order by state, usename;"'
+
+# Optional but effective: terminate idle blockers (be cautious in prod windows)
+      - name: Terminate idle-in-transaction sessions
+        env:
+          SUPABASE_DB_URL_SESSION: ${{ secrets.SUPABASE_DB_URL_SESSION }}
+        run: |
+          docker run --rm -e SUPABASE_DB_URL_SESSION="$SUPABASE_DB_URL_SESSION" postgres:17-alpine \
+          sh -lc 'psql "$SUPABASE_DB_URL_SESSION" -v ON_ERROR_STOP=1 -c "
+            select pg_terminate_backend(pid)
+            from pg_stat_activity
+            where datname = current_database()
+          and pid <> pg_backend_pid()
+          and state = '\''idle in transaction'\'';
+          "'
 
       - name: Push migrations
         env:
