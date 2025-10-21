@@ -1,5 +1,12 @@
 import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
 import { configureWorkspaceSnapshot, writeWorkspaceSnapshot } from './data/workspaceSnapshot.js';
+import {
+  canUseDepartmentsApi,
+  deleteDepartments,
+  fetchDepartments,
+  upsertDepartments
+} from './data/departmentsRepository.js';
+import { ensureArray, normalizeString } from './data/utils.js';
 
 configureWorkspaceSnapshot();
 
@@ -25,6 +32,8 @@ const dom = {
 
 const defaultDepartmentColors = ['#0ea5e9', '#22c55e', '#f97316', '#a855f7', '#facc15', '#ef4444', '#14b8a6'];
 const defaultRoleColors = ['#38bdf8', '#f472b6', '#fde68a', '#c084fc', '#34d399', '#fb7185', '#f97316'];
+
+const REMOTE_SYNC_DELAY = 600;
 
 const sanitizeLabel = (raw, fallback) => {
   const safe = (raw ?? '').trim() || fallback;
@@ -235,6 +244,7 @@ class DepartmentTree {
     this.roleColorFallback = normalizeHexColor(roleColorFallback, '#2563eb');
     this.departmentCounter = 0;
     this.roleCounter = 0;
+    this.notificationDepth = 0;
     if (this.addButton) {
       this.addButton.addEventListener('click', () => {
         const node = this.addDepartment();
@@ -244,9 +254,24 @@ class DepartmentTree {
   }
 
   notifyChange() {
+    if (this.notificationDepth > 0) {
+      return;
+    }
     if (typeof this.onChange === 'function') {
       this.onChange();
     }
+  }
+
+  batch(callback) {
+    this.notificationDepth += 1;
+    try {
+      if (typeof callback === 'function') {
+        callback();
+      }
+    } finally {
+      this.notificationDepth = Math.max(0, this.notificationDepth - 1);
+    }
+    this.notifyChange();
   }
 
   isEmpty() {
@@ -461,6 +486,111 @@ class DepartmentTree {
     return row;
   }
 
+  replace(departments = []) {
+    if (!this.container) {
+      return;
+    }
+    this.batch(() => {
+      this.container.innerHTML = '';
+      this.departmentCounter = 0;
+      this.roleCounter = 0;
+      ensureArray(departments).forEach((department) => {
+        if (!department || typeof department !== 'object') {
+          return;
+        }
+        const node = this.addDepartment(department.name || '', {
+          id: department.id,
+          color: department.color,
+          roles: ensureArray(department.roles).map((role) => {
+            if (!role || typeof role !== 'object') {
+              return null;
+            }
+            return {
+              id: role.id,
+              value: role.name ?? role.label ?? '',
+              color: role.color
+            };
+          })
+        });
+        if (!node) {
+          return;
+        }
+        if (department.collapsed) {
+          node.dataset.collapsed = 'true';
+          const rolesContainer = node.querySelector('.role-list');
+          if (rolesContainer) {
+            rolesContainer.hidden = true;
+          }
+          const collapseButton = node.querySelector('.department-collapse');
+          const collapseIcon = node.querySelector('.department-collapse-icon');
+          collapseButton?.setAttribute('aria-expanded', 'false');
+          if (collapseIcon) {
+            collapseIcon.textContent = '\u25B8';
+          }
+        }
+      });
+    });
+  }
+
+  collectStructure() {
+    if (!this.container) {
+      return [];
+    }
+    const nodes = Array.from(this.container.querySelectorAll('.department-node'));
+    return nodes
+      .map((node, index) => {
+        const row = node.querySelector(".entity-row[data-entity-type='department']");
+        if (!row) {
+          return null;
+        }
+        const id = node.dataset.entityId;
+        if (!id) {
+          return null;
+        }
+        const input = row.querySelector('.entity-input');
+        const fallback = `Département ${index + 1}`;
+        const name = (input?.value || '').trim() || fallback;
+        const colorInput = row.querySelector('.entity-color');
+        const color = normalizeHexColor(
+          colorInput?.value || row.dataset.entityColor || this.departmentColorFallback,
+          this.departmentColorFallback
+        );
+        row.dataset.entityColor = color;
+        if (colorInput && colorInput.value !== color) {
+          colorInput.value = color;
+        }
+        const roles = Array.from(
+          node.querySelectorAll(".entity-row[data-entity-type='role']")
+        )
+          .map((roleRow, roleIndex) => {
+            const roleId = roleRow.dataset.entityId;
+            if (!roleId) {
+              return null;
+            }
+            const roleInput = roleRow.querySelector('.entity-input');
+            const roleFallback = `Rôle ${roleIndex + 1}`;
+            const roleName = (roleInput?.value || '').trim() || roleFallback;
+            const roleColorInput = roleRow.querySelector('.entity-color');
+            const roleColor = normalizeHexColor(
+              roleColorInput?.value || roleRow.dataset.entityColor || this.roleColorFallback,
+              this.roleColorFallback
+            );
+            roleRow.dataset.entityColor = roleColor;
+            if (roleColorInput && roleColorInput.value !== roleColor) {
+              roleColorInput.value = roleColor;
+            }
+            return {
+              id: roleId,
+              name: roleName,
+              color: roleColor
+            };
+          })
+          .filter(Boolean);
+        return { id, name, color, roles };
+      })
+      .filter(Boolean);
+  }
+
   countDepartmentsFilled() {
     if (!this.container) {
       return 0;
@@ -571,7 +701,13 @@ class OrgManager {
     });
     this.summaryEl = summary;
     this.changeListeners = new Set();
-    this.ensureDefaults();
+    this.isHydrating = false;
+    this.remoteState = {
+      persistTimeout: null,
+      lastSignature: null,
+      syncedIds: new Set(),
+      isPersisting: false
+    };
     this.updateSummary();
   }
 
@@ -599,8 +735,12 @@ class OrgManager {
   }
 
   handleChange() {
+    if (this.isHydrating) {
+      return;
+    }
     this.updateSummary();
     this.emitChange();
+    this.schedulePersist();
   }
 
   updateSummary() {
@@ -661,6 +801,178 @@ class OrgManager {
         }
       ])
     );
+  }
+
+  buildDepartmentPayloads() {
+    return this.tree.collectStructure().map((department) => ({
+      id: department.id,
+      name: department.name || null,
+      color: department.color || null,
+      metadata: {},
+      roles: ensureArray(department.roles).map((role) => ({
+        id: role.id,
+        name: role.name || null,
+        color: role.color || null,
+        metadata: {}
+      }))
+    }));
+  }
+
+  buildSignature(payloads) {
+    const normalized = ensureArray(payloads)
+      .map((department) => ({
+        id: department.id,
+        name: department.name || null,
+        color: department.color || null,
+        metadata: {},
+        roles: ensureArray(department.roles)
+          .map((role) => ({
+            id: role.id,
+            name: role.name || null,
+            color: role.color || null,
+            metadata: {}
+          }))
+          .sort((a, b) => (a.id || '').localeCompare(b.id || ''))
+      }))
+      .sort((a, b) => (a.id || '').localeCompare(b.id || ''));
+    return JSON.stringify(normalized);
+  }
+
+  schedulePersist() {
+    if (!canUseDepartmentsApi()) {
+      return;
+    }
+    if (this.isHydrating) {
+      return;
+    }
+    if (this.remoteState.persistTimeout) {
+      clearTimeout(this.remoteState.persistTimeout);
+    }
+    this.remoteState.persistTimeout = setTimeout(() => {
+      this.remoteState.persistTimeout = null;
+      void this.persistDepartments();
+    }, REMOTE_SYNC_DELAY);
+  }
+
+  async persistDepartments() {
+    if (!canUseDepartmentsApi()) {
+      return;
+    }
+    if (this.remoteState.isPersisting) {
+      return;
+    }
+    this.remoteState.isPersisting = true;
+    try {
+      const payloads = this.buildDepartmentPayloads();
+      const signature = this.buildSignature(payloads);
+      if (signature === this.remoteState.lastSignature) {
+        return;
+      }
+      const upserted = await upsertDepartments(payloads);
+      if (!upserted) {
+        return;
+      }
+      const currentIds = new Set(payloads.map((department) => department.id));
+      const removed = Array.from(this.remoteState.syncedIds).filter((id) => !currentIds.has(id));
+      let deletionSucceeded = true;
+      if (removed.length > 0) {
+        deletionSucceeded = await deleteDepartments(removed);
+      }
+      if (deletionSucceeded) {
+        this.remoteState.syncedIds = currentIds;
+        this.remoteState.lastSignature = signature;
+      }
+    } catch (error) {
+      console.warn('Synchronisation des départements du diagramme échouée :', error);
+    } finally {
+      this.remoteState.isPersisting = false;
+    }
+  }
+
+  sanitizeRemoteRecords(records) {
+    return ensureArray(records)
+      .map((record, index) => {
+        if (!record || typeof record !== 'object') {
+          return null;
+        }
+        const id = normalizeString(record.id) || `department-${index + 1}`;
+        if (!id) {
+          return null;
+        }
+        const name = normalizeString(record.name || record.label);
+        const color = normalizeHexColor(record.color || '#0ea5e9', '#0ea5e9');
+        const roles = ensureArray(record.roles).map((role, roleIndex) => {
+          if (!role || typeof role !== 'object') {
+            return null;
+          }
+          const roleId = normalizeString(role.id) || `${id}-role-${roleIndex + 1}`;
+          if (!roleId) {
+            return null;
+          }
+          return {
+            id: roleId,
+            name: normalizeString(role.name || role.label),
+            color: normalizeHexColor(role.color || '#2563eb', '#2563eb')
+          };
+        });
+        return {
+          id,
+          name,
+          color,
+          roles: roles.filter(Boolean)
+        };
+      })
+      .filter(Boolean);
+  }
+
+  async hydrateFromRemote() {
+    if (!canUseDepartmentsApi()) {
+      return [];
+    }
+    if (this.remoteState.persistTimeout) {
+      clearTimeout(this.remoteState.persistTimeout);
+      this.remoteState.persistTimeout = null;
+    }
+    this.isHydrating = true;
+    try {
+      const records = await fetchDepartments();
+      const sanitized = this.sanitizeRemoteRecords(records);
+      this.tree.replace(
+        sanitized.map((department) => ({
+          id: department.id,
+          name: department.name,
+          color: department.color,
+          roles: department.roles
+        }))
+      );
+      const payloads = this.buildDepartmentPayloads();
+      this.remoteState.syncedIds = new Set(payloads.map((department) => department.id));
+      this.remoteState.lastSignature = this.buildSignature(payloads);
+      return sanitized;
+    } catch (error) {
+      console.warn('Lecture des départements pour le diagramme échouée :', error);
+      return [];
+    } finally {
+      this.isHydrating = false;
+      this.updateSummary();
+      this.emitChange();
+    }
+  }
+
+  async initialize() {
+    let records = [];
+    if (canUseDepartmentsApi()) {
+      records = await this.hydrateFromRemote();
+    }
+    if (!canUseDepartmentsApi() && this.tree.isEmpty()) {
+      this.ensureDefaults();
+      this.updateSummary();
+      this.emitChange();
+    } else if (canUseDepartmentsApi() && records.length === 0 && this.tree.isEmpty()) {
+      this.updateSummary();
+      this.emitChange();
+    }
+    return records;
   }
 }
 
@@ -2241,6 +2553,7 @@ class App {
     ['Planifier', 'Construire'].forEach((value) => this.stepManager.addProcessStep(value));
     this.stepManager.updateAssignments(this.orgManager.getAssignmentOptions());
     this.renderDiagram();
+    void this.bootstrap();
   }
 
   renderDiagram() {
@@ -2254,6 +2567,16 @@ class App {
       diagramProcessCount: processTotal,
       lastDiagramUpdate: new Date().toISOString()
     });
+  }
+
+  async bootstrap() {
+    try {
+      await this.orgManager.initialize();
+    } catch (error) {
+      console.warn('Initialisation de la structure du diagramme échouée :', error);
+    }
+    this.stepManager.updateAssignments(this.orgManager.getAssignmentOptions());
+    this.renderDiagram();
   }
 }
 
