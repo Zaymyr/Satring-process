@@ -29,8 +29,8 @@ jobs:
 
       # Schema-only dump (includes tables, indexes, policies, functions — no data)
       - name: Dump schema with pg_dump 17
-          env:
-            SUPABASE_DB_URL_SESSION: ${{ secrets.SUPABASE_DB_URL_SESSION }}
+        env:
+          SUPABASE_DB_URL_SESSION: ${{ secrets.SUPABASE_DB_URL_SESSION }}
         run: |
           /usr/lib/postgresql/17/bin/pg_dump "$SUPABASE_DB_URL_SESSION" \
           --schema-only \
