@@ -1,4 +1,11 @@
-import { getSupabaseClient, initSupabaseClient, isSupabaseConfigured } from '../supabaseClient.js';
+import {
+  discoverSupabaseConfig,
+  getSupabaseClient,
+  initSupabaseClient,
+  isSupabaseConfigured,
+  withSupabaseClient
+} from './database/index.js';
+import { cloneObject, isPlainObject, mergeDefinedProperties } from './utils.js';
 
 const STORAGE_KEY = 'mermaidWorkspaceSnapshot';
 const TABLE_NAME = 'workspace_snapshots';
@@ -13,15 +20,11 @@ const columnMap = {
   lastDiagramUpdate: 'last_diagram_update'
 };
 
-const reverseColumnMap = Object.fromEntries(
-  Object.entries(columnMap).map(([key, value]) => [value, key])
-);
+const reverseColumnMap = Object.fromEntries(Object.entries(columnMap).map(([key, value]) => [value, key]));
 
 let cachedSnapshot = null;
 let channel = null;
 let loadingPromise = null;
-
-const clone = (value) => ({ ...(value || {}) });
 
 const isBrowser = () => typeof window !== 'undefined';
 
@@ -52,19 +55,10 @@ const writeLocalSnapshot = (snapshot) => {
   }
 };
 
-const mergeSnapshots = (base, partial) => {
-  const next = { ...(base || {}) };
-  Object.entries(partial || {}).forEach(([key, value]) => {
-    if (value === undefined || value === null) {
-      return;
-    }
-    next[key] = value;
-  });
-  return next;
-};
+const mergeSnapshots = (base, partial) => mergeDefinedProperties(base, partial);
 
 const normalizeRemoteRow = (row) => {
-  if (!row || typeof row !== 'object') {
+  if (!isPlainObject(row)) {
     return {};
   }
   return Object.entries(row).reduce((acc, [column, value]) => {
@@ -116,7 +110,7 @@ const dispatchEvent = (snapshot) => {
   if (!snapshot) {
     return;
   }
-  const cloned = clone(mergeSnapshots(cachedSnapshot, snapshot));
+  const cloned = cloneObject(mergeSnapshots(cachedSnapshot, snapshot));
   listeners.forEach((listener) => {
     try {
       listener(cloned);
@@ -126,40 +120,47 @@ const dispatchEvent = (snapshot) => {
   });
 };
 
-export const configureWorkspaceSnapshot = (config) => {
-  if (config && typeof config === 'object') {
-    initSupabaseClient(config);
+export const configureWorkspaceSnapshot = (config, options) => {
+  const targetConfig =
+    config && typeof config === 'object' ? config : discoverSupabaseConfig();
+  if (!targetConfig || typeof targetConfig !== 'object') {
+    return isSupabaseConfigured();
   }
+  initSupabaseClient(targetConfig, options);
+  return isSupabaseConfigured();
 };
 
 const loadFromSupabase = async () => {
-  if (!isSupabaseConfigured()) {
-    return null;
-  }
-  try {
-    const { data, error } = await getSupabaseClient()
-      .from(TABLE_NAME)
-      .select('*')
-      .eq('id', ROW_ID)
-      .maybeSingle();
-    if (error) {
-      throw error;
+  return withSupabaseClient(
+    async (client) => {
+      const { data, error } = await client
+        .from(TABLE_NAME)
+        .select('*')
+        .eq('id', ROW_ID)
+        .maybeSingle();
+      if (error) {
+        throw error;
+      }
+      if (!data) {
+        ensureChannel();
+        return null;
+      }
+      const remote = normalizeRemoteRow(data);
+      if (Object.keys(remote).length > 0) {
+        cachedSnapshot = mergeSnapshots(cachedSnapshot, remote);
+        writeLocalSnapshot(cachedSnapshot);
+        dispatchEvent(remote);
+      }
+      ensureChannel();
+      return remote;
+    },
+    {
+      fallback: null,
+      onError: (error) => {
+        console.warn('Lecture Supabase échouée :', error);
+      }
     }
-    if (!data) {
-      return null;
-    }
-    const remote = normalizeRemoteRow(data);
-    if (Object.keys(remote).length > 0) {
-      cachedSnapshot = mergeSnapshots(cachedSnapshot, remote);
-      writeLocalSnapshot(cachedSnapshot);
-      dispatchEvent(remote);
-    }
-    ensureChannel();
-    return remote;
-  } catch (error) {
-    console.warn('Lecture Supabase échouée :', error);
-    return null;
-  }
+  );
 };
 
 export const readWorkspaceSnapshot = async () => {
@@ -169,7 +170,7 @@ export const readWorkspaceSnapshot = async () => {
         loadingPromise = null;
       });
     }
-    return clone(cachedSnapshot);
+    return cloneObject(cachedSnapshot);
   }
   cachedSnapshot = readLocalSnapshot();
   if (isSupabaseConfigured() && !loadingPromise) {
@@ -184,21 +185,22 @@ export const readWorkspaceSnapshot = async () => {
       /* Ignorer */
     }
   }
-  return clone(cachedSnapshot);
+  return cloneObject(cachedSnapshot);
 };
 
 export const getWorkspaceSnapshotSync = () => {
   if (!cachedSnapshot) {
     cachedSnapshot = readLocalSnapshot();
   }
-  return clone(cachedSnapshot);
+  return cloneObject(cachedSnapshot);
 };
 
 const preparePayload = (snapshot) => {
   const payload = { id: ROW_ID };
+  const source = isPlainObject(snapshot) ? snapshot : {};
   Object.entries(columnMap).forEach(([key, column]) => {
-    if (snapshot[key] !== undefined) {
-      payload[column] = snapshot[key];
+    if (source[key] !== undefined) {
+      payload[column] = source[key];
     }
   });
   payload.updated_at = new Date().toISOString();
@@ -206,28 +208,33 @@ const preparePayload = (snapshot) => {
 };
 
 export const writeWorkspaceSnapshot = async (partial) => {
-  if (!partial || typeof partial !== 'object') {
-    return clone(cachedSnapshot);
+  if (!isPlainObject(partial)) {
+    return cloneObject(cachedSnapshot);
   }
   cachedSnapshot = mergeSnapshots(cachedSnapshot || readLocalSnapshot(), partial);
   writeLocalSnapshot(cachedSnapshot);
   dispatchEvent(partial);
   if (!isSupabaseConfigured()) {
-    return clone(cachedSnapshot);
+    return cloneObject(cachedSnapshot);
   }
-  try {
-    const payload = preparePayload(cachedSnapshot);
-    const { error } = await getSupabaseClient()
-      .from(TABLE_NAME)
-      .upsert(payload, { onConflict: 'id' });
-    if (error) {
-      throw error;
+  await withSupabaseClient(
+    async (client) => {
+      const payload = preparePayload(cachedSnapshot);
+      const { error } = await client.from(TABLE_NAME).upsert(payload, { onConflict: 'id' });
+      if (error) {
+        throw error;
+      }
+      return true;
+    },
+    {
+      fallback: false,
+      onError: (error) => {
+        console.warn('Synchronisation Supabase échouée :', error);
+      }
     }
-  } catch (error) {
-    console.warn('Synchronisation Supabase échouée :', error);
-  }
+  );
   ensureChannel();
-  return clone(cachedSnapshot);
+  return cloneObject(cachedSnapshot);
 };
 
 export const subscribeWorkspaceSnapshot = (listener) => {
