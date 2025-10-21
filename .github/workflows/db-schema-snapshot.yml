@@ -29,7 +29,8 @@ jobs:
             -v "$PWD:/work" -w /work \
             postgres:17-alpine \
             sh -lc 'pg_dump "$SUPABASE_DB_URL_SESSION" --schema-only --no-owner --no-privileges -f docs/db/schema.sql'
-            - name: Generate Markdown docs from schema.sql
+
+      - name: Generate Markdown docs from schema.sql
         run: |
           python3 - << 'PY'
           import re, os, pathlib, json
@@ -49,19 +50,15 @@ jobs:
               r"CREATE\s+INDEX\s+(?P<name>\w+)\s+ON\s+(?P<schema>\w+)\.(?P<table>\w+)\s*\((?P<cols>[^)]+)\);",
               sql, flags=re.S|re.M)
 
-          # Capture foreign keys (inside ALTER TABLE ... ADD CONSTRAINT)
+          # Capture foreign keys
           fk_defs = re.findall(
               r"ALTER TABLE ONLY\s+(?P<schema>\w+)\.(?P<table>\w+)\s+ADD CONSTRAINT\s+(?P<name>\w+)\s+FOREIGN KEY \((?P<cols>[^)]+)\)\s+REFERENCES\s+(?P<refschema>\w+)\.(?P<reftable>\w+)\s*\((?P<refcols>[^)]+)\)",
               sql, flags=re.S|re.M)
 
-          # Capture primary keys (inside ALTER TABLE ... ADD CONSTRAINT ... PRIMARY KEY)
+          # Capture primary keys
           pk_defs = re.findall(
               r"ALTER TABLE ONLY\s+(?P<schema>\w+)\.(?P<table>\w+)\s+ADD CONSTRAINT\s+(?P<name>\w+)\s+PRIMARY KEY \((?P<cols>[^)]+)\)",
               sql, flags=re.S|re.M)
-
-          # RLS enabled
-          rls_enabled = set(re.findall(
-              r"ALTER TABLE ONLY\s+(?P<schema>\w+)\.(?P<table>\w+)\s+ENABLE ROW LEVEL SECURITY;", sql))
 
           # Policies
           policy_defs = re.findall(
@@ -72,79 +69,60 @@ jobs:
           # Parse columns per table from CREATE TABLE body
           def parse_columns(body):
               cols = []
-              # split by commas but keep parentheses balance simple (pg_dump keeps column defs on one line typically)
-              parts = []
-              depth = 0
-              current = []
+              parts, depth, current = [], 0, []
               for ch in body:
                   if ch == '(':
                       depth += 1
                   elif ch == ')':
                       depth -= 1
                   if ch == ',' and depth == 0:
-                      parts.append(''.join(current).strip())
-                      current = []
+                      parts.append(''.join(current).strip()); current = []
                   else:
                       current.append(ch)
               if current:
                   parts.append(''.join(current).strip())
 
-              # keep only lines that look like "name type ..."
               for p in parts:
-                  if p.upper().startswith("CONSTRAINT ") or p.upper().startswith("PRIMARY KEY") or p.upper().startswith("FOREIGN KEY"):
+                  up = p.upper()
+                  if up.startswith("CONSTRAINT ") or up.startswith("PRIMARY KEY") or up.startswith("FOREIGN KEY"):
                       continue
                   m = re.match(r'"?(?P<name>[\w]+)"?\s+(?P<type>[^,]+?)(?:\s+DEFAULT\s+(?P<default>[^,]+))?(?:\s+NOT NULL)?', p, flags=re.I)
                   if m:
-                      name = m.group('name')
-                      typ  = m.group('type').strip()
-                      default = (m.group('default') or '').strip()
-                      notnull = 'NOT NULL' in p.upper()
-                      cols.append({"name": name, "type": typ, "not_null": notnull, "default": default})
+                      cols.append({
+                          "name": m.group('name'),
+                          "type": m.group('type').strip(),
+                          "not_null": 'NOT NULL' in up,
+                          "default": (m.group('default') or '').strip()
+                      })
               return cols
 
           # Build structure
           tables = {}
           for sch, tbl, body in table_blocks:
-              key = (sch, tbl)
-              tables[key] = {
+              tables[(sch, tbl)] = {
                   "columns": parse_columns(body),
                   "indexes": [],
                   "pks": [],
                   "fks": [],
-                  "rls_enabled": False,
+                  "rls_enabled": bool(re.search(rf"ALTER TABLE ONLY\s+{sch}\.{tbl}\s+ENABLE ROW LEVEL SECURITY;", sql)),
                   "policies": []
               }
 
           for name, sch, tbl, cols in index_defs:
-              key = (sch, tbl)
-              if key in tables:
-                  tables[key]["indexes"].append({"name": name, "columns": cols.strip()})
+              if (sch, tbl) in tables:
+                  tables[(sch, tbl)]["indexes"].append({"name": name, "columns": cols.strip()})
 
           for sch, tbl, name, cols, rsch, rtbl, rcols in fk_defs:
-              key = (sch, tbl)
-              if key in tables:
-                  tables[key]["fks"].append({
-                      "name": name, "columns": cols.strip(),
-                      "ref": f"{rsch}.{rtbl}({rcols.strip()})"
-                  })
+              if (sch, tbl) in tables:
+                  tables[(sch, tbl)]["fks"].append({"name": name, "columns": cols.strip(), "ref": f"{rsch}.{rtbl}({rcols.strip()})"})
 
           for sch, tbl, name, cols in pk_defs:
-              key = (sch, tbl)
-              if key in tables:
-                  tables[key]["pks"].append({"name": name, "columns": cols.strip()})
-
-          for sch_tbl in rls_enabled:
-              # sch_tbl like ('schema','table') from regex groups if used differently; adjust:
-              pass
-          # Simpler: mark RLS enabled by searching ALTER per table:
-          for (sch, tbl) in list(tables.keys()):
-              if re.search(rf"ALTER TABLE ONLY\s+{sch}\.{tbl}\s+ENABLE ROW LEVEL SECURITY;", sql):
-                  tables[(sch,tbl)]["rls_enabled"] = True
+              if (sch, tbl) in tables:
+                  tables[(sch, tbl)]["pks"].append({"name": name, "columns": cols.strip()})
 
           for policy, sch, tbl, cmd, roles, using, check in policy_defs:
-              key = (sch, tbl)
-              if key in tables:
-                  tables[key]["policies"].append({
+              if (sch, tbl) in tables:
+                  tables[(sch, tbl)]["policies"].append({
                       "name": policy,
                       "command": cmd,
                       "roles": (roles or "public").strip(),
@@ -153,45 +131,40 @@ jobs:
                   })
 
           # Write Markdown
-          lines = []
-          lines.append("# Database Overview\n")
+          lines = ["# Database Overview\n"]
           by_schema = {}
-          for (sch,tbl), meta in tables.items():
+          for (sch, tbl), meta in tables.items():
               by_schema.setdefault(sch, []).append((tbl, meta))
-          for sch in sorted(by_schema.keys()):
+
+          for sch in sorted(by_schema):
               lines.append(f"## Schema `{sch}`\n")
               for tbl, meta in sorted(by_schema[sch]):
                   lines.append(f"### Table `{sch}.{tbl}`")
-                  # Columns
                   lines.append("\n**Columns**")
                   lines.append("\n| name | type | not null | default |")
                   lines.append("|---|---|:---:|---|")
                   for c in meta["columns"]:
                       lines.append(f"| `{c['name']}` | `{c['type']}` | {'✅' if c['not_null'] else '❌'} | `{c['default']}` |")
-                  # PKs
                   if meta["pks"]:
                       lines.append("\n**Primary keys**")
                       for pk in meta["pks"]:
                           lines.append(f"- `{pk['name']}` on ({pk['columns']})")
-                  # FKs
                   if meta["fks"]:
                       lines.append("\n**Foreign keys**")
                       for fk in meta["fks"]:
                           lines.append(f"- `{fk['name']}`: ({fk['columns']}) → {fk['ref']}")
-                  # Indexes
                   if meta["indexes"]:
                       lines.append("\n**Indexes**")
                       for ix in meta["indexes"]:
                           lines.append(f"- `{ix['name']}` on ({ix['columns']})")
-                  # RLS
                   lines.append(f"\n**RLS**: {'✅ enabled' if meta['rls_enabled'] else '❌ disabled'}")
                   if meta["policies"]:
                       lines.append("\n**Policies**")
                       for p in meta["policies"]:
-                          role_txt = p["roles"]
                           check_txt = f" | CHECK: `{p['check']}`" if p["check"] else ""
-                          lines.append(f"- `{p['name']}` — **{p['command']}** — roles: `{role_txt}` — USING: `{p['using']}`{check_txt}")
+                          lines.append(f"- `{p['name']}` — **{p['command']}** — roles: `{p['roles']}` — USING: `{p['using']}`{check_txt}")
                   lines.append("\n---\n")
+
           out_path.write_text("\n".join(lines), encoding="utf-8")
           print(f"Wrote {out_path} ({out_path.stat().st_size} bytes)")
           PY
