@@ -1,5 +1,3 @@
-import { createSecureHeaders } from 'next-safe-middleware';
-
 const securityHeaders = createSecureHeaders({
   contentSecurityPolicy: {
     'default-src': "'self'",
