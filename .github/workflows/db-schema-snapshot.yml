@@ -17,39 +17,18 @@ jobs:
         with:
           fetch-depth: 0
 
-      # Ensure pg_dump is available
-      - name: Install PostgreSQL 17 client
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y postgresql-client-17
-          /usr/lib/postgresql/17/bin/pg_dump --version
-
       - name: Create docs folder
         run: mkdir -p docs/db
 
-      # Schema-only dump (includes tables, indexes, policies, functions — no data)
-      - name: Dump schema with pg_dump 17
+      - name: Dump schema with pg_dump 17 (Docker)
         env:
           SUPABASE_DB_URL_SESSION: ${{ secrets.SUPABASE_DB_URL_SESSION }}
         run: |
-          /usr/lib/postgresql/17/bin/pg_dump "$SUPABASE_DB_URL_SESSION" \
-          --schema-only \
-          --no-owner \
-          --no-privileges \
-          --file docs/db/schema.sql
-
-
-      # (Optional) Public-only dump too
-      # - name: Dump public schema only
-      #   env:
-      #     SUPABASE_DB_URL_SESSION: ${{ secrets.SUPABASE_DB_URL_SESSION }}
-      #   run: |
-      #     pg_dump "$SUPABASE_DB_URL_SESSION" \
-      #       --schema=public \
-      #       --schema-only \
-      #       --no-owner \
-      #       --no-privileges \
-      #       --file docs/db/schema_public.sql
+          docker run --rm \
+            -e SUPABASE_DB_URL_SESSION="$SUPABASE_DB_URL_SESSION" \
+            -v "$PWD:/work" -w /work \
+            postgres:17-alpine \
+            sh -lc 'pg_dump "$SUPABASE_DB_URL_SESSION" --schema-only --no-owner --no-privileges -f docs/db/schema.sql'
 
       - name: Commit schema snapshot if changed
         run: |
