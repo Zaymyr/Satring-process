@@ -4197,6 +4197,124 @@ CREATE EVENT TRIGGER issue_pg_cron_access ON ddl_command_end
 
 
 --
+-- Name: departements; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.departements (
+    id text NOT NULL,
+    name text,
+    color text,
+    metadata jsonb DEFAULT '{}'::jsonb NOT NULL,
+    roles jsonb DEFAULT '[]'::jsonb NOT NULL,
+    created_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL,
+    CONSTRAINT departements_pkey PRIMARY KEY (id)
+);
+
+
+--
+-- Name: departements; Type: POLICY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.departements ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY departements_read ON public.departements
+    FOR SELECT
+    TO anon, authenticated
+    USING (true);
+
+
+--
+-- Name: departements; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY departements_insert ON public.departements
+    FOR INSERT
+    TO anon, authenticated
+    WITH CHECK (true);
+
+
+--
+-- Name: departements; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY departements_update ON public.departements
+    FOR UPDATE
+    TO anon, authenticated
+    USING (true)
+    WITH CHECK (true);
+
+
+--
+-- Name: departements; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY departements_delete ON public.departements
+    FOR DELETE
+    TO anon, authenticated
+    USING (true);
+
+
+--
+-- Name: workspace_snapshots; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.workspace_snapshots (
+    id text NOT NULL,
+    department_count integer DEFAULT 0 NOT NULL,
+    role_count integer DEFAULT 0 NOT NULL,
+    detail_count integer DEFAULT 0 NOT NULL,
+    diagram_process_count integer DEFAULT 0 NOT NULL,
+    last_organigram_update timestamp with time zone,
+    last_diagram_update timestamp with time zone,
+    updated_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL,
+    CONSTRAINT workspace_snapshots_pkey PRIMARY KEY (id)
+);
+
+
+--
+-- Name: workspace_snapshots; Type: POLICY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.workspace_snapshots ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY workspace_snapshots_read ON public.workspace_snapshots
+    FOR SELECT
+    TO anon, authenticated
+    USING (true);
+
+
+--
+-- Name: workspace_snapshots; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY workspace_snapshots_insert ON public.workspace_snapshots
+    FOR INSERT
+    TO anon, authenticated
+    WITH CHECK (true);
+
+
+--
+-- Name: workspace_snapshots; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY workspace_snapshots_update ON public.workspace_snapshots
+    FOR UPDATE
+    TO anon, authenticated
+    USING (true)
+    WITH CHECK (true);
+
+
+--
+-- Name: workspace_snapshots; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY workspace_snapshots_delete ON public.workspace_snapshots
+    FOR DELETE
+    TO anon, authenticated
+    USING (true);
+
+
+--
 -- Name: issue_pg_graphql_access; Type: EVENT TRIGGER; Schema: -; Owner: -
 --
 
