@@ -2,45 +2,52 @@ name: Supabase Schema Snapshot
 
 on:
   push:
-    branches: [ main ]   # or your branch
+    branches: [ main ]
   workflow_dispatch:
 
 permissions:
-  contents: write   # allow the workflow to commit to the repo
+  contents: write
 
 jobs:
   dump:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Supabase CLI
         uses: supabase/setup-cli@v1
         with:
           version: latest
 
-      # auth + link to your project (uses your existing secrets)
-      - name: Link project
-        env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-        run: supabase link --project-ref ${{ secrets.SUPABASE_PROJECT_REF }}
+      - name: Show CLI version (debug)
+        run: supabase --version
 
-      # dump schema-only (includes CREATE TABLE/INDEX/POLICY, etc.)
-      - name: Dump schema
+      - name: Dump schema (all schemas)
         run: |
           mkdir -p docs/db
-          supabase db dump --schema-only --linked --file docs/db/schema.sql
+          supabase db dump \
+            --db-url "${{ secrets.SUPABASE_DB_URL_SESSION }}" \
+            --schema-only \
+            --file docs/db/schema.sql
 
-      # optional: a second dump just for the public schema
-      # - run: supabase db dump --schema-only --schema public --linked --file docs/db/schema_public.sql
+      # Optional: just the public schema too
+      # - name: Dump schema (public only)
+      #   run: |
+      #     supabase db dump \
+      #       --db-url "${{ secrets.SUPABASE_DB_URL_SESSION }}" \
+      #       --schema-only \
+      #       --schema public \
+      #       --file docs/db/schema_public.sql
 
-      # commit the snapshot if it changed
-      - name: Commit schema snapshot
+      - name: Commit schema snapshot if changed
         run: |
-          if [[ -n "$(git status --porcelain docs/db/schema.sql)" ]]; then
+          if [[ -n "$(git status --porcelain docs/db)" ]]; then
             git config user.name "github-actions[bot]"
             git config user.email "github-actions[bot]@users.noreply.github.com"
-            git add docs/db/schema.sql
+            git add docs/db
             git commit -m "chore(db): update schema snapshot"
             git push
           else
