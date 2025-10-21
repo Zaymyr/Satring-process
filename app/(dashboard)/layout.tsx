@@ -1,10 +1,11 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { cookies } from 'next/headers';
+import type { Route } from 'next';
 import { createServerClient } from '@/lib/supabase/server';
 import { Button } from '@/components/ui/button';
 
-const routes = [
+const routes: ReadonlyArray<{ href: Route; label: string }> = [
   { href: '/', label: 'Accueil' },
   { href: '/departments', label: 'Départements & rôles' },
   { href: '/diagram', label: 'Diagramme' }
