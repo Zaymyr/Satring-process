@@ -1,7 +1,7 @@
 name: Supabase Schema Snapshot
 on:
   workflow_run:
-    workflows: [ "db-migrate" ]   # must match the 'name:' of your migrate workflow
+    workflows: [ "Supabase DB Migrate" ]   # must match the 'name:' of your migrate workflow
     types:
       - completed
 permissions:
