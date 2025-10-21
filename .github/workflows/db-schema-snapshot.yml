@@ -17,29 +17,36 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Setup Supabase CLI
-        uses: supabase/setup-cli@v1
-        with:
-          version: latest
-
-      - name: Show CLI version (debug)
-        run: supabase --version
-
-      - name: Dump schema (all schemas)
+      # Ensure pg_dump is available
+      - name: Install PostgreSQL client
         run: |
-          mkdir -p docs/db
-          supabase db dump \
-            --db-url "${{ secrets.SUPABASE_DB_URL_SESSION }}" \
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+
+      - name: Create docs folder
+        run: mkdir -p docs/db
+
+      # Schema-only dump (includes tables, indexes, policies, functions — no data)
+      - name: Dump schema with pg_dump
+        env:
+          SUPABASE_DB_URL_SESSION: ${{ secrets.SUPABASE_DB_URL_SESSION }}  # session pooler, port 5432 + sslmode=require
+        run: |
+          pg_dump "$SUPABASE_DB_URL_SESSION" \
             --schema-only \
+            --no-owner \
+            --no-privileges \
             --file docs/db/schema.sql
 
-      # Optional: just the public schema too
-      # - name: Dump schema (public only)
+      # (Optional) Public-only dump too
+      # - name: Dump public schema only
+      #   env:
+      #     SUPABASE_DB_URL_SESSION: ${{ secrets.SUPABASE_DB_URL_SESSION }}
       #   run: |
-      #     supabase db dump \
-      #       --db-url "${{ secrets.SUPABASE_DB_URL_SESSION }}" \
+      #     pg_dump "$SUPABASE_DB_URL_SESSION" \
+      #       --schema=public \
       #       --schema-only \
-      #       --schema public \
+      #       --no-owner \
+      #       --no-privileges \
       #       --file docs/db/schema_public.sql
 
       - name: Commit schema snapshot if changed
