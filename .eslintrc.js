@@ -1,10 +1,11 @@
+/** @type {import('eslint').Linter.Config} */
 module.exports = {
   root: true,
-  extends: ['next', 'next/core-web-vitals', 'prettier'],
-  parserOptions: {
-    project: './tsconfig.json'
-  },
-  rules: {
-    '@next/next/no-html-link-for-pages': 'off'
-  }
+  parser: "@typescript-eslint/parser",
+  plugins: ["@typescript-eslint", "react", "react-hooks"],
+  extends: [
+    "next/core-web-vitals",
+    "plugin:@typescript-eslint/recommended",
+    "prettier" // <- this is eslint-config-prettier
+  ]
 };
