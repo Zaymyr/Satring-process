@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import LRUCache from 'lru-cache';
+import { LRUCache } from 'lru-cache';
+
 
 const RATE_LIMIT_WINDOW_MS = 60_000;
 const RATE_LIMIT_MAX = 100;
