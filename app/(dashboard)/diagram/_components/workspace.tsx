@@ -168,6 +168,7 @@ export function DiagramWorkspace() {
   }, [steps, startStepId, endStepId]);
 
   const mermaidDefinition = useMemo(() => {
+    const newline = '\n';
     if (steps.length === 0) {
       return [
         `flowchart ${orientation}`,
@@ -177,8 +178,7 @@ export function DiagramWorkspace() {
         '  End([' + END_NODE_LABEL + '])',
         '  class Start start;',
         '  class End end;'
-      ].join('
-');
+      ].join(newline);
     }
 
     const sanitizeId = (value: string) => value.replace(/[^a-zA-Z0-9_]/g, '_');
@@ -298,8 +298,7 @@ export function DiagramWorkspace() {
       }
     }
 
-    return [...lines, ...classLines, ...edgeLines].join('
-');
+    return [...lines, ...classLines, ...edgeLines].join(newline);
   }, [departments, departmentsMap, endStepId, orientation, rolesMap, showDepartments, showRoles, startStepId, steps]);
 
   const selectClassName =
