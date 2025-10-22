@@ -157,7 +157,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
               <div className="space-y-4">
                 {steps.map((step, index) => {
                   const Icon = STEP_TYPE_ICONS[step.type];
-                  const isMutable = step.type === 'action' || step.type === 'decision';
+                  const isConfigurable = step.type === 'action' || step.type === 'decision';
                   const stepPosition = index + 1;
 
                   return (
@@ -175,7 +175,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                               </span>
                             </div>
                           </div>
-                          {isMutable ? (
+                          {isConfigurable ? (
                             <Button
                               type="button"
                               variant="ghost"
@@ -196,11 +196,10 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                             id={`step-${step.id}-label`}
                             value={step.label}
                             onChange={(event) => updateStepLabel(step.id, event.target.value)}
-                            disabled={!isMutable}
                             className="border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus-visible:ring-slate-900/20 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-50"
                           />
                         </div>
-                        {isMutable ? (
+                        {isConfigurable ? (
                           <div className="space-y-2">
                             <span className="text-xs uppercase tracking-[0.2em] text-slate-500">Type d’étape</span>
                             <div className="flex gap-2">
