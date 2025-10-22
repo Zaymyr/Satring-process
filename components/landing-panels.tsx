@@ -146,8 +146,8 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                 </p>
               </div>
             </div>
-            <div className="flex-1 overflow-hidden min-h-0">
-              <div className="space-y-8 overflow-y-auto rounded-2xl border border-slate-200 bg-white/75 p-6 pr-3 shadow-inner sm:pr-4">
+            <div className="flex-1 min-h-0 overflow-hidden">
+              <div className="h-full space-y-8 overflow-y-auto rounded-2xl border border-slate-200 bg-white/75 p-6 pr-3 shadow-inner sm:pr-4">
                 <div className="flex flex-wrap gap-3">
                   <Button type="button" onClick={() => addStep('action')} className="bg-slate-900 text-white hover:bg-slate-800">
                     <Plus className="mr-2 h-4 w-4" />
