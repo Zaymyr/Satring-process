@@ -107,7 +107,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
     <div className="min-h-screen bg-gradient-to-br from-slate-100 via-white to-slate-200 text-slate-900">
       <div className="flex min-h-screen w-full flex-col gap-8 px-4 py-12 lg:flex-row lg:items-stretch lg:justify-between lg:gap-10 lg:px-10 lg:py-16">
         <div
-          className="relative flex shrink-0 items-stretch overflow-hidden transition-[width] duration-300 ease-out"
+          className="relative flex shrink-0 items-stretch overflow-hidden transition-[width] duration-300 ease-out max-h-[calc(100vh-6rem)] lg:max-h-[calc(100vh-8rem)]"
           style={{ width: primaryWidth }}
         >
           <button
@@ -123,7 +123,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
           <div
             id="primary-panel"
             className={cn(
-              'flex h-full w-full flex-col gap-12 rounded-3xl border border-slate-200 bg-white/85 px-10 py-14 shadow-[0_30px_120px_-50px_rgba(15,23,42,0.35)] backdrop-blur transition-all duration-300 ease-out sm:px-12',
+              'flex h-full w-full flex-col gap-12 overflow-hidden rounded-3xl border border-slate-200 bg-white/85 px-10 py-14 shadow-[0_30px_120px_-50px_rgba(15,23,42,0.35)] backdrop-blur transition-all duration-300 ease-out sm:px-12',
               isPrimaryCollapsed
                 ? 'pointer-events-none opacity-0 lg:translate-x-[-110%]'
                 : 'pointer-events-auto opacity-100 lg:translate-x-0'
@@ -143,38 +143,39 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                 </p>
               </div>
             </div>
-            <div className="space-y-8 rounded-2xl border border-slate-200 bg-white/75 p-6 shadow-inner">
-              <div className="flex flex-wrap gap-3">
-                <Button type="button" onClick={() => addStep('action')} className="bg-slate-900 text-white hover:bg-slate-800">
-                  <Plus className="mr-2 h-4 w-4" />
-                  Ajouter une action
-                </Button>
-                <Button type="button" variant="outline" onClick={() => addStep('decision')} className="border-slate-300 bg-white text-slate-900 hover:bg-slate-50">
-                  <GitBranch className="mr-2 h-4 w-4" />
-                  Ajouter une décision
-                </Button>
-              </div>
-              <div className="space-y-4">
-                {steps.map((step, index) => {
-                  const Icon = STEP_TYPE_ICONS[step.type];
-                  const isConfigurable = step.type === 'action' || step.type === 'decision';
-                  const stepPosition = index + 1;
+            <div className="flex-1 overflow-hidden min-h-0">
+              <div className="space-y-8 overflow-y-auto rounded-2xl border border-slate-200 bg-white/75 p-6 pr-3 shadow-inner sm:pr-4">
+                <div className="flex flex-wrap gap-3">
+                  <Button type="button" onClick={() => addStep('action')} className="bg-slate-900 text-white hover:bg-slate-800">
+                    <Plus className="mr-2 h-4 w-4" />
+                    Ajouter une action
+                  </Button>
+                  <Button type="button" variant="outline" onClick={() => addStep('decision')} className="border-slate-300 bg-white text-slate-900 hover:bg-slate-50">
+                    <GitBranch className="mr-2 h-4 w-4" />
+                    Ajouter une décision
+                  </Button>
+                </div>
+                <div className="space-y-4">
+                  {steps.map((step, index) => {
+                    const Icon = STEP_TYPE_ICONS[step.type];
+                    const isConfigurable = step.type === 'action' || step.type === 'decision';
+                    const stepPosition = index + 1;
 
-                  return (
-                    <Card key={step.id} className="border-slate-200 bg-white/90 shadow-sm">
-                      <CardContent className="space-y-4 p-5">
-                        <div className="flex items-center justify-between gap-3">
-                          <div className="flex items-center gap-3 text-slate-600">
-                            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-xs font-semibold text-slate-600">
-                              {stepPosition}
-                            </span>
-                            <div className="flex items-center gap-2">
-                              <Icon className="h-4 w-4 text-slate-500" />
-                              <span className="text-xs font-medium uppercase tracking-[0.2em] text-slate-500">
-                                {STEP_TYPE_LABELS[step.type]}
+                    return (
+                      <Card key={step.id} className="border-slate-200 bg-white/90 shadow-sm">
+                        <CardContent className="space-y-4 p-5">
+                          <div className="flex items-center justify-between gap-3">
+                            <div className="flex items-center gap-3 text-slate-600">
+                              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-xs font-semibold text-slate-600">
+                                {stepPosition}
                               </span>
+                              <div className="flex items-center gap-2">
+                                <Icon className="h-4 w-4 text-slate-500" />
+                                <span className="text-xs font-medium uppercase tracking-[0.2em] text-slate-500">
+                                  {STEP_TYPE_LABELS[step.type]}
+                                </span>
+                              </div>
                             </div>
-                          </div>
                           {isConfigurable ? (
                             <Button
                               type="button"
@@ -237,6 +238,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
               </div>
             </div>
           </div>
+        </div>
         </div>
         <div
           className="relative flex shrink-0 items-stretch overflow-hidden transition-[width] duration-300 ease-out"
