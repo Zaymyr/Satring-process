@@ -8,7 +8,7 @@ export const metadata: Metadata = {
 
 export default function DiagramPage() {
   return (
-    <div className="mx-auto w-full max-w-6xl px-6 pb-12 pt-10 lg:pb-16 lg:pt-12">
+    <div className="mx-auto w-full max-w-7xl px-6 pb-12 pt-8 lg:pb-16 lg:pt-12">
       <DiagramWorkspace />
     </div>
   );

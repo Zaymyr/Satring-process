@@ -1,8 +1,8 @@
-import Link from 'next/link';
 import { cookies } from 'next/headers';
 import type { Route } from 'next';
 import { createServerClient } from '@/lib/supabase/server';
 import { Button } from '@/components/ui/button';
+import { DashboardNav } from './_components/dashboard-nav';
 
 const routes: ReadonlyArray<{ href: Route; label: string }> = [
   { href: '/', label: 'Accueil' },
@@ -49,17 +49,9 @@ export default async function DashboardLayout({ children }: { children: React.Re
             )}
           </div>
         </div>
-        <nav className="border-t border-slate-200 bg-slate-50/90">
-          <div className="mx-auto flex w-full max-w-6xl items-center gap-6 px-6 py-3 text-sm font-medium text-slate-600">
-            {routes.map((route) => (
-              <Link key={route.href} href={route.href} className="rounded-md px-3 py-1.5 transition hover:bg-white hover:text-slate-900">
-                {route.label}
-              </Link>
-            ))}
-          </div>
-        </nav>
+        <DashboardNav routes={routes} />
       </header>
-      <main className="page-container mx-auto w-full max-w-6xl">{children}</main>
+      <main className="page-container mx-auto w-full max-w-7xl">{children}</main>
     </div>
   );
 }
