@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   ChevronLeft,
   ChevronRight,
@@ -74,6 +74,94 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
     { id: 'finish', label: 'Terminer', type: 'finish' }
   ]);
 
+  const escapeLabel = (value: string) =>
+    value
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+
+  const diagramDefinition = useMemo(() => {
+    if (steps.length === 0) {
+      return 'graph TD';
+    }
+
+    const nodes = steps.map((step, index) => {
+      const nodeId = `S${index}`;
+      const baseLabel = step.label.trim() || STEP_TYPE_LABELS[step.type];
+      const label = escapeLabel(baseLabel);
+
+      if (step.type === 'action') {
+        return `${nodeId}["${label}"]`;
+      }
+
+      if (step.type === 'decision') {
+        return `${nodeId}{"${label}"}`;
+      }
+
+      return `${nodeId}(["${label}"])`;
+    });
+
+    const connections = steps
+      .slice(0, -1)
+      .map((_, index) => `S${index} --> S${index + 1}`);
+
+    return ['graph TD', ...nodes, ...connections].join('\n');
+  }, [steps]);
+
+  const diagramSrcDoc = useMemo(
+    () =>
+      String.raw`<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <style>
+      :root {
+        color-scheme: light;
+      }
+      body {
+        margin: 0;
+        background: transparent;
+        font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        color: #0f172a;
+      }
+      .mermaid {
+        width: 100%;
+        height: 100%;
+      }
+      .mermaid svg {
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="mermaid">
+${diagramDefinition}
+    </div>
+    <script type="module">
+      import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+      mermaid.initialize({
+        startOnLoad: true,
+        securityLevel: 'loose',
+        theme: 'neutral',
+        themeVariables: {
+          primaryColor: '#ffffff',
+          primaryTextColor: '#0f172a',
+          primaryBorderColor: '#0f172a',
+          lineColor: '#0f172a',
+          tertiaryColor: '#e2e8f0',
+          clusterBkg: '#f8fafc',
+          clusterBorder: '#94a3b8',
+          fontFamily: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
+        }
+      });
+      mermaid.run({ querySelector: '.mermaid' });
+    </script>
+  </body>
+</html>`,
+    [diagramDefinition]
+  );
+
   const addStep = (type: Extract<StepType, 'action' | 'decision'>) => {
     const label = type === 'action' ? 'Nouvelle action' : 'Nouvelle décision';
     setSteps((prev) => {
@@ -105,7 +193,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
 
   return (
     <div className="min-h-screen overflow-x-hidden bg-gradient-to-br from-slate-100 via-white to-slate-200 text-slate-900">
-      <div className="flex min-h-screen w-full flex-col gap-8 px-4 py-12 lg:flex-row lg:items-stretch lg:justify-between lg:gap-10 lg:px-10 lg:py-16">
+      <div className="flex min-h-screen w-full flex-col gap-8 px-4 py-12 lg:flex-row lg:items-stretch lg:gap-10 lg:px-10 lg:py-16">
         <div
           className="relative flex shrink-0 items-stretch overflow-hidden transition-[width] duration-300 ease-out max-h-[calc(100vh-6rem)] lg:order-1 lg:max-h-[calc(100vh-8rem)]"
           style={{ width: primaryWidth }}
@@ -179,72 +267,94 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                                 </span>
                               </div>
                             </div>
-                          {isConfigurable ? (
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => removeStep(step.id)}
-                              className="h-8 w-8 text-slate-400 hover:text-slate-900"
-                              aria-label="Supprimer l’étape"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          ) : null}
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor={`step-${step.id}-label`} className="text-xs uppercase tracking-[0.2em] text-slate-500">
-                            Intitulé
-                          </Label>
-                          <Input
-                            id={`step-${step.id}-label`}
-                            value={step.label}
-                            onChange={(event) => updateStepLabel(step.id, event.target.value)}
-                            className="border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus-visible:ring-slate-900/20 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-50"
-                          />
-                        </div>
-                        {isConfigurable ? (
-                          <div className="space-y-2">
-                            <span className="text-xs uppercase tracking-[0.2em] text-slate-500">Type d’étape</span>
-                            <div className="flex gap-2">
+                            {isConfigurable ? (
                               <Button
                                 type="button"
-                                variant={step.type === 'action' ? 'default' : 'outline'}
-                                onClick={() => updateStepType(step.id, 'action')}
-                                className={cn(
-                                  'flex-1 border-slate-300 bg-white text-slate-900 hover:bg-slate-50',
-                                  step.type === 'action' && 'border-transparent bg-slate-900 text-white hover:bg-slate-800'
-                                )}
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => removeStep(step.id)}
+                                className="h-8 w-8 text-slate-400 hover:text-slate-900"
+                                aria-label="Supprimer l’étape"
                               >
-                                <ListChecks className="mr-2 h-4 w-4" />
-                                Action
+                                <Trash2 className="h-4 w-4" />
                               </Button>
-                              <Button
-                                type="button"
-                                variant={step.type === 'decision' ? 'default' : 'outline'}
-                                onClick={() => updateStepType(step.id, 'decision')}
-                                className={cn(
-                                  'flex-1 border-slate-300 bg-white text-slate-900 hover:bg-slate-50',
-                                  step.type === 'decision' && 'border-transparent bg-slate-900 text-white hover:bg-slate-800'
-                                )}
-                              >
-                                <GitBranch className="mr-2 h-4 w-4" />
-                                Décision
-                              </Button>
-                            </div>
+                            ) : null}
                           </div>
-                        ) : null}
-                      </CardContent>
-                    </Card>
-                  );
-                })}
+                          <div className="space-y-2">
+                            <Label htmlFor={`step-${step.id}-label`} className="text-xs uppercase tracking-[0.2em] text-slate-500">
+                              Intitulé
+                            </Label>
+                            <Input
+                              id={`step-${step.id}-label`}
+                              value={step.label}
+                              onChange={(event) => updateStepLabel(step.id, event.target.value)}
+                              className="border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus-visible:ring-slate-900/20 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-50"
+                            />
+                          </div>
+                          {isConfigurable ? (
+                            <div className="space-y-2">
+                              <span className="text-xs uppercase tracking-[0.2em] text-slate-500">Type d’étape</span>
+                              <div className="flex gap-2">
+                                <Button
+                                  type="button"
+                                  variant={step.type === 'action' ? 'default' : 'outline'}
+                                  onClick={() => updateStepType(step.id, 'action')}
+                                  className={cn(
+                                    'flex-1 border-slate-300 bg-white text-slate-900 hover:bg-slate-50',
+                                    step.type === 'action' && 'border-transparent bg-slate-900 text-white hover:bg-slate-800'
+                                  )}
+                                >
+                                  <ListChecks className="mr-2 h-4 w-4" />
+                                  Action
+                                </Button>
+                                <Button
+                                  type="button"
+                                  variant={step.type === 'decision' ? 'default' : 'outline'}
+                                  onClick={() => updateStepType(step.id, 'decision')}
+                                  className={cn(
+                                    'flex-1 border-slate-300 bg-white text-slate-900 hover:bg-slate-50',
+                                    step.type === 'decision' && 'border-transparent bg-slate-900 text-white hover:bg-slate-800'
+                                  )}
+                                >
+                                  <GitBranch className="mr-2 h-4 w-4" />
+                                  Décision
+                                </Button>
+                              </div>
+                            </div>
+                          ) : null}
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
               </div>
             </div>
           </div>
         </div>
+        <div className="relative flex min-h-[calc(100vh-6rem)] w-full min-w-0 flex-1 items-stretch overflow-hidden rounded-3xl border border-slate-200 bg-white/80 p-8 shadow-[0_30px_120px_-50px_rgba(15,23,42,0.35)] backdrop-blur transition-all duration-300 ease-out lg:order-2 lg:min-h-[calc(100vh-8rem)]">
+          <section className="flex h-full w-full min-w-0 flex-col gap-6">
+            <div className="space-y-3">
+              <h2 className="text-xl font-semibold text-slate-900">Diagramme du processus</h2>
+              <p className="text-sm text-slate-600">
+                Visualisez automatiquement votre flux sous forme de diagramme Mermaid. Les actions apparaissent en rectangles et les décisions en losanges.
+              </p>
+            </div>
+            <div className="flex-1 min-h-0 overflow-hidden">
+              <div className="h-full overflow-hidden rounded-2xl border border-slate-200 bg-white/90 shadow-inner">
+                <iframe
+                  title="Diagramme du processus"
+                  srcDoc={diagramSrcDoc}
+                  sandbox="allow-scripts"
+                  loading="lazy"
+                  referrerPolicy="no-referrer"
+                  className="h-full w-full"
+                />
+              </div>
+            </div>
+          </section>
         </div>
         <div
-          className="relative flex shrink-0 items-stretch overflow-hidden transition-[width] duration-300 ease-out max-h-[calc(100vh-6rem)] lg:order-2 lg:max-h-[calc(100vh-8rem)]"
+          className="relative flex shrink-0 items-stretch overflow-hidden transition-[width] duration-300 ease-out max-h-[calc(100vh-6rem)] lg:order-3 lg:max-h-[calc(100vh-8rem)]"
           style={{ width: secondaryWidth }}
         >
           <button
