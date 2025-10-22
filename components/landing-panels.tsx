@@ -107,7 +107,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
     <div className="min-h-screen bg-gradient-to-br from-slate-100 via-white to-slate-200 text-slate-900">
       <div className="flex min-h-screen w-full flex-col gap-8 px-4 py-12 lg:flex-row lg:items-stretch lg:justify-between lg:gap-10 lg:px-10 lg:py-16">
         <div
-          className="relative flex shrink-0 items-stretch overflow-hidden transition-[width] duration-300 ease-out max-h-[calc(100vh-6rem)] lg:max-h-[calc(100vh-8rem)]"
+          className="relative flex shrink-0 items-stretch overflow-hidden transition-[width] duration-300 ease-out max-h-[calc(100vh-6rem)] lg:order-2 lg:max-h-[calc(100vh-8rem)]"
           style={{ width: primaryWidth }}
         >
           <button
@@ -115,9 +115,12 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
             onClick={() => setIsPrimaryCollapsed((prev) => !prev)}
             aria-expanded={!isPrimaryCollapsed}
             aria-controls="primary-panel"
-            className="absolute left-2 top-6 z-20 flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white/90 text-slate-600 shadow-sm transition hover:bg-white lg:left-3"
+            className={cn(
+              'absolute left-2 top-6 z-20 flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white/90 text-slate-600 shadow-sm transition hover:bg-white',
+              'lg:left-auto lg:right-3'
+            )}
           >
-            {isPrimaryCollapsed ? <ChevronRight className="h-5 w-5" /> : <ChevronLeft className="h-5 w-5" />}
+            {isPrimaryCollapsed ? <ChevronLeft className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
             <span className="sr-only">Basculer le panneau principal</span>
           </button>
           <div
@@ -125,7 +128,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
             className={cn(
               'flex h-full w-full flex-col gap-12 overflow-hidden rounded-3xl border border-slate-200 bg-white/85 px-10 py-14 shadow-[0_30px_120px_-50px_rgba(15,23,42,0.35)] backdrop-blur transition-all duration-300 ease-out sm:px-12',
               isPrimaryCollapsed
-                ? 'pointer-events-none opacity-0 lg:translate-x-[-110%]'
+                ? 'pointer-events-none opacity-0 lg:translate-x-[110%]'
                 : 'pointer-events-auto opacity-100 lg:translate-x-0'
             )}
           >
@@ -241,7 +244,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
         </div>
         </div>
         <div
-          className="relative flex shrink-0 items-stretch overflow-hidden transition-[width] duration-300 ease-out"
+          className="relative flex shrink-0 items-stretch overflow-hidden transition-[width] duration-300 ease-out lg:order-1"
           style={{ width: secondaryWidth }}
         >
           <button
@@ -249,9 +252,12 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
             onClick={() => setIsSecondaryCollapsed((prev) => !prev)}
             aria-expanded={!isSecondaryCollapsed}
             aria-controls="secondary-panel"
-            className="absolute right-2 top-6 z-20 flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white/90 text-slate-600 shadow-sm transition hover:bg-white lg:right-3"
+            className={cn(
+              'absolute right-2 top-6 z-20 flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white/90 text-slate-600 shadow-sm transition hover:bg-white',
+              'lg:right-auto lg:left-3'
+            )}
           >
-            {isSecondaryCollapsed ? <ChevronLeft className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
+            {isSecondaryCollapsed ? <ChevronRight className="h-5 w-5" /> : <ChevronLeft className="h-5 w-5" />}
             <span className="sr-only">Basculer le panneau secondaire</span>
           </button>
           <aside
@@ -259,7 +265,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
             className={cn(
               'flex h-full w-full flex-col gap-6 rounded-3xl border border-slate-200 bg-white/80 p-8 shadow-[0_30px_120px_-50px_rgba(15,23,42,0.35)] backdrop-blur transition-all duration-300 ease-out',
               isSecondaryCollapsed
-                ? 'pointer-events-none opacity-0 lg:translate-x-[110%]'
+                ? 'pointer-events-none opacity-0 lg:translate-x-[-110%]'
                 : 'pointer-events-auto opacity-100 lg:translate-x-0'
             )}
           >
