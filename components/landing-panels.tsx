@@ -2,16 +2,23 @@
 
 import { useState } from 'react';
 import {
-  ArrowRight,
   ChevronLeft,
   ChevronRight,
+  Flag,
+  GitBranch,
+  ListChecks,
+  PlayCircle,
+  Plus,
   ShieldCheck,
   Sparkles,
+  Trash2,
   type LucideIcon
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils/cn';
 
 const highlightIcons = {
@@ -25,6 +32,36 @@ type Highlight = {
   icon: keyof typeof highlightIcons;
 };
 
+type StepType = 'start' | 'action' | 'decision' | 'finish';
+
+type Step = {
+  id: string;
+  label: string;
+  type: StepType;
+};
+
+const STEP_TYPE_LABELS: Record<StepType, string> = {
+  start: 'Départ',
+  action: 'Action',
+  decision: 'Décision',
+  finish: 'Arrivée'
+};
+
+const STEP_TYPE_ICONS: Record<StepType, LucideIcon> = {
+  start: PlayCircle,
+  action: ListChecks,
+  decision: GitBranch,
+  finish: Flag
+};
+
+function generateStepId() {
+  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
+    return crypto.randomUUID();
+  }
+
+  return `step-${Math.random().toString(36).slice(2, 10)}`;
+}
+
 type LandingPanelsProps = {
   highlights: readonly Highlight[];
 };
@@ -32,6 +69,36 @@ type LandingPanelsProps = {
 export function LandingPanels({ highlights }: LandingPanelsProps) {
   const [isPrimaryCollapsed, setIsPrimaryCollapsed] = useState(false);
   const [isSecondaryCollapsed, setIsSecondaryCollapsed] = useState(false);
+  const [steps, setSteps] = useState<Step[]>(() => [
+    { id: 'start', label: 'Commencer', type: 'start' },
+    { id: 'finish', label: 'Terminer', type: 'finish' }
+  ]);
+
+  const addStep = (type: Extract<StepType, 'action' | 'decision'>) => {
+    const label = type === 'action' ? 'Nouvelle action' : 'Nouvelle décision';
+    setSteps((prev) => {
+      const finishIndex = prev.findIndex((step) => step.type === 'finish');
+      const nextStep: Step = { id: generateStepId(), label, type };
+
+      if (finishIndex === -1) {
+        return [...prev, nextStep];
+      }
+
+      return [...prev.slice(0, finishIndex), nextStep, ...prev.slice(finishIndex)];
+    });
+  };
+
+  const updateStepLabel = (id: string, label: string) => {
+    setSteps((prev) => prev.map((step) => (step.id === id ? { ...step, label } : step)));
+  };
+
+  const updateStepType = (id: string, type: Extract<StepType, 'action' | 'decision'>) => {
+    setSteps((prev) => prev.map((step) => (step.id === id ? { ...step, type } : step)));
+  };
+
+  const removeStep = (id: string) => {
+    setSteps((prev) => prev.filter((step) => step.id !== id));
+  };
 
   const primaryWidth = isPrimaryCollapsed ? '3.5rem' : 'min(40rem, 100%)';
   const secondaryWidth = isSecondaryCollapsed ? '3.5rem' : 'min(28rem, 100%)';
@@ -56,49 +123,119 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
           <div
             id="primary-panel"
             className={cn(
-              'flex h-full w-full flex-col justify-between gap-12 rounded-3xl border border-slate-200 bg-white/80 px-12 py-16 shadow-[0_30px_120px_-50px_rgba(15,23,42,0.35)] backdrop-blur transition-all duration-300 ease-out sm:px-14',
+              'flex h-full w-full flex-col gap-12 rounded-3xl border border-slate-200 bg-white/85 px-10 py-14 shadow-[0_30px_120px_-50px_rgba(15,23,42,0.35)] backdrop-blur transition-all duration-300 ease-out sm:px-12',
               isPrimaryCollapsed
                 ? 'pointer-events-none opacity-0 lg:translate-x-[-110%]'
                 : 'pointer-events-auto opacity-100 lg:translate-x-0'
             )}
           >
-            <div className="space-y-6">
+            <div className="space-y-5">
               <p className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/70 px-4 py-1 text-xs uppercase tracking-[0.2em] text-slate-500 shadow-sm backdrop-blur">
                 <Sparkles className="h-4 w-4" />
-                Nouveau départ
+                Bâtissez votre flux
               </p>
-              <div className="space-y-4">
-                <h1 className="text-4xl font-semibold leading-tight sm:text-5xl">
-                  Une base nette pour vos processus.
+              <div className="space-y-3">
+                <h1 className="text-3xl font-semibold leading-tight text-slate-900 sm:text-4xl">
+                  Décrivez chaque étape de votre processus.
                 </h1>
-                <p className="max-w-xl text-base text-slate-600">
-                  Démarrez avec un canevas Next.js épuré. Deux panneaux, une vision claire, le tout prêt pour vos données et vos flux Supabase.
+                <p className="text-base text-slate-600">
+                  Ajoutez des étapes d’action ou de décision entre un départ immuable et une arrivée certaine. Ajustez-les à la volée : tout est prêt pour documenter vos futurs parcours.
                 </p>
               </div>
-              <div className="flex flex-col gap-3 sm:flex-row">
-                <Button size="lg" className="group bg-slate-900 text-white hover:bg-slate-800">
-                  Commencer maintenant
-                  <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
+            </div>
+            <div className="space-y-8 rounded-2xl border border-slate-200 bg-white/75 p-6 shadow-inner">
+              <div className="flex flex-wrap gap-3">
+                <Button type="button" onClick={() => addStep('action')} className="bg-slate-900 text-white hover:bg-slate-800">
+                  <Plus className="mr-2 h-4 w-4" />
+                  Ajouter une action
                 </Button>
-                <Button size="lg" variant="outline" className="border-slate-300 bg-white/70 text-slate-900 hover:bg-white">
-                  Voir la documentation
+                <Button type="button" variant="outline" onClick={() => addStep('decision')} className="border-slate-300 bg-white text-slate-900 hover:bg-slate-50">
+                  <GitBranch className="mr-2 h-4 w-4" />
+                  Ajouter une décision
                 </Button>
               </div>
-            </div>
-            <div className="grid gap-4 sm:grid-cols-2">
-              {highlights.map((item) => {
-                const Icon = highlightIcons[item.icon];
+              <div className="space-y-4">
+                {steps.map((step, index) => {
+                  const Icon = STEP_TYPE_ICONS[step.type];
+                  const isMutable = step.type === 'action' || step.type === 'decision';
+                  const stepPosition = index + 1;
 
-                return (
-                  <Card key={item.title} className="border-slate-200 bg-white/90 shadow-sm">
-                    <CardContent className="flex flex-col gap-2 p-5">
-                      <Icon className="h-5 w-5 text-slate-500" />
-                      <p className="text-sm font-medium text-slate-900">{item.title}</p>
-                      <p className="text-sm text-slate-600">{item.description}</p>
-                    </CardContent>
-                  </Card>
-                );
-              })}
+                  return (
+                    <Card key={step.id} className="border-slate-200 bg-white/90 shadow-sm">
+                      <CardContent className="space-y-4 p-5">
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="flex items-center gap-3 text-slate-600">
+                            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-xs font-semibold text-slate-600">
+                              {stepPosition}
+                            </span>
+                            <div className="flex items-center gap-2">
+                              <Icon className="h-4 w-4 text-slate-500" />
+                              <span className="text-xs font-medium uppercase tracking-[0.2em] text-slate-500">
+                                {STEP_TYPE_LABELS[step.type]}
+                              </span>
+                            </div>
+                          </div>
+                          {isMutable ? (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => removeStep(step.id)}
+                              className="h-8 w-8 text-slate-400 hover:text-slate-900"
+                              aria-label="Supprimer l’étape"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          ) : null}
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor={`step-${step.id}-label`} className="text-xs uppercase tracking-[0.2em] text-slate-500">
+                            Intitulé
+                          </Label>
+                          <Input
+                            id={`step-${step.id}-label`}
+                            value={step.label}
+                            onChange={(event) => updateStepLabel(step.id, event.target.value)}
+                            disabled={!isMutable}
+                            className="border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus-visible:ring-slate-900/20 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-50"
+                          />
+                        </div>
+                        {isMutable ? (
+                          <div className="space-y-2">
+                            <span className="text-xs uppercase tracking-[0.2em] text-slate-500">Type d’étape</span>
+                            <div className="flex gap-2">
+                              <Button
+                                type="button"
+                                variant={step.type === 'action' ? 'default' : 'outline'}
+                                onClick={() => updateStepType(step.id, 'action')}
+                                className={cn(
+                                  'flex-1 border-slate-300 bg-white text-slate-900 hover:bg-slate-50',
+                                  step.type === 'action' && 'border-transparent bg-slate-900 text-white hover:bg-slate-800'
+                                )}
+                              >
+                                <ListChecks className="mr-2 h-4 w-4" />
+                                Action
+                              </Button>
+                              <Button
+                                type="button"
+                                variant={step.type === 'decision' ? 'default' : 'outline'}
+                                onClick={() => updateStepType(step.id, 'decision')}
+                                className={cn(
+                                  'flex-1 border-slate-300 bg-white text-slate-900 hover:bg-slate-50',
+                                  step.type === 'decision' && 'border-transparent bg-slate-900 text-white hover:bg-slate-800'
+                                )}
+                              >
+                                <GitBranch className="mr-2 h-4 w-4" />
+                                Décision
+                              </Button>
+                            </div>
+                          </div>
+                        ) : null}
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
             </div>
           </div>
         </div>
@@ -125,25 +262,49 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                 : 'pointer-events-auto opacity-100 lg:translate-x-0'
             )}
           >
-            <div className="space-y-6">
-              <h2 className="text-xl font-semibold text-slate-900">Espace secondaire</h2>
+            <div className="space-y-4">
+              <h2 className="text-xl font-semibold text-slate-900">Aperçu du parcours</h2>
               <p className="text-sm text-slate-600">
-                Utilisez ce panneau pour collecter des idées, afficher des actions rapides ou intégrer un formulaire shadcn/ui.
+                Visualisez la progression de votre process pendant que vous le façonnez. Chaque étape reste synchronisée avec vos ajustements dans le panneau principal.
               </p>
             </div>
-            <div className="space-y-4 rounded-2xl border border-slate-200 bg-white/80 p-5">
-              <h3 className="text-sm font-medium text-slate-900">Prochaines étapes</h3>
-              <ul className="space-y-3 text-sm text-slate-600">
-                <li>• Connectez vos tables Drizzle et vos migrations Supabase.</li>
-                <li>• Configurez vos formulaires avec react-hook-form et zod.</li>
-                <li>• Alimentez ce panneau avec TanStack Query.</li>
-              </ul>
+            <div className="space-y-5 rounded-2xl border border-slate-200 bg-white/80 p-5">
+              <h3 className="text-sm font-semibold text-slate-900">Chronologie</h3>
+              <ol className="space-y-4">
+                {steps.map((step, index) => {
+                  const Icon = STEP_TYPE_ICONS[step.type];
+
+                  return (
+                    <li key={step.id} className="flex items-start gap-3">
+                      <span className="mt-1 flex h-6 w-6 items-center justify-center rounded-full bg-slate-900/10 text-xs font-semibold text-slate-700">
+                        {index + 1}
+                      </span>
+                      <div className="flex flex-col">
+                        <div className="flex items-center gap-2 text-slate-900">
+                          <Icon className="h-4 w-4 text-slate-500" />
+                          <span className="text-sm font-medium">{step.label}</span>
+                        </div>
+                        <span className="text-xs uppercase tracking-[0.2em] text-slate-500">{STEP_TYPE_LABELS[step.type]}</span>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ol>
             </div>
-            <div className="rounded-2xl border border-slate-200 bg-gradient-to-r from-white via-slate-100 to-slate-200 p-5">
-              <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Bon à savoir</p>
-              <p className="mt-3 text-sm text-slate-700">
-                Toutes les couches de sécurité — RLS, RPC et en-têtes stricts — sont prêtes pour vos futures fonctionnalités.
-              </p>
+            <div className="grid gap-4 sm:grid-cols-2">
+              {highlights.map((item) => {
+                const Icon = highlightIcons[item.icon];
+
+                return (
+                  <Card key={item.title} className="border-slate-200 bg-white/90 shadow-sm">
+                    <CardContent className="flex flex-col gap-2 p-5">
+                      <Icon className="h-5 w-5 text-slate-500" />
+                      <p className="text-sm font-medium text-slate-900">{item.title}</p>
+                      <p className="text-sm text-slate-600">{item.description}</p>
+                    </CardContent>
+                  </Card>
+                );
+              })}
             </div>
           </aside>
         </div>

@@ -9,13 +9,13 @@ export const metadata: Metadata = {
 
 const highlights = [
   {
-    title: 'Structure limpide',
-    description: "Une colonne pour la vision, l'autre pour l'action. Rien de plus, rien de moins.",
+    title: 'Actions et décisions',
+    description: 'Documentez les noeuds clés de votre parcours et ajustez-les en temps réel.',
     icon: 'sparkles'
   },
   {
-    title: 'Sécurité intégrée',
-    description: 'Supabase, RLS et Drizzle sont prêts pour vos prochaines étapes.',
+    title: 'Cadre sécurisé',
+    description: 'Supabase, RLS et Drizzle orchestrent vos données sans compromettre la clarté.',
     icon: 'shield'
   }
 ] as const;
