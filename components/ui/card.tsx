@@ -5,14 +5,26 @@ const Card = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElemen
   { className, ...props },
   ref
 ) {
-  return <div ref={ref} className={cn('rounded-2xl border border-slate-200 bg-white shadow-sm', className)} {...props} />;
+  return (
+    <div
+      ref={ref}
+      className={cn('rounded-2xl border border-slate-800 bg-slate-900/60 text-slate-100 shadow-lg backdrop-blur', className)}
+      {...props}
+    />
+  );
 });
 
 const CardHeader = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(function CardHeader(
   { className, ...props },
   ref
 ) {
-  return <div ref={ref} className={cn('flex flex-col gap-1.5 border-b border-slate-200 px-6 py-4', className)} {...props} />;
+  return (
+    <div
+      ref={ref}
+      className={cn('flex flex-col gap-1.5 border-b border-slate-800/80 px-6 py-4', className)}
+      {...props}
+    />
+  );
 });
 
 const CardTitle = React.forwardRef<HTMLParagraphElement, React.HTMLAttributes<HTMLParagraphElement>>(function CardTitle(
@@ -26,7 +38,7 @@ const CardDescription = React.forwardRef<HTMLParagraphElement, React.HTMLAttribu
   { className, ...props },
   ref
 ) {
-  return <p ref={ref} className={cn('text-sm text-slate-600', className)} {...props} />;
+  return <p ref={ref} className={cn('text-sm text-slate-400', className)} {...props} />;
 });
 
 const CardContent = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(function CardContent(
