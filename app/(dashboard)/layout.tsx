@@ -1,5 +1,4 @@
 import Link from 'next/link';
-import { redirect } from 'next/navigation';
 import { cookies } from 'next/headers';
 import type { Route } from 'next';
 import { createServerClient } from '@/lib/supabase/server';
@@ -17,11 +16,11 @@ export default async function DashboardLayout({ children }: { children: React.Re
     data: { session }
   } = await supabase.auth.getSession();
 
-  if (!session) {
-    redirect('/sign-in');
+  let userEmail: string | undefined;
+  if (session) {
+    const { data: profile } = await supabase.auth.getUser();
+    userEmail = profile.user?.email ?? undefined;
   }
-
-  const { data: profile } = await supabase.auth.getUser();
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -34,12 +33,20 @@ export default async function DashboardLayout({ children }: { children: React.Re
             </p>
           </div>
           <div className="flex items-center gap-3">
-            <span className="text-sm text-slate-500">{profile?.user?.email}</span>
-            <form action="/api/auth/sign-out" method="post">
-              <Button type="submit" variant="outline">
-                Se déconnecter
-              </Button>
-            </form>
+            {userEmail ? (
+              <>
+                <span className="text-sm text-slate-500">{userEmail}</span>
+                <form action="/api/auth/sign-out" method="post">
+                  <Button type="submit" variant="outline">
+                    Se déconnecter
+                  </Button>
+                </form>
+              </>
+            ) : (
+              <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600">
+                Accès invité (auth désactivée)
+              </span>
+            )}
           </div>
         </div>
         <nav className="border-t border-slate-200 bg-slate-50/90">
