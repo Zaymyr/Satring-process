@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   ChevronLeft,
   ChevronRight,
@@ -18,7 +19,15 @@ import {
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { DEFAULT_PROCESS_STEPS, DEFAULT_PROCESS_TITLE } from '@/lib/process/defaults';
 import { cn } from '@/lib/utils/cn';
+import {
+  processResponseSchema,
+  type ProcessPayload,
+  type ProcessResponse,
+  type ProcessStep,
+  type StepType
+} from '@/lib/validation/process';
 
 const highlightIcons = {
   sparkles: Sparkles,
@@ -31,13 +40,7 @@ type Highlight = {
   icon: keyof typeof highlightIcons;
 };
 
-type StepType = 'start' | 'action' | 'decision' | 'finish';
-
-type Step = {
-  id: string;
-  label: string;
-  type: StepType;
-};
+type Step = ProcessStep;
 
 type MermaidAPI = {
   initialize: (config: Record<string, unknown>) => void;
@@ -105,6 +108,46 @@ function loadMermaid(): Promise<MermaidAPI> {
   return mermaidLoader;
 }
 
+class ApiError extends Error {
+  constructor(message: string, public status: number) {
+    super(message);
+    this.name = 'ApiError';
+  }
+}
+
+const cloneSteps = (steps: readonly ProcessStep[]): ProcessStep[] => steps.map((step) => ({ ...step }));
+
+const areStepsEqual = (a: readonly ProcessStep[], b: readonly ProcessStep[]) => {
+  if (a.length !== b.length) {
+    return false;
+  }
+
+  return a.every((step, index) => {
+    const other = b[index];
+    return !!other && step.id === other.id && step.label === other.label && step.type === other.type;
+  });
+};
+
+const requestProcess = async (): Promise<ProcessResponse> => {
+  const response = await fetch('/api/process', {
+    method: 'GET',
+    credentials: 'include',
+    cache: 'no-store'
+  });
+
+  if (response.status === 401) {
+    throw new ApiError('Authentification requise', 401);
+  }
+
+  if (!response.ok) {
+    const message = await response.text();
+    throw new ApiError(message || 'Impossible de récupérer le process.', response.status);
+  }
+
+  const json = await response.json();
+  return processResponseSchema.parse(json);
+};
+
 const STEP_TYPE_LABELS: Record<StepType, string> = {
   start: 'Départ',
   action: 'Action',
@@ -132,17 +175,167 @@ type LandingPanelsProps = {
 };
 
 export function LandingPanels({ highlights }: LandingPanelsProps) {
+  const queryClient = useQueryClient();
   const [isPrimaryCollapsed, setIsPrimaryCollapsed] = useState(false);
   const [isSecondaryCollapsed, setIsSecondaryCollapsed] = useState(false);
-  const [steps, setSteps] = useState<Step[]>(() => [
-    { id: 'start', label: 'Commencer', type: 'start' },
-    { id: 'finish', label: 'Terminer', type: 'finish' }
-  ]);
+  const [steps, setSteps] = useState<ProcessStep[]>(() => cloneSteps(DEFAULT_PROCESS_STEPS));
+  const baselineStepsRef = useRef<ProcessStep[]>(cloneSteps(DEFAULT_PROCESS_STEPS));
+  const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
   const [diagramSvg, setDiagramSvg] = useState('');
   const [diagramError, setDiagramError] = useState<string | null>(null);
   const [isMermaidReady, setIsMermaidReady] = useState(false);
   const mermaidAPIRef = useRef<MermaidAPI | null>(null);
   const diagramElementId = useMemo(() => `process-diagram-${generateStepId()}`, []);
+
+  const processQuery = useQuery<ProcessResponse, ApiError>({
+    queryKey: ['process'],
+    queryFn: requestProcess,
+    retry: (failureCount, error) => {
+      if (error instanceof ApiError && error.status === 401) {
+        return false;
+      }
+      return failureCount < 2;
+    }
+  });
+
+  const isUnauthorized =
+    processQuery.isError && processQuery.error instanceof ApiError && processQuery.error.status === 401;
+
+  useEffect(() => {
+    if (processQuery.data) {
+      const fromServer = cloneSteps(processQuery.data.steps);
+      baselineStepsRef.current = cloneSteps(fromServer);
+      setSteps(fromServer);
+      setLastSavedAt(processQuery.data.updatedAt);
+    }
+  }, [processQuery.data]);
+
+  useEffect(() => {
+    if (isUnauthorized) {
+      const fallback = cloneSteps(DEFAULT_PROCESS_STEPS);
+      baselineStepsRef.current = cloneSteps(fallback);
+      setSteps(fallback);
+      setLastSavedAt(null);
+    }
+  }, [isUnauthorized]);
+
+  const isDirty = useMemo(() => !areStepsEqual(steps, baselineStepsRef.current), [steps]);
+
+  const saveMutation = useMutation<ProcessResponse, ApiError, ProcessPayload>({
+    mutationFn: async (payload) => {
+      const response = await fetch('/api/process', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      if (response.status === 401) {
+        throw new ApiError('Authentification requise', 401);
+      }
+
+      if (!response.ok) {
+        const message = await response.text();
+        throw new ApiError(message || 'Impossible de sauvegarder le process.', response.status);
+      }
+
+      const json = await response.json();
+      return processResponseSchema.parse(json);
+    },
+    onSuccess: (data) => {
+      const sanitized = cloneSteps(data.steps);
+      baselineStepsRef.current = cloneSteps(sanitized);
+      setSteps(sanitized);
+      setLastSavedAt(data.updatedAt);
+      queryClient.setQueryData(['process'], data);
+    },
+    onError: (error) => {
+      console.error('Erreur de sauvegarde du process', error);
+    }
+  });
+
+  const isSaving = saveMutation.isPending;
+
+  const formattedSavedAt = useMemo(() => {
+    if (!lastSavedAt) {
+      return null;
+    }
+
+    try {
+      return new Intl.DateTimeFormat('fr-FR', {
+        dateStyle: 'short',
+        timeStyle: 'short'
+      }).format(new Date(lastSavedAt));
+    } catch (error) {
+      console.error('Impossible de formater la date de sauvegarde', error);
+      return null;
+    }
+  }, [lastSavedAt]);
+
+  const statusMessage = useMemo(() => {
+    if (isUnauthorized) {
+      return 'Connectez-vous pour sauvegarder votre process.';
+    }
+
+    if (saveMutation.isError && saveMutation.error) {
+      return saveMutation.error.message || 'Impossible de sauvegarder le process.';
+    }
+
+    if (formattedSavedAt && !isDirty) {
+      return `Dernière sauvegarde : ${formattedSavedAt}`;
+    }
+
+    if (formattedSavedAt) {
+      return `Modifications depuis la sauvegarde du ${formattedSavedAt}`;
+    }
+
+    if (processQuery.isLoading) {
+      return 'Chargement du process en cours…';
+    }
+
+    return 'Aucune sauvegarde enregistrée pour le moment.';
+  }, [formattedSavedAt, isDirty, isUnauthorized, processQuery.isLoading, saveMutation.error, saveMutation.isError]);
+
+  const statusToneClass = useMemo(() => {
+    if (saveMutation.isError) {
+      return 'text-red-600';
+    }
+    if (isUnauthorized) {
+      return 'text-slate-500';
+    }
+    if (!isDirty && formattedSavedAt) {
+      return 'text-emerald-600';
+    }
+    return 'text-slate-500';
+  }, [formattedSavedAt, isDirty, isUnauthorized, saveMutation.isError]);
+
+  const saveButtonLabel = useMemo(() => {
+    if (isUnauthorized) {
+      return 'Connexion requise';
+    }
+    if (isSaving) {
+      return 'Sauvegarde…';
+    }
+    if (isDirty) {
+      return 'Sauvegarder le process';
+    }
+    return 'Process à jour';
+  }, [isDirty, isSaving, isUnauthorized]);
+
+  const isSaveDisabled = isUnauthorized || isSaving || !isDirty;
+
+  const handleSave = () => {
+    if (isSaveDisabled) {
+      return;
+    }
+
+    const payloadSteps = steps.map((step) => ({ ...step, label: step.label.trim() }));
+    const payload: ProcessPayload = {
+      title: DEFAULT_PROCESS_TITLE,
+      steps: payloadSteps
+    };
+    saveMutation.mutate(payload);
+  };
 
   const escapeHtml = (value: string) =>
     value
@@ -543,9 +736,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                 : 'pointer-events-auto opacity-100 lg:translate-x-0'
             )}
           >
-            <h1 className="text-base font-semibold text-slate-900">
-              Étapes du processus
-            </h1>
+            <h1 className="text-base font-semibold text-slate-900">{DEFAULT_PROCESS_TITLE}</h1>
             <div className="flex-1 min-h-0 overflow-hidden">
               <div className="h-full space-y-6 overflow-y-auto rounded-2xl border border-slate-200 bg-white/75 p-5 pr-2 shadow-inner sm:pr-3">
                 <div className="flex flex-wrap gap-2.5">
@@ -603,6 +794,19 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                   })}
                 </div>
               </div>
+            </div>
+            <div className="rounded-2xl border border-slate-200 bg-white/80 p-4 shadow-inner">
+              <Button
+                type="button"
+                onClick={handleSave}
+                disabled={isSaveDisabled}
+                className="h-10 w-full rounded-md bg-slate-900 text-sm font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600"
+              >
+                {saveButtonLabel}
+              </Button>
+              <p className={cn('mt-2 text-xs', statusToneClass)} aria-live="polite">
+                {statusMessage}
+              </p>
             </div>
           </div>
         </div>

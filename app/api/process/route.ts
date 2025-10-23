@@ -1,0 +1,121 @@
+import { NextResponse } from 'next/server';
+import { createServerClient } from '@/lib/supabase/server';
+import { createDefaultProcessResponse, DEFAULT_PROCESS_TITLE } from '@/lib/process/defaults';
+import { processPayloadSchema, processResponseSchema, type ProcessPayload } from '@/lib/validation/process';
+
+const NO_STORE_HEADERS = { 'Cache-Control': 'no-store, max-age=0, must-revalidate' };
+
+export async function GET() {
+  const supabase = createServerClient();
+  const {
+    data: { user },
+    error: authError
+  } = await supabase.auth.getUser();
+
+  if (authError || !user) {
+    return NextResponse.json({ error: 'Authentification requise.' }, { status: 401, headers: NO_STORE_HEADERS });
+  }
+
+  const { data, error } = await supabase
+    .from('process_snapshots')
+    .select('title, steps, updated_at')
+    .eq('owner_id', user.id)
+    .maybeSingle();
+
+  if (error) {
+    console.error('Erreur lors de la récupération du process', error);
+    return NextResponse.json(
+      { error: 'Impossible de récupérer le process.' },
+      { status: 500, headers: NO_STORE_HEADERS }
+    );
+  }
+
+  if (!data) {
+    return NextResponse.json(createDefaultProcessResponse(), { headers: NO_STORE_HEADERS });
+  }
+
+  const parsed = processResponseSchema.safeParse({
+    title: data.title ?? DEFAULT_PROCESS_TITLE,
+    steps: data.steps,
+    updatedAt: data.updated_at
+  });
+
+  if (!parsed.success) {
+    console.error('Données de process invalides', parsed.error);
+    return NextResponse.json(
+      { error: 'Les données du process sont invalides.' },
+      { status: 500, headers: NO_STORE_HEADERS }
+    );
+  }
+
+  return NextResponse.json(parsed.data, { headers: NO_STORE_HEADERS });
+}
+
+export async function POST(request: Request) {
+  let payload: unknown;
+
+  try {
+    payload = await request.json();
+  } catch (error) {
+    console.error('Corps de requête JSON invalide', error);
+    return NextResponse.json(
+      { error: 'Requête invalide.' },
+      { status: 400, headers: NO_STORE_HEADERS }
+    );
+  }
+
+  const parsedPayload = processPayloadSchema.safeParse(payload);
+  if (!parsedPayload.success) {
+    return NextResponse.json(
+      { error: 'Le format des étapes est invalide.', details: parsedPayload.error.flatten() },
+      { status: 400, headers: NO_STORE_HEADERS }
+    );
+  }
+
+  const supabase = createServerClient();
+  const {
+    data: { user },
+    error: authError
+  } = await supabase.auth.getUser();
+
+  if (authError || !user) {
+    return NextResponse.json({ error: 'Authentification requise.' }, { status: 401, headers: NO_STORE_HEADERS });
+  }
+
+  const body: ProcessPayload = parsedPayload.data;
+
+  const { data, error } = await supabase.rpc('save_process_snapshot', {
+    payload: { title: body.title, steps: body.steps }
+  });
+
+  if (error) {
+    console.error('Erreur lors de la sauvegarde du process', error);
+    return NextResponse.json(
+      { error: 'Impossible de sauvegarder le process.' },
+      { status: 500, headers: NO_STORE_HEADERS }
+    );
+  }
+
+  if (!data) {
+    return NextResponse.json(
+      { error: 'Réponse vide lors de la sauvegarde du process.' },
+      { status: 500, headers: NO_STORE_HEADERS }
+    );
+  }
+
+  const parsedResponse = processResponseSchema.safeParse({
+    title: data.title ?? DEFAULT_PROCESS_TITLE,
+    steps: data.steps,
+    updatedAt: data.updated_at
+  });
+
+  if (!parsedResponse.success) {
+    console.error('Réponse de sauvegarde du process invalide', parsedResponse.error);
+    return NextResponse.json(
+      { error: 'La sauvegarde a renvoyé un format inattendu.' },
+      { status: 500, headers: NO_STORE_HEADERS }
+    );
+  }
+
+  return NextResponse.json(parsedResponse.data, { headers: NO_STORE_HEADERS });
+}
