@@ -156,10 +156,19 @@ export async function POST(request: Request) {
     );
   }
 
+  const record = Array.isArray(data) ? data[0] : data;
+
+  if (!record) {
+    return NextResponse.json(
+      { error: 'Réponse vide lors de la sauvegarde du process.' },
+      { status: 500, headers: NO_STORE_HEADERS }
+    );
+  }
+
   const parsedResponse = processResponseSchema.safeParse({
-    title: data.title ?? DEFAULT_PROCESS_TITLE,
-    steps: data.steps,
-    updatedAt: data.updated_at
+    title: record.title ?? DEFAULT_PROCESS_TITLE,
+    steps: record.steps,
+    updatedAt: record.updated_at
   });
 
   if (!parsedResponse.success) {
