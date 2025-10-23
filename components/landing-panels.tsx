@@ -145,12 +145,45 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
   const mermaidAPIRef = useRef<MermaidAPI | null>(null);
   const diagramElementId = useMemo(() => `process-diagram-${generateStepId()}`, []);
 
-  const escapeLabel = (value: string) =>
+  const escapeHtml = (value: string) =>
     value
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;');
+
+  const wrapStepLabel = (value: string) => {
+    const normalized = value.trim();
+    const source = normalized.length > 0 ? normalized : 'Étape';
+    const maxCharsPerLine = 18;
+    const words = source.split(/\s+/);
+    const lines: string[] = [];
+    let currentLine = '';
+
+    for (const word of words) {
+      const tentative = currentLine ? `${currentLine} ${word}` : word;
+      if (tentative.length <= maxCharsPerLine) {
+        currentLine = tentative;
+      } else {
+        if (currentLine) {
+          lines.push(currentLine);
+        }
+        if (word.length > maxCharsPerLine) {
+          const segments = word.match(new RegExp(`.{1,${maxCharsPerLine}}`, 'g')) ?? [word];
+          lines.push(...segments.slice(0, -1));
+          currentLine = segments.at(-1) ?? '';
+        } else {
+          currentLine = word;
+        }
+      }
+    }
+
+    if (currentLine) {
+      lines.push(currentLine);
+    }
+
+    return lines;
+  };
 
   const diagramDefinition = useMemo(() => {
     if (steps.length === 0) {
@@ -161,7 +194,8 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
     const nodes = steps.map((step, index) => {
       const nodeId = `S${index}`;
       const baseLabel = step.label.trim() || STEP_TYPE_LABELS[step.type];
-      const label = escapeLabel(baseLabel);
+      const lines = wrapStepLabel(baseLabel);
+      const label = lines.map((line) => escapeHtml(line)).join('<br/>');
 
       if (step.type === 'action') {
         classAssignments.push(`class ${nodeId} action;`);
@@ -195,64 +229,65 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
       return null;
     }
 
-    const wrapLabel = (value: string) => {
-      const normalized = value.trim() || 'Étape';
-      const words = normalized.split(/\s+/);
-      const lines: string[] = [];
-      let currentLine = '';
-
-      for (const word of words) {
-        const nextSegment = currentLine ? `${currentLine} ${word}` : word;
-        if (nextSegment.length <= 18) {
-          currentLine = nextSegment;
-        } else {
-          if (currentLine) {
-            lines.push(currentLine);
-          }
-          currentLine = word;
-        }
-      }
-
-      if (currentLine) {
-        lines.push(currentLine);
-      }
-
-      return lines.slice(0, 3);
-    };
-
     const centerX = 450;
     const canvasWidth = 900;
-    const verticalSpacing = 200;
-    const verticalPadding = 140;
-    const actionSize = { width: 260, height: 96 };
-    const decisionSize = { width: 260, height: 120 };
-    const terminalRadius = 52;
+    const horizontalPadding = 64;
+    const verticalPadding = 120;
+    const stackSpacing = 80;
+    const charWidth = 9;
+    const lineHeight = 26;
+    const maxWidth = 320;
+    const minWidth = 180;
+    const minActionHeight = 88;
+    const minDecisionHeight = 120;
+    const minTerminalHeight = 96;
+    const contentPaddingY = 36;
 
-    const nodes = steps.map((step, index) => {
-      const centerY = verticalPadding + index * verticalSpacing;
-      const halfHeight =
-        step.type === 'action'
-          ? actionSize.height / 2
-          : step.type === 'decision'
-            ? decisionSize.height / 2
-            : terminalRadius;
+    const nodes = steps.reduce<
+      Array<{
+        step: Step;
+        centerY: number;
+        halfHeight: number;
+        lines: string[];
+        width: number;
+        height: number;
+      }>
+    >((acc, step) => {
+      const baseLabel = step.label.trim() || STEP_TYPE_LABELS[step.type];
+      const lines = wrapStepLabel(baseLabel);
+      const longestLine = lines.reduce((max, line) => Math.max(max, line.length), 0);
+      const rawWidth = longestLine * charWidth + horizontalPadding;
+      const width = Math.min(maxWidth, Math.max(minWidth, rawWidth));
+      const contentHeight = Math.max(lines.length, 1) * lineHeight;
+      let height = contentHeight + contentPaddingY;
 
-      return {
-        step,
-        centerY,
-        halfHeight,
-        lines: wrapLabel(step.label || STEP_TYPE_LABELS[step.type])
-      };
-    });
+      if (step.type === 'action') {
+        height = Math.max(height, minActionHeight);
+      } else if (step.type === 'decision') {
+        height = Math.max(height, minDecisionHeight);
+      } else {
+        height = Math.max(height, minTerminalHeight);
+      }
 
-    const canvasHeight = (nodes.at(-1)?.centerY ?? verticalPadding) + verticalPadding;
+      const halfHeight = height / 2;
+      const previous = acc.at(-1);
+      const centerY = previous
+        ? previous.centerY + previous.halfHeight + stackSpacing + halfHeight
+        : verticalPadding + halfHeight;
 
-    const diamondPoints = (centerY: number) =>
+      acc.push({ step, centerY, halfHeight, lines, width, height });
+      return acc;
+    }, []);
+
+    const canvasHeight =
+      (nodes.at(-1)?.centerY ?? verticalPadding) + (nodes.at(-1)?.halfHeight ?? 0) + verticalPadding;
+
+    const diamondPoints = (centerY: number, width: number, height: number) =>
       [
-        `${centerX},${centerY - decisionSize.height / 2}`,
-        `${centerX + decisionSize.width / 2},${centerY}`,
-        `${centerX},${centerY + decisionSize.height / 2}`,
-        `${centerX - decisionSize.width / 2},${centerY}`
+        `${centerX},${centerY - height / 2}`,
+        `${centerX + width / 2},${centerY}`,
+        `${centerX},${centerY + height / 2}`,
+        `${centerX - width / 2},${centerY}`
       ].join(' ');
 
     return (
@@ -295,26 +330,34 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
             />
           );
         })}
-        {nodes.map((node, index) => {
-          const { step, centerY, lines, halfHeight } = node;
+        {nodes.map((node) => {
+          const { step, centerY, lines, width, height } = node;
           const isTerminal = step.type === 'start' || step.type === 'finish';
           const isDecision = step.type === 'decision';
           const isAction = step.type === 'action';
           const primaryFill = isTerminal ? '#f8fafc' : '#ffffff';
           const strokeColor = '#0f172a';
-          const label = STEP_TYPE_LABELS[step.type];
+          const blockOffset = ((lines.length - 1) * 24) / 2;
 
           return (
             <g key={step.id} filter="url(#process-shadow)">
               {isTerminal ? (
-                <circle cx={centerX} cy={centerY} r={terminalRadius} fill={primaryFill} stroke={strokeColor} strokeWidth={2} />
+                <ellipse
+                  cx={centerX}
+                  cy={centerY}
+                  rx={width / 2}
+                  ry={height / 2}
+                  fill={primaryFill}
+                  stroke={strokeColor}
+                  strokeWidth={2}
+                />
               ) : null}
               {isAction ? (
                 <rect
-                  x={centerX - actionSize.width / 2}
-                  y={centerY - actionSize.height / 2}
-                  width={actionSize.width}
-                  height={actionSize.height}
+                  x={centerX - width / 2}
+                  y={centerY - height / 2}
+                  width={width}
+                  height={height}
                   rx={24}
                   fill={primaryFill}
                   stroke={strokeColor}
@@ -322,18 +365,13 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                 />
               ) : null}
               {isDecision ? (
-                <polygon points={diamondPoints(centerY)} fill={primaryFill} stroke={strokeColor} strokeWidth={2} />
+                <polygon
+                  points={diamondPoints(centerY, width, height)}
+                  fill={primaryFill}
+                  stroke={strokeColor}
+                  strokeWidth={2}
+                />
               ) : null}
-              <text
-                x={centerX}
-                y={centerY - halfHeight - 24}
-                textAnchor="middle"
-                fontSize={12}
-                letterSpacing="0.4em"
-                fill="#475569"
-              >
-                {label.toUpperCase()}
-              </text>
               <text
                 x={centerX}
                 y={centerY}
@@ -343,20 +381,15 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                 fill="#0f172a"
                 dominantBaseline="middle"
               >
-                {lines.map((line, lineIndex) => (
-                  <tspan key={`${step.id}-line-${lineIndex}`} x={centerX} dy={lineIndex === 0 ? 0 : 22}>
-                    {line}
-                  </tspan>
-                ))}
-              </text>
-              <text
-                x={centerX}
-                y={centerY + halfHeight + 32}
-                textAnchor="middle"
-                fontSize={12}
-                fill="#64748b"
-              >
-                Étape {index + 1}
+                {lines.map((line, lineIndex) => {
+                  const dy = lineIndex === 0 ? (lines.length > 1 ? -blockOffset : 0) : 24;
+
+                  return (
+                    <tspan key={`${step.id}-line-${lineIndex}`} x={centerX} dy={dy}>
+                      {line}
+                    </tspan>
+                  );
+                })}
               </text>
             </g>
           );
