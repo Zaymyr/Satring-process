@@ -1,6 +1,8 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import Link from 'next/link';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   ChevronLeft,
   ChevronRight,
@@ -18,8 +20,15 @@ import {
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { DEFAULT_PROCESS_STEPS, DEFAULT_PROCESS_TITLE } from '@/lib/process/defaults';
 import { cn } from '@/lib/utils/cn';
+import {
+  processResponseSchema,
+  type ProcessPayload,
+  type ProcessResponse,
+  type ProcessStep,
+  type StepType
+} from '@/lib/validation/process';
 
 const highlightIcons = {
   sparkles: Sparkles,
@@ -32,13 +41,7 @@ type Highlight = {
   icon: keyof typeof highlightIcons;
 };
 
-type StepType = 'start' | 'action' | 'decision' | 'finish';
-
-type Step = {
-  id: string;
-  label: string;
-  type: StepType;
-};
+type Step = ProcessStep;
 
 type MermaidAPI = {
   initialize: (config: Record<string, unknown>) => void;
@@ -106,6 +109,46 @@ function loadMermaid(): Promise<MermaidAPI> {
   return mermaidLoader;
 }
 
+class ApiError extends Error {
+  constructor(message: string, public status: number) {
+    super(message);
+    this.name = 'ApiError';
+  }
+}
+
+const cloneSteps = (steps: readonly ProcessStep[]): ProcessStep[] => steps.map((step) => ({ ...step }));
+
+const areStepsEqual = (a: readonly ProcessStep[], b: readonly ProcessStep[]) => {
+  if (a.length !== b.length) {
+    return false;
+  }
+
+  return a.every((step, index) => {
+    const other = b[index];
+    return !!other && step.id === other.id && step.label === other.label && step.type === other.type;
+  });
+};
+
+const requestProcess = async (): Promise<ProcessResponse> => {
+  const response = await fetch('/api/process', {
+    method: 'GET',
+    credentials: 'include',
+    cache: 'no-store'
+  });
+
+  if (response.status === 401) {
+    throw new ApiError('Authentification requise', 401);
+  }
+
+  if (!response.ok) {
+    const message = await response.text();
+    throw new ApiError(message || 'Impossible de récupérer le process.', response.status);
+  }
+
+  const json = await response.json();
+  return processResponseSchema.parse(json);
+};
+
 const STEP_TYPE_LABELS: Record<StepType, string> = {
   start: 'Départ',
   action: 'Action',
@@ -133,17 +176,179 @@ type LandingPanelsProps = {
 };
 
 export function LandingPanels({ highlights }: LandingPanelsProps) {
+  const queryClient = useQueryClient();
   const [isPrimaryCollapsed, setIsPrimaryCollapsed] = useState(false);
   const [isSecondaryCollapsed, setIsSecondaryCollapsed] = useState(false);
-  const [steps, setSteps] = useState<Step[]>(() => [
-    { id: 'start', label: 'Commencer', type: 'start' },
-    { id: 'finish', label: 'Terminer', type: 'finish' }
-  ]);
+  const [steps, setSteps] = useState<ProcessStep[]>(() => cloneSteps(DEFAULT_PROCESS_STEPS));
+  const baselineStepsRef = useRef<ProcessStep[]>(cloneSteps(DEFAULT_PROCESS_STEPS));
+  const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
   const [diagramSvg, setDiagramSvg] = useState('');
   const [diagramError, setDiagramError] = useState<string | null>(null);
   const [isMermaidReady, setIsMermaidReady] = useState(false);
   const mermaidAPIRef = useRef<MermaidAPI | null>(null);
   const diagramElementId = useMemo(() => `process-diagram-${generateStepId()}`, []);
+
+  const processQuery = useQuery<ProcessResponse, ApiError>({
+    queryKey: ['process'],
+    queryFn: requestProcess,
+    retry: (failureCount, error) => {
+      if (error instanceof ApiError && error.status === 401) {
+        return false;
+      }
+      return failureCount < 2;
+    }
+  });
+
+  const isUnauthorized =
+    processQuery.isError && processQuery.error instanceof ApiError && processQuery.error.status === 401;
+
+  useEffect(() => {
+    if (processQuery.data) {
+      const fromServer = cloneSteps(processQuery.data.steps);
+      baselineStepsRef.current = cloneSteps(fromServer);
+      setSteps(fromServer);
+      setLastSavedAt(processQuery.data.updatedAt);
+    }
+  }, [processQuery.data]);
+
+  useEffect(() => {
+    if (isUnauthorized) {
+      const fallback = cloneSteps(DEFAULT_PROCESS_STEPS);
+      baselineStepsRef.current = cloneSteps(fallback);
+      setSteps(fallback);
+      setLastSavedAt(null);
+    }
+  }, [isUnauthorized]);
+
+  const isDirty = useMemo(() => !areStepsEqual(steps, baselineStepsRef.current), [steps]);
+
+  const saveMutation = useMutation<ProcessResponse, ApiError, ProcessPayload>({
+    mutationFn: async (payload) => {
+      const response = await fetch('/api/process', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      if (response.status === 401) {
+        throw new ApiError('Authentification requise', 401);
+      }
+
+      if (!response.ok) {
+        const message = await response.text();
+        throw new ApiError(message || 'Impossible de sauvegarder le process.', response.status);
+      }
+
+      const json = await response.json();
+      return processResponseSchema.parse(json);
+    },
+    onSuccess: (data) => {
+      const sanitized = cloneSteps(data.steps);
+      baselineStepsRef.current = cloneSteps(sanitized);
+      setSteps(sanitized);
+      setLastSavedAt(data.updatedAt);
+      queryClient.setQueryData(['process'], data);
+    },
+    onError: (error) => {
+      console.error('Erreur de sauvegarde du process', error);
+    }
+  });
+
+  const isSaving = saveMutation.isPending;
+
+  const formattedSavedAt = useMemo(() => {
+    if (!lastSavedAt) {
+      return null;
+    }
+
+    try {
+      return new Intl.DateTimeFormat('fr-FR', {
+        dateStyle: 'short',
+        timeStyle: 'short'
+      }).format(new Date(lastSavedAt));
+    } catch (error) {
+      console.error('Impossible de formater la date de sauvegarde', error);
+      return null;
+    }
+  }, [lastSavedAt]);
+
+  const statusMessage = useMemo<ReactNode>(() => {
+    if (isUnauthorized) {
+      return (
+        <>
+          Connectez-vous ou{' '}
+          <Link href="/sign-up" className="font-medium text-slate-900 underline-offset-2 hover:underline">
+            créez un compte
+          </Link>{' '}
+          pour sauvegarder votre process.
+          {' '}
+          <Link href="/sign-in" className="font-medium text-slate-900 underline-offset-2 hover:underline">
+            Se connecter
+          </Link>
+        </>
+      );
+    }
+
+    if (saveMutation.isError && saveMutation.error) {
+      return saveMutation.error.message || 'Impossible de sauvegarder le process.';
+    }
+
+    if (formattedSavedAt && !isDirty) {
+      return `Dernière sauvegarde : ${formattedSavedAt}`;
+    }
+
+    if (formattedSavedAt) {
+      return `Modifications depuis la sauvegarde du ${formattedSavedAt}`;
+    }
+
+    if (processQuery.isLoading) {
+      return 'Chargement du process en cours…';
+    }
+
+    return 'Aucune sauvegarde enregistrée pour le moment.';
+  }, [formattedSavedAt, isDirty, isUnauthorized, processQuery.isLoading, saveMutation.error, saveMutation.isError]);
+
+  const statusToneClass = useMemo(() => {
+    if (saveMutation.isError) {
+      return 'text-red-600';
+    }
+    if (isUnauthorized) {
+      return 'text-slate-500';
+    }
+    if (!isDirty && formattedSavedAt) {
+      return 'text-emerald-600';
+    }
+    return 'text-slate-500';
+  }, [formattedSavedAt, isDirty, isUnauthorized, saveMutation.isError]);
+
+  const saveButtonLabel = useMemo(() => {
+    if (isUnauthorized) {
+      return 'Connexion requise';
+    }
+    if (isSaving) {
+      return 'Sauvegarde…';
+    }
+    if (isDirty) {
+      return 'Sauvegarder le process';
+    }
+    return 'Process à jour';
+  }, [isDirty, isSaving, isUnauthorized]);
+
+  const isSaveDisabled = isUnauthorized || isSaving || !isDirty;
+
+  const handleSave = () => {
+    if (isSaveDisabled) {
+      return;
+    }
+
+    const payloadSteps = steps.map((step) => ({ ...step, label: step.label.trim() }));
+    const payload: ProcessPayload = {
+      title: DEFAULT_PROCESS_TITLE,
+      steps: payloadSteps
+    };
+    saveMutation.mutate(payload);
+  };
 
   const escapeHtml = (value: string) =>
     value
@@ -492,16 +697,12 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
     setSteps((prev) => prev.map((step) => (step.id === id ? { ...step, label } : step)));
   };
 
-  const updateStepType = (id: string, type: Extract<StepType, 'action' | 'decision'>) => {
-    setSteps((prev) => prev.map((step) => (step.id === id ? { ...step, type } : step)));
-  };
-
   const removeStep = (id: string) => {
     setSteps((prev) => prev.filter((step) => step.id !== id));
   };
 
-  const primaryWidth = isPrimaryCollapsed ? '3.5rem' : 'clamp(22rem, 32vw, 40rem)';
-  const secondaryWidth = isSecondaryCollapsed ? '3.5rem' : 'clamp(18rem, 26vw, 30rem)';
+  const primaryWidth = isPrimaryCollapsed ? '3.5rem' : 'clamp(18rem, 28vw, 34rem)';
+  const secondaryWidth = isSecondaryCollapsed ? '3.5rem' : 'clamp(16rem, 22vw, 26rem)';
 
   return (
     <div className="relative min-h-screen overflow-x-hidden bg-gradient-to-br from-slate-100 via-white to-slate-200 text-slate-900">
@@ -521,7 +722,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
           </span>
         ) : null}
       </div>
-      <div className="relative z-10 flex min-h-screen w-full flex-col gap-8 px-4 py-12 lg:flex-row lg:items-stretch lg:gap-0 lg:justify-between lg:px-10 lg:py-16 xl:px-16">
+      <div className="relative z-10 flex min-h-screen w-full flex-col gap-6 px-4 py-8 lg:flex-row lg:items-stretch lg:gap-0 lg:justify-between lg:px-8 lg:py-12 xl:px-12">
         <div
           className="relative flex shrink-0 items-stretch overflow-hidden transition-[width] duration-300 ease-out max-h-[calc(100vh-6rem)] lg:order-1 lg:mr-auto lg:max-h-[calc(100vh-8rem)]"
           style={{ width: primaryWidth }}
@@ -542,113 +743,63 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
           <div
             id="primary-panel"
             className={cn(
-              'flex h-full w-full flex-col gap-12 overflow-hidden rounded-3xl border border-slate-200 bg-white/85 px-10 py-14 shadow-[0_30px_120px_-50px_rgba(15,23,42,0.35)] backdrop-blur transition-all duration-300 ease-out sm:px-12',
+              'flex h-full w-full flex-col gap-8 overflow-hidden rounded-3xl border border-slate-200 bg-white/85 px-8 py-10 shadow-[0_30px_120px_-50px_rgba(15,23,42,0.35)] backdrop-blur transition-all duration-300 ease-out sm:px-10',
               isPrimaryCollapsed
                 ? 'pointer-events-none opacity-0 lg:-translate-x-[110%]'
                 : 'pointer-events-auto opacity-100 lg:translate-x-0'
             )}
           >
-            <div className="space-y-5">
-              <p className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/70 px-4 py-1 text-xs uppercase tracking-[0.2em] text-slate-500 shadow-sm backdrop-blur">
-                <Sparkles className="h-4 w-4" />
-                Bâtissez votre flux
-              </p>
-              <div className="space-y-3">
-                <h1 className="text-3xl font-semibold leading-tight text-slate-900 sm:text-4xl">
-                  Décrivez chaque étape de votre processus.
-                </h1>
-                <p className="text-base text-slate-600">
-                  Ajoutez des étapes d’action ou de décision entre un départ immuable et une arrivée certaine. Ajustez-les à la volée : tout est prêt pour documenter vos futurs parcours.
-                </p>
-              </div>
-            </div>
+            <h1 className="text-base font-semibold text-slate-900">{DEFAULT_PROCESS_TITLE}</h1>
             <div className="flex-1 min-h-0 overflow-hidden">
-              <div className="h-full space-y-8 overflow-y-auto rounded-2xl border border-slate-200 bg-white/75 p-6 pr-3 shadow-inner sm:pr-4">
-                <div className="flex flex-wrap gap-3">
-                  <Button type="button" onClick={() => addStep('action')} className="bg-slate-900 text-white hover:bg-slate-800">
-                    <Plus className="mr-2 h-4 w-4" />
+              <div className="h-full space-y-6 overflow-y-auto rounded-2xl border border-slate-200 bg-white/75 p-5 pr-2 shadow-inner sm:pr-3">
+                <div className="flex flex-wrap gap-2.5">
+                  <Button type="button" onClick={() => addStep('action')} className="h-9 rounded-md bg-slate-900 px-3 text-sm text-white hover:bg-slate-800">
+                    <Plus className="mr-2 h-3.5 w-3.5" />
                     Ajouter une action
                   </Button>
-                  <Button type="button" variant="outline" onClick={() => addStep('decision')} className="border-slate-300 bg-white text-slate-900 hover:bg-slate-50">
-                    <GitBranch className="mr-2 h-4 w-4" />
+                  <Button type="button" variant="outline" onClick={() => addStep('decision')} className="h-9 rounded-md border-slate-300 bg-white px-3 text-sm text-slate-900 hover:bg-slate-50">
+                    <GitBranch className="mr-2 h-3.5 w-3.5" />
                     Ajouter une décision
                   </Button>
                 </div>
-                <div className="space-y-4">
+                <div className="space-y-3.5">
                   {steps.map((step, index) => {
                     const Icon = STEP_TYPE_ICONS[step.type];
-                    const isConfigurable = step.type === 'action' || step.type === 'decision';
+                    const isRemovable = step.type === 'action' || step.type === 'decision';
                     const stepPosition = index + 1;
 
                     return (
                       <Card key={step.id} className="border-slate-200 bg-white/90 shadow-sm">
-                        <CardContent className="space-y-4 p-5">
-                          <div className="flex items-center justify-between gap-3">
-                            <div className="flex items-center gap-3 text-slate-600">
-                              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-xs font-semibold text-slate-600">
-                                {stepPosition}
+                        <CardContent className="flex items-center gap-3 p-3.5">
+                          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-100 text-[0.65rem] font-semibold text-slate-600">
+                            {stepPosition}
+                          </span>
+                          <div className="flex min-w-0 flex-1 flex-col gap-1">
+                            <div className="flex items-center gap-1.5 text-slate-500">
+                              <Icon className="h-3.5 w-3.5" />
+                              <span className="text-[0.6rem] font-medium uppercase tracking-[0.24em]">
+                                {STEP_TYPE_LABELS[step.type]}
                               </span>
-                              <div className="flex items-center gap-2">
-                                <Icon className="h-4 w-4 text-slate-500" />
-                                <span className="text-xs font-medium uppercase tracking-[0.2em] text-slate-500">
-                                  {STEP_TYPE_LABELS[step.type]}
-                                </span>
-                              </div>
                             </div>
-                            {isConfigurable ? (
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => removeStep(step.id)}
-                                className="h-8 w-8 text-slate-400 hover:text-slate-900"
-                                aria-label="Supprimer l’étape"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            ) : null}
-                          </div>
-                          <div className="space-y-2">
-                            <Label htmlFor={`step-${step.id}-label`} className="text-xs uppercase tracking-[0.2em] text-slate-500">
-                              Intitulé
-                            </Label>
                             <Input
                               id={`step-${step.id}-label`}
                               value={step.label}
                               onChange={(event) => updateStepLabel(step.id, event.target.value)}
-                              className="border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus-visible:ring-slate-900/20 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-50"
+                              placeholder="Intitulé de l’étape"
+                              className="h-8 w-full border-slate-200 bg-white text-sm text-slate-900 placeholder:text-slate-400 focus-visible:ring-slate-900/20 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-50"
                             />
                           </div>
-                          {isConfigurable ? (
-                            <div className="space-y-2">
-                              <span className="text-xs uppercase tracking-[0.2em] text-slate-500">Type d’étape</span>
-                              <div className="flex gap-2">
-                                <Button
-                                  type="button"
-                                  variant={step.type === 'action' ? 'default' : 'outline'}
-                                  onClick={() => updateStepType(step.id, 'action')}
-                                  className={cn(
-                                    'flex-1 border-slate-300 bg-white text-slate-900 hover:bg-slate-50',
-                                    step.type === 'action' && 'border-transparent bg-slate-900 text-white hover:bg-slate-800'
-                                  )}
-                                >
-                                  <ListChecks className="mr-2 h-4 w-4" />
-                                  Action
-                                </Button>
-                                <Button
-                                  type="button"
-                                  variant={step.type === 'decision' ? 'default' : 'outline'}
-                                  onClick={() => updateStepType(step.id, 'decision')}
-                                  className={cn(
-                                    'flex-1 border-slate-300 bg-white text-slate-900 hover:bg-slate-50',
-                                    step.type === 'decision' && 'border-transparent bg-slate-900 text-white hover:bg-slate-800'
-                                  )}
-                                >
-                                  <GitBranch className="mr-2 h-4 w-4" />
-                                  Décision
-                                </Button>
-                              </div>
-                            </div>
+                          {isRemovable ? (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => removeStep(step.id)}
+                              className="h-7 w-7 shrink-0 text-slate-400 hover:text-slate-900"
+                              aria-label="Supprimer l’étape"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
                           ) : null}
                         </CardContent>
                       </Card>
@@ -656,6 +807,19 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                   })}
                 </div>
               </div>
+            </div>
+            <div className="rounded-2xl border border-slate-200 bg-white/80 p-4 shadow-inner">
+              <Button
+                type="button"
+                onClick={handleSave}
+                disabled={isSaveDisabled}
+                className="h-10 w-full rounded-md bg-slate-900 text-sm font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600"
+              >
+                {saveButtonLabel}
+              </Button>
+              <p className={cn('mt-2 text-xs', statusToneClass)} aria-live="polite">
+                {statusMessage}
+              </p>
             </div>
           </div>
         </div>
@@ -679,53 +843,53 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
           <aside
             id="secondary-panel"
             className={cn(
-              'flex h-full w-full flex-col gap-6 overflow-hidden rounded-3xl border border-slate-200 bg-white/80 p-8 shadow-[0_30px_120px_-50px_rgba(15,23,42,0.35)] backdrop-blur transition-all duration-300 ease-out',
+              'flex h-full w-full flex-col gap-5 overflow-hidden rounded-3xl border border-slate-200 bg-white/80 p-6 shadow-[0_30px_120px_-50px_rgba(15,23,42,0.35)] backdrop-blur transition-all duration-300 ease-out',
               isSecondaryCollapsed
                 ? 'pointer-events-none opacity-0 lg:translate-x-[110%]'
                 : 'pointer-events-auto opacity-100 lg:translate-x-0'
             )}
           >
-            <div className="space-y-4">
-              <h2 className="text-xl font-semibold text-slate-900">Aperçu du parcours</h2>
-              <p className="text-sm text-slate-600">
+            <div className="space-y-3">
+              <h2 className="text-lg font-semibold text-slate-900">Aperçu du parcours</h2>
+              <p className="text-xs text-slate-600">
                 Visualisez la progression de votre process pendant que vous le façonnez. Chaque étape reste synchronisée avec vos ajustements dans le panneau principal.
               </p>
             </div>
             <div className="flex-1 min-h-0 overflow-hidden">
-              <div className="flex h-full flex-col gap-5 overflow-y-auto pr-2">
-                <div className="rounded-2xl border border-slate-200 bg-white/80 p-5">
+              <div className="flex h-full flex-col gap-4 overflow-y-auto pr-2">
+                <div className="rounded-2xl border border-slate-200 bg-white/80 p-4">
                   <h3 className="text-sm font-semibold text-slate-900">Chronologie</h3>
-                  <ol className="mt-4 space-y-4">
+                  <ol className="mt-3 space-y-3">
                     {steps.map((step, index) => {
                       const Icon = STEP_TYPE_ICONS[step.type];
 
                       return (
-                        <li key={step.id} className="flex items-start gap-3">
-                          <span className="mt-1 flex h-6 w-6 items-center justify-center rounded-full bg-slate-900/10 text-xs font-semibold text-slate-700">
+                        <li key={step.id} className="flex items-start gap-2.5">
+                          <span className="mt-[0.15rem] flex h-5 w-5 items-center justify-center rounded-full bg-slate-900/10 text-[0.65rem] font-semibold text-slate-700">
                             {index + 1}
                           </span>
                           <div className="flex flex-col">
-                            <div className="flex items-center gap-2 text-slate-900">
-                              <Icon className="h-4 w-4 text-slate-500" />
-                              <span className="text-sm font-medium">{step.label}</span>
+                            <div className="flex items-center gap-1.5 text-slate-900">
+                              <Icon className="h-3.5 w-3.5 text-slate-500" />
+                              <span className="text-xs font-medium leading-tight">{step.label}</span>
                             </div>
-                            <span className="text-xs uppercase tracking-[0.2em] text-slate-500">{STEP_TYPE_LABELS[step.type]}</span>
+                            <span className="text-[0.6rem] uppercase tracking-[0.2em] text-slate-500">{STEP_TYPE_LABELS[step.type]}</span>
                           </div>
                         </li>
                       );
                     })}
                   </ol>
                 </div>
-                <div className="grid gap-4 sm:grid-cols-2">
+                <div className="grid gap-3.5 sm:grid-cols-2">
                   {highlights.map((item) => {
                     const Icon = highlightIcons[item.icon];
 
                     return (
                       <Card key={item.title} className="border-slate-200 bg-white/90 shadow-sm">
-                        <CardContent className="flex flex-col gap-2 p-5">
-                          <Icon className="h-5 w-5 text-slate-500" />
-                          <p className="text-sm font-medium text-slate-900">{item.title}</p>
-                          <p className="text-sm text-slate-600">{item.description}</p>
+                        <CardContent className="flex flex-col gap-1.5 p-4">
+                          <Icon className="h-4 w-4 text-slate-500" />
+                          <p className="text-xs font-medium text-slate-900">{item.title}</p>
+                          <p className="text-xs text-slate-600">{item.description}</p>
                         </CardContent>
                       </Card>
                     );
