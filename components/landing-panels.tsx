@@ -64,9 +64,28 @@ function loadMermaid(): Promise<MermaidAPI> {
 
   if (!mermaidLoader) {
     mermaidLoader = new Promise((resolve, reject) => {
+      const existingScript = document.querySelector<HTMLScriptElement>('script[data-mermaid]');
+
+      if (existingScript) {
+        existingScript.addEventListener('load', () => {
+          if (window.mermaid) {
+            resolve(window.mermaid);
+          } else {
+            mermaidLoader = null;
+            reject(new Error('Mermaid est introuvable après le chargement du script.'));
+          }
+        });
+        existingScript.addEventListener('error', () => {
+          mermaidLoader = null;
+          reject(new Error('Impossible de charger le script Mermaid.'));
+        });
+        return;
+      }
+
       const script = document.createElement('script');
       script.src = 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js';
       script.async = true;
+      script.crossOrigin = 'anonymous';
       script.dataset.mermaid = 'true';
       script.addEventListener('load', () => {
         if (window.mermaid) {
@@ -168,7 +187,182 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
       'classDef decision fill:#ffffff,stroke:#0f172a,color:#0f172a,stroke-width:2px;'
     ];
 
-    return ['graph TD', ...classDefinitions, ...nodes, ...connections, ...classAssignments].join('\n');
+    return ['flowchart TD', ...classDefinitions, ...nodes, ...connections, ...classAssignments].join('\n');
+  }, [steps]);
+
+  const fallbackDiagram = useMemo(() => {
+    if (steps.length === 0) {
+      return null;
+    }
+
+    const wrapLabel = (value: string) => {
+      const normalized = value.trim() || 'Étape';
+      const words = normalized.split(/\s+/);
+      const lines: string[] = [];
+      let currentLine = '';
+
+      for (const word of words) {
+        const nextSegment = currentLine ? `${currentLine} ${word}` : word;
+        if (nextSegment.length <= 18) {
+          currentLine = nextSegment;
+        } else {
+          if (currentLine) {
+            lines.push(currentLine);
+          }
+          currentLine = word;
+        }
+      }
+
+      if (currentLine) {
+        lines.push(currentLine);
+      }
+
+      return lines.slice(0, 3);
+    };
+
+    const centerX = 450;
+    const canvasWidth = 900;
+    const verticalSpacing = 200;
+    const verticalPadding = 140;
+    const actionSize = { width: 260, height: 96 };
+    const decisionSize = { width: 260, height: 120 };
+    const terminalRadius = 52;
+
+    const nodes = steps.map((step, index) => {
+      const centerY = verticalPadding + index * verticalSpacing;
+      const halfHeight =
+        step.type === 'action'
+          ? actionSize.height / 2
+          : step.type === 'decision'
+            ? decisionSize.height / 2
+            : terminalRadius;
+
+      return {
+        step,
+        centerY,
+        halfHeight,
+        lines: wrapLabel(step.label || STEP_TYPE_LABELS[step.type])
+      };
+    });
+
+    const canvasHeight = (nodes.at(-1)?.centerY ?? verticalPadding) + verticalPadding;
+
+    const diamondPoints = (centerY: number) =>
+      [
+        `${centerX},${centerY - decisionSize.height / 2}`,
+        `${centerX + decisionSize.width / 2},${centerY}`,
+        `${centerX},${centerY + decisionSize.height / 2}`,
+        `${centerX - decisionSize.width / 2},${centerY}`
+      ].join(' ');
+
+    return (
+      <svg
+        role="presentation"
+        viewBox={`0 0 ${canvasWidth} ${canvasHeight}`}
+        className="max-h-full w-full max-w-6xl opacity-90"
+        aria-hidden="true"
+      >
+        <defs>
+          <marker
+            id="process-arrow"
+            viewBox="0 0 12 12"
+            refX="6"
+            refY="6"
+            markerWidth="10"
+            markerHeight="10"
+            orient="auto"
+          >
+            <path d="M0 0L12 6L0 12Z" fill="#0f172a" />
+          </marker>
+          <filter id="process-shadow" x="-40%" y="-40%" width="180%" height="180%">
+            <feDropShadow dx="0" dy="18" stdDeviation="18" floodColor="rgba(15,23,42,0.18)" />
+          </filter>
+        </defs>
+        {nodes.slice(0, -1).map((node, index) => {
+          const nextNode = nodes[index + 1];
+          const startY = node.centerY + node.halfHeight;
+          const endY = nextNode.centerY - nextNode.halfHeight;
+
+          return (
+            <path
+              key={`edge-${node.step.id}-${nextNode.step.id}`}
+              d={`M ${centerX} ${startY} C ${centerX} ${startY + 48} ${centerX} ${endY - 48} ${centerX} ${endY}`}
+              fill="none"
+              stroke="#0f172a"
+              strokeWidth={2}
+              markerEnd="url(#process-arrow)"
+              opacity={0.7}
+            />
+          );
+        })}
+        {nodes.map((node, index) => {
+          const { step, centerY, lines, halfHeight } = node;
+          const isTerminal = step.type === 'start' || step.type === 'finish';
+          const isDecision = step.type === 'decision';
+          const isAction = step.type === 'action';
+          const primaryFill = isTerminal ? '#f8fafc' : '#ffffff';
+          const strokeColor = '#0f172a';
+          const label = STEP_TYPE_LABELS[step.type];
+
+          return (
+            <g key={step.id} filter="url(#process-shadow)">
+              {isTerminal ? (
+                <circle cx={centerX} cy={centerY} r={terminalRadius} fill={primaryFill} stroke={strokeColor} strokeWidth={2} />
+              ) : null}
+              {isAction ? (
+                <rect
+                  x={centerX - actionSize.width / 2}
+                  y={centerY - actionSize.height / 2}
+                  width={actionSize.width}
+                  height={actionSize.height}
+                  rx={24}
+                  fill={primaryFill}
+                  stroke={strokeColor}
+                  strokeWidth={2}
+                />
+              ) : null}
+              {isDecision ? (
+                <polygon points={diamondPoints(centerY)} fill={primaryFill} stroke={strokeColor} strokeWidth={2} />
+              ) : null}
+              <text
+                x={centerX}
+                y={centerY - halfHeight - 24}
+                textAnchor="middle"
+                fontSize={12}
+                letterSpacing="0.4em"
+                fill="#475569"
+              >
+                {label.toUpperCase()}
+              </text>
+              <text
+                x={centerX}
+                y={centerY}
+                textAnchor="middle"
+                fontSize={20}
+                fontWeight={600}
+                fill="#0f172a"
+                dominantBaseline="middle"
+              >
+                {lines.map((line, lineIndex) => (
+                  <tspan key={`${step.id}-line-${lineIndex}`} x={centerX} dy={lineIndex === 0 ? 0 : 22}>
+                    {line}
+                  </tspan>
+                ))}
+              </text>
+              <text
+                x={centerX}
+                y={centerY + halfHeight + 32}
+                textAnchor="middle"
+                fontSize={12}
+                fill="#64748b"
+              >
+                Étape {index + 1}
+              </text>
+            </g>
+          );
+        })}
+      </svg>
+    );
   }, [steps]);
 
   useEffect(() => {
@@ -285,7 +479,9 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
             aria-hidden="true"
             dangerouslySetInnerHTML={{ __html: diagramSvg }}
           />
-        ) : null}
+        ) : (
+          fallbackDiagram
+        )}
         {diagramError ? (
           <span role="status" aria-live="polite" className="sr-only">
             {diagramError}
