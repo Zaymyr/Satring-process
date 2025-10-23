@@ -18,7 +18,6 @@ import {
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils/cn';
 
 const highlightIcons = {
@@ -492,10 +491,6 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
     setSteps((prev) => prev.map((step) => (step.id === id ? { ...step, label } : step)));
   };
 
-  const updateStepType = (id: string, type: Extract<StepType, 'action' | 'decision'>) => {
-    setSteps((prev) => prev.map((step) => (step.id === id ? { ...step, type } : step)));
-  };
-
   const removeStep = (id: string) => {
     setSteps((prev) => prev.filter((step) => step.id !== id));
   };
@@ -577,78 +572,41 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                 <div className="space-y-3.5">
                   {steps.map((step, index) => {
                     const Icon = STEP_TYPE_ICONS[step.type];
-                    const isConfigurable = step.type === 'action' || step.type === 'decision';
+                    const isRemovable = step.type === 'action' || step.type === 'decision';
                     const stepPosition = index + 1;
 
                     return (
                       <Card key={step.id} className="border-slate-200 bg-white/90 shadow-sm">
-                        <CardContent className="space-y-3.5 p-4">
-                          <div className="flex items-center justify-between gap-2.5">
-                            <div className="flex items-center gap-2.5 text-slate-600">
-                              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-slate-100 text-[0.65rem] font-semibold text-slate-600">
-                                {stepPosition}
+                        <CardContent className="flex items-center gap-3 p-3.5">
+                          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-100 text-[0.65rem] font-semibold text-slate-600">
+                            {stepPosition}
+                          </span>
+                          <div className="flex min-w-0 flex-1 flex-col gap-1">
+                            <div className="flex items-center gap-1.5 text-slate-500">
+                              <Icon className="h-3.5 w-3.5" />
+                              <span className="text-[0.6rem] font-medium uppercase tracking-[0.24em]">
+                                {STEP_TYPE_LABELS[step.type]}
                               </span>
-                              <div className="flex items-center gap-1.5">
-                                <Icon className="h-3.5 w-3.5 text-slate-500" />
-                                <span className="text-[0.65rem] font-medium uppercase tracking-[0.22em] text-slate-500">
-                                  {STEP_TYPE_LABELS[step.type]}
-                                </span>
-                              </div>
                             </div>
-                            {isConfigurable ? (
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => removeStep(step.id)}
-                                className="h-7 w-7 text-slate-400 hover:text-slate-900"
-                                aria-label="Supprimer l’étape"
-                              >
-                                <Trash2 className="h-3.5 w-3.5" />
-                              </Button>
-                            ) : null}
-                          </div>
-                          <div className="space-y-2">
-                            <Label htmlFor={`step-${step.id}-label`} className="text-xs uppercase tracking-[0.2em] text-slate-500">
-                              Intitulé
-                            </Label>
                             <Input
                               id={`step-${step.id}-label`}
                               value={step.label}
                               onChange={(event) => updateStepLabel(step.id, event.target.value)}
-                              className="h-9 border-slate-200 bg-white text-sm text-slate-900 placeholder:text-slate-400 focus-visible:ring-slate-900/20 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-50"
+                              placeholder="Intitulé de l’étape"
+                              className="h-8 w-full border-slate-200 bg-white text-sm text-slate-900 placeholder:text-slate-400 focus-visible:ring-slate-900/20 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-50"
                             />
                           </div>
-                          {isConfigurable ? (
-                            <div className="space-y-2">
-                              <span className="text-xs uppercase tracking-[0.2em] text-slate-500">Type d’étape</span>
-                              <div className="flex gap-1.5">
-                                <Button
-                                  type="button"
-                                  variant={step.type === 'action' ? 'default' : 'outline'}
-                                  onClick={() => updateStepType(step.id, 'action')}
-                                  className={cn(
-                                    'flex-1 border-slate-300 bg-white px-3 text-sm text-slate-900 hover:bg-slate-50',
-                                    step.type === 'action' && 'border-transparent bg-slate-900 text-white hover:bg-slate-800'
-                                  )}
-                                >
-                                  <ListChecks className="mr-2 h-3.5 w-3.5" />
-                                  Action
-                                </Button>
-                                <Button
-                                  type="button"
-                                  variant={step.type === 'decision' ? 'default' : 'outline'}
-                                  onClick={() => updateStepType(step.id, 'decision')}
-                                  className={cn(
-                                    'flex-1 border-slate-300 bg-white px-3 text-sm text-slate-900 hover:bg-slate-50',
-                                    step.type === 'decision' && 'border-transparent bg-slate-900 text-white hover:bg-slate-800'
-                                  )}
-                                >
-                                  <GitBranch className="mr-2 h-3.5 w-3.5" />
-                                  Décision
-                                </Button>
-                              </div>
-                            </div>
+                          {isRemovable ? (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => removeStep(step.id)}
+                              className="h-7 w-7 shrink-0 text-slate-400 hover:text-slate-900"
+                              aria-label="Supprimer l’étape"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
                           ) : null}
                         </CardContent>
                       </Card>
