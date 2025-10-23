@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ChevronLeft,
   ChevronRight,
@@ -40,6 +40,53 @@ type Step = {
   type: StepType;
 };
 
+type MermaidAPI = {
+  initialize: (config: Record<string, unknown>) => void;
+  render: (id: string, definition: string) => Promise<{ svg: string }>;
+};
+
+declare global {
+  interface Window {
+    mermaid?: MermaidAPI;
+  }
+}
+
+let mermaidLoader: Promise<MermaidAPI> | null = null;
+
+function loadMermaid(): Promise<MermaidAPI> {
+  if (typeof window === 'undefined') {
+    return Promise.reject(new Error('Mermaid nécessite un environnement navigateur.'));
+  }
+
+  if (window.mermaid) {
+    return Promise.resolve(window.mermaid);
+  }
+
+  if (!mermaidLoader) {
+    mermaidLoader = new Promise((resolve, reject) => {
+      const script = document.createElement('script');
+      script.src = 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js';
+      script.async = true;
+      script.dataset.mermaid = 'true';
+      script.addEventListener('load', () => {
+        if (window.mermaid) {
+          resolve(window.mermaid);
+        } else {
+          mermaidLoader = null;
+          reject(new Error('Mermaid est introuvable après le chargement du script.'));
+        }
+      });
+      script.addEventListener('error', () => {
+        mermaidLoader = null;
+        reject(new Error('Impossible de charger le script Mermaid.'));
+      });
+      document.head.appendChild(script);
+    });
+  }
+
+  return mermaidLoader;
+}
+
 const STEP_TYPE_LABELS: Record<StepType, string> = {
   start: 'Départ',
   action: 'Action',
@@ -73,6 +120,11 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
     { id: 'start', label: 'Commencer', type: 'start' },
     { id: 'finish', label: 'Terminer', type: 'finish' }
   ]);
+  const [diagramSvg, setDiagramSvg] = useState('');
+  const [diagramError, setDiagramError] = useState<string | null>(null);
+  const [isMermaidReady, setIsMermaidReady] = useState(false);
+  const mermaidAPIRef = useRef<MermaidAPI | null>(null);
+  const diagramElementId = useMemo(() => `process-diagram-${generateStepId()}`, []);
 
   const escapeLabel = (value: string) =>
     value
@@ -86,81 +138,114 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
       return 'graph TD';
     }
 
+    const classAssignments: string[] = [];
     const nodes = steps.map((step, index) => {
       const nodeId = `S${index}`;
       const baseLabel = step.label.trim() || STEP_TYPE_LABELS[step.type];
       const label = escapeLabel(baseLabel);
 
       if (step.type === 'action') {
+        classAssignments.push(`class ${nodeId} action;`);
         return `${nodeId}["${label}"]`;
       }
 
       if (step.type === 'decision') {
+        classAssignments.push(`class ${nodeId} decision;`);
         return `${nodeId}{"${label}"}`;
       }
 
-      return `${nodeId}(["${label}"])`;
+      classAssignments.push(`class ${nodeId} terminal;`);
+      return `${nodeId}(("${label}"))`;
     });
 
     const connections = steps
       .slice(0, -1)
       .map((_, index) => `S${index} --> S${index + 1}`);
 
-    return ['graph TD', ...nodes, ...connections].join('\n');
+    const classDefinitions = [
+      'classDef terminal fill:#f8fafc,stroke:#0f172a,color:#0f172a,stroke-width:2px;',
+      'classDef action fill:#ffffff,stroke:#0f172a,color:#0f172a,stroke-width:2px;',
+      'classDef decision fill:#ffffff,stroke:#0f172a,color:#0f172a,stroke-width:2px;'
+    ];
+
+    return ['graph TD', ...classDefinitions, ...nodes, ...connections, ...classAssignments].join('\n');
   }, [steps]);
 
-  const diagramSrcDoc = useMemo(
-    () =>
-      String.raw`<!DOCTYPE html>
-<html lang="fr">
-  <head>
-    <meta charset="utf-8" />
-    <style>
-      :root {
-        color-scheme: light;
-      }
-      body {
-        margin: 0;
-        background: transparent;
-        font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-        color: #0f172a;
-      }
-      .mermaid {
-        width: 100%;
-        height: 100%;
-      }
-      .mermaid svg {
-        height: 100%;
-      }
-    </style>
-  </head>
-  <body>
-    <div class="mermaid">
-${diagramDefinition}
-    </div>
-    <script type="module">
-      import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
-      mermaid.initialize({
-        startOnLoad: true,
-        securityLevel: 'loose',
-        theme: 'neutral',
-        themeVariables: {
-          primaryColor: '#ffffff',
-          primaryTextColor: '#0f172a',
-          primaryBorderColor: '#0f172a',
-          lineColor: '#0f172a',
-          tertiaryColor: '#e2e8f0',
-          clusterBkg: '#f8fafc',
-          clusterBorder: '#94a3b8',
-          fontFamily: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
+  useEffect(() => {
+    let isActive = true;
+
+    loadMermaid()
+      .then((mermaid) => {
+        if (!isActive) {
+          return;
         }
+        mermaid.initialize({
+          startOnLoad: false,
+          securityLevel: 'loose',
+          theme: 'neutral',
+          themeVariables: {
+            fontFamily:
+              'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+            primaryColor: '#ffffff',
+            primaryTextColor: '#0f172a',
+            primaryBorderColor: '#0f172a',
+            lineColor: '#0f172a',
+            tertiaryColor: '#e2e8f0',
+            clusterBkg: '#f8fafc',
+            clusterBorder: '#94a3b8'
+          }
+        });
+        mermaidAPIRef.current = mermaid;
+        setDiagramError(null);
+        setIsMermaidReady(true);
+      })
+      .catch((error) => {
+        if (!isActive) {
+          return;
+        }
+        console.error('Erreur lors du chargement de Mermaid', error);
+        setDiagramError('Impossible de charger le diagramme.');
       });
-      mermaid.run({ querySelector: '.mermaid' });
-    </script>
-  </body>
-</html>`,
-    [diagramDefinition]
-  );
+
+    return () => {
+      isActive = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    const mermaid = mermaidAPIRef.current;
+    if (!isMermaidReady || !mermaid) {
+      return;
+    }
+
+    let isCurrent = true;
+
+    const renderDiagram = async () => {
+      try {
+        const { svg } = await mermaid.render(diagramElementId, diagramDefinition);
+        if (!isCurrent) {
+          return;
+        }
+        setDiagramError(null);
+        setDiagramSvg(svg);
+      } catch (error) {
+        if (!isCurrent) {
+          return;
+        }
+        console.error('Erreur lors du rendu Mermaid', error);
+        setDiagramSvg('');
+        setDiagramError("Impossible de générer le diagramme pour l'instant.");
+      }
+    };
+
+    setDiagramSvg('');
+    setDiagramError(null);
+    void renderDiagram();
+
+    return () => {
+      isCurrent = false;
+    };
+  }, [diagramDefinition, diagramElementId, isMermaidReady]);
 
   const addStep = (type: Extract<StepType, 'action' | 'decision'>) => {
     const label = type === 'action' ? 'Nouvelle action' : 'Nouvelle décision';
@@ -341,14 +426,20 @@ ${diagramDefinition}
             </div>
             <div className="flex-1 min-h-0 overflow-hidden">
               <div className="h-full overflow-hidden rounded-2xl border border-slate-200 bg-white/90 shadow-inner">
-                <iframe
-                  title="Diagramme du processus"
-                  srcDoc={diagramSrcDoc}
-                  sandbox="allow-scripts"
-                  loading="lazy"
-                  referrerPolicy="no-referrer"
-                  className="h-full w-full"
-                />
+                <div className="flex h-full w-full items-center justify-center overflow-auto p-6">
+                  {diagramSvg ? (
+                    <div
+                      className="w-full max-w-3xl [&_svg]:h-auto [&_svg]:w-full [&_svg]:max-h-full [&_.node rect]:stroke-slate-900 [&_.node rect]:stroke-[1.5px] [&_.node polygon]:stroke-slate-900 [&_.node polygon]:stroke-[1.5px] [&_.node circle]:stroke-slate-900 [&_.node circle]:stroke-[1.5px] [&_.node ellipse]:stroke-slate-900 [&_.node ellipse]:stroke-[1.5px] [&_.edgePath path]:stroke-slate-900 [&_.edgePath path]:stroke-[1.5px] [&_.edgeLabel]:text-slate-900"
+                      role="img"
+                      aria-label="Diagramme du processus"
+                      dangerouslySetInnerHTML={{ __html: diagramSvg }}
+                    />
+                  ) : (
+                    <p className="text-sm text-slate-500">
+                      {diagramError ?? 'Chargement du diagramme...'}
+                    </p>
+                  )}
+                </div>
               </div>
             </div>
           </section>
