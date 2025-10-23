@@ -500,8 +500,8 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
     setSteps((prev) => prev.filter((step) => step.id !== id));
   };
 
-  const primaryWidth = isPrimaryCollapsed ? '3.5rem' : 'clamp(22rem, 32vw, 40rem)';
-  const secondaryWidth = isSecondaryCollapsed ? '3.5rem' : 'clamp(18rem, 26vw, 30rem)';
+  const primaryWidth = isPrimaryCollapsed ? '3.5rem' : 'clamp(18rem, 28vw, 34rem)';
+  const secondaryWidth = isSecondaryCollapsed ? '3.5rem' : 'clamp(16rem, 22vw, 26rem)';
 
   return (
     <div className="relative min-h-screen overflow-x-hidden bg-gradient-to-br from-slate-100 via-white to-slate-200 text-slate-900">
@@ -521,7 +521,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
           </span>
         ) : null}
       </div>
-      <div className="relative z-10 flex min-h-screen w-full flex-col gap-8 px-4 py-12 lg:flex-row lg:items-stretch lg:gap-0 lg:justify-between lg:px-10 lg:py-16 xl:px-16">
+      <div className="relative z-10 flex min-h-screen w-full flex-col gap-6 px-4 py-8 lg:flex-row lg:items-stretch lg:gap-0 lg:justify-between lg:px-8 lg:py-12 xl:px-12">
         <div
           className="relative flex shrink-0 items-stretch overflow-hidden transition-[width] duration-300 ease-out max-h-[calc(100vh-6rem)] lg:order-1 lg:mr-auto lg:max-h-[calc(100vh-8rem)]"
           style={{ width: primaryWidth }}
@@ -542,39 +542,39 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
           <div
             id="primary-panel"
             className={cn(
-              'flex h-full w-full flex-col gap-12 overflow-hidden rounded-3xl border border-slate-200 bg-white/85 px-10 py-14 shadow-[0_30px_120px_-50px_rgba(15,23,42,0.35)] backdrop-blur transition-all duration-300 ease-out sm:px-12',
+              'flex h-full w-full flex-col gap-8 overflow-hidden rounded-3xl border border-slate-200 bg-white/85 px-8 py-10 shadow-[0_30px_120px_-50px_rgba(15,23,42,0.35)] backdrop-blur transition-all duration-300 ease-out sm:px-10',
               isPrimaryCollapsed
                 ? 'pointer-events-none opacity-0 lg:-translate-x-[110%]'
                 : 'pointer-events-auto opacity-100 lg:translate-x-0'
             )}
           >
-            <div className="space-y-5">
-              <p className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/70 px-4 py-1 text-xs uppercase tracking-[0.2em] text-slate-500 shadow-sm backdrop-blur">
-                <Sparkles className="h-4 w-4" />
+            <div className="space-y-4">
+              <p className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white/70 px-3 py-[0.35rem] text-[0.65rem] uppercase tracking-[0.24em] text-slate-500 shadow-sm backdrop-blur">
+                <Sparkles className="h-3.5 w-3.5" />
                 Bâtissez votre flux
               </p>
-              <div className="space-y-3">
-                <h1 className="text-3xl font-semibold leading-tight text-slate-900 sm:text-4xl">
+              <div className="space-y-2.5">
+                <h1 className="text-2xl font-semibold leading-snug text-slate-900 sm:text-3xl">
                   Décrivez chaque étape de votre processus.
                 </h1>
-                <p className="text-base text-slate-600">
+                <p className="text-sm text-slate-600">
                   Ajoutez des étapes d’action ou de décision entre un départ immuable et une arrivée certaine. Ajustez-les à la volée : tout est prêt pour documenter vos futurs parcours.
                 </p>
               </div>
             </div>
             <div className="flex-1 min-h-0 overflow-hidden">
-              <div className="h-full space-y-8 overflow-y-auto rounded-2xl border border-slate-200 bg-white/75 p-6 pr-3 shadow-inner sm:pr-4">
-                <div className="flex flex-wrap gap-3">
-                  <Button type="button" onClick={() => addStep('action')} className="bg-slate-900 text-white hover:bg-slate-800">
-                    <Plus className="mr-2 h-4 w-4" />
+              <div className="h-full space-y-6 overflow-y-auto rounded-2xl border border-slate-200 bg-white/75 p-5 pr-2 shadow-inner sm:pr-3">
+                <div className="flex flex-wrap gap-2.5">
+                  <Button type="button" onClick={() => addStep('action')} className="h-9 rounded-md bg-slate-900 px-3 text-sm text-white hover:bg-slate-800">
+                    <Plus className="mr-2 h-3.5 w-3.5" />
                     Ajouter une action
                   </Button>
-                  <Button type="button" variant="outline" onClick={() => addStep('decision')} className="border-slate-300 bg-white text-slate-900 hover:bg-slate-50">
-                    <GitBranch className="mr-2 h-4 w-4" />
+                  <Button type="button" variant="outline" onClick={() => addStep('decision')} className="h-9 rounded-md border-slate-300 bg-white px-3 text-sm text-slate-900 hover:bg-slate-50">
+                    <GitBranch className="mr-2 h-3.5 w-3.5" />
                     Ajouter une décision
                   </Button>
                 </div>
-                <div className="space-y-4">
+                <div className="space-y-3.5">
                   {steps.map((step, index) => {
                     const Icon = STEP_TYPE_ICONS[step.type];
                     const isConfigurable = step.type === 'action' || step.type === 'decision';
@@ -582,15 +582,15 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
 
                     return (
                       <Card key={step.id} className="border-slate-200 bg-white/90 shadow-sm">
-                        <CardContent className="space-y-4 p-5">
-                          <div className="flex items-center justify-between gap-3">
-                            <div className="flex items-center gap-3 text-slate-600">
-                              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-xs font-semibold text-slate-600">
+                        <CardContent className="space-y-3.5 p-4">
+                          <div className="flex items-center justify-between gap-2.5">
+                            <div className="flex items-center gap-2.5 text-slate-600">
+                              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-slate-100 text-[0.65rem] font-semibold text-slate-600">
                                 {stepPosition}
                               </span>
-                              <div className="flex items-center gap-2">
-                                <Icon className="h-4 w-4 text-slate-500" />
-                                <span className="text-xs font-medium uppercase tracking-[0.2em] text-slate-500">
+                              <div className="flex items-center gap-1.5">
+                                <Icon className="h-3.5 w-3.5 text-slate-500" />
+                                <span className="text-[0.65rem] font-medium uppercase tracking-[0.22em] text-slate-500">
                                   {STEP_TYPE_LABELS[step.type]}
                                 </span>
                               </div>
@@ -601,10 +601,10 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                                 variant="ghost"
                                 size="icon"
                                 onClick={() => removeStep(step.id)}
-                                className="h-8 w-8 text-slate-400 hover:text-slate-900"
+                                className="h-7 w-7 text-slate-400 hover:text-slate-900"
                                 aria-label="Supprimer l’étape"
                               >
-                                <Trash2 className="h-4 w-4" />
+                                <Trash2 className="h-3.5 w-3.5" />
                               </Button>
                             ) : null}
                           </div>
@@ -616,23 +616,23 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                               id={`step-${step.id}-label`}
                               value={step.label}
                               onChange={(event) => updateStepLabel(step.id, event.target.value)}
-                              className="border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus-visible:ring-slate-900/20 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-50"
+                              className="h-9 border-slate-200 bg-white text-sm text-slate-900 placeholder:text-slate-400 focus-visible:ring-slate-900/20 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-50"
                             />
                           </div>
                           {isConfigurable ? (
                             <div className="space-y-2">
                               <span className="text-xs uppercase tracking-[0.2em] text-slate-500">Type d’étape</span>
-                              <div className="flex gap-2">
+                              <div className="flex gap-1.5">
                                 <Button
                                   type="button"
                                   variant={step.type === 'action' ? 'default' : 'outline'}
                                   onClick={() => updateStepType(step.id, 'action')}
                                   className={cn(
-                                    'flex-1 border-slate-300 bg-white text-slate-900 hover:bg-slate-50',
+                                    'flex-1 border-slate-300 bg-white px-3 text-sm text-slate-900 hover:bg-slate-50',
                                     step.type === 'action' && 'border-transparent bg-slate-900 text-white hover:bg-slate-800'
                                   )}
                                 >
-                                  <ListChecks className="mr-2 h-4 w-4" />
+                                  <ListChecks className="mr-2 h-3.5 w-3.5" />
                                   Action
                                 </Button>
                                 <Button
@@ -640,11 +640,11 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                                   variant={step.type === 'decision' ? 'default' : 'outline'}
                                   onClick={() => updateStepType(step.id, 'decision')}
                                   className={cn(
-                                    'flex-1 border-slate-300 bg-white text-slate-900 hover:bg-slate-50',
+                                    'flex-1 border-slate-300 bg-white px-3 text-sm text-slate-900 hover:bg-slate-50',
                                     step.type === 'decision' && 'border-transparent bg-slate-900 text-white hover:bg-slate-800'
                                   )}
                                 >
-                                  <GitBranch className="mr-2 h-4 w-4" />
+                                  <GitBranch className="mr-2 h-3.5 w-3.5" />
                                   Décision
                                 </Button>
                               </div>
@@ -679,53 +679,53 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
           <aside
             id="secondary-panel"
             className={cn(
-              'flex h-full w-full flex-col gap-6 overflow-hidden rounded-3xl border border-slate-200 bg-white/80 p-8 shadow-[0_30px_120px_-50px_rgba(15,23,42,0.35)] backdrop-blur transition-all duration-300 ease-out',
+              'flex h-full w-full flex-col gap-5 overflow-hidden rounded-3xl border border-slate-200 bg-white/80 p-6 shadow-[0_30px_120px_-50px_rgba(15,23,42,0.35)] backdrop-blur transition-all duration-300 ease-out',
               isSecondaryCollapsed
                 ? 'pointer-events-none opacity-0 lg:translate-x-[110%]'
                 : 'pointer-events-auto opacity-100 lg:translate-x-0'
             )}
           >
-            <div className="space-y-4">
-              <h2 className="text-xl font-semibold text-slate-900">Aperçu du parcours</h2>
-              <p className="text-sm text-slate-600">
+            <div className="space-y-3">
+              <h2 className="text-lg font-semibold text-slate-900">Aperçu du parcours</h2>
+              <p className="text-xs text-slate-600">
                 Visualisez la progression de votre process pendant que vous le façonnez. Chaque étape reste synchronisée avec vos ajustements dans le panneau principal.
               </p>
             </div>
             <div className="flex-1 min-h-0 overflow-hidden">
-              <div className="flex h-full flex-col gap-5 overflow-y-auto pr-2">
-                <div className="rounded-2xl border border-slate-200 bg-white/80 p-5">
+              <div className="flex h-full flex-col gap-4 overflow-y-auto pr-2">
+                <div className="rounded-2xl border border-slate-200 bg-white/80 p-4">
                   <h3 className="text-sm font-semibold text-slate-900">Chronologie</h3>
-                  <ol className="mt-4 space-y-4">
+                  <ol className="mt-3 space-y-3">
                     {steps.map((step, index) => {
                       const Icon = STEP_TYPE_ICONS[step.type];
 
                       return (
-                        <li key={step.id} className="flex items-start gap-3">
-                          <span className="mt-1 flex h-6 w-6 items-center justify-center rounded-full bg-slate-900/10 text-xs font-semibold text-slate-700">
+                        <li key={step.id} className="flex items-start gap-2.5">
+                          <span className="mt-[0.15rem] flex h-5 w-5 items-center justify-center rounded-full bg-slate-900/10 text-[0.65rem] font-semibold text-slate-700">
                             {index + 1}
                           </span>
                           <div className="flex flex-col">
-                            <div className="flex items-center gap-2 text-slate-900">
-                              <Icon className="h-4 w-4 text-slate-500" />
-                              <span className="text-sm font-medium">{step.label}</span>
+                            <div className="flex items-center gap-1.5 text-slate-900">
+                              <Icon className="h-3.5 w-3.5 text-slate-500" />
+                              <span className="text-xs font-medium leading-tight">{step.label}</span>
                             </div>
-                            <span className="text-xs uppercase tracking-[0.2em] text-slate-500">{STEP_TYPE_LABELS[step.type]}</span>
+                            <span className="text-[0.6rem] uppercase tracking-[0.2em] text-slate-500">{STEP_TYPE_LABELS[step.type]}</span>
                           </div>
                         </li>
                       );
                     })}
                   </ol>
                 </div>
-                <div className="grid gap-4 sm:grid-cols-2">
+                <div className="grid gap-3.5 sm:grid-cols-2">
                   {highlights.map((item) => {
                     const Icon = highlightIcons[item.icon];
 
                     return (
                       <Card key={item.title} className="border-slate-200 bg-white/90 shadow-sm">
-                        <CardContent className="flex flex-col gap-2 p-5">
-                          <Icon className="h-5 w-5 text-slate-500" />
-                          <p className="text-sm font-medium text-slate-900">{item.title}</p>
-                          <p className="text-sm text-slate-600">{item.description}</p>
+                        <CardContent className="flex flex-col gap-1.5 p-4">
+                          <Icon className="h-4 w-4 text-slate-500" />
+                          <p className="text-xs font-medium text-slate-900">{item.title}</p>
+                          <p className="text-xs text-slate-600">{item.description}</p>
                         </CardContent>
                       </Card>
                     );
