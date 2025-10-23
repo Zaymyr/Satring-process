@@ -60,6 +60,39 @@ const mapSaveProcessError = (error: SupabaseError) => {
   } as const;
 };
 
+const normalizeSteps = (value: unknown): unknown => {
+  if (Array.isArray(value)) {
+    return value;
+  }
+
+  if (typeof value === 'string') {
+    try {
+      const parsed = JSON.parse(value);
+      if (Array.isArray(parsed)) {
+        return parsed;
+      }
+    } catch (error) {
+      console.error('Échec du parsing des étapes de process', error);
+    }
+  }
+
+  return value;
+};
+
+const normalizeUpdatedAt = (value: unknown): string | null => {
+  if (!value) {
+    return null;
+  }
+
+  const date = value instanceof Date ? value : new Date(value as string);
+  if (Number.isNaN(date.getTime())) {
+    console.error('Horodatage de process invalide', value);
+    return null;
+  }
+
+  return date.toISOString();
+};
+
 export async function GET() {
   const supabase = createServerClient();
   const {
@@ -166,9 +199,9 @@ export async function POST(request: Request) {
   }
 
   const parsedResponse = processResponseSchema.safeParse({
-    title: record.title ?? DEFAULT_PROCESS_TITLE,
-    steps: record.steps,
-    updatedAt: record.updated_at
+    title: typeof record.title === 'string' && record.title.trim().length > 0 ? record.title : DEFAULT_PROCESS_TITLE,
+    steps: normalizeSteps(record.steps),
+    updatedAt: normalizeUpdatedAt(record.updated_at)
   });
 
   if (!parsedResponse.success) {
