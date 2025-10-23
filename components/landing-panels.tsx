@@ -543,20 +543,9 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                 : 'pointer-events-auto opacity-100 lg:translate-x-0'
             )}
           >
-            <div className="space-y-4">
-              <p className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white/70 px-3 py-[0.35rem] text-[0.65rem] uppercase tracking-[0.24em] text-slate-500 shadow-sm backdrop-blur">
-                <Sparkles className="h-3.5 w-3.5" />
-                Bâtissez votre flux
-              </p>
-              <div className="space-y-2.5">
-                <h1 className="text-2xl font-semibold leading-snug text-slate-900 sm:text-3xl">
-                  Décrivez chaque étape de votre processus.
-                </h1>
-                <p className="text-sm text-slate-600">
-                  Ajoutez des étapes d’action ou de décision entre un départ immuable et une arrivée certaine. Ajustez-les à la volée : tout est prêt pour documenter vos futurs parcours.
-                </p>
-              </div>
-            </div>
+            <h1 className="text-base font-semibold text-slate-900">
+              Étapes du processus
+            </h1>
             <div className="flex-1 min-h-0 overflow-hidden">
               <div className="h-full space-y-6 overflow-y-auto rounded-2xl border border-slate-200 bg-white/75 p-5 pr-2 shadow-inner sm:pr-3">
                 <div className="flex flex-wrap gap-2.5">
