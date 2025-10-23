@@ -5,6 +5,61 @@ import { processPayloadSchema, processResponseSchema, type ProcessPayload } from
 
 const NO_STORE_HEADERS = { 'Cache-Control': 'no-store, max-age=0, must-revalidate' };
 
+type SupabaseError = {
+  readonly code?: string;
+  readonly message?: string;
+  readonly details?: string | null;
+  readonly hint?: string | null;
+};
+
+const mapSaveProcessError = (error: SupabaseError) => {
+  const code = error.code?.toUpperCase();
+
+  if (code === '28000') {
+    return {
+      status: 401,
+      body: { error: 'Authentification requise.' }
+    } as const;
+  }
+
+  if (code === '22P02') {
+    return {
+      status: 400,
+      body: { error: 'Le format des étapes est invalide.' }
+    } as const;
+  }
+
+  if (code === '22023') {
+    return {
+      status: 422,
+      body: { error: 'Ajoutez au moins deux étapes pour sauvegarder votre process.' }
+    } as const;
+  }
+
+  if (code === '42501') {
+    return {
+      status: 403,
+      body: { error: "Vous n'avez pas l'autorisation de sauvegarder ce process." }
+    } as const;
+  }
+
+  const rlsDenied =
+    error.message?.toLowerCase().includes('row level security') ||
+    error.details?.toLowerCase().includes('row level security');
+
+  if (rlsDenied) {
+    return {
+      status: 403,
+      body: { error: "Vous n'avez pas l'autorisation de sauvegarder ce process." }
+    } as const;
+  }
+
+  return {
+    status: 500,
+    body: { error: 'Impossible de sauvegarder le process.' }
+  } as const;
+};
+
 export async function GET() {
   const supabase = createServerClient();
   const {
@@ -90,10 +145,8 @@ export async function POST(request: Request) {
 
   if (error) {
     console.error('Erreur lors de la sauvegarde du process', error);
-    return NextResponse.json(
-      { error: 'Impossible de sauvegarder le process.' },
-      { status: 500, headers: NO_STORE_HEADERS }
-    );
+    const mapped = mapSaveProcessError(error);
+    return NextResponse.json(mapped.body, { status: mapped.status, headers: NO_STORE_HEADERS });
   }
 
   if (!data) {

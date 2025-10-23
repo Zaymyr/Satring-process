@@ -116,6 +116,35 @@ class ApiError extends Error {
   }
 }
 
+const parseErrorPayload = (raw: string, fallback: string) => {
+  if (!raw) {
+    return fallback;
+  }
+
+  try {
+    const parsed = JSON.parse(raw) as { error?: unknown };
+    const parsedMessage = typeof parsed.error === 'string' ? parsed.error.trim() : '';
+
+    if (parsedMessage) {
+      return parsedMessage;
+    }
+  } catch (error) {
+    console.error('Impossible de parser la réponse d’erreur', error);
+  }
+
+  return raw;
+};
+
+const readErrorMessage = async (response: Response, fallback: string) => {
+  try {
+    const raw = await response.text();
+    return parseErrorPayload(raw, fallback);
+  } catch (error) {
+    console.error('Impossible de lire la réponse d’erreur', error);
+    return fallback;
+  }
+};
+
 const cloneSteps = (steps: readonly ProcessStep[]): ProcessStep[] => steps.map((step) => ({ ...step }));
 
 const areStepsEqual = (a: readonly ProcessStep[], b: readonly ProcessStep[]) => {
@@ -141,8 +170,8 @@ const requestProcess = async (): Promise<ProcessResponse> => {
   }
 
   if (!response.ok) {
-    const message = await response.text();
-    throw new ApiError(message || 'Impossible de récupérer le process.', response.status);
+    const message = await readErrorMessage(response, 'Impossible de récupérer le process.');
+    throw new ApiError(message, response.status);
   }
 
   const json = await response.json();
@@ -236,8 +265,8 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
       }
 
       if (!response.ok) {
-        const message = await response.text();
-        throw new ApiError(message || 'Impossible de sauvegarder le process.', response.status);
+        const message = await readErrorMessage(response, 'Impossible de sauvegarder le process.');
+        throw new ApiError(message, response.status);
       }
 
       const json = await response.json();
