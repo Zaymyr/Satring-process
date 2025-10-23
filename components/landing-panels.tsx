@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import Link from 'next/link';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   ChevronLeft,
@@ -272,9 +273,17 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
     }
   }, [lastSavedAt]);
 
-  const statusMessage = useMemo(() => {
+  const statusMessage = useMemo<ReactNode>(() => {
     if (isUnauthorized) {
-      return 'Connectez-vous pour sauvegarder votre process.';
+      return (
+        <>
+          Connectez-vous pour sauvegarder votre process.
+          {' '}
+          <Link href="/sign-in" className="font-medium text-slate-900 underline-offset-2 hover:underline">
+            Se connecter
+          </Link>
+        </>
+      );
     }
 
     if (saveMutation.isError && saveMutation.error) {
