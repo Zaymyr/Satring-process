@@ -6,7 +6,7 @@ export const processSnapshots = pgTable(
   {
     id: uuid('id').defaultRandom().primaryKey(),
     ownerId: uuid('owner_id').notNull(),
-    title: text('title').notNull(),
+    title: text('title').notNull().default('Étapes du processus'),
     steps: jsonb('steps').$type<ProcessStep[]>().notNull(),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull()

@@ -1,4 +1,4 @@
-set search_path = public;
+create extension if not exists "pgcrypto";
 
 create table if not exists public.process_snapshots (
     id uuid primary key default gen_random_uuid(),
@@ -10,6 +10,7 @@ create table if not exists public.process_snapshots (
     constraint process_snapshots_owner_id_key unique (owner_id)
 );
 
+drop function if exists public.set_process_snapshots_updated_at();
 create or replace function public.set_process_snapshots_updated_at()
 returns trigger
 language plpgsql
@@ -20,12 +21,18 @@ begin
 end;
 $$;
 
+drop trigger if exists process_snapshots_updated_at on public.process_snapshots;
 create trigger process_snapshots_updated_at
 before update on public.process_snapshots
 for each row
 execute function public.set_process_snapshots_updated_at();
 
 alter table if exists public.process_snapshots enable row level security;
+
+drop policy if exists process_snapshots_select on public.process_snapshots;
+drop policy if exists process_snapshots_insert on public.process_snapshots;
+drop policy if exists process_snapshots_update on public.process_snapshots;
+drop policy if exists process_snapshots_delete on public.process_snapshots;
 
 create policy process_snapshots_select on public.process_snapshots
 for select
@@ -43,6 +50,8 @@ with check (auth.uid() = owner_id);
 create policy process_snapshots_delete on public.process_snapshots
 for delete
 using (auth.uid() = owner_id);
+
+drop function if exists public.save_process_snapshot(jsonb);
 
 create or replace function public.save_process_snapshot(payload jsonb)
 returns public.process_snapshots
@@ -82,3 +91,5 @@ begin
     return v_result;
 end;
 $$;
+
+grant execute on function public.save_process_snapshot(jsonb) to authenticated;
