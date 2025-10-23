@@ -43,7 +43,7 @@ export default async function RootLayout({
                     <span className="text-sm text-slate-600">Invité</span>
                   )}
                 </div>
-                <div>
+                <div className="flex items-center gap-3">
                   {user ? (
                     <form action="/api/auth/sign-out" method="post">
                       <button
@@ -54,12 +54,20 @@ export default async function RootLayout({
                       </button>
                     </form>
                   ) : (
-                    <Link
-                      href="/sign-in"
-                      className="inline-flex items-center rounded-md bg-slate-900 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-slate-800"
-                    >
-                      Se connecter
-                    </Link>
+                    <>
+                      <Link
+                        href="/sign-up"
+                        className="inline-flex items-center rounded-md border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 transition hover:bg-slate-50"
+                      >
+                        Créer un compte
+                      </Link>
+                      <Link
+                        href="/sign-in"
+                        className="inline-flex items-center rounded-md bg-slate-900 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-slate-800"
+                      >
+                        Se connecter
+                      </Link>
+                    </>
                   )}
                 </div>
               </div>

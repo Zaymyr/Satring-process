@@ -277,7 +277,11 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
     if (isUnauthorized) {
       return (
         <>
-          Connectez-vous pour sauvegarder votre process.
+          Connectez-vous ou{' '}
+          <Link href="/sign-up" className="font-medium text-slate-900 underline-offset-2 hover:underline">
+            créez un compte
+          </Link>{' '}
+          pour sauvegarder votre process.
           {' '}
           <Link href="/sign-in" className="font-medium text-slate-900 underline-offset-2 hover:underline">
             Se connecter

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
-import { createServerClient } from '@/lib/supabase/server';
 import { z } from 'zod';
+import { createServerClient } from '@/lib/supabase/server';
 
 const bodySchema = z.object({
   email: z.string().email('Adresse e-mail invalide.'),
@@ -17,14 +17,18 @@ export async function POST(request: Request) {
   }
 
   const supabase = createServerClient(cookies());
-  const { error } = await supabase.auth.signInWithPassword({
+  const origin = new URL(request.url).origin;
+  const { data, error } = await supabase.auth.signUp({
     email: parsed.data.email,
-    password: parsed.data.password
+    password: parsed.data.password,
+    options: {
+      emailRedirectTo: `${origin}/auth/callback`
+    }
   });
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 400 });
   }
 
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ ok: true, requiresEmailVerification: !data.session });
 }
