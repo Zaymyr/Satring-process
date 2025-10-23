@@ -277,8 +277,22 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
   const secondaryWidth = isSecondaryCollapsed ? '3.5rem' : 'min(28rem, 100%)';
 
   return (
-    <div className="min-h-screen overflow-x-hidden bg-gradient-to-br from-slate-100 via-white to-slate-200 text-slate-900">
-      <div className="flex min-h-screen w-full flex-col gap-8 px-4 py-12 lg:flex-row lg:items-stretch lg:gap-10 lg:px-10 lg:py-16">
+    <div className="relative min-h-screen overflow-x-hidden bg-gradient-to-br from-slate-100 via-white to-slate-200 text-slate-900">
+      <div className="pointer-events-none absolute inset-0 flex items-center justify-center overflow-hidden px-6 py-10 sm:px-10">
+        {diagramSvg ? (
+          <div
+            className="max-h-full w-full max-w-5xl opacity-90 [filter:drop-shadow(0_25px_65px_rgba(15,23,42,0.22))] [&_svg]:h-auto [&_svg]:w-full [&_svg]:max-h-full [&_.node rect]:stroke-slate-900 [&_.node rect]:stroke-[1.5px] [&_.node polygon]:stroke-slate-900 [&_.node polygon]:stroke-[1.5px] [&_.node circle]:stroke-slate-900 [&_.node circle]:stroke-[1.5px] [&_.node ellipse]:stroke-slate-900 [&_.node ellipse]:stroke-[1.5px] [&_.edgePath path]:stroke-slate-900 [&_.edgePath path]:stroke-[1.5px] [&_.edgeLabel]:text-slate-900"
+            aria-hidden="true"
+            dangerouslySetInnerHTML={{ __html: diagramSvg }}
+          />
+        ) : null}
+        {diagramError ? (
+          <span role="status" aria-live="polite" className="sr-only">
+            {diagramError}
+          </span>
+        ) : null}
+      </div>
+      <div className="relative z-10 flex min-h-screen w-full flex-col gap-8 px-4 py-12 lg:flex-row lg:items-stretch lg:gap-10 lg:px-10 lg:py-16">
         <div
           className="relative flex shrink-0 items-stretch overflow-hidden transition-[width] duration-300 ease-out max-h-[calc(100vh-6rem)] lg:order-1 lg:max-h-[calc(100vh-8rem)]"
           style={{ width: primaryWidth }}
@@ -416,36 +430,8 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
             </div>
           </div>
         </div>
-        <div className="relative flex min-h-[calc(100vh-6rem)] w-full min-w-0 flex-1 items-stretch overflow-hidden rounded-3xl border border-slate-200 bg-white/80 p-8 shadow-[0_30px_120px_-50px_rgba(15,23,42,0.35)] backdrop-blur transition-all duration-300 ease-out lg:order-2 lg:min-h-[calc(100vh-8rem)]">
-          <section className="flex h-full w-full min-w-0 flex-col gap-6">
-            <div className="space-y-3">
-              <h2 className="text-xl font-semibold text-slate-900">Diagramme du processus</h2>
-              <p className="text-sm text-slate-600">
-                Visualisez automatiquement votre flux sous forme de diagramme Mermaid. Les actions apparaissent en rectangles et les décisions en losanges.
-              </p>
-            </div>
-            <div className="flex-1 min-h-0 overflow-hidden">
-              <div className="h-full overflow-hidden rounded-2xl border border-slate-200 bg-white/90 shadow-inner">
-                <div className="flex h-full w-full items-center justify-center overflow-auto p-6">
-                  {diagramSvg ? (
-                    <div
-                      className="w-full max-w-3xl [&_svg]:h-auto [&_svg]:w-full [&_svg]:max-h-full [&_.node rect]:stroke-slate-900 [&_.node rect]:stroke-[1.5px] [&_.node polygon]:stroke-slate-900 [&_.node polygon]:stroke-[1.5px] [&_.node circle]:stroke-slate-900 [&_.node circle]:stroke-[1.5px] [&_.node ellipse]:stroke-slate-900 [&_.node ellipse]:stroke-[1.5px] [&_.edgePath path]:stroke-slate-900 [&_.edgePath path]:stroke-[1.5px] [&_.edgeLabel]:text-slate-900"
-                      role="img"
-                      aria-label="Diagramme du processus"
-                      dangerouslySetInnerHTML={{ __html: diagramSvg }}
-                    />
-                  ) : (
-                    <p className="text-sm text-slate-500">
-                      {diagramError ?? 'Chargement du diagramme...'}
-                    </p>
-                  )}
-                </div>
-              </div>
-            </div>
-          </section>
-        </div>
         <div
-          className="relative flex shrink-0 items-stretch overflow-hidden transition-[width] duration-300 ease-out max-h-[calc(100vh-6rem)] lg:order-3 lg:max-h-[calc(100vh-8rem)]"
+          className="relative flex shrink-0 items-stretch overflow-hidden transition-[width] duration-300 ease-out max-h-[calc(100vh-6rem)] lg:order-2 lg:max-h-[calc(100vh-8rem)]"
           style={{ width: secondaryWidth }}
         >
           <button
