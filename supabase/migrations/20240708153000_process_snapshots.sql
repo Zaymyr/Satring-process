@@ -84,7 +84,7 @@ begin
             steps = excluded.steps,
             title = excluded.title,
             updated_at = timezone('utc', now())
-        returning ps.*
+        returning * into v_result;
     );
 
     return v_result;
