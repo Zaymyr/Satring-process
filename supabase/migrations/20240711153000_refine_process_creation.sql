@@ -1,51 +1,3 @@
-set search_path = public;
-
-create table if not exists public.process_snapshots (
-    id uuid primary key default gen_random_uuid(),
-    owner_id uuid not null references auth.users(id) on delete cascade,
-    title text not null default 'Étapes du processus',
-    steps jsonb not null,
-    created_at timestamptz not null default timezone('utc', now()),
-    updated_at timestamptz not null default timezone('utc', now())
-);
-
-create index if not exists process_snapshots_owner_id_idx on public.process_snapshots(owner_id);
-create index if not exists process_snapshots_updated_at_idx on public.process_snapshots(updated_at);
-
-create or replace function public.set_process_snapshots_updated_at()
-returns trigger
-language plpgsql
-as $$
-begin
-    new.updated_at = timezone('utc', now());
-    return new;
-end;
-$$;
-
-create trigger process_snapshots_updated_at
-before update on public.process_snapshots
-for each row
-execute function public.set_process_snapshots_updated_at();
-
-alter table if exists public.process_snapshots enable row level security;
-
-create policy process_snapshots_select on public.process_snapshots
-for select
-using (auth.uid() = owner_id);
-
-create policy process_snapshots_insert on public.process_snapshots
-for insert
-with check (auth.uid() = owner_id);
-
-create policy process_snapshots_update on public.process_snapshots
-for update
-using (auth.uid() = owner_id)
-with check (auth.uid() = owner_id);
-
-create policy process_snapshots_delete on public.process_snapshots
-for delete
-using (auth.uid() = owner_id);
-
 create or replace function public.create_process_snapshot(payload jsonb)
 returns public.process_snapshots
 language plpgsql
@@ -79,6 +31,8 @@ end;
 $$;
 
 grant execute on function public.create_process_snapshot(jsonb) to authenticated;
+
+drop function if exists public.save_process_snapshot(jsonb);
 
 create or replace function public.save_process_snapshot(payload jsonb)
 returns public.process_snapshots

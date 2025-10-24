@@ -1,14 +1,17 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   ChevronLeft,
   ChevronRight,
   Flag,
+  FolderTree,
   GitBranch,
+  Loader2,
   ListChecks,
+  Pencil,
   PlayCircle,
   Plus,
   ShieldCheck,
@@ -24,9 +27,11 @@ import { DEFAULT_PROCESS_STEPS, DEFAULT_PROCESS_TITLE } from '@/lib/process/defa
 import { cn } from '@/lib/utils/cn';
 import {
   processResponseSchema,
+  processSummarySchema,
   type ProcessPayload,
   type ProcessResponse,
   type ProcessStep,
+  type ProcessSummary,
   type StepType
 } from '@/lib/validation/process';
 
@@ -116,6 +121,35 @@ class ApiError extends Error {
   }
 }
 
+const parseErrorPayload = (raw: string, fallback: string) => {
+  if (!raw) {
+    return fallback;
+  }
+
+  try {
+    const parsed = JSON.parse(raw) as { error?: unknown };
+    const parsedMessage = typeof parsed.error === 'string' ? parsed.error.trim() : '';
+
+    if (parsedMessage) {
+      return parsedMessage;
+    }
+  } catch (error) {
+    console.error('Impossible de parser la réponse d’erreur', error);
+  }
+
+  return raw;
+};
+
+const readErrorMessage = async (response: Response, fallback: string) => {
+  try {
+    const raw = await response.text();
+    return parseErrorPayload(raw, fallback);
+  } catch (error) {
+    console.error('Impossible de lire la réponse d’erreur', error);
+    return fallback;
+  }
+};
+
 const cloneSteps = (steps: readonly ProcessStep[]): ProcessStep[] => steps.map((step) => ({ ...step }));
 
 const areStepsEqual = (a: readonly ProcessStep[], b: readonly ProcessStep[]) => {
@@ -129,8 +163,33 @@ const areStepsEqual = (a: readonly ProcessStep[], b: readonly ProcessStep[]) => 
   });
 };
 
-const requestProcess = async (): Promise<ProcessResponse> => {
-  const response = await fetch('/api/process', {
+const normalizeProcessTitle = (value: string | null | undefined) => {
+  if (typeof value !== 'string') {
+    return DEFAULT_PROCESS_TITLE;
+  }
+
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : DEFAULT_PROCESS_TITLE;
+};
+
+const formatUpdatedAt = (value: string | null | undefined) => {
+  if (!value) {
+    return null;
+  }
+
+  try {
+    return new Intl.DateTimeFormat('fr-FR', {
+      dateStyle: 'short',
+      timeStyle: 'short'
+    }).format(new Date(value));
+  } catch (error) {
+    console.error('Impossible de formater la date de mise à jour', error);
+    return null;
+  }
+};
+
+const requestProcess = async (processId: string): Promise<ProcessResponse> => {
+  const response = await fetch(`/api/process?id=${encodeURIComponent(processId)}`, {
     method: 'GET',
     credentials: 'include',
     cache: 'no-store'
@@ -141,12 +200,76 @@ const requestProcess = async (): Promise<ProcessResponse> => {
   }
 
   if (!response.ok) {
-    const message = await response.text();
-    throw new ApiError(message || 'Impossible de récupérer le process.', response.status);
+    const message = await readErrorMessage(response, 'Impossible de récupérer le process.');
+    throw new ApiError(message, response.status);
   }
 
   const json = await response.json();
   return processResponseSchema.parse(json);
+};
+
+const processSummariesSchema = processSummarySchema.array();
+
+const requestProcessSummaries = async (): Promise<ProcessSummary[]> => {
+  const response = await fetch('/api/processes', {
+    method: 'GET',
+    credentials: 'include',
+    cache: 'no-store'
+  });
+
+  if (response.status === 401) {
+    throw new ApiError('Authentification requise', 401);
+  }
+
+  if (!response.ok) {
+    const message = await readErrorMessage(response, 'Impossible de lister vos process.');
+    throw new ApiError(message, response.status);
+  }
+
+  const json = await response.json();
+  return processSummariesSchema.parse(json);
+};
+
+const createProcessRequest = async (title?: string): Promise<ProcessResponse> => {
+  const response = await fetch('/api/processes', {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(title ? { title } : {})
+  });
+
+  if (response.status === 401) {
+    throw new ApiError('Authentification requise', 401);
+  }
+
+  if (!response.ok) {
+    const message = await readErrorMessage(response, 'Impossible de créer un nouveau process.');
+    throw new ApiError(message, response.status);
+  }
+
+  const json = await response.json();
+  return processResponseSchema.parse(json);
+};
+
+const renameProcessRequest = async (input: { id: string; title: string }): Promise<ProcessSummary> => {
+  const response = await fetch(`/api/processes/${encodeURIComponent(input.id)}`, {
+    method: 'PATCH',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ title: input.title })
+  });
+
+  if (response.status === 401) {
+    throw new ApiError('Authentification requise', 401);
+  }
+
+  if (!response.ok) {
+    const message = await readErrorMessage(response, 'Impossible de renommer le process.');
+    throw new ApiError(message, response.status);
+  }
+
+  const json = await response.json();
+  return processSummarySchema.parse(json);
 };
 
 const STEP_TYPE_LABELS: Record<StepType, string> = {
@@ -179,6 +302,8 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
   const queryClient = useQueryClient();
   const [isPrimaryCollapsed, setIsPrimaryCollapsed] = useState(false);
   const [isSecondaryCollapsed, setIsSecondaryCollapsed] = useState(false);
+  const [selectedProcessId, setSelectedProcessId] = useState<string | null>(null);
+  const [processTitle, setProcessTitle] = useState(DEFAULT_PROCESS_TITLE);
   const [steps, setSteps] = useState<ProcessStep[]>(() => cloneSteps(DEFAULT_PROCESS_STEPS));
   const baselineStepsRef = useRef<ProcessStep[]>(cloneSteps(DEFAULT_PROCESS_STEPS));
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
@@ -187,10 +312,13 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
   const [isMermaidReady, setIsMermaidReady] = useState(false);
   const mermaidAPIRef = useRef<MermaidAPI | null>(null);
   const diagramElementId = useMemo(() => `process-diagram-${generateStepId()}`, []);
+  const [editingProcessId, setEditingProcessId] = useState<string | null>(null);
+  const [renameDraft, setRenameDraft] = useState('');
+  const renameInputRef = useRef<HTMLInputElement | null>(null);
 
-  const processQuery = useQuery<ProcessResponse, ApiError>({
-    queryKey: ['process'],
-    queryFn: requestProcess,
+  const processSummariesQuery = useQuery<ProcessSummary[], ApiError>({
+    queryKey: ['processes'],
+    queryFn: requestProcessSummaries,
     retry: (failureCount, error) => {
       if (error instanceof ApiError && error.status === 401) {
         return false;
@@ -199,8 +327,47 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
     }
   });
 
-  const isUnauthorized =
+  const currentProcessId = selectedProcessId;
+
+  const processQuery = useQuery<ProcessResponse, ApiError>({
+    queryKey: ['process', currentProcessId],
+    queryFn: () => requestProcess(currentProcessId as string),
+    enabled: typeof currentProcessId === 'string',
+    retry: (failureCount, error) => {
+      if (error instanceof ApiError && error.status === 401) {
+        return false;
+      }
+      return failureCount < 2;
+    }
+  });
+
+  useEffect(() => {
+    if (editingProcessId && renameInputRef.current) {
+      renameInputRef.current.focus();
+      renameInputRef.current.select();
+    }
+  }, [editingProcessId]);
+
+  useEffect(() => {
+    if (!editingProcessId) {
+      renameInputRef.current = null;
+    }
+  }, [editingProcessId]);
+
+  const isProcessListUnauthorized =
+    processSummariesQuery.isError &&
+    processSummariesQuery.error instanceof ApiError &&
+    processSummariesQuery.error.status === 401;
+
+  const isProcessQueryUnauthorized =
     processQuery.isError && processQuery.error instanceof ApiError && processQuery.error.status === 401;
+
+  const isUnauthorized = isProcessListUnauthorized || isProcessQueryUnauthorized;
+  const processSummaries = useMemo(
+    () => processSummariesQuery.data ?? [],
+    [processSummariesQuery.data]
+  );
+  const hasProcesses = processSummaries.length > 0;
 
   useEffect(() => {
     if (processQuery.data) {
@@ -208,6 +375,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
       baselineStepsRef.current = cloneSteps(fromServer);
       setSteps(fromServer);
       setLastSavedAt(processQuery.data.updatedAt);
+      setProcessTitle(normalizeProcessTitle(processQuery.data.title));
     }
   }, [processQuery.data]);
 
@@ -217,18 +385,155 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
       baselineStepsRef.current = cloneSteps(fallback);
       setSteps(fallback);
       setLastSavedAt(null);
+      setSelectedProcessId(null);
+      setProcessTitle(DEFAULT_PROCESS_TITLE);
     }
   }, [isUnauthorized]);
 
+  useEffect(() => {
+    if (isUnauthorized) {
+      return;
+    }
+
+    const summaries = processSummariesQuery.data;
+
+    if (!summaries) {
+      return;
+    }
+
+    if (summaries.length === 0) {
+      setSelectedProcessId(null);
+      setProcessTitle(DEFAULT_PROCESS_TITLE);
+      const fallback = cloneSteps(DEFAULT_PROCESS_STEPS);
+      baselineStepsRef.current = cloneSteps(fallback);
+      setSteps(fallback);
+      setLastSavedAt(null);
+      return;
+    }
+
+    const hasSelection = currentProcessId && summaries.some((item) => item.id === currentProcessId);
+
+    if (!hasSelection) {
+      const [first] = summaries;
+      setSelectedProcessId(first.id);
+      setProcessTitle(normalizeProcessTitle(first.title));
+      return;
+    }
+
+    const currentSummary = summaries.find((item) => item.id === currentProcessId);
+
+    if (currentSummary) {
+      setProcessTitle(normalizeProcessTitle(currentSummary.title));
+    }
+  }, [currentProcessId, isUnauthorized, processSummariesQuery.data]);
+
+  useEffect(() => {
+    if (
+      processQuery.isError &&
+      processQuery.error instanceof ApiError &&
+      processQuery.error.status === 404 &&
+      currentProcessId
+    ) {
+      queryClient.invalidateQueries({ queryKey: ['processes'] });
+      setSelectedProcessId(null);
+      const fallback = cloneSteps(DEFAULT_PROCESS_STEPS);
+      baselineStepsRef.current = cloneSteps(fallback);
+      setSteps(fallback);
+      setLastSavedAt(null);
+      setProcessTitle(DEFAULT_PROCESS_TITLE);
+    }
+  }, [currentProcessId, processQuery.error, processQuery.isError, queryClient]);
+
   const isDirty = useMemo(() => !areStepsEqual(steps, baselineStepsRef.current), [steps]);
+
+  const createProcessMutation = useMutation<ProcessResponse, ApiError, string | undefined>({
+    mutationFn: (title) => createProcessRequest(title),
+    onSuccess: (data) => {
+      const sanitizedSteps = cloneSteps(data.steps);
+      baselineStepsRef.current = cloneSteps(sanitizedSteps);
+      setSteps(sanitizedSteps);
+      setLastSavedAt(data.updatedAt);
+      setSelectedProcessId(data.id);
+      const normalizedTitle = normalizeProcessTitle(data.title);
+      setProcessTitle(normalizedTitle);
+      queryClient.setQueryData(['processes'], (previous?: ProcessSummary[]) => {
+        const summary: ProcessSummary = { id: data.id, title: normalizedTitle, updatedAt: data.updatedAt };
+
+        if (!previous) {
+          return [summary];
+        }
+
+        const filtered = previous.filter((item) => item.id !== data.id);
+        return [summary, ...filtered];
+      });
+      queryClient.setQueryData(['process', data.id], data);
+      setEditingProcessId(data.id);
+      setRenameDraft(normalizedTitle);
+    },
+    onError: (error) => {
+      console.error('Erreur lors de la création du process', error);
+    }
+  });
+
+  const renameProcessMutation = useMutation<ProcessSummary, ApiError, { id: string; title: string }>({
+    mutationFn: renameProcessRequest,
+    onSuccess: (summary) => {
+      const normalizedTitle = normalizeProcessTitle(summary.title);
+      queryClient.setQueryData(['processes'], (previous?: ProcessSummary[]) => {
+        const summaryEntry: ProcessSummary = {
+          id: summary.id,
+          title: normalizedTitle,
+          updatedAt: summary.updatedAt
+        };
+
+        if (!previous) {
+          return [summaryEntry];
+        }
+
+        const filtered = previous.filter((item) => item.id !== summary.id);
+        return [summaryEntry, ...filtered];
+      });
+
+      queryClient.setQueryData(['process', summary.id], (previous: ProcessResponse | undefined) => {
+        if (!previous) {
+          return previous;
+        }
+
+        return {
+          ...previous,
+          title: normalizedTitle,
+          updatedAt: summary.updatedAt ?? previous.updatedAt
+        };
+      });
+
+      if (selectedProcessId === summary.id) {
+        setProcessTitle(normalizedTitle);
+        setLastSavedAt((prev) => summary.updatedAt ?? prev);
+      }
+
+      setEditingProcessId(null);
+      setRenameDraft('');
+    },
+    onError: (error) => {
+      console.error('Erreur lors du renommage du process', error);
+      if (renameInputRef.current) {
+        renameInputRef.current.focus();
+        renameInputRef.current.select();
+      }
+    }
+  });
 
   const saveMutation = useMutation<ProcessResponse, ApiError, ProcessPayload>({
     mutationFn: async (payload) => {
-      const response = await fetch('/api/process', {
+      if (!payload.id) {
+        throw new ApiError('Identifiant de process manquant', 400);
+      }
+
+      const response = await fetch(`/api/process?id=${encodeURIComponent(payload.id)}`, {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+        body: JSON.stringify({ title: payload.title, steps: payload.steps })
       });
 
       if (response.status === 401) {
@@ -236,8 +541,8 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
       }
 
       if (!response.ok) {
-        const message = await response.text();
-        throw new ApiError(message || 'Impossible de sauvegarder le process.', response.status);
+        const message = await readErrorMessage(response, 'Impossible de sauvegarder le process.');
+        throw new ApiError(message, response.status);
       }
 
       const json = await response.json();
@@ -248,7 +553,19 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
       baselineStepsRef.current = cloneSteps(sanitized);
       setSteps(sanitized);
       setLastSavedAt(data.updatedAt);
-      queryClient.setQueryData(['process'], data);
+      const normalizedTitle = normalizeProcessTitle(data.title);
+      setProcessTitle(normalizedTitle);
+      queryClient.setQueryData(['process', data.id], data);
+      queryClient.setQueryData(['processes'], (previous?: ProcessSummary[]) => {
+        const summary: ProcessSummary = { id: data.id, title: normalizedTitle, updatedAt: data.updatedAt };
+
+        if (!previous) {
+          return [summary];
+        }
+
+        const filtered = previous.filter((item) => item.id !== data.id);
+        return [summary, ...filtered];
+      });
     },
     onError: (error) => {
       console.error('Erreur de sauvegarde du process', error);
@@ -256,6 +573,8 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
   });
 
   const isSaving = saveMutation.isPending;
+  const isCreating = createProcessMutation.isPending;
+  const isRenaming = renameProcessMutation.isPending;
 
   const formattedSavedAt = useMemo(() => {
     if (!lastSavedAt) {
@@ -290,24 +609,40 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
       );
     }
 
+    if (!currentProcessId) {
+      if (isCreating) {
+        return 'Création du process en cours…';
+      }
+      return 'Créez un process pour commencer.';
+    }
+
     if (saveMutation.isError && saveMutation.error) {
       return saveMutation.error.message || 'Impossible de sauvegarder le process.';
-    }
-
-    if (formattedSavedAt && !isDirty) {
-      return `Dernière sauvegarde : ${formattedSavedAt}`;
-    }
-
-    if (formattedSavedAt) {
-      return `Modifications depuis la sauvegarde du ${formattedSavedAt}`;
     }
 
     if (processQuery.isLoading) {
       return 'Chargement du process en cours…';
     }
 
+    if (isDirty) {
+      return 'Des modifications non sauvegardées sont en attente.';
+    }
+
+    if (formattedSavedAt) {
+      return `Dernière sauvegarde : ${formattedSavedAt}`;
+    }
+
     return 'Aucune sauvegarde enregistrée pour le moment.';
-  }, [formattedSavedAt, isDirty, isUnauthorized, processQuery.isLoading, saveMutation.error, saveMutation.isError]);
+  }, [
+    currentProcessId,
+    formattedSavedAt,
+    isCreating,
+    isDirty,
+    isUnauthorized,
+    processQuery.isLoading,
+    saveMutation.error,
+    saveMutation.isError
+  ]);
 
   const statusToneClass = useMemo(() => {
     if (saveMutation.isError) {
@@ -316,15 +651,21 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
     if (isUnauthorized) {
       return 'text-slate-500';
     }
+    if (!currentProcessId) {
+      return 'text-slate-500';
+    }
     if (!isDirty && formattedSavedAt) {
       return 'text-emerald-600';
     }
     return 'text-slate-500';
-  }, [formattedSavedAt, isDirty, isUnauthorized, saveMutation.isError]);
+  }, [currentProcessId, formattedSavedAt, isDirty, isUnauthorized, saveMutation.isError]);
 
   const saveButtonLabel = useMemo(() => {
     if (isUnauthorized) {
       return 'Connexion requise';
+    }
+    if (!currentProcessId) {
+      return isCreating ? 'Création…' : 'Créer un process';
     }
     if (isSaving) {
       return 'Sauvegarde…';
@@ -333,22 +674,68 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
       return 'Sauvegarder le process';
     }
     return 'Process à jour';
-  }, [isDirty, isSaving, isUnauthorized]);
+  }, [currentProcessId, isCreating, isDirty, isSaving, isUnauthorized]);
 
-  const isSaveDisabled = isUnauthorized || isSaving || !isDirty;
+  const isSaveDisabled = isUnauthorized || isSaving || !isDirty || !currentProcessId;
 
   const handleSave = () => {
-    if (isSaveDisabled) {
+    if (isSaveDisabled || !currentProcessId) {
       return;
     }
 
     const payloadSteps = steps.map((step) => ({ ...step, label: step.label.trim() }));
     const payload: ProcessPayload = {
-      title: DEFAULT_PROCESS_TITLE,
+      id: currentProcessId,
+      title: normalizeProcessTitle(processTitle),
       steps: payloadSteps
     };
     saveMutation.mutate(payload);
   };
+
+  const startEditingProcess = useCallback(
+    (process: ProcessSummary) => {
+      setEditingProcessId(process.id);
+      setRenameDraft(normalizeProcessTitle(process.title));
+    },
+    []
+  );
+
+  const cancelEditingProcess = useCallback(() => {
+    setEditingProcessId(null);
+    setRenameDraft('');
+  }, []);
+
+  const submitRename = useCallback(() => {
+    if (!editingProcessId || isRenaming) {
+      return;
+    }
+
+    const trimmed = renameDraft.trim();
+    const normalized = trimmed.length > 0 ? trimmed : DEFAULT_PROCESS_TITLE;
+    const current = processSummaries.find((item) => item.id === editingProcessId);
+
+    if (current && normalizeProcessTitle(current.title) === normalizeProcessTitle(normalized)) {
+      cancelEditingProcess();
+      return;
+    }
+
+    renameProcessMutation.mutate({ id: editingProcessId, title: normalized });
+  }, [
+    cancelEditingProcess,
+    editingProcessId,
+    isRenaming,
+    processSummaries,
+    renameDraft,
+    renameProcessMutation
+  ]);
+
+  const handleCreateProcess = useCallback(() => {
+    if (isUnauthorized || isCreating) {
+      return;
+    }
+
+    createProcessMutation.mutate(undefined);
+  }, [createProcessMutation, isCreating, isUnauthorized]);
 
   const escapeHtml = (value: string) =>
     value
@@ -749,7 +1136,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                 : 'pointer-events-auto opacity-100 lg:translate-x-0'
             )}
           >
-            <h1 className="text-base font-semibold text-slate-900">{DEFAULT_PROCESS_TITLE}</h1>
+            <h1 className="text-base font-semibold text-slate-900">{processTitle}</h1>
             <div className="flex-1 min-h-0 overflow-hidden">
               <div className="h-full space-y-6 overflow-y-auto rounded-2xl border border-slate-200 bg-white/75 p-5 pr-2 shadow-inner sm:pr-3">
                 <div className="flex flex-wrap gap-2.5">
@@ -849,53 +1236,149 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                 : 'pointer-events-auto opacity-100 lg:translate-x-0'
             )}
           >
-            <div className="space-y-3">
-              <h2 className="text-lg font-semibold text-slate-900">Aperçu du parcours</h2>
-              <p className="text-xs text-slate-600">
-                Visualisez la progression de votre process pendant que vous le façonnez. Chaque étape reste synchronisée avec vos ajustements dans le panneau principal.
-              </p>
+            <div className="space-y-2">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h2 className="text-lg font-semibold text-slate-900">Mes process</h2>
+                  <p className="text-xs text-slate-600">
+                    Gérez vos parcours enregistrés et renommez-les directement depuis cette liste.
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={handleCreateProcess}
+                  disabled={isUnauthorized || isCreating}
+                  className="inline-flex h-8 items-center gap-1 rounded-md bg-slate-900 px-3 text-xs font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600"
+                >
+                  {isCreating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
+                  Nouveau
+                </Button>
+              </div>
             </div>
             <div className="flex-1 min-h-0 overflow-hidden">
-              <div className="flex h-full flex-col gap-4 overflow-y-auto pr-2">
-                <div className="rounded-2xl border border-slate-200 bg-white/80 p-4">
-                  <h3 className="text-sm font-semibold text-slate-900">Chronologie</h3>
-                  <ol className="mt-3 space-y-3">
-                    {steps.map((step, index) => {
-                      const Icon = STEP_TYPE_ICONS[step.type];
+              <div className="flex h-full flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white/80">
+                <div className="flex-1 overflow-y-auto px-3 py-4">
+                  {isProcessListUnauthorized ? (
+                    <p className="text-sm text-slate-600">
+                      Connectez-vous pour accéder à vos process sauvegardés.
+                    </p>
+                  ) : processSummariesQuery.isLoading ? (
+                    <div className="flex items-center gap-2 text-sm text-slate-500">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Chargement des process…
+                    </div>
+                  ) : processSummariesQuery.isError ? (
+                    <p className="text-sm text-red-600">
+                      {processSummariesQuery.error instanceof ApiError
+                        ? processSummariesQuery.error.message
+                        : 'Impossible de récupérer la liste des process.'}
+                    </p>
+                  ) : hasProcesses ? (
+                    <ul role="tree" aria-label="Process sauvegardés" className="space-y-2">
+                      {processSummaries.map((summary) => {
+                        const isSelected = summary.id === currentProcessId;
+                        const isEditing = editingProcessId === summary.id;
+                        const updatedLabel = formatUpdatedAt(summary.updatedAt);
 
-                      return (
-                        <li key={step.id} className="flex items-start gap-2.5">
-                          <span className="mt-[0.15rem] flex h-5 w-5 items-center justify-center rounded-full bg-slate-900/10 text-[0.65rem] font-semibold text-slate-700">
-                            {index + 1}
-                          </span>
-                          <div className="flex flex-col">
-                            <div className="flex items-center gap-1.5 text-slate-900">
-                              <Icon className="h-3.5 w-3.5 text-slate-500" />
-                              <span className="text-xs font-medium leading-tight">{step.label}</span>
+                        return (
+                          <li
+                            key={summary.id}
+                            role="treeitem"
+                            aria-selected={isSelected}
+                            className="focus:outline-none"
+                          >
+                            <div
+                              className={cn(
+                                'flex flex-col gap-1 rounded-lg border border-transparent px-2 py-2 transition',
+                                isSelected
+                                  ? 'border-slate-900/30 bg-slate-900/5 shadow-inner'
+                                  : 'hover:border-slate-300 hover:bg-slate-100'
+                              )}
+                            >
+                              {isEditing ? (
+                                <Input
+                                  ref={(node) => {
+                                    renameInputRef.current = node;
+                                  }}
+                                  value={renameDraft}
+                                  onChange={(event) => setRenameDraft(event.target.value)}
+                                  onBlur={submitRename}
+                                  onKeyDown={(event) => {
+                                    if (event.key === 'Enter') {
+                                      event.preventDefault();
+                                      submitRename();
+                                    } else if (event.key === 'Escape') {
+                                      event.preventDefault();
+                                      cancelEditingProcess();
+                                    }
+                                  }}
+                                  disabled={isRenaming}
+                                  className="h-8"
+                                />
+                              ) : (
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={() => setSelectedProcessId(summary.id)}
+                                    onDoubleClick={() => startEditingProcess(summary)}
+                                    className={cn(
+                                      'flex flex-1 items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm font-medium transition',
+                                      isSelected
+                                        ? 'bg-slate-900 text-white shadow-sm'
+                                        : 'bg-white/40 text-slate-700 hover:bg-white'
+                                    )}
+                                  >
+                                    <FolderTree className={cn('h-4 w-4', isSelected ? 'text-white' : 'text-slate-500')} />
+                                    <span className="truncate">{normalizeProcessTitle(summary.title)}</span>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={(event) => {
+                                      event.stopPropagation();
+                                      setSelectedProcessId(summary.id);
+                                      startEditingProcess(summary);
+                                    }}
+                                    className={cn(
+                                      'inline-flex h-8 w-8 items-center justify-center rounded-md border border-transparent text-slate-500 transition hover:border-slate-300 hover:bg-white hover:text-slate-700',
+                                      isSelected ? 'border-slate-300 bg-white/80' : 'bg-white/60'
+                                    )}
+                                  >
+                                    <Pencil className="h-3.5 w-3.5" />
+                                    <span className="sr-only">Renommer le process</span>
+                                  </button>
+                                </div>
+                              )}
+                              <div className="px-2 text-xs text-slate-500">
+                                {updatedLabel ? `Mis à jour le ${updatedLabel}` : 'Jamais sauvegardé'}
+                              </div>
                             </div>
-                            <span className="text-[0.6rem] uppercase tracking-[0.2em] text-slate-500">{STEP_TYPE_LABELS[step.type]}</span>
-                          </div>
-                        </li>
-                      );
-                    })}
-                  </ol>
-                </div>
-                <div className="grid gap-3.5 sm:grid-cols-2">
-                  {highlights.map((item) => {
-                    const Icon = highlightIcons[item.icon];
-
-                    return (
-                      <Card key={item.title} className="border-slate-200 bg-white/90 shadow-sm">
-                        <CardContent className="flex flex-col gap-1.5 p-4">
-                          <Icon className="h-4 w-4 text-slate-500" />
-                          <p className="text-xs font-medium text-slate-900">{item.title}</p>
-                          <p className="text-xs text-slate-600">{item.description}</p>
-                        </CardContent>
-                      </Card>
-                    );
-                  })}
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  ) : (
+                    <p className="text-sm text-slate-600">
+                      Créez votre premier process pour le retrouver facilement ici.
+                    </p>
+                  )}
                 </div>
               </div>
+            </div>
+            <div className="grid gap-3.5 sm:grid-cols-2">
+              {highlights.map((item) => {
+                const Icon = highlightIcons[item.icon];
+
+                return (
+                  <Card key={item.title} className="border-slate-200 bg-white/90 shadow-sm">
+                    <CardContent className="flex flex-col gap-1.5 p-4">
+                      <Icon className="h-4 w-4 text-slate-500" />
+                      <p className="text-xs font-medium text-slate-900">{item.title}</p>
+                      <p className="text-xs text-slate-600">{item.description}</p>
+                    </CardContent>
+                  </Card>
+                );
+              })}
             </div>
           </aside>
         </div>

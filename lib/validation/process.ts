@@ -9,11 +9,21 @@ export const stepSchema = z.object({
 });
 
 export const processPayloadSchema = z.object({
+  id: z.string().uuid().optional(),
   title: z.string().min(1).max(120),
   steps: z.array(stepSchema).min(2)
 });
 
-export const processResponseSchema = processPayloadSchema.extend({
+export const processResponseSchema = z.object({
+  id: z.string().uuid(),
+  title: z.string().min(1).max(120),
+  steps: z.array(stepSchema).min(2),
+  updatedAt: z.string().datetime().nullable()
+});
+
+export const processSummarySchema = z.object({
+  id: z.string().uuid(),
+  title: z.string().min(1).max(120),
   updatedAt: z.string().datetime().nullable()
 });
 
@@ -21,3 +31,4 @@ export type StepType = (typeof stepTypeValues)[number];
 export type ProcessStep = z.infer<typeof stepSchema>;
 export type ProcessPayload = z.infer<typeof processPayloadSchema>;
 export type ProcessResponse = z.infer<typeof processResponseSchema>;
+export type ProcessSummary = z.infer<typeof processSummarySchema>;
