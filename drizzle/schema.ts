@@ -1,4 +1,4 @@
-import { jsonb, pgTable, text, timestamp, uuid, uniqueIndex } from 'drizzle-orm/pg-core';
+import { index, jsonb, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
 import type { ProcessStep } from '@/lib/validation/process';
 
 export const processSnapshots = pgTable(
@@ -12,7 +12,8 @@ export const processSnapshots = pgTable(
     updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull()
   },
   (table) => ({
-    ownerUnique: uniqueIndex('process_snapshots_owner_id_key').on(table.ownerId)
+    ownerIndex: index('process_snapshots_owner_id_idx').on(table.ownerId),
+    updatedAtIndex: index('process_snapshots_updated_at_idx').on(table.updatedAt)
   })
 );
 

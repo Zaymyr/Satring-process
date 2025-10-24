@@ -1,9 +1,13 @@
 import { NextResponse } from 'next/server';
+import { z } from 'zod';
+
 import { createServerClient } from '@/lib/supabase/server';
-import { createDefaultProcessResponse, DEFAULT_PROCESS_TITLE } from '@/lib/process/defaults';
+import { DEFAULT_PROCESS_TITLE } from '@/lib/process/defaults';
 import { processPayloadSchema, processResponseSchema, type ProcessPayload } from '@/lib/validation/process';
 
 const NO_STORE_HEADERS = { 'Cache-Control': 'no-store, max-age=0, must-revalidate' };
+
+const processIdSchema = z.string().uuid();
 
 type SupabaseError = {
   readonly code?: string;
@@ -40,6 +44,13 @@ const mapSaveProcessError = (error: SupabaseError) => {
     return {
       status: 403,
       body: { error: "Vous n'avez pas l'autorisation de sauvegarder ce process." }
+    } as const;
+  }
+
+  if (code === 'P0002') {
+    return {
+      status: 404,
+      body: { error: 'Process introuvable.' }
     } as const;
   }
 
@@ -93,7 +104,16 @@ const normalizeUpdatedAt = (value: unknown): string | null => {
   return date.toISOString();
 };
 
-export async function GET() {
+export async function GET(request: Request) {
+  const processId = processIdSchema.safeParse(new URL(request.url).searchParams.get('id'));
+
+  if (!processId.success) {
+    return NextResponse.json(
+      { error: 'Identifiant de process invalide.' },
+      { status: 400, headers: NO_STORE_HEADERS }
+    );
+  }
+
   const supabase = createServerClient();
   const {
     data: { user },
@@ -106,8 +126,9 @@ export async function GET() {
 
   const { data, error } = await supabase
     .from('process_snapshots')
-    .select('title, steps, updated_at')
+    .select('id, title, steps, updated_at')
     .eq('owner_id', user.id)
+    .eq('id', processId.data)
     .maybeSingle();
 
   if (error) {
@@ -119,10 +140,11 @@ export async function GET() {
   }
 
   if (!data) {
-    return NextResponse.json(createDefaultProcessResponse(), { headers: NO_STORE_HEADERS });
+    return NextResponse.json({ error: 'Process introuvable.' }, { status: 404, headers: NO_STORE_HEADERS });
   }
 
   const parsed = processResponseSchema.safeParse({
+    id: data.id,
     title: data.title ?? DEFAULT_PROCESS_TITLE,
     steps: data.steps,
     updatedAt: data.updated_at
@@ -142,6 +164,15 @@ export async function GET() {
 export async function POST(request: Request) {
   let payload: unknown;
 
+  const processId = processIdSchema.safeParse(new URL(request.url).searchParams.get('id'));
+
+  if (!processId.success) {
+    return NextResponse.json(
+      { error: 'Identifiant de process invalide.' },
+      { status: 400, headers: NO_STORE_HEADERS }
+    );
+  }
+
   try {
     payload = await request.json();
   } catch (error) {
@@ -152,7 +183,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const parsedPayload = processPayloadSchema.safeParse(payload);
+  const parsedPayload = processPayloadSchema.safeParse({ ...payload, id: processId.data });
   if (!parsedPayload.success) {
     return NextResponse.json(
       { error: 'Le format des étapes est invalide.', details: parsedPayload.error.flatten() },
@@ -173,7 +204,7 @@ export async function POST(request: Request) {
   const body: ProcessPayload = parsedPayload.data;
 
   const { data, error } = await supabase.rpc('save_process_snapshot', {
-    payload: { title: body.title, steps: body.steps }
+    payload: { id: body.id, title: body.title, steps: body.steps }
   });
 
   if (error) {
@@ -199,6 +230,7 @@ export async function POST(request: Request) {
   }
 
   const parsedResponse = processResponseSchema.safeParse({
+    id: record.id,
     title: typeof record.title === 'string' && record.title.trim().length > 0 ? record.title : DEFAULT_PROCESS_TITLE,
     steps: normalizeSteps(record.steps),
     updatedAt: normalizeUpdatedAt(record.updated_at)
