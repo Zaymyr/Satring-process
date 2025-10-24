@@ -77,6 +77,15 @@ const mapCreateProcessError = (error: { code?: string; message?: string; details
     } as const;
   }
 
+  if (code === '23505') {
+    return {
+      status: 409,
+      body: {
+        error: 'Impossible de créer un nouveau process car une contrainte d\'unicité empêche son insertion.'
+      }
+    } as const;
+  }
+
   return { status: 500, body: { error: 'Impossible de créer un nouveau process.' } } as const;
 };
 
