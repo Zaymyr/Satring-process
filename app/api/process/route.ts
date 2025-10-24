@@ -183,7 +183,10 @@ export async function POST(request: Request) {
     );
   }
 
-  const parsedPayload = processPayloadSchema.safeParse({ ...payload, id: processId.data });
+  const payloadObject: Record<string, unknown> =
+    typeof payload === 'object' && payload !== null ? (payload as Record<string, unknown>) : {};
+
+  const parsedPayload = processPayloadSchema.safeParse({ ...payloadObject, id: processId.data });
   if (!parsedPayload.success) {
     return NextResponse.json(
       { error: 'Le format des étapes est invalide.', details: parsedPayload.error.flatten() },
