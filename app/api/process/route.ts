@@ -40,6 +40,13 @@ const mapSaveProcessError = (error: SupabaseError) => {
     } as const;
   }
 
+  if (code === '23502') {
+    return {
+      status: 400,
+      body: { error: 'Identifiant de process requis pour la sauvegarde.' }
+    } as const;
+  }
+
   if (code === '42501') {
     return {
       status: 403,

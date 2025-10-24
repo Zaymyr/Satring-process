@@ -51,7 +51,7 @@ const createProcessSchema = z
   })
   .default({});
 
-const mapSaveProcessError = (error: { code?: string; message?: string; details?: string | null }) => {
+const mapCreateProcessError = (error: { code?: string; message?: string; details?: string | null }) => {
   const code = error.code?.toUpperCase();
 
   if (code === '28000') {
@@ -63,17 +63,21 @@ const mapSaveProcessError = (error: { code?: string; message?: string; details?:
   }
 
   if (code === '22023') {
-    return { status: 422, body: { error: 'Ajoutez au moins deux étapes pour sauvegarder votre process.' } } as const;
+    return { status: 422, body: { error: 'Ajoutez au moins deux étapes pour créer un process.' } } as const;
+  }
+
+  if (code === '23502') {
+    return { status: 400, body: { error: 'Identifiant de process requis.' } } as const;
   }
 
   if (code === '42501') {
     return {
       status: 403,
-      body: { error: "Vous n'avez pas l'autorisation de sauvegarder ce process." }
+      body: { error: "Vous n'avez pas l'autorisation de créer un process." }
     } as const;
   }
 
-  return { status: 500, body: { error: 'Impossible de sauvegarder le process.' } } as const;
+  return { status: 500, body: { error: 'Impossible de créer un nouveau process.' } } as const;
 };
 
 export async function GET() {
@@ -149,13 +153,13 @@ export async function POST(request: Request) {
   const desiredTitle = parsedBody.data.title?.trim() ?? DEFAULT_PROCESS_TITLE;
   const payload = createDefaultProcessPayload(desiredTitle);
 
-  const { data, error } = await supabase.rpc('save_process_snapshot', {
+  const { data, error } = await supabase.rpc('create_process_snapshot', {
     payload: { title: payload.title, steps: payload.steps }
   });
 
   if (error) {
     console.error('Erreur lors de la création du process', error);
-    const mapped = mapSaveProcessError(error);
+    const mapped = mapCreateProcessError(error);
     return NextResponse.json(mapped.body, { status: mapped.status, headers: NO_STORE_HEADERS });
   }
 
