@@ -10,7 +10,9 @@ create table if not exists public.process_snapshots (
     constraint process_snapshots_owner_id_key unique (owner_id)
 );
 
+drop trigger if exists process_snapshots_updated_at on public.process_snapshots;
 drop function if exists public.set_process_snapshots_updated_at();
+
 create or replace function public.set_process_snapshots_updated_at()
 returns trigger
 language plpgsql
@@ -21,7 +23,6 @@ begin
 end;
 $$;
 
-drop trigger if exists process_snapshots_updated_at on public.process_snapshots;
 create trigger process_snapshots_updated_at
 before update on public.process_snapshots
 for each row
