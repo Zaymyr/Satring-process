@@ -104,7 +104,7 @@ export async function GET() {
   const normalized = (data ?? []).map((item) => ({
     id: item.id,
     title: typeof item.title === 'string' && item.title.trim() ? item.title : DEFAULT_PROCESS_TITLE,
-    updatedAt: item.updated_at
+    updatedAt: normalizeUpdatedAt(item.updated_at)
   }));
 
   const parsed = processSummarySchema.array().safeParse(normalized);

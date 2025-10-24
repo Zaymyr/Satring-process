@@ -146,8 +146,8 @@ export async function GET(request: Request) {
   const parsed = processResponseSchema.safeParse({
     id: data.id,
     title: data.title ?? DEFAULT_PROCESS_TITLE,
-    steps: data.steps,
-    updatedAt: data.updated_at
+    steps: normalizeSteps(data.steps),
+    updatedAt: normalizeUpdatedAt(data.updated_at)
   });
 
   if (!parsed.success) {

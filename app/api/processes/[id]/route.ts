@@ -17,6 +17,21 @@ const renameSchema = z.object({
     .max(120, 'Le titre ne peut pas dépasser 120 caractères.')
 });
 
+const normalizeUpdatedAt = (value: unknown): string | null => {
+  if (!value) {
+    return null;
+  }
+
+  const date = value instanceof Date ? value : new Date(value as string);
+
+  if (Number.isNaN(date.getTime())) {
+    console.error('Horodatage de process invalide', value);
+    return null;
+  }
+
+  return date.toISOString();
+};
+
 export async function PATCH(request: Request, context: { params: { id: string } }) {
   const params = paramsSchema.safeParse(context.params);
 
@@ -78,7 +93,7 @@ export async function PATCH(request: Request, context: { params: { id: string } 
   const parsed = processSummarySchema.safeParse({
     id: data.id,
     title: typeof data.title === 'string' && data.title.trim() ? data.title : DEFAULT_PROCESS_TITLE,
-    updatedAt: data.updated_at
+    updatedAt: normalizeUpdatedAt(data.updated_at)
   });
 
   if (!parsed.success) {
