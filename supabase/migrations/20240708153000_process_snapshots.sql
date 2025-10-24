@@ -76,16 +76,16 @@ begin
         raise exception 'Au moins deux étapes sont nécessaires' using errcode = '22023';
     end if;
 
-    insert into public.process_snapshots (owner_id, steps, title)
-    values (v_owner, v_steps, v_title)
-    on conflict (owner_id)
-    do update set
-        steps = excluded.steps,
-        title = excluded.title,
+    insert into public.process_snapshots as ps (owner_id, steps, title)
+      values (v_owner, v_steps, v_title)
+      on conflict (owner_id)
+      do update set
+        steps      = excluded.steps,
+        title      = excluded.title,
         updated_at = timezone('utc', now())
-    returning * into v_result;
+      returning ps.* into v_result;
 
-    return v_result;
+      return v_result;
 end;
 $$;
 
