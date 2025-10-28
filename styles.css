@@ -190,11 +190,11 @@ p {
   --diagram-footer-peek: 3.1rem;
 }
 
-.page-diagram[data-left-collapsed='true'] {
+.page-diagram:has(.side-panel[data-side='left'].is-collapsed) {
   --left-panel-offset: 2rem;
 }
 
-.page-diagram[data-right-collapsed='true'] {
+.page-diagram:has(.side-panel[data-side='right'].is-collapsed) {
   --right-panel-offset: 2rem;
 }
 
