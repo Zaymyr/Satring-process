@@ -190,11 +190,11 @@ p {
   --diagram-footer-peek: 3.1rem;
 }
 
-.page-diagram[data-left-collapsed='true'] {
+.page-diagram:has(.side-panel[data-side='left'].is-collapsed) {
   --left-panel-offset: 2rem;
 }
 
-.page-diagram[data-right-collapsed='true'] {
+.page-diagram:has(.side-panel[data-side='right'].is-collapsed) {
   --right-panel-offset: 2rem;
 }
 
@@ -219,7 +219,10 @@ p {
 
 .page-diagram .diagram-area {
   position: absolute;
-  inset: 0;
+  top: 0;
+  right: var(--right-panel-offset);
+  bottom: 0;
+  left: var(--left-panel-offset);
   padding: 2rem 0 calc(2rem + var(--diagram-footer-space)) 0;
   overflow: hidden;
   touch-action: none;
@@ -1299,6 +1302,10 @@ p {
 
   .page-diagram .diagram-area {
     position: relative;
+    top: auto;
+    right: auto;
+    bottom: auto;
+    left: 0;
     padding: 1.5rem 0 calc(1.5rem + var(--diagram-footer-space)) 0;
     min-height: 55vh;
   }
