@@ -1186,26 +1186,32 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
       <div className="pointer-events-none absolute inset-0 z-0 flex items-center justify-center overflow-hidden px-6 py-10 sm:px-10">
         <div
           className={cn(
-            'pointer-events-auto max-h-full w-full max-w-6xl select-none touch-none opacity-90 transition-transform [filter:drop-shadow(0_25px_65px_rgba(15,23,42,0.22))] [&_svg]:h-auto [&_svg]:w-full [&_svg]:max-h-full [&_.node rect]:stroke-slate-900 [&_.node rect]:stroke-[1.5px] [&_.node polygon]:stroke-slate-900 [&_.node polygon]:stroke-[1.5px] [&_.node circle]:stroke-slate-900 [&_.node circle]:stroke-[1.5px] [&_.node ellipse]:stroke-slate-900 [&_.node ellipse]:stroke-[1.5px] [&_.edgePath path]:stroke-slate-900 [&_.edgePath path]:stroke-[1.5px] [&_.edgeLabel]:text-slate-900',
+            'pointer-events-auto flex h-full w-full select-none touch-none items-center justify-center',
             isDiagramDragging ? 'cursor-grabbing' : 'cursor-grab'
           )}
-          style={{
-            transform: `translate3d(${diagramOffset.x}px, ${diagramOffset.y}px, 0)`,
-            transition: isDiagramDragging ? 'none' : undefined
-          }}
           onPointerDown={handleDiagramPointerDown}
           onPointerMove={handleDiagramPointerMove}
           onPointerUp={handleDiagramPointerUp}
           onPointerCancel={handleDiagramPointerCancel}
         >
-          {diagramSvg ? (
-            <div
-              aria-hidden="true"
-              dangerouslySetInnerHTML={{ __html: diagramSvg }}
-            />
-          ) : (
-            fallbackDiagram
-          )}
+          <div
+            className={cn(
+              'pointer-events-auto max-h-full w-full max-w-6xl opacity-90 transition-transform [filter:drop-shadow(0_25px_65px_rgba(15,23,42,0.22))] [&_svg]:h-auto [&_svg]:w-full [&_svg]:max-h-full [&_.node rect]:stroke-slate-900 [&_.node rect]:stroke-[1.5px] [&_.node polygon]:stroke-slate-900 [&_.node polygon]:stroke-[1.5px] [&_.node circle]:stroke-slate-900 [&_.node circle]:stroke-[1.5px] [&_.node ellipse]:stroke-slate-900 [&_.node ellipse]:stroke-[1.5px] [&_.edgePath path]:stroke-slate-900 [&_.edgePath path]:stroke-[1.5px] [&_.edgeLabel]:text-slate-900'
+            )}
+            style={{
+              transform: `translate3d(${diagramOffset.x}px, ${diagramOffset.y}px, 0)`,
+              transition: isDiagramDragging ? 'none' : undefined
+            }}
+          >
+            {diagramSvg ? (
+              <div
+                aria-hidden="true"
+                dangerouslySetInnerHTML={{ __html: diagramSvg }}
+              />
+            ) : (
+              fallbackDiagram
+            )}
+          </div>
         </div>
         {diagramError ? (
           <span role="status" aria-live="polite" className="sr-only">
