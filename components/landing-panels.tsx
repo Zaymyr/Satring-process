@@ -1,6 +1,13 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode
+} from 'react';
 import Link from 'next/link';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
@@ -47,6 +54,14 @@ type Highlight = {
 };
 
 type Step = ProcessStep;
+
+type DiagramDragState = {
+  pointerId: number;
+  originX: number;
+  originY: number;
+  startX: number;
+  startY: number;
+};
 
 type MermaidAPI = {
   initialize: (config: Record<string, unknown>) => void;
@@ -309,6 +324,9 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
   const [diagramSvg, setDiagramSvg] = useState('');
   const [diagramError, setDiagramError] = useState<string | null>(null);
+  const [diagramOffset, setDiagramOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [isDiagramDragging, setIsDiagramDragging] = useState(false);
+  const diagramDragStateRef = useRef<DiagramDragState | null>(null);
   const [isMermaidReady, setIsMermaidReady] = useState(false);
   const mermaidAPIRef = useRef<MermaidAPI | null>(null);
   const diagramElementId = useMemo(() => `process-diagram-${generateStepId()}`, []);
@@ -1088,21 +1106,107 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
     setSteps((prev) => prev.filter((step) => step.id !== id));
   };
 
+  const handleDiagramPointerDown = useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      if (event.button !== 0 && event.pointerType !== 'touch') {
+        return;
+      }
+
+      event.preventDefault();
+      event.stopPropagation();
+
+      const target = event.currentTarget;
+      target.setPointerCapture(event.pointerId);
+
+      diagramDragStateRef.current = {
+        pointerId: event.pointerId,
+        originX: diagramOffset.x,
+        originY: diagramOffset.y,
+        startX: event.clientX,
+        startY: event.clientY
+      };
+
+      setIsDiagramDragging(true);
+    },
+    [diagramOffset.x, diagramOffset.y]
+  );
+
+  const handleDiagramPointerMove = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
+    const dragState = diagramDragStateRef.current;
+
+    if (!dragState || dragState.pointerId !== event.pointerId) {
+      return;
+    }
+
+    event.preventDefault();
+
+    const deltaX = event.clientX - dragState.startX;
+    const deltaY = event.clientY - dragState.startY;
+
+    setDiagramOffset({
+      x: dragState.originX + deltaX,
+      y: dragState.originY + deltaY
+    });
+  }, []);
+
+  const endDiagramDrag = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
+    const dragState = diagramDragStateRef.current;
+
+    if (!dragState || dragState.pointerId !== event.pointerId) {
+      return;
+    }
+
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+
+    diagramDragStateRef.current = null;
+    setIsDiagramDragging(false);
+  }, []);
+
+  const handleDiagramPointerUp = useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      endDiagramDrag(event);
+    },
+    [endDiagramDrag]
+  );
+
+  const handleDiagramPointerCancel = useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      endDiagramDrag(event);
+    },
+    [endDiagramDrag]
+  );
+
   const primaryWidth = isPrimaryCollapsed ? '3.5rem' : 'clamp(18rem, 28vw, 34rem)';
   const secondaryWidth = isSecondaryCollapsed ? '3.5rem' : 'clamp(16rem, 22vw, 26rem)';
 
   return (
     <div className="relative min-h-screen overflow-x-hidden bg-gradient-to-br from-slate-100 via-white to-slate-200 text-slate-900">
       <div className="pointer-events-none absolute inset-0 z-0 flex items-center justify-center overflow-hidden px-6 py-10 sm:px-10">
-        {diagramSvg ? (
-          <div
-            className="max-h-full w-full max-w-6xl opacity-90 [filter:drop-shadow(0_25px_65px_rgba(15,23,42,0.22))] [&_svg]:h-auto [&_svg]:w-full [&_svg]:max-h-full [&_.node rect]:stroke-slate-900 [&_.node rect]:stroke-[1.5px] [&_.node polygon]:stroke-slate-900 [&_.node polygon]:stroke-[1.5px] [&_.node circle]:stroke-slate-900 [&_.node circle]:stroke-[1.5px] [&_.node ellipse]:stroke-slate-900 [&_.node ellipse]:stroke-[1.5px] [&_.edgePath path]:stroke-slate-900 [&_.edgePath path]:stroke-[1.5px] [&_.edgeLabel]:text-slate-900"
-            aria-hidden="true"
-            dangerouslySetInnerHTML={{ __html: diagramSvg }}
-          />
-        ) : (
-          fallbackDiagram
-        )}
+        <div
+          className={cn(
+            'pointer-events-auto max-h-full w-full max-w-6xl select-none touch-none opacity-90 transition-transform [filter:drop-shadow(0_25px_65px_rgba(15,23,42,0.22))] [&_svg]:h-auto [&_svg]:w-full [&_svg]:max-h-full [&_.node rect]:stroke-slate-900 [&_.node rect]:stroke-[1.5px] [&_.node polygon]:stroke-slate-900 [&_.node polygon]:stroke-[1.5px] [&_.node circle]:stroke-slate-900 [&_.node circle]:stroke-[1.5px] [&_.node ellipse]:stroke-slate-900 [&_.node ellipse]:stroke-[1.5px] [&_.edgePath path]:stroke-slate-900 [&_.edgePath path]:stroke-[1.5px] [&_.edgeLabel]:text-slate-900',
+            isDiagramDragging ? 'cursor-grabbing' : 'cursor-grab'
+          )}
+          style={{
+            transform: `translate3d(${diagramOffset.x}px, ${diagramOffset.y}px, 0)`,
+            transition: isDiagramDragging ? 'none' : undefined
+          }}
+          onPointerDown={handleDiagramPointerDown}
+          onPointerMove={handleDiagramPointerMove}
+          onPointerUp={handleDiagramPointerUp}
+          onPointerCancel={handleDiagramPointerCancel}
+        >
+          {diagramSvg ? (
+            <div
+              aria-hidden="true"
+              dangerouslySetInnerHTML={{ __html: diagramSvg }}
+            />
+          ) : (
+            fallbackDiagram
+          )}
+        </div>
         {diagramError ? (
           <span role="status" aria-live="polite" className="sr-only">
             {diagramError}
