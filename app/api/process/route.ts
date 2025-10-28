@@ -16,6 +16,16 @@ type SupabaseError = {
   readonly hint?: string | null;
 };
 
+const isRlsDeniedError = (error: { message?: string; details?: string | null; hint?: string | null }) => {
+  const normalizedSegments = [error.message, error.details, error.hint]
+    .map((segment) => (typeof segment === 'string' ? segment.toLowerCase().replace(/[-_]+/g, ' ') : ''))
+    .filter((segment) => segment.length > 0);
+
+  return normalizedSegments.some((segment) =>
+    segment.includes('row level security') || segment.includes('permission denied for table')
+  );
+};
+
 const mapSaveProcessError = (error: SupabaseError) => {
   const code = error.code?.toUpperCase();
 
@@ -61,11 +71,7 @@ const mapSaveProcessError = (error: SupabaseError) => {
     } as const;
   }
 
-  const rlsDenied =
-    error.message?.toLowerCase().includes('row level security') ||
-    error.details?.toLowerCase().includes('row level security');
-
-  if (rlsDenied) {
+  if (isRlsDeniedError(error)) {
     return {
       status: 403,
       body: { error: "Vous n'avez pas l'autorisation de sauvegarder ce process." }

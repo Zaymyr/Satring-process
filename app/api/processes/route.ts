@@ -51,7 +51,22 @@ const createProcessSchema = z
   })
   .default({});
 
-const mapCreateProcessError = (error: { code?: string; message?: string; details?: string | null }) => {
+const isRlsDeniedError = (error: { message?: string; details?: string | null; hint?: string | null }) => {
+  const normalizedSegments = [error.message, error.details, error.hint]
+    .map((segment) => (typeof segment === 'string' ? segment.toLowerCase().replace(/[-_]+/g, ' ') : ''))
+    .filter((segment) => segment.length > 0);
+
+  return normalizedSegments.some((segment) =>
+    segment.includes('row level security') || segment.includes('permission denied for table')
+  );
+};
+
+const mapCreateProcessError = (error: {
+  code?: string;
+  message?: string;
+  details?: string | null;
+  hint?: string | null;
+}) => {
   const code = error.code?.toUpperCase();
 
   if (code === '28000') {
@@ -83,6 +98,13 @@ const mapCreateProcessError = (error: { code?: string; message?: string; details
       body: {
         error: 'Impossible de créer un nouveau process car une contrainte d\'unicité empêche son insertion.'
       }
+    } as const;
+  }
+
+  if (isRlsDeniedError(error)) {
+    return {
+      status: 403,
+      body: { error: "Vous n'avez pas l'autorisation de créer un process." }
     } as const;
   }
 
