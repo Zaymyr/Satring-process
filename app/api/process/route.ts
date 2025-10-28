@@ -16,6 +16,16 @@ type SupabaseError = {
   readonly hint?: string | null;
 };
 
+const isRlsDeniedError = (error: { message?: string; details?: string | null; hint?: string | null }) => {
+  const normalizedSegments = [error.message, error.details, error.hint]
+    .map((segment) => (typeof segment === 'string' ? segment.toLowerCase().replace(/[-_]+/g, ' ') : ''))
+    .filter((segment) => segment.length > 0);
+
+  return normalizedSegments.some((segment) =>
+    segment.includes('row level security') || segment.includes('permission denied for table')
+  );
+};
+
 const mapSaveProcessError = (error: SupabaseError) => {
   const code = error.code?.toUpperCase();
 
@@ -61,19 +71,7 @@ const mapSaveProcessError = (error: SupabaseError) => {
     } as const;
   }
 
-  const message = typeof error.message === 'string' ? error.message : '';
-  const details = typeof error.details === 'string' ? error.details : '';
-  const hint = typeof error.hint === 'string' ? error.hint : '';
-
-  const normalizedSegments = [message, details, hint]
-    .map((segment) => segment.toLowerCase().replace(/[-_]+/g, ' '))
-    .filter((segment) => segment.length > 0);
-
-  const rlsDenied = normalizedSegments.some((segment) =>
-    segment.includes('row level security') || segment.includes('permission denied for table')
-  );
-
-  if (rlsDenied) {
+  if (isRlsDeniedError(error)) {
     return {
       status: 403,
       body: { error: "Vous n'avez pas l'autorisation de sauvegarder ce process." }
