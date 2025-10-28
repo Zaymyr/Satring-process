@@ -61,9 +61,17 @@ const mapSaveProcessError = (error: SupabaseError) => {
     } as const;
   }
 
-  const message = typeof error.message === 'string' ? error.message.toLowerCase() : '';
-  const details = typeof error.details === 'string' ? error.details.toLowerCase() : '';
-  const rlsDenied = message.includes('row level security') || details.includes('row level security');
+  const message = typeof error.message === 'string' ? error.message : '';
+  const details = typeof error.details === 'string' ? error.details : '';
+  const hint = typeof error.hint === 'string' ? error.hint : '';
+
+  const normalizedSegments = [message, details, hint]
+    .map((segment) => segment.toLowerCase().replace(/[-_]+/g, ' '))
+    .filter((segment) => segment.length > 0);
+
+  const rlsDenied = normalizedSegments.some((segment) =>
+    segment.includes('row level security') || segment.includes('permission denied for table')
+  );
 
   if (rlsDenied) {
     return {
