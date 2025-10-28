@@ -61,9 +61,9 @@ const mapSaveProcessError = (error: SupabaseError) => {
     } as const;
   }
 
-  const rlsDenied =
-    error.message?.toLowerCase().includes('row level security') ||
-    error.details?.toLowerCase().includes('row level security');
+  const message = typeof error.message === 'string' ? error.message.toLowerCase() : '';
+  const details = typeof error.details === 'string' ? error.details.toLowerCase() : '';
+  const rlsDenied = message.includes('row level security') || details.includes('row level security');
 
   if (rlsDenied) {
     return {
