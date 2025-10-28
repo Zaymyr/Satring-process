@@ -329,6 +329,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
   const [diagramUserOffset, setDiagramUserOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [isDiagramDragging, setIsDiagramDragging] = useState(false);
   const diagramDragStateRef = useRef<DiagramDragState | null>(null);
+  const diagramViewportRef = useRef<HTMLDivElement | null>(null);
   const primaryPanelRef = useRef<HTMLDivElement | null>(null);
   const secondaryPanelRef = useRef<HTMLDivElement | null>(null);
   const [isMermaidReady, setIsMermaidReady] = useState(false);
@@ -1121,9 +1122,29 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
       return;
     }
 
-    const primaryWidth = primaryPanelRef.current?.getBoundingClientRect().width ?? 0;
-    const secondaryWidth = secondaryPanelRef.current?.getBoundingClientRect().width ?? 0;
-    const nextOffsetX = (primaryWidth - secondaryWidth) / 2;
+    const viewportRect = diagramViewportRef.current?.getBoundingClientRect();
+    const primaryRect = primaryPanelRef.current?.getBoundingClientRect();
+    const secondaryRect = secondaryPanelRef.current?.getBoundingClientRect();
+
+    if (!viewportRect || !primaryRect || !secondaryRect) {
+      setDiagramBaseOffset((previous) => {
+        if (Math.abs(previous.x) < 0.5 && Math.abs(previous.y) < 0.5) {
+          return previous;
+        }
+
+        return { x: 0, y: 0 };
+      });
+      return;
+    }
+
+    const availableStart = primaryRect.right;
+    const availableEnd = secondaryRect.left;
+    const availableCenter =
+      availableEnd > availableStart
+        ? availableStart + (availableEnd - availableStart) / 2
+        : (availableStart + availableEnd) / 2;
+    const viewportCenter = viewportRect.left + viewportRect.width / 2;
+    const nextOffsetX = availableCenter - viewportCenter;
 
     setDiagramBaseOffset((previous) => {
       if (Math.abs(previous.x - nextOffsetX) < 0.5 && Math.abs(previous.y) < 0.5) {
@@ -1265,7 +1286,10 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
 
   return (
     <div className="relative min-h-screen overflow-x-hidden bg-gradient-to-br from-slate-100 via-white to-slate-200 text-slate-900">
-      <div className="absolute inset-0 z-0 flex items-center justify-center overflow-hidden px-6 py-10 sm:px-10">
+      <div
+        ref={diagramViewportRef}
+        className="absolute inset-0 z-0 flex items-center justify-center overflow-hidden px-6 py-10 sm:px-10"
+      >
         <div
           className={cn(
             'pointer-events-auto flex h-full w-full select-none touch-none items-center justify-center',
