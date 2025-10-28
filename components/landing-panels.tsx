@@ -327,8 +327,11 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
   const [diagramError, setDiagramError] = useState<string | null>(null);
   const [diagramBaseOffset, setDiagramBaseOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [diagramUserOffset, setDiagramUserOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [hasDiagramSettled, setHasDiagramSettled] = useState(false);
   const [isDiagramDragging, setIsDiagramDragging] = useState(false);
   const diagramDragStateRef = useRef<DiagramDragState | null>(null);
+  const isDiagramDraggingRef = useRef(false);
+  const diagramSettleFrameRef = useRef<number | null>(null);
   const diagramViewportRef = useRef<HTMLDivElement | null>(null);
   const lastLayoutIsStackedRef = useRef<boolean | null>(null);
   const primaryPanelRef = useRef<HTMLDivElement | null>(null);
@@ -1098,8 +1101,24 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
     [diagramBaseOffset.x, diagramBaseOffset.y, diagramUserOffset.x, diagramUserOffset.y]
   );
 
-  const recalcDiagramBaseOffset = useCallback(() => {
+  const scheduleDiagramSettle = useCallback(() => {
     if (typeof window === 'undefined') {
+      setHasDiagramSettled(true);
+      return;
+    }
+
+    if (diagramSettleFrameRef.current !== null) {
+      window.cancelAnimationFrame(diagramSettleFrameRef.current);
+    }
+
+    diagramSettleFrameRef.current = window.requestAnimationFrame(() => {
+      diagramSettleFrameRef.current = null;
+      setHasDiagramSettled(true);
+    });
+  }, []);
+
+  const recalcDiagramBaseOffset = useCallback(() => {
+    if (typeof window === 'undefined' || isDiagramDraggingRef.current) {
       return;
     }
 
@@ -1108,6 +1127,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
     lastLayoutIsStackedRef.current = isStackedLayout;
 
     if (isStackedLayout) {
+      setHasDiagramSettled(false);
       setDiagramBaseOffset((previous) => {
         if (previous.x === 0 && previous.y === 0) {
           return previous;
@@ -1124,6 +1144,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
           return { x: 0, y: 0 };
         });
       }
+      scheduleDiagramSettle();
       return;
     }
 
@@ -1139,6 +1160,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
 
         return { x: 0, y: 0 };
       });
+      setHasDiagramSettled(false);
       return;
     }
 
@@ -1151,6 +1173,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
     const viewportCenter = viewportRect.left + viewportRect.width / 2;
     const nextOffsetX = availableCenter - viewportCenter;
 
+    setHasDiagramSettled(false);
     setDiagramBaseOffset((previous) => {
       if (Math.abs(previous.x - nextOffsetX) < 0.5 && Math.abs(previous.y) < 0.5) {
         return previous;
@@ -1158,11 +1181,20 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
 
       return { x: nextOffsetX, y: 0 };
     });
-  }, []);
+    scheduleDiagramSettle();
+  }, [scheduleDiagramSettle]);
 
   useLayoutEffect(() => {
     recalcDiagramBaseOffset();
   }, [recalcDiagramBaseOffset, diagramSvg, isPrimaryCollapsed, isSecondaryCollapsed]);
+
+  useEffect(() => {
+    return () => {
+      if (typeof window !== 'undefined' && diagramSettleFrameRef.current !== null) {
+        window.cancelAnimationFrame(diagramSettleFrameRef.current);
+      }
+    };
+  }, []);
 
   useLayoutEffect(() => {
     if (typeof window === 'undefined') {
@@ -1235,6 +1267,8 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
       };
 
       setIsDiagramDragging(true);
+      isDiagramDraggingRef.current = true;
+      setHasDiagramSettled(true);
     },
     [diagramUserOffset.x, diagramUserOffset.y]
   );
@@ -1270,6 +1304,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
 
     diagramDragStateRef.current = null;
     setIsDiagramDragging(false);
+    isDiagramDraggingRef.current = false;
   }, []);
 
   const handleDiagramPointerUp = useCallback(
@@ -1311,7 +1346,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
             )}
             style={{
               transform: `translate3d(${diagramOffset.x}px, ${diagramOffset.y}px, 0)`,
-              transition: isDiagramDragging ? 'none' : undefined
+              transition: isDiagramDragging || !hasDiagramSettled ? 'none' : undefined
             }}
           >
             {diagramSvg ? (
