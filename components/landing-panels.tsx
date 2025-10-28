@@ -330,6 +330,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
   const [isDiagramDragging, setIsDiagramDragging] = useState(false);
   const diagramDragStateRef = useRef<DiagramDragState | null>(null);
   const diagramViewportRef = useRef<HTMLDivElement | null>(null);
+  const lastLayoutIsStackedRef = useRef<boolean | null>(null);
   const primaryPanelRef = useRef<HTMLDivElement | null>(null);
   const secondaryPanelRef = useRef<HTMLDivElement | null>(null);
   const [isMermaidReady, setIsMermaidReady] = useState(false);
@@ -1103,6 +1104,8 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
     }
 
     const isStackedLayout = window.matchMedia('(max-width: 1023.98px)').matches;
+    const wasStacked = lastLayoutIsStackedRef.current;
+    lastLayoutIsStackedRef.current = isStackedLayout;
 
     if (isStackedLayout) {
       setDiagramBaseOffset((previous) => {
@@ -1112,13 +1115,15 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
 
         return { x: 0, y: 0 };
       });
-      setDiagramUserOffset((previous) => {
-        if (previous.x === 0 && previous.y === 0) {
-          return previous;
-        }
+      if (wasStacked === false || wasStacked === null) {
+        setDiagramUserOffset((previous) => {
+          if (previous.x === 0 && previous.y === 0) {
+            return previous;
+          }
 
-        return { x: 0, y: 0 };
-      });
+          return { x: 0, y: 0 };
+        });
+      }
       return;
     }
 
