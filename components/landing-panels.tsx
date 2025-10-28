@@ -3,6 +3,7 @@
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -324,9 +325,12 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
   const [diagramSvg, setDiagramSvg] = useState('');
   const [diagramError, setDiagramError] = useState<string | null>(null);
-  const [diagramOffset, setDiagramOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [diagramBaseOffset, setDiagramBaseOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [diagramUserOffset, setDiagramUserOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [isDiagramDragging, setIsDiagramDragging] = useState(false);
   const diagramDragStateRef = useRef<DiagramDragState | null>(null);
+  const primaryPanelRef = useRef<HTMLDivElement | null>(null);
+  const secondaryPanelRef = useRef<HTMLDivElement | null>(null);
   const [isMermaidReady, setIsMermaidReady] = useState(false);
   const mermaidAPIRef = useRef<MermaidAPI | null>(null);
   const diagramElementId = useMemo(() => `process-diagram-${generateStepId()}`, []);
@@ -1084,6 +1088,84 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
     };
   }, [diagramDefinition, diagramElementId, isMermaidReady]);
 
+  const diagramOffset = useMemo(
+    () => ({
+      x: diagramBaseOffset.x + diagramUserOffset.x,
+      y: diagramBaseOffset.y + diagramUserOffset.y
+    }),
+    [diagramBaseOffset.x, diagramBaseOffset.y, diagramUserOffset.x, diagramUserOffset.y]
+  );
+
+  const recalcDiagramBaseOffset = useCallback(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    const isStackedLayout = window.matchMedia('(max-width: 1023.98px)').matches;
+
+    if (isStackedLayout) {
+      setDiagramBaseOffset((previous) => {
+        if (previous.x === 0 && previous.y === 0) {
+          return previous;
+        }
+
+        return { x: 0, y: 0 };
+      });
+      setDiagramUserOffset((previous) => {
+        if (previous.x === 0 && previous.y === 0) {
+          return previous;
+        }
+
+        return { x: 0, y: 0 };
+      });
+      return;
+    }
+
+    const primaryWidth = primaryPanelRef.current?.getBoundingClientRect().width ?? 0;
+    const secondaryWidth = secondaryPanelRef.current?.getBoundingClientRect().width ?? 0;
+    const nextOffsetX = (primaryWidth - secondaryWidth) / 2;
+
+    setDiagramBaseOffset((previous) => {
+      if (Math.abs(previous.x - nextOffsetX) < 0.5 && Math.abs(previous.y) < 0.5) {
+        return previous;
+      }
+
+      return { x: nextOffsetX, y: 0 };
+    });
+  }, []);
+
+  useLayoutEffect(() => {
+    recalcDiagramBaseOffset();
+  }, [recalcDiagramBaseOffset, diagramSvg, isPrimaryCollapsed, isSecondaryCollapsed]);
+
+  useLayoutEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    let resizeFrame = 0;
+
+    const handleResize = () => {
+      if (resizeFrame !== 0) {
+        cancelAnimationFrame(resizeFrame);
+      }
+
+      resizeFrame = window.requestAnimationFrame(() => {
+        recalcDiagramBaseOffset();
+      });
+    };
+
+    window.addEventListener('resize', handleResize);
+
+    return () => {
+      if (resizeFrame !== 0) {
+        cancelAnimationFrame(resizeFrame);
+      }
+
+      window.removeEventListener('resize', handleResize);
+    };
+  }, [recalcDiagramBaseOffset]);
+
   const addStep = (type: Extract<StepType, 'action' | 'decision'>) => {
     const label = type === 'action' ? 'Nouvelle action' : 'Nouvelle décision';
     setSteps((prev) => {
@@ -1120,15 +1202,15 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
 
       diagramDragStateRef.current = {
         pointerId: event.pointerId,
-        originX: diagramOffset.x,
-        originY: diagramOffset.y,
+        originX: diagramUserOffset.x,
+        originY: diagramUserOffset.y,
         startX: event.clientX,
         startY: event.clientY
       };
 
       setIsDiagramDragging(true);
     },
-    [diagramOffset.x, diagramOffset.y]
+    [diagramUserOffset.x, diagramUserOffset.y]
   );
 
   const handleDiagramPointerMove = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
@@ -1143,7 +1225,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
     const deltaX = event.clientX - dragState.startX;
     const deltaY = event.clientY - dragState.startY;
 
-    setDiagramOffset({
+    setDiagramUserOffset({
       x: dragState.originX + deltaX,
       y: dragState.originY + deltaY
     });
@@ -1183,7 +1265,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
 
   return (
     <div className="relative min-h-screen overflow-x-hidden bg-gradient-to-br from-slate-100 via-white to-slate-200 text-slate-900">
-      <div className="pointer-events-none absolute inset-0 z-0 flex items-center justify-center overflow-hidden px-6 py-10 sm:px-10">
+      <div className="absolute inset-0 z-0 flex items-center justify-center overflow-hidden px-6 py-10 sm:px-10">
         <div
           className={cn(
             'pointer-events-auto flex h-full w-full select-none touch-none items-center justify-center',
@@ -1223,6 +1305,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
         <div
           className="relative flex shrink-0 items-stretch overflow-hidden transition-[width] duration-300 ease-out max-h-[calc(100vh-6rem)] lg:order-1 lg:mr-auto lg:max-h-[calc(100vh-8rem)]"
           style={{ width: primaryWidth }}
+          ref={primaryPanelRef}
         >
           <button
             type="button"
@@ -1323,6 +1406,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
         <div
           className="relative flex shrink-0 items-stretch overflow-hidden transition-[width] duration-300 ease-out max-h-[calc(100vh-6rem)] lg:order-2 lg:ml-auto lg:max-h-[calc(100vh-8rem)]"
           style={{ width: secondaryWidth }}
+          ref={secondaryPanelRef}
         >
           <button
             type="button"
