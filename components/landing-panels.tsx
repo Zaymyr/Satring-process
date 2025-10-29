@@ -1999,11 +1999,34 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                             className="focus:outline-none"
                           >
                             <div
+                              role={isEditing ? undefined : 'button'}
+                              tabIndex={isEditing ? undefined : 0}
+                              onClick={
+                                isEditing
+                                  ? undefined
+                                  : () => {
+                                      setSelectedProcessId(summary.id);
+                                    }
+                              }
+                              onDoubleClick={
+                                isEditing ? undefined : () => startEditingProcess(summary)
+                              }
+                              onKeyDown={
+                                isEditing
+                                  ? undefined
+                                  : (event) => {
+                                      if (event.key === 'Enter' || event.key === ' ') {
+                                        event.preventDefault();
+                                        setSelectedProcessId(summary.id);
+                                      }
+                                    }
+                              }
                               className={cn(
-                                'flex flex-col gap-1 rounded-lg border border-transparent px-2 py-2 transition',
+                                'group flex flex-col gap-1 rounded-lg border border-transparent px-2 py-2 transition focus:outline-none',
                                 isSelected
                                   ? 'border-slate-900/30 bg-slate-900/5 shadow-inner'
-                                  : 'hover:border-slate-300 hover:bg-slate-100'
+                                  : 'hover:border-slate-300 hover:bg-slate-100',
+                                isEditing ? undefined : 'cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400'
                               )}
                             >
                               {isEditing ? (
@@ -2028,20 +2051,17 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                                 />
                               ) : (
                                 <div className="flex items-center gap-2">
-                                  <button
-                                    type="button"
-                                    onClick={() => setSelectedProcessId(summary.id)}
-                                    onDoubleClick={() => startEditingProcess(summary)}
+                                  <div
                                     className={cn(
-                                      'flex flex-1 items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm font-medium transition',
+                                      'flex flex-1 items-center gap-2 rounded-md px-2 py-1.5 text-sm font-medium transition',
                                       isSelected
                                         ? 'bg-slate-900 text-white shadow-sm'
-                                        : 'bg-white/40 text-slate-700 hover:bg-white'
+                                        : 'bg-white/40 text-slate-700 group-hover:bg-white'
                                     )}
                                   >
                                     <FolderTree className={cn('h-4 w-4', isSelected ? 'text-white' : 'text-slate-500')} />
                                     <span className="truncate">{normalizeProcessTitle(summary.title)}</span>
-                                  </button>
+                                  </div>
                                   <button
                                     type="button"
                                     onClick={(event) => {
