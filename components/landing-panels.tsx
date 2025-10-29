@@ -363,6 +363,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
   const [diagramScale, setDiagramScale] = useState(1);
   const [isDiagramDragging, setIsDiagramDragging] = useState(false);
   const diagramDragStateRef = useRef<DiagramDragState | null>(null);
+  const diagramViewportRef = useRef<HTMLDivElement | null>(null);
   const [isMermaidReady, setIsMermaidReady] = useState(false);
   const mermaidAPIRef = useRef<MermaidAPI | null>(null);
   const diagramElementId = useMemo(() => `process-diagram-${generateStepId()}`, []);
@@ -1438,42 +1439,55 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
     setSelectedStepId(nextSelectedId ?? null);
   };
 
-  const handleDiagramWheel = useCallback((event: React.WheelEvent<HTMLDivElement>) => {
+  const handleDiagramWheel = useCallback((event: WheelEvent) => {
+    const viewport = diagramViewportRef.current;
+
+    if (!viewport) {
+      return;
+    }
+
     event.preventDefault();
     event.stopPropagation();
 
-    const { currentTarget, clientX, clientY, nativeEvent } = event;
-    const rect = currentTarget.getBoundingClientRect();
-    const pointerX = clientX - (rect.left + rect.width / 2);
-    const pointerY = clientY - (rect.top + rect.height / 2);
+    const rect = viewport.getBoundingClientRect();
+    const pointerX = event.clientX - (rect.left + rect.width / 2);
+    const pointerY = event.clientY - (rect.top + rect.height / 2);
 
-    const normalizedDeltaY = (() => {
-      if (nativeEvent.deltaMode === 1) {
-        return nativeEvent.deltaY * 32;
-      }
+    let normalizedDeltaY = event.deltaY;
 
-      if (nativeEvent.deltaMode === 2) {
-        return nativeEvent.deltaY * rect.height;
-      }
+    if (event.deltaMode === 1) {
+      normalizedDeltaY *= 32;
+    } else if (event.deltaMode === 2) {
+      normalizedDeltaY *= rect.height;
+    }
 
-      return nativeEvent.deltaY;
-    })();
+    if (!Number.isFinite(normalizedDeltaY)) {
+      return;
+    }
 
-    const limitedDelta = clampValue(normalizedDeltaY, -320, 320);
+    const limitedDelta = clampValue(normalizedDeltaY, -480, 480);
 
     if (Math.abs(limitedDelta) < 0.01) {
       return;
     }
 
-    const intensity = nativeEvent.ctrlKey || nativeEvent.metaKey ? 0.02 : 0.012;
-    const zoomFactor = Math.exp(-limitedDelta * intensity);
+    const direction = Math.sign(limitedDelta) || 1;
+    const distance = Math.min(Math.abs(limitedDelta), 480);
+    const baseStep = event.ctrlKey || event.metaKey ? 0.35 : 0.22;
+    const magnitude = Math.max(distance / 160, 0.2);
+    const scaleStep = 1 + baseStep * magnitude;
 
-    if (!Number.isFinite(zoomFactor) || zoomFactor === 0 || zoomFactor === 1) {
+    if (!Number.isFinite(scaleStep) || scaleStep <= 0) {
       return;
     }
 
     setDiagramScale((previousScale) => {
-      const nextScale = clampValue(previousScale * zoomFactor, DIAGRAM_SCALE_MIN, DIAGRAM_SCALE_MAX);
+      const proposedScale =
+        direction < 0
+          ? previousScale * scaleStep
+          : previousScale / scaleStep;
+
+      const nextScale = clampValue(proposedScale, DIAGRAM_SCALE_MIN, DIAGRAM_SCALE_MAX);
 
       if (nextScale === previousScale) {
         return previousScale;
@@ -1490,6 +1504,24 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
       return nextScale;
     });
   }, []);
+
+  useEffect(() => {
+    const viewport = diagramViewportRef.current;
+
+    if (!viewport) {
+      return;
+    }
+
+    const wheelHandler = (event: WheelEvent) => {
+      handleDiagramWheel(event);
+    };
+
+    viewport.addEventListener('wheel', wheelHandler, { passive: false });
+
+    return () => {
+      viewport.removeEventListener('wheel', wheelHandler);
+    };
+  }, [handleDiagramWheel]);
 
   const handleDiagramPointerDown = useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
@@ -1570,11 +1602,11 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
     <div className="relative flex h-full flex-col overflow-hidden bg-gradient-to-br from-slate-100 via-white to-slate-200 text-slate-900">
       <div className="absolute inset-0 z-0 flex items-center justify-center overflow-visible">
         <div
+          ref={diagramViewportRef}
           className={cn(
             'pointer-events-auto relative flex h-full w-full select-none touch-none items-center justify-center',
             isDiagramDragging ? 'cursor-grabbing' : 'cursor-grab'
           )}
-          onWheel={handleDiagramWheel}
           onPointerDown={handleDiagramPointerDown}
           onPointerMove={handleDiagramPointerMove}
           onPointerUp={handleDiagramPointerUp}
