@@ -1,6 +1,14 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type ReactNode
+} from 'react';
 import Link from 'next/link';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
@@ -1668,6 +1676,12 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
 
   const primaryWidth = isPrimaryCollapsed ? '3.5rem' : 'clamp(18rem, 28vw, 34rem)';
   const secondaryWidth = isSecondaryCollapsed ? '3.5rem' : 'clamp(16rem, 22vw, 26rem)';
+  const layoutStyle = useMemo<CSSProperties>(
+    () => ({
+      gridTemplateColumns: `${primaryWidth} minmax(0, 1fr) ${secondaryWidth}`
+    }),
+    [primaryWidth, secondaryWidth]
+  );
 
   return (
     <div className="relative flex h-full flex-col overflow-hidden bg-gradient-to-br from-slate-100 via-white to-slate-200 text-slate-900">
@@ -1710,9 +1724,12 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
           </span>
         ) : null}
       </div>
-      <div className="relative z-10 flex h-full min-h-0 w-full flex-col gap-6 px-4 py-8 lg:flex-row lg:items-stretch lg:gap-0 lg:justify-between lg:px-8 lg:py-12 xl:px-12">
+      <div
+        className="pointer-events-none relative z-10 flex h-full min-h-0 w-full flex-col gap-6 px-4 py-8 lg:grid lg:items-stretch lg:gap-0 lg:px-8 lg:py-12 xl:px-12"
+        style={layoutStyle}
+      >
         <div
-          className="relative flex shrink-0 items-stretch overflow-hidden transition-[width] duration-300 ease-out lg:order-1 lg:mr-auto lg:h-full lg:min-h-0"
+          className="pointer-events-auto relative flex shrink-0 items-stretch overflow-hidden transition-[width] duration-300 ease-out lg:col-start-1 lg:row-start-1 lg:h-full lg:min-h-0"
           style={{ width: primaryWidth }}
         >
           <button
@@ -1950,7 +1967,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
           </div>
         </div>
         <div
-          className="relative flex shrink-0 items-stretch overflow-hidden transition-[width] duration-300 ease-out lg:order-2 lg:ml-auto lg:h-full lg:min-h-0"
+          className="pointer-events-auto relative flex shrink-0 items-stretch overflow-hidden transition-[width] duration-300 ease-out lg:col-start-3 lg:row-start-1 lg:h-full lg:min-h-0"
           style={{ width: secondaryWidth }}
         >
           <button
