@@ -176,6 +176,11 @@ const normalizeStep = (step: ProcessStep): ProcessStep => ({
 
 const cloneSteps = (steps: readonly ProcessStep[]): ProcessStep[] => steps.map((step) => normalizeStep({ ...step }));
 
+const clampValue = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
+
+const DIAGRAM_SCALE_MIN = 0.5;
+const DIAGRAM_SCALE_MAX = 2.5;
+
 const areStepsEqual = (a: readonly ProcessStep[], b: readonly ProcessStep[]) => {
   if (a.length !== b.length) {
     return false;
@@ -355,6 +360,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
   const [diagramSvg, setDiagramSvg] = useState('');
   const [diagramError, setDiagramError] = useState<string | null>(null);
   const [diagramUserOffset, setDiagramUserOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [diagramScale, setDiagramScale] = useState(1);
   const [isDiagramDragging, setIsDiagramDragging] = useState(false);
   const diagramDragStateRef = useRef<DiagramDragState | null>(null);
   const [isMermaidReady, setIsMermaidReady] = useState(false);
@@ -1345,6 +1351,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
     }
 
     setDiagramUserOffset({ x: 0, y: 0 });
+    setDiagramScale(1);
   }, [diagramSvg]);
 
   const addStep = (type: Extract<StepType, 'action' | 'decision'>) => {
@@ -1440,6 +1447,36 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
     setSelectedStepId(nextSelectedId ?? null);
   };
 
+  const handleDiagramWheel = useCallback((event: React.WheelEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+
+    const { deltaY, currentTarget, clientX, clientY } = event;
+    const rect = currentTarget.getBoundingClientRect();
+    const pointerX = clientX - (rect.left + rect.width / 2);
+    const pointerY = clientY - (rect.top + rect.height / 2);
+
+    const zoomFactor = Math.exp(-deltaY / 500);
+
+    setDiagramScale((previousScale) => {
+      const nextScale = clampValue(previousScale * zoomFactor, DIAGRAM_SCALE_MIN, DIAGRAM_SCALE_MAX);
+
+      if (nextScale === previousScale) {
+        return previousScale;
+      }
+
+      setDiagramUserOffset((previousOffset) => {
+        const scaleRatio = nextScale / previousScale;
+        return {
+          x: pointerX - scaleRatio * (pointerX - previousOffset.x),
+          y: pointerY - scaleRatio * (pointerY - previousOffset.y)
+        };
+      });
+
+      return nextScale;
+    });
+  }, []);
+
   const handleDiagramPointerDown = useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
       if (event.button !== 0 && event.pointerType !== 'touch') {
@@ -1523,6 +1560,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
             'pointer-events-auto relative flex h-full w-full select-none touch-none items-center justify-center',
             isDiagramDragging ? 'cursor-grabbing' : 'cursor-grab'
           )}
+          onWheel={handleDiagramWheel}
           onPointerDown={handleDiagramPointerDown}
           onPointerMove={handleDiagramPointerMove}
           onPointerUp={handleDiagramPointerUp}
@@ -1533,7 +1571,8 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
               'pointer-events-auto absolute left-1/2 top-1/2 max-h-full w-auto max-w-full lg:max-w-6xl opacity-90 transition-transform [filter:drop-shadow(0_25px_65px_rgba(15,23,42,0.22))] [&_svg]:h-auto [&_svg]:max-h-full [&_svg]:max-w-full [&_.node rect]:stroke-slate-900 [&_.node rect]:stroke-[1.5px] [&_.node polygon]:stroke-slate-900 [&_.node polygon]:stroke-[1.5px] [&_.node circle]:stroke-slate-900 [&_.node circle]:stroke-[1.5px] [&_.node ellipse]:stroke-slate-900 [&_.node ellipse]:stroke-[1.5px] [&_.edgePath path]:stroke-slate-900 [&_.edgePath path]:stroke-[1.5px] [&_.edgeLabel]:text-slate-900'
             )}
             style={{
-              transform: `translate(-50%, -50%) translate3d(${diagramUserOffset.x}px, ${diagramUserOffset.y}px, 0)`
+              transform: `translate(-50%, -50%) translate3d(${diagramUserOffset.x}px, ${diagramUserOffset.y}px, 0) scale(${diagramScale})`,
+              transformOrigin: 'center center'
             }}
           >
             {diagramSvg ? (
