@@ -1,14 +1,6 @@
 'use client';
 
-import {
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-  type ReactNode
-} from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
@@ -325,12 +317,9 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
   const [diagramSvg, setDiagramSvg] = useState('');
   const [diagramError, setDiagramError] = useState<string | null>(null);
-  const [diagramBaseOffset, setDiagramBaseOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [diagramUserOffset, setDiagramUserOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [isDiagramDragging, setIsDiagramDragging] = useState(false);
   const diagramDragStateRef = useRef<DiagramDragState | null>(null);
-  const diagramViewportRef = useRef<HTMLDivElement | null>(null);
-  const diagramContentRef = useRef<HTMLDivElement | null>(null);
   const [isMermaidReady, setIsMermaidReady] = useState(false);
   const mermaidAPIRef = useRef<MermaidAPI | null>(null);
   const diagramElementId = useMemo(() => `process-diagram-${generateStepId()}`, []);
@@ -1088,74 +1077,13 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
     };
   }, [diagramDefinition, diagramElementId, isMermaidReady]);
 
-  const diagramOffset = useMemo(
-    () => ({
-      x: diagramBaseOffset.x + diagramUserOffset.x,
-      y: diagramBaseOffset.y + diagramUserOffset.y
-    }),
-    [diagramBaseOffset.x, diagramBaseOffset.y, diagramUserOffset.x, diagramUserOffset.y]
-  );
-
-  const recalcDiagramBaseOffset = useCallback(() => {
-    const viewport = diagramViewportRef.current;
-    const content = diagramContentRef.current;
-
-    if (!viewport || !content) {
-      return;
-    }
-
-    const viewportRect = viewport.getBoundingClientRect();
-    const contentRect = content.getBoundingClientRect();
-
-    if (viewportRect.width === 0 || contentRect.width === 0) {
-      return;
-    }
-
-    const nextX = Math.round((viewportRect.width - contentRect.width) / 2);
-    const nextY = Math.round((viewportRect.height - contentRect.height) / 2);
-
-    setDiagramBaseOffset((prev) => {
-      if (prev.x === nextX && prev.y === nextY) {
-        return prev;
-      }
-
-      return { x: nextX, y: nextY };
-    });
-  }, []);
-
-  useLayoutEffect(() => {
-    if (isDiagramDragging) {
-      return;
-    }
-
-    recalcDiagramBaseOffset();
-  }, [isDiagramDragging, recalcDiagramBaseOffset, diagramSvg, steps, isPrimaryCollapsed, isSecondaryCollapsed]);
-
   useEffect(() => {
-    if (typeof window === 'undefined') {
+    if (!diagramSvg) {
       return;
     }
 
-    let frame = 0;
-
-    const handleResize = () => {
-      if (frame !== 0) {
-        cancelAnimationFrame(frame);
-      }
-
-      frame = window.requestAnimationFrame(recalcDiagramBaseOffset);
-    };
-
-    window.addEventListener('resize', handleResize);
-
-    return () => {
-      if (frame !== 0) {
-        cancelAnimationFrame(frame);
-      }
-
-      window.removeEventListener('resize', handleResize);
-    };
-  }, [recalcDiagramBaseOffset]);
+    setDiagramUserOffset({ x: 0, y: 0 });
+  }, [diagramSvg]);
 
   const addStep = (type: Extract<StepType, 'action' | 'decision'>) => {
     const label = type === 'action' ? 'Nouvelle action' : 'Nouvelle décision';
@@ -1259,10 +1187,9 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
       <div className="absolute inset-0 z-0 flex items-center justify-center overflow-hidden px-6 py-10 sm:px-10">
         <div
           className={cn(
-            'pointer-events-auto flex h-full w-full select-none touch-none items-center justify-center',
+            'pointer-events-auto relative flex h-full w-full select-none touch-none items-center justify-center',
             isDiagramDragging ? 'cursor-grabbing' : 'cursor-grab'
           )}
-          ref={diagramViewportRef}
           onPointerDown={handleDiagramPointerDown}
           onPointerMove={handleDiagramPointerMove}
           onPointerUp={handleDiagramPointerUp}
@@ -1270,10 +1197,11 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
         >
           <div
             className={cn(
-              'pointer-events-auto max-h-full w-full max-w-6xl opacity-90 transition-transform [filter:drop-shadow(0_25px_65px_rgba(15,23,42,0.22))] [&_svg]:h-auto [&_svg]:w-full [&_svg]:max-h-full [&_.node rect]:stroke-slate-900 [&_.node rect]:stroke-[1.5px] [&_.node polygon]:stroke-slate-900 [&_.node polygon]:stroke-[1.5px] [&_.node circle]:stroke-slate-900 [&_.node circle]:stroke-[1.5px] [&_.node ellipse]:stroke-slate-900 [&_.node ellipse]:stroke-[1.5px] [&_.edgePath path]:stroke-slate-900 [&_.edgePath path]:stroke-[1.5px] [&_.edgeLabel]:text-slate-900'
+              'pointer-events-auto absolute left-1/2 top-1/2 max-h-full w-auto max-w-full lg:max-w-6xl opacity-90 transition-transform [filter:drop-shadow(0_25px_65px_rgba(15,23,42,0.22))] [&_svg]:h-auto [&_svg]:max-h-full [&_svg]:max-w-full [&_.node rect]:stroke-slate-900 [&_.node rect]:stroke-[1.5px] [&_.node polygon]:stroke-slate-900 [&_.node polygon]:stroke-[1.5px] [&_.node circle]:stroke-slate-900 [&_.node circle]:stroke-[1.5px] [&_.node ellipse]:stroke-slate-900 [&_.node ellipse]:stroke-[1.5px] [&_.edgePath path]:stroke-slate-900 [&_.edgePath path]:stroke-[1.5px] [&_.edgeLabel]:text-slate-900'
             )}
-            ref={diagramContentRef}
-            style={{ transform: `translate3d(${diagramOffset.x}px, ${diagramOffset.y}px, 0)` }}
+            style={{
+              transform: `translate(-50%, -50%) translate3d(${diagramUserOffset.x}px, ${diagramUserOffset.y}px, 0)`
+            }}
           >
             {diagramSvg ? (
               <div
