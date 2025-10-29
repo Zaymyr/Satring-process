@@ -831,14 +831,26 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
     setSteps((previous) => {
       const fromIndex = previous.findIndex((item) => item.id === draggedId);
       const toIndex = previous.findIndex((item) => item.id === overStepId);
+      const lastDraggableIndex = previous.length - 2;
 
-      if (fromIndex === -1 || toIndex === -1 || fromIndex === toIndex) {
+      if (
+        fromIndex <= 0 ||
+        fromIndex >= previous.length - 1 ||
+        lastDraggableIndex < 1 ||
+        toIndex === -1
+      ) {
+        return previous;
+      }
+
+      const clampedTargetIndex = Math.min(Math.max(toIndex, 1), lastDraggableIndex);
+
+      if (fromIndex === clampedTargetIndex) {
         return previous;
       }
 
       const updated = [...previous];
       const [moved] = updated.splice(fromIndex, 1);
-      updated.splice(toIndex, 0, moved);
+      updated.splice(clampedTargetIndex, 0, moved);
       return updated;
     });
   }, []);
@@ -854,14 +866,21 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
 
     setSteps((previous) => {
       const fromIndex = previous.findIndex((item) => item.id === draggedId);
+      const finishIndex = previous.length - 1;
+      const lastDraggableIndex = finishIndex - 1;
 
-      if (fromIndex === -1 || fromIndex === previous.length - 1) {
+      if (
+        fromIndex <= 0 ||
+        fromIndex >= finishIndex ||
+        lastDraggableIndex < 1 ||
+        fromIndex === lastDraggableIndex
+      ) {
         return previous;
       }
 
       const updated = [...previous];
       const [moved] = updated.splice(fromIndex, 1);
-      updated.push(moved);
+      updated.splice(lastDraggableIndex, 0, moved);
       return updated;
     });
   }, []);
@@ -1515,6 +1534,8 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                     const stepPosition = index + 1;
                     const availableTargets = steps.filter((candidate) => candidate.id !== step.id);
                     const isDragging = draggedStepId === step.id;
+                    const isFixedStep = step.type === 'start' || step.type === 'finish';
+                    const canReorderStep = !isFixedStep;
 
                     return (
                       <Card
@@ -1530,12 +1551,22 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                           <div className="flex flex-col items-center gap-1">
                             <button
                               type="button"
-                              className="flex h-7 w-7 items-center justify-center rounded-full border border-transparent bg-slate-100 text-slate-500 transition hover:border-slate-300 hover:bg-white"
-                              draggable
-                              onDragStart={(event) => handleStepDragStart(event, step.id)}
+                              className={cn(
+                                'flex h-7 w-7 items-center justify-center rounded-full border border-transparent bg-slate-100 text-slate-500 transition',
+                                canReorderStep ? 'hover:border-slate-300 hover:bg-white' : 'cursor-not-allowed opacity-60'
+                              )}
+                              draggable={canReorderStep}
+                              onDragStart={(event) => {
+                                if (!canReorderStep) {
+                                  event.preventDefault();
+                                  return;
+                                }
+                                handleStepDragStart(event, step.id);
+                              }}
                               onDragEnd={handleStepDragEnd}
                               aria-label={`Réorganiser ${getStepDisplayLabel(step)}`}
                               aria-grabbed={isDragging}
+                              disabled={!canReorderStep}
                             >
                               <GripVertical className="h-3.5 w-3.5" />
                             </button>
