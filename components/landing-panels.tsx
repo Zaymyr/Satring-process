@@ -178,8 +178,8 @@ const cloneSteps = (steps: readonly ProcessStep[]): ProcessStep[] => steps.map((
 
 const clampValue = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
 
-const DIAGRAM_SCALE_MIN = 0.5;
-const DIAGRAM_SCALE_MAX = 2.5;
+const DIAGRAM_SCALE_MIN = 0.35;
+const DIAGRAM_SCALE_MAX = 5;
 
 const areStepsEqual = (a: readonly ProcessStep[], b: readonly ProcessStep[]) => {
   if (a.length !== b.length) {
@@ -1459,14 +1459,14 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
       return nativeEvent.deltaY;
     })();
 
-    const sensitivity = nativeEvent.ctrlKey || nativeEvent.metaKey ? 120 : 240;
-    const limitedDelta = clampValue(normalizedDeltaY, -sensitivity * 4, sensitivity * 4);
+    const limitedDelta = clampValue(normalizedDeltaY, -320, 320);
 
-    if (limitedDelta === 0) {
+    if (Math.abs(limitedDelta) < 0.01) {
       return;
     }
 
-    const zoomFactor = Math.exp(-limitedDelta / sensitivity);
+    const intensity = nativeEvent.ctrlKey || nativeEvent.metaKey ? 0.02 : 0.012;
+    const zoomFactor = Math.exp(-limitedDelta * intensity);
 
     if (!Number.isFinite(zoomFactor) || zoomFactor === 0 || zoomFactor === 1) {
       return;
@@ -1568,7 +1568,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
 
   return (
     <div className="relative flex h-full flex-col overflow-hidden bg-gradient-to-br from-slate-100 via-white to-slate-200 text-slate-900">
-      <div className="absolute inset-0 z-0 flex items-center justify-center overflow-hidden px-6 py-10 sm:px-10">
+      <div className="absolute inset-0 z-0 flex items-center justify-center overflow-visible">
         <div
           className={cn(
             'pointer-events-auto relative flex h-full w-full select-none touch-none items-center justify-center',
@@ -1582,11 +1582,12 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
         >
           <div
             className={cn(
-              'pointer-events-auto absolute left-1/2 top-1/2 max-h-full w-auto max-w-full lg:max-w-6xl opacity-90 transition-transform [filter:drop-shadow(0_25px_65px_rgba(15,23,42,0.22))] [&_svg]:h-auto [&_svg]:max-h-full [&_svg]:max-w-full [&_.node rect]:stroke-slate-900 [&_.node rect]:stroke-[1.5px] [&_.node polygon]:stroke-slate-900 [&_.node polygon]:stroke-[1.5px] [&_.node circle]:stroke-slate-900 [&_.node circle]:stroke-[1.5px] [&_.node ellipse]:stroke-slate-900 [&_.node ellipse]:stroke-[1.5px] [&_.edgePath path]:stroke-slate-900 [&_.edgePath path]:stroke-[1.5px] [&_.edgeLabel]:text-slate-900'
+              'pointer-events-auto absolute left-1/2 top-1/2 h-auto w-auto max-h-none max-w-none opacity-90 transition-transform [filter:drop-shadow(0_25px_65px_rgba(15,23,42,0.22))] [&_svg]:h-auto [&_svg]:max-h-none [&_svg]:max-w-none [&_.node rect]:stroke-slate-900 [&_.node rect]:stroke-[1.5px] [&_.node polygon]:stroke-slate-900 [&_.node polygon]:stroke-[1.5px] [&_.node circle]:stroke-slate-900 [&_.node circle]:stroke-[1.5px] [&_.node ellipse]:stroke-slate-900 [&_.node ellipse]:stroke-[1.5px] [&_.edgePath path]:stroke-slate-900 [&_.edgePath path]:stroke-[1.5px] [&_.edgeLabel]:text-slate-900'
             )}
             style={{
               transform: `translate(-50%, -50%) translate3d(${diagramUserOffset.x}px, ${diagramUserOffset.y}px, 0) scale(${diagramScale})`,
-              transformOrigin: 'center center'
+              transformOrigin: 'center center',
+              willChange: 'transform'
             }}
           >
             {diagramSvg ? (
