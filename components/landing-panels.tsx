@@ -14,6 +14,7 @@ import {
   Pencil,
   PlayCircle,
   Plus,
+  GripVertical,
   ShieldCheck,
   Sparkles,
   Trash2,
@@ -347,6 +348,8 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
   const [processTitle, setProcessTitle] = useState(DEFAULT_PROCESS_TITLE);
   const [steps, setSteps] = useState<ProcessStep[]>(() => cloneSteps(DEFAULT_PROCESS_STEPS));
   const baselineStepsRef = useRef<ProcessStep[]>(cloneSteps(DEFAULT_PROCESS_STEPS));
+  const draggedStepIdRef = useRef<string | null>(null);
+  const [draggedStepId, setDraggedStepId] = useState<string | null>(null);
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
   const [diagramSvg, setDiagramSvg] = useState('');
   const [diagramError, setDiagramError] = useState<string | null>(null);
@@ -790,6 +793,78 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
 
     createProcessMutation.mutate(undefined);
   }, [createProcessMutation, isCreating, isUnauthorized]);
+
+  const clearDragState = useCallback(() => {
+    draggedStepIdRef.current = null;
+    setDraggedStepId(null);
+  }, []);
+
+  const handleStepDragStart = useCallback((event: React.DragEvent<HTMLButtonElement>, stepId: string) => {
+    event.stopPropagation();
+    event.dataTransfer.effectAllowed = 'move';
+    event.dataTransfer.setData('text/plain', stepId);
+    draggedStepIdRef.current = stepId;
+    setDraggedStepId(stepId);
+  }, []);
+
+  const handleStepDragEnd = useCallback(() => {
+    clearDragState();
+  }, [clearDragState]);
+
+  const handleStepDrop = useCallback(
+    (event: React.DragEvent<HTMLElement>) => {
+      event.preventDefault();
+      clearDragState();
+    },
+    [clearDragState]
+  );
+
+  const handleStepDragOver = useCallback((event: React.DragEvent<HTMLElement>, overStepId: string) => {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'move';
+    const draggedId = draggedStepIdRef.current;
+
+    if (!draggedId || draggedId === overStepId) {
+      return;
+    }
+
+    setSteps((previous) => {
+      const fromIndex = previous.findIndex((item) => item.id === draggedId);
+      const toIndex = previous.findIndex((item) => item.id === overStepId);
+
+      if (fromIndex === -1 || toIndex === -1 || fromIndex === toIndex) {
+        return previous;
+      }
+
+      const updated = [...previous];
+      const [moved] = updated.splice(fromIndex, 1);
+      updated.splice(toIndex, 0, moved);
+      return updated;
+    });
+  }, []);
+
+  const handleStepListDragOverEnd = useCallback((event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'move';
+    const draggedId = draggedStepIdRef.current;
+
+    if (!draggedId) {
+      return;
+    }
+
+    setSteps((previous) => {
+      const fromIndex = previous.findIndex((item) => item.id === draggedId);
+
+      if (fromIndex === -1 || fromIndex === previous.length - 1) {
+        return previous;
+      }
+
+      const updated = [...previous];
+      const [moved] = updated.splice(fromIndex, 1);
+      updated.push(moved);
+      return updated;
+    });
+  }, []);
 
   const escapeHtml = (value: string) =>
     value
@@ -1439,13 +1514,35 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                     const isRemovable = step.type === 'action' || step.type === 'decision';
                     const stepPosition = index + 1;
                     const availableTargets = steps.filter((candidate) => candidate.id !== step.id);
+                    const isDragging = draggedStepId === step.id;
 
                     return (
-                      <Card key={step.id} className="border-slate-200 bg-white/90 shadow-sm">
-                        <CardContent className="flex items-center gap-3 p-3.5">
-                          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-100 text-[0.65rem] font-semibold text-slate-600">
-                            {stepPosition}
-                          </span>
+                      <Card
+                        key={step.id}
+                        className={cn(
+                          'border-slate-200 bg-white/90 shadow-sm transition',
+                          isDragging ? 'opacity-70 ring-2 ring-slate-300' : 'hover:border-slate-300'
+                        )}
+                        onDragOver={(event) => handleStepDragOver(event, step.id)}
+                        onDrop={handleStepDrop}
+                      >
+                        <CardContent className="flex items-start gap-3 p-3.5">
+                          <div className="flex flex-col items-center gap-1">
+                            <button
+                              type="button"
+                              className="flex h-7 w-7 items-center justify-center rounded-full border border-transparent bg-slate-100 text-slate-500 transition hover:border-slate-300 hover:bg-white"
+                              draggable
+                              onDragStart={(event) => handleStepDragStart(event, step.id)}
+                              onDragEnd={handleStepDragEnd}
+                              aria-label={`Réorganiser ${getStepDisplayLabel(step)}`}
+                              aria-grabbed={isDragging}
+                            >
+                              <GripVertical className="h-3.5 w-3.5" />
+                            </button>
+                            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-slate-100 text-[0.65rem] font-semibold text-slate-600">
+                              {stepPosition}
+                            </span>
+                          </div>
                           <div className="flex min-w-0 flex-1 flex-col gap-1">
                             <div className="flex items-center gap-1.5 text-slate-500">
                               <Icon className="h-3.5 w-3.5" />
@@ -1529,6 +1626,19 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                       </Card>
                     );
                   })}
+                  <div
+                    role="presentation"
+                    className={cn(
+                      'h-4 rounded border border-dashed border-transparent transition',
+                      draggedStepId ? 'border-slate-300 bg-white/60' : 'border-transparent'
+                    )}
+                    onDragOver={handleStepListDragOverEnd}
+                    onDrop={handleStepDrop}
+                  >
+                    {draggedStepId ? (
+                      <span className="sr-only">Déposer ici pour placer l’étape à la fin</span>
+                    ) : null}
+                  </div>
                 </div>
               </div>
             </div>
