@@ -1508,6 +1508,16 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
         return;
       }
 
+      const composedPath = typeof event.composedPath === 'function' ? event.composedPath() : [];
+      const eventTarget = (event.target as Node | null) ?? null;
+      const isEventWithinViewport =
+        (Array.isArray(composedPath) && composedPath.includes(viewport)) ||
+        (eventTarget ? viewport.contains(eventTarget) : false);
+
+      if (!isEventWithinViewport) {
+        return;
+      }
+
       const rect = viewport.getBoundingClientRect();
       const isWithinHorizontalBounds = event.clientX >= rect.left && event.clientX <= rect.right;
       const isWithinVerticalBounds = event.clientY >= rect.top && event.clientY <= rect.bottom;
