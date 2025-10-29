@@ -1728,18 +1728,18 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
             )}
           >
             <h1 className="text-base font-semibold text-slate-900">{processTitle}</h1>
+            <div className="flex flex-wrap gap-2.5">
+              <Button type="button" onClick={() => addStep('action')} className="h-9 rounded-md bg-slate-900 px-3 text-sm text-white hover:bg-slate-800">
+                <Plus className="mr-2 h-3.5 w-3.5" />
+                Ajouter une action
+              </Button>
+              <Button type="button" variant="outline" onClick={() => addStep('decision')} className="h-9 rounded-md border-slate-300 bg-white px-3 text-sm text-slate-900 hover:bg-slate-50">
+                <GitBranch className="mr-2 h-3.5 w-3.5" />
+                Ajouter une décision
+              </Button>
+            </div>
             <div className="flex-1 min-h-0 overflow-hidden">
               <div className="h-full space-y-6 overflow-y-auto rounded-2xl border border-slate-200 bg-white/75 p-5 pr-2 shadow-inner sm:pr-3">
-                <div className="flex flex-wrap gap-2.5">
-                  <Button type="button" onClick={() => addStep('action')} className="h-9 rounded-md bg-slate-900 px-3 text-sm text-white hover:bg-slate-800">
-                    <Plus className="mr-2 h-3.5 w-3.5" />
-                    Ajouter une action
-                  </Button>
-                  <Button type="button" variant="outline" onClick={() => addStep('decision')} className="h-9 rounded-md border-slate-300 bg-white px-3 text-sm text-slate-900 hover:bg-slate-50">
-                    <GitBranch className="mr-2 h-3.5 w-3.5" />
-                    Ajouter une décision
-                  </Button>
-                </div>
                 {selectedStep ? (
                   <p className="text-xs text-slate-600">
                     Étape sélectionnée :{' '}
