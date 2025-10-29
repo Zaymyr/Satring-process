@@ -1345,15 +1345,6 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
     };
   }, [diagramDefinition, diagramElementId, isMermaidReady]);
 
-  useEffect(() => {
-    if (!diagramSvg) {
-      return;
-    }
-
-    setDiagramUserOffset({ x: 0, y: 0 });
-    setDiagramScale(1);
-  }, [diagramSvg]);
-
   const addStep = (type: Extract<StepType, 'action' | 'decision'>) => {
     const label = type === 'action' ? 'Nouvelle action' : 'Nouvelle décision';
     const newStepId = generateStepId();
@@ -1451,12 +1442,35 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
     event.preventDefault();
     event.stopPropagation();
 
-    const { deltaY, currentTarget, clientX, clientY } = event;
+    const { currentTarget, clientX, clientY, nativeEvent } = event;
     const rect = currentTarget.getBoundingClientRect();
     const pointerX = clientX - (rect.left + rect.width / 2);
     const pointerY = clientY - (rect.top + rect.height / 2);
 
-    const zoomFactor = Math.exp(-deltaY / 500);
+    const normalizedDeltaY = (() => {
+      if (nativeEvent.deltaMode === 1) {
+        return nativeEvent.deltaY * 32;
+      }
+
+      if (nativeEvent.deltaMode === 2) {
+        return nativeEvent.deltaY * rect.height;
+      }
+
+      return nativeEvent.deltaY;
+    })();
+
+    const sensitivity = nativeEvent.ctrlKey || nativeEvent.metaKey ? 120 : 240;
+    const limitedDelta = clampValue(normalizedDeltaY, -sensitivity * 4, sensitivity * 4);
+
+    if (limitedDelta === 0) {
+      return;
+    }
+
+    const zoomFactor = Math.exp(-limitedDelta / sensitivity);
+
+    if (!Number.isFinite(zoomFactor) || zoomFactor === 0 || zoomFactor === 1) {
+      return;
+    }
 
     setDiagramScale((previousScale) => {
       const nextScale = clampValue(previousScale * zoomFactor, DIAGRAM_SCALE_MIN, DIAGRAM_SCALE_MAX);
