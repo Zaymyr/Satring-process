@@ -347,6 +347,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
   const [selectedProcessId, setSelectedProcessId] = useState<string | null>(null);
   const [processTitle, setProcessTitle] = useState(DEFAULT_PROCESS_TITLE);
   const [steps, setSteps] = useState<ProcessStep[]>(() => cloneSteps(DEFAULT_PROCESS_STEPS));
+  const [selectedStepId, setSelectedStepId] = useState<string | null>(null);
   const baselineStepsRef = useRef<ProcessStep[]>(cloneSteps(DEFAULT_PROCESS_STEPS));
   const draggedStepIdRef = useRef<string | null>(null);
   const [draggedStepId, setDraggedStepId] = useState<string | null>(null);
@@ -415,6 +416,35 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
     [processSummariesQuery.data]
   );
   const hasProcesses = processSummaries.length > 0;
+  const selectedStep = useMemo(
+    () => steps.find((step) => step.id === selectedStepId) ?? null,
+    [selectedStepId, steps]
+  );
+
+  useEffect(() => {
+    if (steps.length === 0) {
+      if (selectedStepId !== null) {
+        setSelectedStepId(null);
+      }
+      return;
+    }
+
+    if (selectedStepId && steps.some((step) => step.id === selectedStepId)) {
+      return;
+    }
+
+    const fallback =
+      steps.find((step) => step.type === 'action' || step.type === 'decision') ??
+      steps.find((step) => step.type === 'start') ??
+      steps[0] ??
+      null;
+
+    const fallbackId = fallback ? fallback.id : null;
+
+    if (fallbackId !== selectedStepId) {
+      setSelectedStepId(fallbackId);
+    }
+  }, [selectedStepId, steps]);
 
   useEffect(() => {
     if (processQuery.data) {
@@ -799,13 +829,17 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
     setDraggedStepId(null);
   }, []);
 
-  const handleStepDragStart = useCallback((event: React.DragEvent<HTMLButtonElement>, stepId: string) => {
-    event.stopPropagation();
-    event.dataTransfer.effectAllowed = 'move';
-    event.dataTransfer.setData('text/plain', stepId);
-    draggedStepIdRef.current = stepId;
-    setDraggedStepId(stepId);
-  }, []);
+  const handleStepDragStart = useCallback(
+    (event: React.DragEvent<HTMLButtonElement>, stepId: string) => {
+      event.stopPropagation();
+      event.dataTransfer.effectAllowed = 'move';
+      event.dataTransfer.setData('text/plain', stepId);
+      draggedStepIdRef.current = stepId;
+      setDraggedStepId(stepId);
+      setSelectedStepId(stepId);
+    },
+    [setSelectedStepId]
+  );
 
   const handleStepDragEnd = useCallback(() => {
     clearDragState();
@@ -1315,22 +1349,38 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
 
   const addStep = (type: Extract<StepType, 'action' | 'decision'>) => {
     const label = type === 'action' ? 'Nouvelle action' : 'Nouvelle décision';
+    const newStepId = generateStepId();
+    const nextStep: Step = {
+      id: newStepId,
+      label,
+      type,
+      yesTargetId: null,
+      noTargetId: null
+    };
+
     setSteps((prev) => {
       const finishIndex = prev.findIndex((step) => step.type === 'finish');
-      const nextStep: Step = {
-        id: generateStepId(),
-        label,
-        type,
-        yesTargetId: null,
-        noTargetId: null
-      };
+      const selectedIndex = selectedStepId ? prev.findIndex((step) => step.id === selectedStepId) : -1;
 
-      if (finishIndex === -1) {
-        return [...prev, nextStep];
-      }
+      const insertionIndex = (() => {
+        if (selectedIndex === -1) {
+          return finishIndex === -1 ? prev.length : finishIndex;
+        }
 
-      return [...prev.slice(0, finishIndex), nextStep, ...prev.slice(finishIndex)];
+        if (finishIndex === -1) {
+          return Math.min(selectedIndex + 1, prev.length);
+        }
+
+        return Math.min(selectedIndex + 1, finishIndex);
+      })();
+
+      const clampedIndex = Math.max(0, Math.min(insertionIndex, prev.length));
+      const before = prev.slice(0, clampedIndex);
+      const after = prev.slice(clampedIndex);
+      return [...before, nextStep, ...after];
     });
+
+    setSelectedStepId(newStepId);
   };
 
   const updateStepLabel = (id: string, label: string) => {
@@ -1356,8 +1406,9 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
   };
 
   const removeStep = (id: string) => {
-    setSteps((prev) =>
-      prev
+    let nextSelectedId: string | null = selectedStepId;
+    setSteps((prev) => {
+      const filtered = prev
         .filter((step) => step.id !== id)
         .map((step) => {
           if (step.type !== 'decision') {
@@ -1371,8 +1422,22 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
           };
 
           return normalizeStep(updated);
-        })
-    );
+        });
+
+      if (selectedStepId === id) {
+        const removedIndex = prev.findIndex((step) => step.id === id);
+        const fallbackIndex = removedIndex > 0 ? removedIndex - 1 : 0;
+        nextSelectedId = filtered[fallbackIndex]?.id ?? filtered[0]?.id ?? null;
+      } else if (selectedStepId && !filtered.some((step) => step.id === selectedStepId)) {
+        nextSelectedId =
+          filtered.find((step) => step.type === 'action' || step.type === 'decision')?.id ??
+          filtered[0]?.id ??
+          null;
+      }
+
+      return filtered;
+    });
+    setSelectedStepId(nextSelectedId ?? null);
   };
 
   const handleDiagramPointerDown = useCallback(
@@ -1527,6 +1592,12 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                     Ajouter une décision
                   </Button>
                 </div>
+                {selectedStep ? (
+                  <p className="text-xs text-slate-600">
+                    Étape sélectionnée :{' '}
+                    <span className="font-medium text-slate-900">{getStepDisplayLabel(selectedStep)}</span>
+                  </p>
+                ) : null}
                 <div className="space-y-3.5">
                   {steps.map((step, index) => {
                     const Icon = STEP_TYPE_ICONS[step.type];
@@ -1536,16 +1607,24 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                     const isDragging = draggedStepId === step.id;
                     const isFixedStep = step.type === 'start' || step.type === 'finish';
                     const canReorderStep = !isFixedStep;
+                    const isSelectedStep = selectedStepId === step.id;
 
                     return (
                       <Card
                         key={step.id}
                         className={cn(
                           'border-slate-200 bg-white/90 shadow-sm transition',
-                          isDragging ? 'opacity-70 ring-2 ring-slate-300' : 'hover:border-slate-300'
+                          isDragging
+                            ? 'opacity-70 ring-2 ring-slate-300'
+                            : isSelectedStep
+                            ? 'border-slate-900 ring-2 ring-slate-900/20'
+                            : 'hover:border-slate-300'
                         )}
                         onDragOver={(event) => handleStepDragOver(event, step.id)}
                         onDrop={handleStepDrop}
+                        onClick={() => setSelectedStepId(step.id)}
+                        onFocusCapture={() => setSelectedStepId(step.id)}
+                        aria-selected={isSelectedStep}
                       >
                         <CardContent className="flex items-start gap-3 p-3.5">
                           <div className="flex flex-col items-center gap-1">
@@ -1570,7 +1649,12 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                             >
                               <GripVertical className="h-3.5 w-3.5" />
                             </button>
-                            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-slate-100 text-[0.65rem] font-semibold text-slate-600">
+                            <span
+                              className={cn(
+                                'flex h-7 w-7 items-center justify-center rounded-full text-[0.65rem] font-semibold transition-colors',
+                                isSelectedStep ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600'
+                              )}
+                            >
                               {stepPosition}
                             </span>
                           </div>
