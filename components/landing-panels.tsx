@@ -1439,26 +1439,19 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
     setSelectedStepId(nextSelectedId ?? null);
   };
 
-  const handleDiagramWheel = useCallback((event: WheelEvent) => {
-    const viewport = diagramViewportRef.current;
-
-    if (!viewport) {
-      return;
-    }
-
+  const applyDiagramWheelZoom = useCallback((event: WheelEvent, viewportRect: DOMRect) => {
     event.preventDefault();
     event.stopPropagation();
 
-    const rect = viewport.getBoundingClientRect();
-    const pointerX = event.clientX - (rect.left + rect.width / 2);
-    const pointerY = event.clientY - (rect.top + rect.height / 2);
+    const pointerX = event.clientX - (viewportRect.left + viewportRect.width / 2);
+    const pointerY = event.clientY - (viewportRect.top + viewportRect.height / 2);
 
     let normalizedDeltaY = event.deltaY;
 
     if (event.deltaMode === 1) {
       normalizedDeltaY *= 32;
     } else if (event.deltaMode === 2) {
-      normalizedDeltaY *= rect.height;
+      normalizedDeltaY *= viewportRect.height;
     }
 
     if (!Number.isFinite(normalizedDeltaY)) {
@@ -1506,22 +1499,31 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
   }, []);
 
   useEffect(() => {
-    const viewport = diagramViewportRef.current;
+    const handleWheel = (event: WheelEvent) => {
+      const viewport = diagramViewportRef.current;
 
-    if (!viewport) {
-      return;
-    }
+      if (!viewport) {
+        return;
+      }
 
-    const wheelHandler = (event: WheelEvent) => {
-      handleDiagramWheel(event);
+      const rect = viewport.getBoundingClientRect();
+      const isWithinHorizontalBounds = event.clientX >= rect.left && event.clientX <= rect.right;
+      const isWithinVerticalBounds = event.clientY >= rect.top && event.clientY <= rect.bottom;
+
+      if (!isWithinHorizontalBounds || !isWithinVerticalBounds) {
+        return;
+      }
+
+      applyDiagramWheelZoom(event, rect);
     };
 
-    viewport.addEventListener('wheel', wheelHandler, { passive: false });
+    const listenerOptions: AddEventListenerOptions = { passive: false, capture: true };
+    window.addEventListener('wheel', handleWheel, listenerOptions);
 
     return () => {
-      viewport.removeEventListener('wheel', wheelHandler);
+      window.removeEventListener('wheel', handleWheel, listenerOptions);
     };
-  }, [handleDiagramWheel]);
+  }, [applyDiagramWheelZoom]);
 
   const handleDiagramPointerDown = useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
