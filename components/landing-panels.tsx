@@ -55,6 +55,7 @@ type DiagramDragState = {
   originY: number;
   startX: number;
   startY: number;
+  target: HTMLDivElement | null;
 };
 
 type MermaidAPI = {
@@ -1525,6 +1526,55 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
     };
   }, [applyDiagramWheelZoom]);
 
+  useEffect(() => {
+    const handlePointerMove = (event: PointerEvent) => {
+      const dragState = diagramDragStateRef.current;
+
+      if (!dragState || dragState.pointerId !== event.pointerId) {
+        return;
+      }
+
+      event.preventDefault();
+
+      const deltaX = event.clientX - dragState.startX;
+      const deltaY = event.clientY - dragState.startY;
+
+      setDiagramUserOffset({
+        x: dragState.originX + deltaX,
+        y: dragState.originY + deltaY
+      });
+    };
+
+    const endDrag = (event: PointerEvent) => {
+      const dragState = diagramDragStateRef.current;
+
+      if (!dragState || dragState.pointerId !== event.pointerId) {
+        return;
+      }
+
+      if (dragState.target?.hasPointerCapture?.(event.pointerId)) {
+        try {
+          dragState.target.releasePointerCapture(event.pointerId);
+        } catch {
+          // ignore pointer capture release errors
+        }
+      }
+
+      diagramDragStateRef.current = null;
+      setIsDiagramDragging(false);
+    };
+
+    window.addEventListener('pointermove', handlePointerMove, { passive: false });
+    window.addEventListener('pointerup', endDrag);
+    window.addEventListener('pointercancel', endDrag);
+
+    return () => {
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', endDrag);
+      window.removeEventListener('pointercancel', endDrag);
+    };
+  }, []);
+
   const handleDiagramPointerDown = useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
       if (event.button !== 0 && event.pointerType !== 'touch') {
@@ -1535,66 +1585,25 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
       event.stopPropagation();
 
       const target = event.currentTarget;
-      target.setPointerCapture(event.pointerId);
+
+      try {
+        target.setPointerCapture(event.pointerId);
+      } catch {
+        // ignore pointer capture errors on unsupported browsers
+      }
 
       diagramDragStateRef.current = {
         pointerId: event.pointerId,
         originX: diagramUserOffset.x,
         originY: diagramUserOffset.y,
         startX: event.clientX,
-        startY: event.clientY
+        startY: event.clientY,
+        target
       };
 
       setIsDiagramDragging(true);
     },
     [diagramUserOffset.x, diagramUserOffset.y]
-  );
-
-  const handleDiagramPointerMove = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
-    const dragState = diagramDragStateRef.current;
-
-    if (!dragState || dragState.pointerId !== event.pointerId) {
-      return;
-    }
-
-    event.preventDefault();
-
-    const deltaX = event.clientX - dragState.startX;
-    const deltaY = event.clientY - dragState.startY;
-
-    setDiagramUserOffset({
-      x: dragState.originX + deltaX,
-      y: dragState.originY + deltaY
-    });
-  }, []);
-
-  const endDiagramDrag = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
-    const dragState = diagramDragStateRef.current;
-
-    if (!dragState || dragState.pointerId !== event.pointerId) {
-      return;
-    }
-
-    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-      event.currentTarget.releasePointerCapture(event.pointerId);
-    }
-
-    diagramDragStateRef.current = null;
-    setIsDiagramDragging(false);
-  }, []);
-
-  const handleDiagramPointerUp = useCallback(
-    (event: React.PointerEvent<HTMLDivElement>) => {
-      endDiagramDrag(event);
-    },
-    [endDiagramDrag]
-  );
-
-  const handleDiagramPointerCancel = useCallback(
-    (event: React.PointerEvent<HTMLDivElement>) => {
-      endDiagramDrag(event);
-    },
-    [endDiagramDrag]
   );
 
   const primaryWidth = isPrimaryCollapsed ? '3.5rem' : 'clamp(18rem, 28vw, 34rem)';
@@ -1610,9 +1619,6 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
             isDiagramDragging ? 'cursor-grabbing' : 'cursor-grab'
           )}
           onPointerDown={handleDiagramPointerDown}
-          onPointerMove={handleDiagramPointerMove}
-          onPointerUp={handleDiagramPointerUp}
-          onPointerCancel={handleDiagramPointerCancel}
         >
           <div
             className={cn(
