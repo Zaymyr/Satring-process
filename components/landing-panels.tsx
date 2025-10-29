@@ -1508,6 +1508,16 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
         return;
       }
 
+      const composedPath = typeof event.composedPath === 'function' ? event.composedPath() : [];
+      const eventTarget = (event.target as Node | null) ?? null;
+      const isEventWithinViewport =
+        (Array.isArray(composedPath) && composedPath.includes(viewport)) ||
+        (eventTarget ? viewport.contains(eventTarget) : false);
+
+      if (!isEventWithinViewport) {
+        return;
+      }
+
       const rect = viewport.getBoundingClientRect();
       const isWithinHorizontalBounds = event.clientX >= rect.left && event.clientX <= rect.right;
       const isWithinVerticalBounds = event.clientY >= rect.top && event.clientY <= rect.bottom;
@@ -1756,6 +1766,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                     const isFixedStep = step.type === 'start' || step.type === 'finish';
                     const canReorderStep = !isFixedStep;
                     const isSelectedStep = selectedStepId === step.id;
+                    const displayLabel = getStepDisplayLabel(step);
 
                     return (
                       <Card
@@ -1774,8 +1785,18 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                         onFocusCapture={() => setSelectedStepId(step.id)}
                         aria-selected={isSelectedStep}
                       >
-                        <CardContent className="flex items-start gap-3 p-3.5">
-                          <div className="flex flex-col items-center gap-1">
+                        <CardContent
+                          className={cn(
+                            'flex gap-3 p-3.5',
+                            isSelectedStep ? 'items-start' : 'items-center gap-2 p-2.5'
+                          )}
+                        >
+                          <div
+                            className={cn(
+                              'flex items-center',
+                              isSelectedStep ? 'flex-col gap-1' : 'flex-row gap-2'
+                            )}
+                          >
                             <button
                               type="button"
                               className={cn(
@@ -1806,73 +1827,81 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                               {stepPosition}
                             </span>
                           </div>
-                          <div className="flex min-w-0 flex-1 flex-col gap-1">
-                            <div className="flex items-center gap-1.5 text-slate-500">
-                              <Icon className="h-3.5 w-3.5" />
-                              <span className="text-[0.6rem] font-medium uppercase tracking-[0.24em]">
-                                {STEP_TYPE_LABELS[step.type]}
+                          {isSelectedStep ? (
+                            <div className="flex min-w-0 flex-1 flex-col gap-1">
+                              <div className="flex items-center gap-1.5 text-slate-500">
+                                <Icon className="h-3.5 w-3.5" />
+                                <span className="text-[0.6rem] font-medium uppercase tracking-[0.24em]">
+                                  {STEP_TYPE_LABELS[step.type]}
+                                </span>
+                              </div>
+                              <Input
+                                id={`step-${step.id}-label`}
+                                value={step.label}
+                                onChange={(event) => updateStepLabel(step.id, event.target.value)}
+                                placeholder="Intitulé de l’étape"
+                                className="h-8 w-full border-slate-200 bg-white text-sm text-slate-900 placeholder:text-slate-400 focus-visible:ring-slate-900/20 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-50"
+                              />
+                              {step.type === 'decision' ? (
+                                <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                                  <label className="flex flex-col gap-1 text-[0.6rem] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                                    <span>Branche Oui</span>
+                                    <select
+                                      value={step.yesTargetId ?? ''}
+                                      onChange={(event) =>
+                                        updateDecisionBranch(step.id, 'yes', event.target.value || null)
+                                      }
+                                      className="h-8 rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-900 transition focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10"
+                                    >
+                                      <option value="">Étape suivante (défaut)</option>
+                                      {availableTargets.map((candidate) => {
+                                        const position = stepPositions.get(candidate.id);
+                                        const optionLabel = position
+                                          ? `${position}. ${getStepDisplayLabel(candidate)}`
+                                          : getStepDisplayLabel(candidate);
+
+                                        return (
+                                          <option key={candidate.id} value={candidate.id}>
+                                            {optionLabel}
+                                          </option>
+                                        );
+                                      })}
+                                    </select>
+                                  </label>
+                                  <label className="flex flex-col gap-1 text-[0.6rem] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                                    <span>Branche Non</span>
+                                    <select
+                                      value={step.noTargetId ?? ''}
+                                      onChange={(event) =>
+                                        updateDecisionBranch(step.id, 'no', event.target.value || null)
+                                      }
+                                      className="h-8 rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-900 transition focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10"
+                                    >
+                                      <option value="">Étape suivante (défaut)</option>
+                                      {availableTargets.map((candidate) => {
+                                        const position = stepPositions.get(candidate.id);
+                                        const optionLabel = position
+                                          ? `${position}. ${getStepDisplayLabel(candidate)}`
+                                          : getStepDisplayLabel(candidate);
+
+                                        return (
+                                          <option key={candidate.id} value={candidate.id}>
+                                            {optionLabel}
+                                          </option>
+                                        );
+                                      })}
+                                    </select>
+                                  </label>
+                                </div>
+                              ) : null}
+                            </div>
+                          ) : (
+                            <div className="flex min-w-0 flex-1 items-center gap-2">
+                              <span className="truncate text-sm font-medium text-slate-900" title={displayLabel}>
+                                {displayLabel}
                               </span>
                             </div>
-                            <Input
-                              id={`step-${step.id}-label`}
-                              value={step.label}
-                              onChange={(event) => updateStepLabel(step.id, event.target.value)}
-                              placeholder="Intitulé de l’étape"
-                              className="h-8 w-full border-slate-200 bg-white text-sm text-slate-900 placeholder:text-slate-400 focus-visible:ring-slate-900/20 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-50"
-                            />
-                            {step.type === 'decision' ? (
-                              <div className="mt-2 grid gap-2 sm:grid-cols-2">
-                                <label className="flex flex-col gap-1 text-[0.6rem] font-semibold uppercase tracking-[0.18em] text-slate-500">
-                                  <span>Branche Oui</span>
-                                  <select
-                                    value={step.yesTargetId ?? ''}
-                                    onChange={(event) =>
-                                      updateDecisionBranch(step.id, 'yes', event.target.value || null)
-                                    }
-                                    className="h-8 rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-900 transition focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10"
-                                  >
-                                    <option value="">Étape suivante (défaut)</option>
-                                    {availableTargets.map((candidate) => {
-                                      const position = stepPositions.get(candidate.id);
-                                      const optionLabel = position
-                                        ? `${position}. ${getStepDisplayLabel(candidate)}`
-                                        : getStepDisplayLabel(candidate);
-
-                                      return (
-                                        <option key={candidate.id} value={candidate.id}>
-                                          {optionLabel}
-                                        </option>
-                                      );
-                                    })}
-                                  </select>
-                                </label>
-                                <label className="flex flex-col gap-1 text-[0.6rem] font-semibold uppercase tracking-[0.18em] text-slate-500">
-                                  <span>Branche Non</span>
-                                  <select
-                                    value={step.noTargetId ?? ''}
-                                    onChange={(event) =>
-                                      updateDecisionBranch(step.id, 'no', event.target.value || null)
-                                    }
-                                    className="h-8 rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-900 transition focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10"
-                                  >
-                                    <option value="">Étape suivante (défaut)</option>
-                                    {availableTargets.map((candidate) => {
-                                      const position = stepPositions.get(candidate.id);
-                                      const optionLabel = position
-                                        ? `${position}. ${getStepDisplayLabel(candidate)}`
-                                        : getStepDisplayLabel(candidate);
-
-                                      return (
-                                        <option key={candidate.id} value={candidate.id}>
-                                          {optionLabel}
-                                        </option>
-                                      );
-                                    })}
-                                  </select>
-                                </label>
-                              </div>
-                            ) : null}
-                          </div>
+                          )}
                           {isRemovable ? (
                             <Button
                               type="button"
