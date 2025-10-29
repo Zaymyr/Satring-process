@@ -158,7 +158,22 @@ const readErrorMessage = async (response: Response, fallback: string) => {
   }
 };
 
-const cloneSteps = (steps: readonly ProcessStep[]): ProcessStep[] => steps.map((step) => ({ ...step }));
+const normalizeBranchTarget = (value: string | null | undefined) => {
+  if (typeof value !== 'string') {
+    return null;
+  }
+
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+};
+
+const normalizeStep = (step: ProcessStep): ProcessStep => ({
+  ...step,
+  yesTargetId: normalizeBranchTarget(step.yesTargetId),
+  noTargetId: normalizeBranchTarget(step.noTargetId)
+});
+
+const cloneSteps = (steps: readonly ProcessStep[]): ProcessStep[] => steps.map((step) => normalizeStep({ ...step }));
 
 const areStepsEqual = (a: readonly ProcessStep[], b: readonly ProcessStep[]) => {
   if (a.length !== b.length) {
@@ -167,7 +182,20 @@ const areStepsEqual = (a: readonly ProcessStep[], b: readonly ProcessStep[]) => 
 
   return a.every((step, index) => {
     const other = b[index];
-    return !!other && step.id === other.id && step.label === other.label && step.type === other.type;
+    if (!other) {
+      return false;
+    }
+
+    const normalized = normalizeStep(step);
+    const normalizedOther = normalizeStep(other);
+
+    return (
+      normalized.id === normalizedOther.id &&
+      normalized.label === normalizedOther.label &&
+      normalized.type === normalizedOther.type &&
+      normalized.yesTargetId === normalizedOther.yesTargetId &&
+      normalized.noTargetId === normalizedOther.noTargetId
+    );
   });
 };
 
@@ -292,6 +320,11 @@ const STEP_TYPE_ICONS: Record<StepType, LucideIcon> = {
   action: ListChecks,
   decision: GitBranch,
   finish: Flag
+};
+
+const getStepDisplayLabel = (step: Step) => {
+  const trimmed = step.label.trim();
+  return trimmed.length > 0 ? trimmed : STEP_TYPE_LABELS[step.type];
 };
 
 function generateStepId() {
@@ -694,7 +727,12 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
       return;
     }
 
-    const payloadSteps = steps.map((step) => ({ ...step, label: step.label.trim() }));
+    const payloadSteps = steps.map((step) => ({
+      ...step,
+      label: step.label.trim(),
+      yesTargetId: normalizeBranchTarget(step.yesTargetId),
+      noTargetId: normalizeBranchTarget(step.noTargetId)
+    }));
     const payload: ProcessPayload = {
       id: currentProcessId,
       title: normalizeProcessTitle(processTitle),
@@ -702,6 +740,11 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
     };
     saveMutation.mutate(payload);
   };
+
+  const stepPositions = useMemo(
+    () => new Map(steps.map((step, index) => [step.id, index + 1] as const)),
+    [steps]
+  );
 
   const startEditingProcess = useCallback(
     (process: ProcessSummary) => {
@@ -794,9 +837,11 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
     }
 
     const classAssignments: string[] = [];
+    const stepIndexMap = new Map(steps.map((step, index) => [step.id, index] as const));
+
     const nodes = steps.map((step, index) => {
       const nodeId = `S${index}`;
-      const baseLabel = step.label.trim() || STEP_TYPE_LABELS[step.type];
+      const baseLabel = getStepDisplayLabel(step);
       const lines = wrapStepLabel(baseLabel);
       const label = lines.map((line) => escapeHtml(line)).join('<br/>');
 
@@ -814,9 +859,63 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
       return `${nodeId}(("${label}"))`;
     });
 
-    const connections = steps
-      .slice(0, -1)
-      .map((_, index) => `S${index} --> S${index + 1}`);
+    const buildEdge = (sourceId: string, targetIndex: number, label?: string) =>
+      label ? `${sourceId} -- ${label} --> S${targetIndex}` : `${sourceId} --> S${targetIndex}`;
+
+    const connections: string[] = [];
+
+    steps.forEach((step, index) => {
+      const nodeId = `S${index}`;
+      const defaultNextIndex = index + 1 < steps.length ? index + 1 : undefined;
+
+      if (step.type === 'decision') {
+        const yesTarget = normalizeBranchTarget(step.yesTargetId);
+        const noTarget = normalizeBranchTarget(step.noTargetId);
+
+        if (!yesTarget && !noTarget) {
+          if (typeof defaultNextIndex === 'number') {
+            connections.push(buildEdge(nodeId, defaultNextIndex));
+          }
+          return;
+        }
+
+        const resolveTargetIndex = (targetId: string | null | undefined) => {
+          if (targetId) {
+            const resolved = stepIndexMap.get(targetId);
+            if (typeof resolved === 'number') {
+              return resolved;
+            }
+          }
+          return defaultNextIndex;
+        };
+
+        const yesIndex = resolveTargetIndex(yesTarget);
+        const noIndex = resolveTargetIndex(noTarget);
+
+        if (
+          typeof yesIndex === 'number' &&
+          typeof noIndex === 'number' &&
+          yesIndex === noIndex
+        ) {
+          connections.push(buildEdge(nodeId, yesIndex, 'Oui/Non'));
+          return;
+        }
+
+        if (typeof yesIndex === 'number') {
+          connections.push(buildEdge(nodeId, yesIndex, 'Oui'));
+        }
+
+        if (typeof noIndex === 'number') {
+          connections.push(buildEdge(nodeId, noIndex, 'Non'));
+        }
+
+        return;
+      }
+
+      if (typeof defaultNextIndex === 'number') {
+        connections.push(buildEdge(nodeId, defaultNextIndex));
+      }
+    });
 
     const classDefinitions = [
       'classDef terminal fill:#f8fafc,stroke:#0f172a,color:#0f172a,stroke-width:2px;',
@@ -846,6 +945,8 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
     const minTerminalHeight = 96;
     const contentPaddingY = 36;
 
+    const stepById = new Map(steps.map((step) => [step.id, step] as const));
+
     const nodes = steps.reduce<
       Array<{
         step: Step;
@@ -856,12 +957,45 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
         height: number;
       }>
     >((acc, step) => {
-      const baseLabel = step.label.trim() || STEP_TYPE_LABELS[step.type];
-      const lines = wrapStepLabel(baseLabel);
-      const longestLine = lines.reduce((max, line) => Math.max(max, line.length), 0);
+      const baseLabel = getStepDisplayLabel(step);
+      const labelLines = wrapStepLabel(baseLabel);
+      const displayLines = [...labelLines];
+      const stepIndex = acc.length;
+      const defaultNextStep = steps[stepIndex + 1];
+      const fallbackLabel = defaultNextStep ? getStepDisplayLabel(defaultNextStep) : '—';
+
+      if (step.type === 'decision') {
+        const resolveTargetLabel = (targetId: string | null | undefined) => {
+          const normalized = normalizeBranchTarget(targetId);
+          if (!normalized) {
+            return fallbackLabel;
+          }
+
+          const target = stepById.get(normalized);
+          return target ? getStepDisplayLabel(target) : fallbackLabel;
+        };
+
+        const yesLabel = resolveTargetLabel(step.yesTargetId);
+        const noLabel = resolveTargetLabel(step.noTargetId);
+        const branchLines: string[] = [];
+
+        if (yesLabel) {
+          branchLines.push(`Oui → ${yesLabel}`);
+        }
+        if (noLabel) {
+          branchLines.push(`Non → ${noLabel}`);
+        }
+
+        if (branchLines.length > 0) {
+          displayLines.push('');
+          displayLines.push(...branchLines);
+        }
+      }
+
+      const longestLine = displayLines.reduce((max, line) => Math.max(max, line.length), 0);
       const rawWidth = longestLine * charWidth + horizontalPadding;
       const width = Math.min(maxWidth, Math.max(minWidth, rawWidth));
-      const contentHeight = Math.max(lines.length, 1) * lineHeight;
+      const contentHeight = Math.max(displayLines.length, 1) * lineHeight;
       let height = contentHeight + contentPaddingY;
 
       if (step.type === 'action') {
@@ -878,7 +1012,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
         ? previous.centerY + previous.halfHeight + stackSpacing + halfHeight
         : verticalPadding + halfHeight;
 
-      acc.push({ step, centerY, halfHeight, lines, width, height });
+      acc.push({ step, centerY, halfHeight, lines: displayLines, width, height });
       return acc;
     }, []);
 
@@ -1089,7 +1223,13 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
     const label = type === 'action' ? 'Nouvelle action' : 'Nouvelle décision';
     setSteps((prev) => {
       const finishIndex = prev.findIndex((step) => step.type === 'finish');
-      const nextStep: Step = { id: generateStepId(), label, type };
+      const nextStep: Step = {
+        id: generateStepId(),
+        label,
+        type,
+        yesTargetId: null,
+        noTargetId: null
+      };
 
       if (finishIndex === -1) {
         return [...prev, nextStep];
@@ -1103,8 +1243,42 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
     setSteps((prev) => prev.map((step) => (step.id === id ? { ...step, label } : step)));
   };
 
+  const updateDecisionBranch = (id: string, branch: 'yes' | 'no', targetId: string | null) => {
+    setSteps((prev) =>
+      prev.map((step) => {
+        if (step.id !== id || step.type !== 'decision') {
+          return step;
+        }
+
+        const normalizedTarget = normalizeBranchTarget(targetId);
+        const updated: ProcessStep =
+          branch === 'yes'
+            ? { ...step, yesTargetId: normalizedTarget }
+            : { ...step, noTargetId: normalizedTarget };
+
+        return normalizeStep(updated);
+      })
+    );
+  };
+
   const removeStep = (id: string) => {
-    setSteps((prev) => prev.filter((step) => step.id !== id));
+    setSteps((prev) =>
+      prev
+        .filter((step) => step.id !== id)
+        .map((step) => {
+          if (step.type !== 'decision') {
+            return step;
+          }
+
+          const updated: ProcessStep = {
+            ...step,
+            yesTargetId: step.yesTargetId === id ? null : step.yesTargetId,
+            noTargetId: step.noTargetId === id ? null : step.noTargetId
+          };
+
+          return normalizeStep(updated);
+        })
+    );
   };
 
   const handleDiagramPointerDown = useCallback(
@@ -1264,6 +1438,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                     const Icon = STEP_TYPE_ICONS[step.type];
                     const isRemovable = step.type === 'action' || step.type === 'decision';
                     const stepPosition = index + 1;
+                    const availableTargets = steps.filter((candidate) => candidate.id !== step.id);
 
                     return (
                       <Card key={step.id} className="border-slate-200 bg-white/90 shadow-sm">
@@ -1285,6 +1460,58 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                               placeholder="Intitulé de l’étape"
                               className="h-8 w-full border-slate-200 bg-white text-sm text-slate-900 placeholder:text-slate-400 focus-visible:ring-slate-900/20 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-50"
                             />
+                            {step.type === 'decision' ? (
+                              <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                                <label className="flex flex-col gap-1 text-[0.6rem] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                                  <span>Branche Oui</span>
+                                  <select
+                                    value={step.yesTargetId ?? ''}
+                                    onChange={(event) =>
+                                      updateDecisionBranch(step.id, 'yes', event.target.value || null)
+                                    }
+                                    className="h-8 rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-900 transition focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10"
+                                  >
+                                    <option value="">Étape suivante (défaut)</option>
+                                    {availableTargets.map((candidate) => {
+                                      const position = stepPositions.get(candidate.id);
+                                      const optionLabel = position
+                                        ? `${position}. ${getStepDisplayLabel(candidate)}`
+                                        : getStepDisplayLabel(candidate);
+
+                                      return (
+                                        <option key={candidate.id} value={candidate.id}>
+                                          {optionLabel}
+                                        </option>
+                                      );
+                                    })}
+                                  </select>
+                                </label>
+                                <label className="flex flex-col gap-1 text-[0.6rem] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                                  <span>Branche Non</span>
+                                  <select
+                                    value={step.noTargetId ?? ''}
+                                    onChange={(event) =>
+                                      updateDecisionBranch(step.id, 'no', event.target.value || null)
+                                    }
+                                    className="h-8 rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-900 transition focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10"
+                                  >
+                                    <option value="">Étape suivante (défaut)</option>
+                                    {availableTargets.map((candidate) => {
+                                      const position = stepPositions.get(candidate.id);
+                                      const optionLabel = position
+                                        ? `${position}. ${getStepDisplayLabel(candidate)}`
+                                        : getStepDisplayLabel(candidate);
+
+                                      return (
+                                        <option key={candidate.id} value={candidate.id}>
+                                          {optionLabel}
+                                        </option>
+                                      );
+                                    })}
+                                  </select>
+                                </label>
+                              </div>
+                            ) : null}
                           </div>
                           {isRemovable ? (
                             <Button

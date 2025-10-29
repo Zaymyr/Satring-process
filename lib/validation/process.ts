@@ -2,10 +2,26 @@ import { z } from 'zod';
 
 export const stepTypeValues = ['start', 'action', 'decision', 'finish'] as const;
 
+const branchTargetSchema = z
+  .string()
+  .min(1)
+  .optional()
+  .nullable()
+  .transform((value) => {
+    if (typeof value !== 'string') {
+      return null;
+    }
+
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : null;
+  });
+
 export const stepSchema = z.object({
   id: z.string().min(1),
   label: z.string(),
-  type: z.enum(stepTypeValues)
+  type: z.enum(stepTypeValues),
+  yesTargetId: branchTargetSchema.default(null),
+  noTargetId: branchTargetSchema.default(null)
 });
 
 export const processPayloadSchema = z.object({
