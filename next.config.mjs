@@ -1,11 +1,24 @@
 /** @type {import('next').NextConfig} */
+const isDev = process.env.NODE_ENV !== 'production';
+
 const nextConfig = {
   experimental: { typedRoutes: true },
   async headers() {
+    const scriptSrcBase = [
+      "'self'",
+      "'unsafe-inline'",
+      'https://cdn.jsdelivr.net',
+      'https://vercel.live',
+      'https://*.vercel.live'
+    ];
+
+    const scriptSrc = [...scriptSrcBase, ...(isDev ? ["'unsafe-eval'"] : [])].join(' ');
+    const scriptSrcElem = scriptSrcBase.join(' ');
+
     const csp = [
       "default-src 'self'",
-      "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://vercel.live https://*.vercel.live",
-      "script-src-elem 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://vercel.live https://*.vercel.live",
+      `script-src ${scriptSrc}`,
+      `script-src-elem ${scriptSrcElem}`,
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       "font-src 'self' https://fonts.gstatic.com",
       "img-src 'self' data:",
@@ -14,7 +27,7 @@ const nextConfig = {
       "frame-ancestors 'none'",
       "base-uri 'self'",
       "form-action 'self'"
-    ].join("; ");
+    ].join('; ');
 
     return [
       {

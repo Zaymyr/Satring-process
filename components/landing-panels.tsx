@@ -55,6 +55,8 @@ type DiagramDragState = {
   originY: number;
   startX: number;
   startY: number;
+  target: HTMLDivElement | null;
+  hasCapture: boolean;
 };
 
 type MermaidAPI = {
@@ -175,6 +177,11 @@ const normalizeStep = (step: ProcessStep): ProcessStep => ({
 });
 
 const cloneSteps = (steps: readonly ProcessStep[]): ProcessStep[] => steps.map((step) => normalizeStep({ ...step }));
+
+const clampValue = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
+
+const DIAGRAM_SCALE_MIN = 0.35;
+const DIAGRAM_SCALE_MAX = 5;
 
 const areStepsEqual = (a: readonly ProcessStep[], b: readonly ProcessStep[]) => {
   if (a.length !== b.length) {
@@ -355,8 +362,10 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
   const [diagramSvg, setDiagramSvg] = useState('');
   const [diagramError, setDiagramError] = useState<string | null>(null);
   const [diagramUserOffset, setDiagramUserOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [diagramScale, setDiagramScale] = useState(1);
   const [isDiagramDragging, setIsDiagramDragging] = useState(false);
   const diagramDragStateRef = useRef<DiagramDragState | null>(null);
+  const diagramViewportRef = useRef<HTMLDivElement | null>(null);
   const [isMermaidReady, setIsMermaidReady] = useState(false);
   const mermaidAPIRef = useRef<MermaidAPI | null>(null);
   const diagramElementId = useMemo(() => `process-diagram-${generateStepId()}`, []);
@@ -1339,14 +1348,6 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
     };
   }, [diagramDefinition, diagramElementId, isMermaidReady]);
 
-  useEffect(() => {
-    if (!diagramSvg) {
-      return;
-    }
-
-    setDiagramUserOffset({ x: 0, y: 0 });
-  }, [diagramSvg]);
-
   const addStep = (type: Extract<StepType, 'action' | 'decision'>) => {
     const label = type === 'action' ? 'Nouvelle action' : 'Nouvelle décision';
     const newStepId = generateStepId();
@@ -1440,6 +1441,187 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
     setSelectedStepId(nextSelectedId ?? null);
   };
 
+  const applyDiagramWheelZoom = useCallback((event: WheelEvent, viewportRect: DOMRect) => {
+    event.preventDefault();
+    event.stopPropagation();
+
+    const pointerX = event.clientX - (viewportRect.left + viewportRect.width / 2);
+    const pointerY = event.clientY - (viewportRect.top + viewportRect.height / 2);
+
+    let normalizedDeltaY = event.deltaY;
+
+    if (event.deltaMode === 1) {
+      normalizedDeltaY *= 32;
+    } else if (event.deltaMode === 2) {
+      normalizedDeltaY *= viewportRect.height;
+    }
+
+    if (!Number.isFinite(normalizedDeltaY)) {
+      return;
+    }
+
+    const limitedDelta = clampValue(normalizedDeltaY, -480, 480);
+
+    if (Math.abs(limitedDelta) < 0.01) {
+      return;
+    }
+
+    const direction = Math.sign(limitedDelta) || 1;
+    const distance = Math.min(Math.abs(limitedDelta), 480);
+    const baseStep = event.ctrlKey || event.metaKey ? 0.35 : 0.22;
+    const magnitude = Math.max(distance / 160, 0.2);
+    const scaleStep = 1 + baseStep * magnitude;
+
+    if (!Number.isFinite(scaleStep) || scaleStep <= 0) {
+      return;
+    }
+
+    setDiagramScale((previousScale) => {
+      const proposedScale =
+        direction < 0
+          ? previousScale * scaleStep
+          : previousScale / scaleStep;
+
+      const nextScale = clampValue(proposedScale, DIAGRAM_SCALE_MIN, DIAGRAM_SCALE_MAX);
+
+      if (nextScale === previousScale) {
+        return previousScale;
+      }
+
+      setDiagramUserOffset((previousOffset) => {
+        const scaleRatio = nextScale / previousScale;
+        return {
+          x: pointerX - scaleRatio * (pointerX - previousOffset.x),
+          y: pointerY - scaleRatio * (pointerY - previousOffset.y)
+        };
+      });
+
+      return nextScale;
+    });
+  }, []);
+
+  useEffect(() => {
+    const handleWheel = (event: WheelEvent) => {
+      const viewport = diagramViewportRef.current;
+
+      if (!viewport) {
+        return;
+      }
+
+      const rect = viewport.getBoundingClientRect();
+      const isWithinHorizontalBounds = event.clientX >= rect.left && event.clientX <= rect.right;
+      const isWithinVerticalBounds = event.clientY >= rect.top && event.clientY <= rect.bottom;
+
+      if (!isWithinHorizontalBounds || !isWithinVerticalBounds) {
+        return;
+      }
+
+      applyDiagramWheelZoom(event, rect);
+    };
+
+    const listenerOptions: AddEventListenerOptions = { passive: false, capture: true };
+    window.addEventListener('wheel', handleWheel, listenerOptions);
+
+    return () => {
+      window.removeEventListener('wheel', handleWheel, listenerOptions);
+    };
+  }, [applyDiagramWheelZoom]);
+
+  const updateDiagramDrag = useCallback((pointerId: number, clientX: number, clientY: number) => {
+    const dragState = diagramDragStateRef.current;
+
+    if (!dragState || dragState.pointerId !== pointerId) {
+      return;
+    }
+
+    const deltaX = clientX - dragState.startX;
+    const deltaY = clientY - dragState.startY;
+
+    setDiagramUserOffset({
+      x: dragState.originX + deltaX,
+      y: dragState.originY + deltaY
+    });
+  }, []);
+
+  const endDiagramDrag = useCallback((pointerId: number) => {
+    const dragState = diagramDragStateRef.current;
+
+    if (!dragState || dragState.pointerId !== pointerId) {
+      return;
+    }
+
+    if (dragState.hasCapture && dragState.target?.hasPointerCapture?.(pointerId)) {
+      try {
+        dragState.target.releasePointerCapture(pointerId);
+      } catch {
+        // ignore pointer capture release errors
+      }
+    }
+
+    diagramDragStateRef.current = null;
+    setIsDiagramDragging(false);
+  }, []);
+
+  const handleDiagramPointerMove = useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      event.preventDefault();
+      updateDiagramDrag(event.pointerId, event.clientX, event.clientY);
+    },
+    [updateDiagramDrag]
+  );
+
+  const handleDiagramPointerEnd = useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      endDiagramDrag(event.pointerId);
+    },
+    [endDiagramDrag]
+  );
+
+  useEffect(() => {
+    if (!isDiagramDragging) {
+      return;
+    }
+
+    const dragState = diagramDragStateRef.current;
+
+    if (!dragState || dragState.hasCapture) {
+      return;
+    }
+
+    const handlePointerMove = (event: PointerEvent) => {
+      if (diagramDragStateRef.current?.pointerId !== event.pointerId) {
+        return;
+      }
+
+      event.preventDefault();
+      updateDiagramDrag(event.pointerId, event.clientX, event.clientY);
+    };
+
+    const handlePointerEnd = (event: PointerEvent) => {
+      if (event.type === 'pointerout' && event.relatedTarget) {
+        return;
+      }
+
+      if (diagramDragStateRef.current?.pointerId !== event.pointerId) {
+        return;
+      }
+
+      endDiagramDrag(event.pointerId);
+    };
+
+    window.addEventListener('pointermove', handlePointerMove, { passive: false });
+    window.addEventListener('pointerup', handlePointerEnd);
+    window.addEventListener('pointercancel', handlePointerEnd);
+    window.addEventListener('pointerout', handlePointerEnd);
+
+    return () => {
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', handlePointerEnd);
+      window.removeEventListener('pointercancel', handlePointerEnd);
+      window.removeEventListener('pointerout', handlePointerEnd);
+    };
+  }, [endDiagramDrag, isDiagramDragging, updateDiagramDrag]);
+
   const handleDiagramPointerDown = useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
       if (event.button !== 0 && event.pointerType !== 'touch') {
@@ -1450,14 +1632,23 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
       event.stopPropagation();
 
       const target = event.currentTarget;
-      target.setPointerCapture(event.pointerId);
+      let hasCapture = false;
+
+      try {
+        target.setPointerCapture(event.pointerId);
+        hasCapture = target.hasPointerCapture?.(event.pointerId) ?? false;
+      } catch {
+        // ignore pointer capture errors on unsupported browsers
+      }
 
       diagramDragStateRef.current = {
         pointerId: event.pointerId,
         originX: diagramUserOffset.x,
         originY: diagramUserOffset.y,
         startX: event.clientX,
-        startY: event.clientY
+        startY: event.clientY,
+        target,
+        hasCapture
       };
 
       setIsDiagramDragging(true);
@@ -1465,75 +1656,32 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
     [diagramUserOffset.x, diagramUserOffset.y]
   );
 
-  const handleDiagramPointerMove = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
-    const dragState = diagramDragStateRef.current;
-
-    if (!dragState || dragState.pointerId !== event.pointerId) {
-      return;
-    }
-
-    event.preventDefault();
-
-    const deltaX = event.clientX - dragState.startX;
-    const deltaY = event.clientY - dragState.startY;
-
-    setDiagramUserOffset({
-      x: dragState.originX + deltaX,
-      y: dragState.originY + deltaY
-    });
-  }, []);
-
-  const endDiagramDrag = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
-    const dragState = diagramDragStateRef.current;
-
-    if (!dragState || dragState.pointerId !== event.pointerId) {
-      return;
-    }
-
-    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-      event.currentTarget.releasePointerCapture(event.pointerId);
-    }
-
-    diagramDragStateRef.current = null;
-    setIsDiagramDragging(false);
-  }, []);
-
-  const handleDiagramPointerUp = useCallback(
-    (event: React.PointerEvent<HTMLDivElement>) => {
-      endDiagramDrag(event);
-    },
-    [endDiagramDrag]
-  );
-
-  const handleDiagramPointerCancel = useCallback(
-    (event: React.PointerEvent<HTMLDivElement>) => {
-      endDiagramDrag(event);
-    },
-    [endDiagramDrag]
-  );
-
   const primaryWidth = isPrimaryCollapsed ? '3.5rem' : 'clamp(18rem, 28vw, 34rem)';
   const secondaryWidth = isSecondaryCollapsed ? '3.5rem' : 'clamp(16rem, 22vw, 26rem)';
 
   return (
     <div className="relative flex h-full flex-col overflow-hidden bg-gradient-to-br from-slate-100 via-white to-slate-200 text-slate-900">
-      <div className="absolute inset-0 z-0 flex items-center justify-center overflow-hidden px-6 py-10 sm:px-10">
+      <div className="absolute inset-0 z-0 flex items-center justify-center overflow-visible">
         <div
+          ref={diagramViewportRef}
           className={cn(
             'pointer-events-auto relative flex h-full w-full select-none touch-none items-center justify-center',
             isDiagramDragging ? 'cursor-grabbing' : 'cursor-grab'
           )}
           onPointerDown={handleDiagramPointerDown}
           onPointerMove={handleDiagramPointerMove}
-          onPointerUp={handleDiagramPointerUp}
-          onPointerCancel={handleDiagramPointerCancel}
+          onPointerUp={handleDiagramPointerEnd}
+          onPointerCancel={handleDiagramPointerEnd}
+          onLostPointerCapture={handleDiagramPointerEnd}
         >
           <div
             className={cn(
-              'pointer-events-auto absolute left-1/2 top-1/2 max-h-full w-auto max-w-full lg:max-w-6xl opacity-90 transition-transform [filter:drop-shadow(0_25px_65px_rgba(15,23,42,0.22))] [&_svg]:h-auto [&_svg]:max-h-full [&_svg]:max-w-full [&_.node rect]:stroke-slate-900 [&_.node rect]:stroke-[1.5px] [&_.node polygon]:stroke-slate-900 [&_.node polygon]:stroke-[1.5px] [&_.node circle]:stroke-slate-900 [&_.node circle]:stroke-[1.5px] [&_.node ellipse]:stroke-slate-900 [&_.node ellipse]:stroke-[1.5px] [&_.edgePath path]:stroke-slate-900 [&_.edgePath path]:stroke-[1.5px] [&_.edgeLabel]:text-slate-900'
+              'pointer-events-auto absolute left-1/2 top-1/2 h-auto w-auto max-h-none max-w-none opacity-90 transition-transform [filter:drop-shadow(0_25px_65px_rgba(15,23,42,0.22))] [&_svg]:h-auto [&_svg]:max-h-none [&_svg]:max-w-none [&_.node rect]:stroke-slate-900 [&_.node rect]:stroke-[1.5px] [&_.node polygon]:stroke-slate-900 [&_.node polygon]:stroke-[1.5px] [&_.node circle]:stroke-slate-900 [&_.node circle]:stroke-[1.5px] [&_.node ellipse]:stroke-slate-900 [&_.node ellipse]:stroke-[1.5px] [&_.edgePath path]:stroke-slate-900 [&_.edgePath path]:stroke-[1.5px] [&_.edgeLabel]:text-slate-900'
             )}
             style={{
-              transform: `translate(-50%, -50%) translate3d(${diagramUserOffset.x}px, ${diagramUserOffset.y}px, 0)`
+              transform: `translate(-50%, -50%) translate3d(${diagramUserOffset.x}px, ${diagramUserOffset.y}px, 0) scale(${diagramScale})`,
+              transformOrigin: 'center center',
+              willChange: 'transform'
             }}
           >
             {diagramSvg ? (
