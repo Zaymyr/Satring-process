@@ -1,14 +1,6 @@
 'use client';
 
-import {
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-  type ReactNode
-} from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
@@ -325,17 +317,9 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
   const [diagramSvg, setDiagramSvg] = useState('');
   const [diagramError, setDiagramError] = useState<string | null>(null);
-  const [diagramBaseOffset, setDiagramBaseOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [diagramUserOffset, setDiagramUserOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
-  const [hasDiagramSettled, setHasDiagramSettled] = useState(false);
   const [isDiagramDragging, setIsDiagramDragging] = useState(false);
   const diagramDragStateRef = useRef<DiagramDragState | null>(null);
-  const isDiagramDraggingRef = useRef(false);
-  const diagramSettleFrameRef = useRef<number | null>(null);
-  const diagramViewportRef = useRef<HTMLDivElement | null>(null);
-  const lastLayoutIsStackedRef = useRef<boolean | null>(null);
-  const primaryPanelRef = useRef<HTMLDivElement | null>(null);
-  const secondaryPanelRef = useRef<HTMLDivElement | null>(null);
   const [isMermaidReady, setIsMermaidReady] = useState(false);
   const mermaidAPIRef = useRef<MermaidAPI | null>(null);
   const diagramElementId = useMemo(() => `process-diagram-${generateStepId()}`, []);
@@ -1093,136 +1077,13 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
     };
   }, [diagramDefinition, diagramElementId, isMermaidReady]);
 
-  const diagramOffset = useMemo(
-    () => ({
-      x: diagramBaseOffset.x + diagramUserOffset.x,
-      y: diagramBaseOffset.y + diagramUserOffset.y
-    }),
-    [diagramBaseOffset.x, diagramBaseOffset.y, diagramUserOffset.x, diagramUserOffset.y]
-  );
-
-  const scheduleDiagramSettle = useCallback(() => {
-    if (typeof window === 'undefined') {
-      setHasDiagramSettled(true);
-      return;
-    }
-
-    if (diagramSettleFrameRef.current !== null) {
-      window.cancelAnimationFrame(diagramSettleFrameRef.current);
-    }
-
-    diagramSettleFrameRef.current = window.requestAnimationFrame(() => {
-      diagramSettleFrameRef.current = null;
-      setHasDiagramSettled(true);
-    });
-  }, []);
-
-  const recalcDiagramBaseOffset = useCallback(() => {
-    if (typeof window === 'undefined' || isDiagramDraggingRef.current) {
-      return;
-    }
-
-    const isStackedLayout = window.matchMedia('(max-width: 1023.98px)').matches;
-    const wasStacked = lastLayoutIsStackedRef.current;
-    lastLayoutIsStackedRef.current = isStackedLayout;
-
-    if (isStackedLayout) {
-      setHasDiagramSettled(false);
-      setDiagramBaseOffset((previous) => {
-        if (previous.x === 0 && previous.y === 0) {
-          return previous;
-        }
-
-        return { x: 0, y: 0 };
-      });
-      if (wasStacked === false || wasStacked === null) {
-        setDiagramUserOffset((previous) => {
-          if (previous.x === 0 && previous.y === 0) {
-            return previous;
-          }
-
-          return { x: 0, y: 0 };
-        });
-      }
-      scheduleDiagramSettle();
-      return;
-    }
-
-    const viewportRect = diagramViewportRef.current?.getBoundingClientRect();
-    const primaryRect = primaryPanelRef.current?.getBoundingClientRect();
-    const secondaryRect = secondaryPanelRef.current?.getBoundingClientRect();
-
-    if (!viewportRect || !primaryRect || !secondaryRect) {
-      setDiagramBaseOffset((previous) => {
-        if (Math.abs(previous.x) < 0.5 && Math.abs(previous.y) < 0.5) {
-          return previous;
-        }
-
-        return { x: 0, y: 0 };
-      });
-      setHasDiagramSettled(false);
-      return;
-    }
-
-    const availableStart = primaryRect.right;
-    const availableEnd = secondaryRect.left;
-    const availableCenter =
-      availableEnd > availableStart
-        ? availableStart + (availableEnd - availableStart) / 2
-        : (availableStart + availableEnd) / 2;
-    const viewportCenter = viewportRect.left + viewportRect.width / 2;
-    const nextOffsetX = availableCenter - viewportCenter;
-
-    setHasDiagramSettled(false);
-    setDiagramBaseOffset((previous) => {
-      if (Math.abs(previous.x - nextOffsetX) < 0.5 && Math.abs(previous.y) < 0.5) {
-        return previous;
-      }
-
-      return { x: nextOffsetX, y: 0 };
-    });
-    scheduleDiagramSettle();
-  }, [scheduleDiagramSettle]);
-
-  useLayoutEffect(() => {
-    recalcDiagramBaseOffset();
-  }, [recalcDiagramBaseOffset, diagramSvg, isPrimaryCollapsed, isSecondaryCollapsed]);
-
   useEffect(() => {
-    return () => {
-      if (typeof window !== 'undefined' && diagramSettleFrameRef.current !== null) {
-        window.cancelAnimationFrame(diagramSettleFrameRef.current);
-      }
-    };
-  }, []);
-
-  useLayoutEffect(() => {
-    if (typeof window === 'undefined') {
+    if (!diagramSvg) {
       return;
     }
 
-    let resizeFrame = 0;
-
-    const handleResize = () => {
-      if (resizeFrame !== 0) {
-        cancelAnimationFrame(resizeFrame);
-      }
-
-      resizeFrame = window.requestAnimationFrame(() => {
-        recalcDiagramBaseOffset();
-      });
-    };
-
-    window.addEventListener('resize', handleResize);
-
-    return () => {
-      if (resizeFrame !== 0) {
-        cancelAnimationFrame(resizeFrame);
-      }
-
-      window.removeEventListener('resize', handleResize);
-    };
-  }, [recalcDiagramBaseOffset]);
+    setDiagramUserOffset({ x: 0, y: 0 });
+  }, [diagramSvg]);
 
   const addStep = (type: Extract<StepType, 'action' | 'decision'>) => {
     const label = type === 'action' ? 'Nouvelle action' : 'Nouvelle décision';
@@ -1267,8 +1128,6 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
       };
 
       setIsDiagramDragging(true);
-      isDiagramDraggingRef.current = true;
-      setHasDiagramSettled(true);
     },
     [diagramUserOffset.x, diagramUserOffset.y]
   );
@@ -1304,7 +1163,6 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
 
     diagramDragStateRef.current = null;
     setIsDiagramDragging(false);
-    isDiagramDraggingRef.current = false;
   }, []);
 
   const handleDiagramPointerUp = useCallback(
@@ -1326,13 +1184,10 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
 
   return (
     <div className="relative min-h-screen overflow-x-hidden bg-gradient-to-br from-slate-100 via-white to-slate-200 text-slate-900">
-      <div
-        ref={diagramViewportRef}
-        className="absolute inset-0 z-0 flex items-center justify-center overflow-hidden px-6 py-10 sm:px-10"
-      >
+      <div className="absolute inset-0 z-0 flex items-center justify-center overflow-hidden px-6 py-10 sm:px-10">
         <div
           className={cn(
-            'pointer-events-auto flex h-full w-full select-none touch-none items-center justify-center',
+            'pointer-events-auto relative flex h-full w-full select-none touch-none items-center justify-center',
             isDiagramDragging ? 'cursor-grabbing' : 'cursor-grab'
           )}
           onPointerDown={handleDiagramPointerDown}
@@ -1342,11 +1197,10 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
         >
           <div
             className={cn(
-              'pointer-events-auto max-h-full w-full max-w-6xl opacity-90 transition-transform [filter:drop-shadow(0_25px_65px_rgba(15,23,42,0.22))] [&_svg]:h-auto [&_svg]:w-full [&_svg]:max-h-full [&_.node rect]:stroke-slate-900 [&_.node rect]:stroke-[1.5px] [&_.node polygon]:stroke-slate-900 [&_.node polygon]:stroke-[1.5px] [&_.node circle]:stroke-slate-900 [&_.node circle]:stroke-[1.5px] [&_.node ellipse]:stroke-slate-900 [&_.node ellipse]:stroke-[1.5px] [&_.edgePath path]:stroke-slate-900 [&_.edgePath path]:stroke-[1.5px] [&_.edgeLabel]:text-slate-900'
+              'pointer-events-auto absolute left-1/2 top-1/2 max-h-full w-auto max-w-full lg:max-w-6xl opacity-90 transition-transform [filter:drop-shadow(0_25px_65px_rgba(15,23,42,0.22))] [&_svg]:h-auto [&_svg]:max-h-full [&_svg]:max-w-full [&_.node rect]:stroke-slate-900 [&_.node rect]:stroke-[1.5px] [&_.node polygon]:stroke-slate-900 [&_.node polygon]:stroke-[1.5px] [&_.node circle]:stroke-slate-900 [&_.node circle]:stroke-[1.5px] [&_.node ellipse]:stroke-slate-900 [&_.node ellipse]:stroke-[1.5px] [&_.edgePath path]:stroke-slate-900 [&_.edgePath path]:stroke-[1.5px] [&_.edgeLabel]:text-slate-900'
             )}
             style={{
-              transform: `translate3d(${diagramOffset.x}px, ${diagramOffset.y}px, 0)`,
-              transition: isDiagramDragging || !hasDiagramSettled ? 'none' : undefined
+              transform: `translate(-50%, -50%) translate3d(${diagramUserOffset.x}px, ${diagramUserOffset.y}px, 0)`
             }}
           >
             {diagramSvg ? (
@@ -1369,7 +1223,6 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
         <div
           className="relative flex shrink-0 items-stretch overflow-hidden transition-[width] duration-300 ease-out max-h-[calc(100vh-6rem)] lg:order-1 lg:mr-auto lg:max-h-[calc(100vh-8rem)]"
           style={{ width: primaryWidth }}
-          ref={primaryPanelRef}
         >
           <button
             type="button"
@@ -1470,7 +1323,6 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
         <div
           className="relative flex shrink-0 items-stretch overflow-hidden transition-[width] duration-300 ease-out max-h-[calc(100vh-6rem)] lg:order-2 lg:ml-auto lg:max-h-[calc(100vh-8rem)]"
           style={{ width: secondaryWidth }}
-          ref={secondaryPanelRef}
         >
           <button
             type="button"
