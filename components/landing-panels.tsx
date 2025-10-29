@@ -1183,7 +1183,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
   const secondaryWidth = isSecondaryCollapsed ? '3.5rem' : 'clamp(16rem, 22vw, 26rem)';
 
   return (
-    <div className="relative min-h-screen overflow-x-hidden bg-gradient-to-br from-slate-100 via-white to-slate-200 text-slate-900">
+    <div className="relative flex h-full flex-col overflow-hidden bg-gradient-to-br from-slate-100 via-white to-slate-200 text-slate-900">
       <div className="absolute inset-0 z-0 flex items-center justify-center overflow-hidden px-6 py-10 sm:px-10">
         <div
           className={cn(
@@ -1219,9 +1219,9 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
           </span>
         ) : null}
       </div>
-      <div className="relative z-10 flex min-h-screen w-full flex-col gap-6 px-4 py-8 lg:flex-row lg:items-stretch lg:gap-0 lg:justify-between lg:px-8 lg:py-12 xl:px-12">
+      <div className="relative z-10 flex h-full min-h-0 w-full flex-col gap-6 px-4 py-8 lg:flex-row lg:items-stretch lg:gap-0 lg:justify-between lg:px-8 lg:py-12 xl:px-12">
         <div
-          className="relative flex shrink-0 items-stretch overflow-hidden transition-[width] duration-300 ease-out max-h-[calc(100vh-6rem)] lg:order-1 lg:mr-auto lg:max-h-[calc(100vh-8rem)]"
+          className="relative flex shrink-0 items-stretch overflow-hidden transition-[width] duration-300 ease-out lg:order-1 lg:mr-auto lg:h-full lg:min-h-0"
           style={{ width: primaryWidth }}
         >
           <button
@@ -1321,7 +1321,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
           </div>
         </div>
         <div
-          className="relative flex shrink-0 items-stretch overflow-hidden transition-[width] duration-300 ease-out max-h-[calc(100vh-6rem)] lg:order-2 lg:ml-auto lg:max-h-[calc(100vh-8rem)]"
+          className="relative flex shrink-0 items-stretch overflow-hidden transition-[width] duration-300 ease-out lg:order-2 lg:ml-auto lg:h-full lg:min-h-0"
           style={{ width: secondaryWidth }}
         >
           <button
