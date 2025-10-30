@@ -39,8 +39,51 @@ export function SignInForm() {
       body: JSON.stringify(data)
     });
     if (!response.ok) {
-      const payload = await response.json().catch(() => ({}));
-      setError(payload.error ?? "Impossible de se connecter.");
+      const payload = (await response.json().catch(() => null)) as unknown;
+      let message = 'Impossible de se connecter.';
+
+      if (payload && typeof payload === 'object' && 'error' in payload) {
+        const errorValue = (payload as { error: unknown }).error;
+
+        if (typeof errorValue === 'string') {
+          message = errorValue;
+        } else if (
+          errorValue &&
+          typeof errorValue === 'object' &&
+          'formErrors' in errorValue &&
+          Array.isArray((errorValue as { formErrors?: unknown }).formErrors) &&
+          (errorValue as { formErrors: unknown[] }).formErrors.length > 0 &&
+          typeof (errorValue as { formErrors: unknown[] }).formErrors[0] === 'string'
+        ) {
+          message = (errorValue as { formErrors: string[] }).formErrors[0];
+        } else if (
+          errorValue &&
+          typeof errorValue === 'object' &&
+          'fieldErrors' in errorValue &&
+          (errorValue as { fieldErrors?: unknown }).fieldErrors &&
+          typeof (errorValue as { fieldErrors?: unknown }).fieldErrors === 'object'
+        ) {
+          const fieldErrors = (errorValue as { fieldErrors: Record<string, unknown> }).fieldErrors;
+
+          for (const value of Object.values(fieldErrors)) {
+            if (typeof value === 'string') {
+              message = value;
+              break;
+            }
+
+            if (Array.isArray(value)) {
+              const nestedError = value.find((item): item is string => typeof item === 'string');
+
+              if (nestedError) {
+                message = nestedError;
+                break;
+              }
+            }
+          }
+        }
+      }
+
+      setError(message);
       setStatus('error');
       return;
     }
