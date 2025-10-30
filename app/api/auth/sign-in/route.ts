@@ -26,9 +26,7 @@ export async function POST(request: Request) {
   });
 
   if (error) {
-    const normalizedMessage = error.message?.toLowerCase();
-
-    if (normalizedMessage?.includes('invalid login credentials')) {
+    if (error.message === 'Invalid login credentials') {
       return NextResponse.json(
         { error: 'Mot de passe incorrect. Veuillez réessayer.' },
         { status: 401 }
