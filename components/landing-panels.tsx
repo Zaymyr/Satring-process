@@ -64,6 +64,8 @@ const highlightIcons = {
   shield: ShieldCheck
 } as const satisfies Record<string, LucideIcon>;
 
+const DEFAULT_DEPARTMENT_NAME = 'Nouveau département';
+
 type Highlight = {
   title: string;
   description: string;
@@ -502,10 +504,6 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
   const [activeSecondaryTab, setActiveSecondaryTab] = useState<'processes' | 'departments'>('processes');
   const [editingDepartmentId, setEditingDepartmentId] = useState<string | null>(null);
   const [deleteDepartmentId, setDeleteDepartmentId] = useState<string | null>(null);
-  const departmentForm = useForm<DepartmentInput>({
-    resolver: zodResolver(departmentInputSchema),
-    defaultValues: { name: '' }
-  });
   const departmentEditForm = useForm<DepartmentInput>({
     resolver: zodResolver(departmentInputSchema),
     defaultValues: { name: '' }
@@ -547,11 +545,20 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
     }
   });
 
-  const createDepartmentMutation = useMutation<Department, ApiError, DepartmentInput>({
-    mutationFn: createDepartmentRequest,
-    onSuccess: async () => {
+  const createDepartmentMutation = useMutation<Department, ApiError, void>({
+    mutationFn: () => createDepartmentRequest({ name: DEFAULT_DEPARTMENT_NAME }),
+    onSuccess: async (department) => {
+      queryClient.setQueryData(['departments'], (previous?: Department[]) => {
+        if (!previous) {
+          return [department];
+        }
+
+        const filtered = previous.filter((item) => item.id !== department.id);
+        return [department, ...filtered];
+      });
+      setEditingDepartmentId(department.id);
+      departmentEditForm.reset({ name: department.name });
       await queryClient.invalidateQueries({ queryKey: ['departments'] });
-      departmentForm.reset({ name: '' });
     }
   });
 
@@ -625,15 +632,12 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
     ? 'Organisez vos départements et renommez-les pour structurer votre équipe.'
     : 'Gérez vos parcours enregistrés et renommez-les directement depuis cette liste.';
 
-  const handleCreateDepartment = useCallback(
-    (values: DepartmentInput) => {
-      if (isDepartmentActionsDisabled) {
-        return;
-      }
-      createDepartmentMutation.mutate(values);
-    },
-    [createDepartmentMutation, isDepartmentActionsDisabled]
-  );
+  const handleCreateDepartment = useCallback(() => {
+    if (isDepartmentActionsDisabled || isCreatingDepartment) {
+      return;
+    }
+    createDepartmentMutation.mutate();
+  }, [createDepartmentMutation, isCreatingDepartment, isDepartmentActionsDisabled]);
 
   const handleUpdateDepartment = useCallback(
     (values: DepartmentInput) => {
@@ -674,10 +678,9 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
   useEffect(() => {
     if (isDepartmentActionsDisabled) {
       setEditingDepartmentId(null);
-      departmentForm.reset({ name: '' });
       departmentEditForm.reset({ name: '' });
     }
-  }, [departmentEditForm, departmentForm, isDepartmentActionsDisabled]);
+  }, [departmentEditForm, isDepartmentActionsDisabled]);
 
   useEffect(() => {
     if (steps.length === 0) {
@@ -2315,6 +2318,21 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                     {isCreating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
                     Nouveau
                   </Button>
+                ) : isDepartmentsTabActive ? (
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={handleCreateDepartment}
+                    disabled={isDepartmentActionsDisabled || isCreatingDepartment}
+                    className="inline-flex h-8 items-center gap-1 rounded-md bg-slate-900 px-3 text-xs font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600"
+                  >
+                    {isCreatingDepartment ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Plus className="h-3.5 w-3.5" />
+                    )}
+                    Nouveau
+                  </Button>
                 ) : null}
               </div>
               <div className="flex items-center gap-2" role="tablist" aria-label="Navigation des listes">
@@ -2508,38 +2526,9 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                       </p>
                     ) : (
                       <div className="space-y-4">
-                        <form
-                          onSubmit={departmentForm.handleSubmit(handleCreateDepartment)}
-                          className="space-y-2 rounded-xl border border-slate-200 bg-white/70 p-3"
-                        >
-                          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                            <Input
-                              {...departmentForm.register('name')}
-                              placeholder="Nom du département"
-                              disabled={isDepartmentActionsDisabled || isCreatingDepartment}
-                              className="h-9 flex-1 rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
-                            />
-                            <Button
-                              type="submit"
-                              size="sm"
-                              disabled={isDepartmentActionsDisabled || isCreatingDepartment}
-                              className="inline-flex h-9 items-center gap-2 rounded-md bg-slate-900 px-3 text-xs font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600"
-                            >
-                              {isCreatingDepartment ? (
-                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                              ) : (
-                                <Plus className="h-3.5 w-3.5" />
-                              )}
-                              Ajouter
-                            </Button>
-                          </div>
-                          {departmentForm.formState.errors.name ? (
-                            <p className="text-xs text-red-600">{departmentForm.formState.errors.name.message}</p>
-                          ) : null}
-                          {createDepartmentMutation.isError ? (
-                            <p className="text-xs text-red-600">{createDepartmentMutation.error.message}</p>
-                          ) : null}
-                        </form>
+                        {createDepartmentMutation.isError ? (
+                          <p className="text-xs text-red-600">{createDepartmentMutation.error.message}</p>
+                        ) : null}
                         {departmentsQuery.isLoading ? (
                           <div className="flex items-center gap-2 text-sm text-slate-500">
                             <Loader2 className="h-4 w-4 animate-spin" />
