@@ -1,21 +1,21 @@
 :root {
-  color-scheme: light dark;
-  --app-background: #0f172a;
-  --app-surface: rgba(15, 23, 42, 0.72);
-  --app-surface-soft: rgba(15, 23, 42, 0.6);
-  --app-surface-strong: rgba(15, 23, 42, 0.82);
+  color-scheme: light;
+  --app-background: #eef2ff;
+  --app-surface: rgba(255, 255, 255, 0.92);
+  --app-surface-soft: rgba(255, 255, 255, 0.82);
+  --app-surface-strong: rgba(255, 255, 255, 0.98);
   --app-border: rgba(148, 163, 184, 0.35);
   --app-border-strong: rgba(148, 163, 184, 0.45);
-  --app-shadow-lg: 0 24px 65px rgba(15, 23, 42, 0.55);
-  --app-shadow-panel: 0 30px 80px rgba(15, 23, 42, 0.6);
+  --app-shadow-lg: 0 24px 65px rgba(59, 130, 246, 0.18);
+  --app-shadow-panel: 0 30px 80px rgba(59, 130, 246, 0.22);
   --app-gradient-accent: radial-gradient(
       circle at top left,
-      rgba(37, 99, 235, 0.35),
+      rgba(59, 130, 246, 0.2),
       transparent 55%
     ),
     radial-gradient(
       circle at bottom right,
-      rgba(14, 165, 233, 0.25),
+      rgba(56, 189, 248, 0.18),
       transparent 50%
     );
 }
@@ -29,7 +29,7 @@ body {
   min-height: 100vh;
   font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   background: var(--app-background);
-  color: #e2e8f0;
+  color: #1f2937;
   display: flex;
   flex-direction: column;
 }
@@ -63,9 +63,13 @@ body {
   align-items: center;
   justify-content: space-between;
   gap: 1.25rem;
-  background: linear-gradient(135deg, rgba(37, 99, 235, 0.35), rgba(14, 165, 233, 0.18));
-  border-bottom: 1px solid rgba(148, 163, 184, 0.25);
-  box-shadow: 0 18px 45px rgba(15, 23, 42, 0.55);
+  background: linear-gradient(
+    135deg,
+    rgba(191, 219, 254, 0.85),
+    rgba(165, 243, 252, 0.65)
+  );
+  border-bottom: 1px solid rgba(148, 163, 184, 0.35);
+  box-shadow: 0 22px 55px rgba(59, 130, 246, 0.18);
   backdrop-filter: blur(14px);
   position: sticky;
   top: 0;
@@ -88,14 +92,14 @@ body {
 .app-header__status {
   padding: 0.4rem 0.9rem;
   border-radius: 999px;
-  border: 1px solid rgba(148, 163, 184, 0.35);
-  background: rgba(15, 23, 42, 0.55);
-  color: #bfdbfe;
+  border: 1px solid rgba(148, 163, 184, 0.45);
+  background: rgba(255, 255, 255, 0.9);
+  color: #1d4ed8;
   font-weight: 600;
   font-size: 0.85rem;
   letter-spacing: 0.02em;
   text-transform: uppercase;
-  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.45);
+  box-shadow: 0 12px 32px rgba(59, 130, 246, 0.18);
 }
 
 .app-header__nav {
@@ -104,9 +108,9 @@ body {
   gap: 0.4rem;
   padding: 0.35rem;
   border-radius: 999px;
-  border: 1px solid rgba(148, 163, 184, 0.35);
-  background: rgba(15, 23, 42, 0.55);
-  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.35);
+  border: 1px solid rgba(148, 163, 184, 0.4);
+  background: rgba(241, 245, 249, 0.9);
+  box-shadow: 0 16px 36px rgba(59, 130, 246, 0.16);
 }
 
 .app-header__link {
@@ -116,22 +120,23 @@ body {
   padding: 0.45rem 0.9rem;
   border-radius: 999px;
   text-decoration: none;
-  color: #e2e8f0;
+  color: #1f2937;
   font-weight: 600;
   font-size: 0.85rem;
   transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
 }
 
 .app-header__link:hover, .app-header__link:focus-visible {
-  background: rgba(37, 99, 235, 0.35);
+  background: rgba(191, 219, 254, 0.7);
+  color: #1d4ed8;
   transform: translateY(-1px);
   outline: none;
 }
 
 .app-header__link[aria-current="page"] {
   background: linear-gradient(135deg, #60a5fa, #38bdf8);
-  color: #0b1220;
-  box-shadow: 0 12px 28px rgba(59, 130, 246, 0.35);
+  color: #0f172a;
+  box-shadow: 0 16px 32px rgba(59, 130, 246, 0.28);
 }
 
 .visually-hidden {
@@ -149,18 +154,18 @@ h1 {
   margin: 0;
   font-size: clamp(1.4rem, 2.3vw, 2rem);
   font-weight: 600;
-  color: #93c5fd;
+  color: #1d4ed8;
 }
 
 p {
   margin: 0;
-  color: rgba(226, 232, 240, 0.75);
+  color: rgba(15, 23, 42, 0.72);
   line-height: 1.5;
 }
 
 .app-header__info p {
   margin: 0;
-  color: rgba(226, 232, 240, 0.78);
+  color: rgba(30, 41, 59, 0.75);
   font-size: 0.98rem;
   line-height: 1.5;
 }
@@ -1350,289 +1355,287 @@ p {
   }
 }
 
-@media (prefers-color-scheme: light) {
-  .page-diagram {
-    background: #f1f5f9;
-    color: #0f172a;
-  }
+.page-diagram {
+  background: #f1f5f9;
+  color: #0f172a;
+}
 
-  .page-diagram .app-header {
-    background: linear-gradient(135deg, rgba(191, 219, 254, 0.85), rgba(165, 243, 252, 0.65));
-    border-bottom-color: rgba(148, 163, 184, 0.35);
-    box-shadow: 0 22px 55px rgba(59, 130, 246, 0.18);
-  }
+.page-diagram .app-header {
+  background: linear-gradient(135deg, rgba(191, 219, 254, 0.85), rgba(165, 243, 252, 0.65));
+  border-bottom-color: rgba(148, 163, 184, 0.35);
+  box-shadow: 0 22px 55px rgba(59, 130, 246, 0.18);
+}
 
-  .page-diagram .app-header__status {
-    background: rgba(255, 255, 255, 0.85);
-    border-color: rgba(148, 163, 184, 0.45);
-    color: #1d4ed8;
-  }
+.page-diagram .app-header__status {
+  background: rgba(255, 255, 255, 0.85);
+  border-color: rgba(148, 163, 184, 0.45);
+  color: #1d4ed8;
+}
 
-  .page-diagram .workspace-shell {
-    background: radial-gradient(circle at top left, rgba(59, 130, 246, 0.2), transparent 55%),
-    radial-gradient(circle at bottom right, rgba(56, 189, 248, 0.18), transparent 50%);
-  }
+.page-diagram .workspace-shell {
+  background: radial-gradient(circle at top left, rgba(59, 130, 246, 0.2), transparent 55%),
+  radial-gradient(circle at bottom right, rgba(56, 189, 248, 0.18), transparent 50%);
+}
 
-  .page-diagram .side-panel {
-    background: rgba(255, 255, 255, 0.92);
-    border-color: rgba(148, 163, 184, 0.35);
-    box-shadow: 0 35px 80px rgba(59, 130, 246, 0.22);
-    color: #0f172a;
-  }
+.page-diagram .side-panel {
+  background: rgba(255, 255, 255, 0.92);
+  border-color: rgba(148, 163, 184, 0.35);
+  box-shadow: 0 35px 80px rgba(59, 130, 246, 0.22);
+  color: #0f172a;
+}
 
-  .page-diagram .panel-toggle {
-    background: linear-gradient(160deg, rgba(191, 219, 254, 0.9), rgba(59, 130, 246, 0.45));
-    border-color: rgba(148, 163, 184, 0.5);
-    box-shadow: 0 22px 55px rgba(15, 23, 42, 0.15);
-    color: #1e3a8a;
-  }
+.page-diagram .panel-toggle {
+  background: linear-gradient(160deg, rgba(191, 219, 254, 0.9), rgba(59, 130, 246, 0.45));
+  border-color: rgba(148, 163, 184, 0.5);
+  box-shadow: 0 22px 55px rgba(15, 23, 42, 0.15);
+  color: #1e3a8a;
+}
 
-  .page-diagram .panel-toggle::before {
-    background: rgba(248, 250, 252, 0.9);
-  }
+.page-diagram .panel-toggle::before {
+  background: rgba(248, 250, 252, 0.9);
+}
 
-  .page-diagram .panel-toggle:hover, .page-diagram .panel-toggle:focus-visible {
-    box-shadow: 0 26px 65px rgba(37, 99, 235, 0.35);
-    background: linear-gradient(160deg, rgba(191, 219, 254, 0.95), rgba(59, 130, 246, 0.6));
-    border-color: rgba(37, 99, 235, 0.55);
-  }
+.page-diagram .panel-toggle:hover, .page-diagram .panel-toggle:focus-visible {
+  box-shadow: 0 26px 65px rgba(37, 99, 235, 0.35);
+  background: linear-gradient(160deg, rgba(191, 219, 254, 0.95), rgba(59, 130, 246, 0.6));
+  border-color: rgba(37, 99, 235, 0.55);
+}
 
-  .page-diagram .diagram-footer-panel {
-    background: rgba(255, 255, 255, 0.92);
-    border-color: rgba(148, 163, 184, 0.35);
-    box-shadow: 0 28px 65px rgba(59, 130, 246, 0.18);
-  }
+.page-diagram .diagram-footer-panel {
+  background: rgba(255, 255, 255, 0.92);
+  border-color: rgba(148, 163, 184, 0.35);
+  box-shadow: 0 28px 65px rgba(59, 130, 246, 0.18);
+}
 
-  .page-diagram .diagram-footer-toggle {
-    background: rgba(241, 245, 249, 0.85);
-    color: #1e3a8a;
-    border-color: rgba(148, 163, 184, 0.35);
-  }
+.page-diagram .diagram-footer-toggle {
+  background: rgba(241, 245, 249, 0.85);
+  color: #1e3a8a;
+  border-color: rgba(148, 163, 184, 0.35);
+}
 
-  .page-diagram .diagram-footer-toggle:hover, .page-diagram .diagram-footer-toggle:focus-visible {
-    background: rgba(191, 219, 254, 0.75);
-    border-color: rgba(59, 130, 246, 0.55);
-    color: #1d4ed8;
-  }
+.page-diagram .diagram-footer-toggle:hover, .page-diagram .diagram-footer-toggle:focus-visible {
+  background: rgba(191, 219, 254, 0.75);
+  border-color: rgba(59, 130, 246, 0.55);
+  color: #1d4ed8;
+}
 
-  .page-diagram .diagram-footer-switch {
-    background: rgba(241, 245, 249, 0.9);
-    border-color: rgba(148, 163, 184, 0.4);
-  }
+.page-diagram .diagram-footer-switch {
+  background: rgba(241, 245, 249, 0.9);
+  border-color: rgba(148, 163, 184, 0.4);
+}
 
-  .page-diagram .diagram-footer-switch:hover, .page-diagram .diagram-footer-switch:focus-within {
-    background: rgba(191, 219, 254, 0.6);
-    border-color: rgba(59, 130, 246, 0.55);
-  }
+.page-diagram .diagram-footer-switch:hover, .page-diagram .diagram-footer-switch:focus-within {
+  background: rgba(191, 219, 254, 0.6);
+  border-color: rgba(59, 130, 246, 0.55);
+}
 
-  .page-diagram .diagram-footer-orientation {
-    background: rgba(241, 245, 249, 0.9);
-    border-color: rgba(148, 163, 184, 0.4);
-    color: #1f2937;
-  }
+.page-diagram .diagram-footer-orientation {
+  background: rgba(241, 245, 249, 0.9);
+  border-color: rgba(148, 163, 184, 0.4);
+  color: #1f2937;
+}
 
-  .page-diagram .diagram-footer-orientation:hover, .page-diagram .diagram-footer-orientation:focus-visible {
-    background: rgba(191, 219, 254, 0.6);
-    border-color: rgba(59, 130, 246, 0.55);
-    color: #1d4ed8;
-  }
+.page-diagram .diagram-footer-orientation:hover, .page-diagram .diagram-footer-orientation:focus-visible {
+  background: rgba(191, 219, 254, 0.6);
+  border-color: rgba(59, 130, 246, 0.55);
+  color: #1d4ed8;
+}
 
-  .page-diagram .diagram-footer-orientation[aria-pressed='true'] {
-    background: rgba(191, 219, 254, 0.7);
-    border-color: rgba(59, 130, 246, 0.55);
-    color: #1d4ed8;
-  }
+.page-diagram .diagram-footer-orientation[aria-pressed='true'] {
+  background: rgba(191, 219, 254, 0.7);
+  border-color: rgba(59, 130, 246, 0.55);
+  color: #1d4ed8;
+}
 
-  .page-diagram .diagram-footer-toggle-input {
-    background: rgba(148, 163, 184, 0.45);
-    border-color: rgba(148, 163, 184, 0.55);
-  }
+.page-diagram .diagram-footer-toggle-input {
+  background: rgba(148, 163, 184, 0.45);
+  border-color: rgba(148, 163, 184, 0.55);
+}
 
-  .page-diagram .diagram-footer-toggle-input:checked {
-    background: rgba(59, 130, 246, 0.55);
-    border-color: rgba(59, 130, 246, 0.6);
-  }
+.page-diagram .diagram-footer-toggle-input:checked {
+  background: rgba(59, 130, 246, 0.55);
+  border-color: rgba(59, 130, 246, 0.6);
+}
 
-  .page-diagram .diagram-footer-switch-title {
-    color: #1f2937;
-  }
+.page-diagram .diagram-footer-switch-title {
+  color: #1f2937;
+}
 
-  .page-diagram .diagram-footer-switch-status {
-    color: rgba(30, 64, 175, 0.75);
-  }
+.page-diagram .diagram-footer-switch-status {
+  color: rgba(30, 64, 175, 0.75);
+}
 
-  .page-diagram .diagram-footer-orientation-status {
-    color: rgba(30, 64, 175, 0.75);
-  }
+.page-diagram .diagram-footer-orientation-status {
+  color: rgba(30, 64, 175, 0.75);
+}
 
-  .page-diagram h1 {
-    color: #1d4ed8;
-  }
+.page-diagram h1 {
+  color: #1d4ed8;
+}
 
-  .page-diagram .panel-intro {
-    color: rgba(15, 23, 42, 0.65);
-  }
+.page-diagram .panel-intro {
+  color: rgba(15, 23, 42, 0.65);
+}
 
-  .page-diagram p, .page-diagram label, .page-diagram .field-label, .page-diagram .panel-footer {
-    color: rgba(15, 23, 42, 0.75);
-  }
+.page-diagram p, .page-diagram label, .page-diagram .field-label, .page-diagram .panel-footer {
+  color: rgba(15, 23, 42, 0.75);
+}
 
-  .page-diagram .input-control {
-    background-color: rgba(241, 245, 249, 0.85);
-    color: #0f172a;
-    border-color: rgba(148, 163, 184, 0.4);
-  }
+.page-diagram .input-control {
+  background-color: rgba(241, 245, 249, 0.85);
+  color: #0f172a;
+  border-color: rgba(148, 163, 184, 0.4);
+}
 
-  .page-diagram .steps-list:empty::before {
-    color: rgba(15, 23, 42, 0.55);
-  }
+.page-diagram .steps-list:empty::before {
+  color: rgba(15, 23, 42, 0.55);
+}
 
-  .page-diagram .steps-list::-webkit-scrollbar-track {
-    background: rgba(148, 163, 184, 0.25);
-  }
+.page-diagram .steps-list::-webkit-scrollbar-track {
+  background: rgba(148, 163, 184, 0.25);
+}
 
-  .page-diagram .steps-list::-webkit-scrollbar-thumb {
-    background: rgba(59, 130, 246, 0.45);
-  }
+.page-diagram .steps-list::-webkit-scrollbar-thumb {
+  background: rgba(59, 130, 246, 0.45);
+}
 
-  .page-diagram .step-row {
-    --role-card-bg: rgba(241, 245, 249, 0.9);
-    --role-card-border: rgba(148, 163, 184, 0.4);
-    --role-card-text: rgba(15, 23, 42, 0.85);
-    --role-card-accent: rgba(15, 23, 42, 0.7);
-    --role-card-muted: rgba(15, 23, 42, 0.6);
-    --role-card-control-bg: rgba(241, 245, 249, 0.88);
-    --role-card-control-border: rgba(148, 163, 184, 0.35);
-  }
+.page-diagram .step-row {
+  --role-card-bg: rgba(241, 245, 249, 0.9);
+  --role-card-border: rgba(148, 163, 184, 0.4);
+  --role-card-text: rgba(15, 23, 42, 0.85);
+  --role-card-accent: rgba(15, 23, 42, 0.7);
+  --role-card-muted: rgba(15, 23, 42, 0.6);
+  --role-card-control-bg: rgba(241, 245, 249, 0.88);
+  --role-card-control-border: rgba(148, 163, 184, 0.35);
+}
 
-  .page-diagram .step-row--decision {
-    --role-card-bg: rgba(253, 230, 138, 0.35);
-    --role-card-border: rgba(245, 158, 11, 0.45);
-    --role-card-text: rgba(120, 53, 15, 0.85);
-    --role-card-accent: rgba(146, 64, 14, 0.8);
-    --role-card-muted: rgba(146, 64, 14, 0.7);
-    --role-card-control-bg: rgba(253, 230, 138, 0.25);
-    --role-card-control-border: rgba(245, 158, 11, 0.45);
-  }
+.page-diagram .step-row--decision {
+  --role-card-bg: rgba(253, 230, 138, 0.35);
+  --role-card-border: rgba(245, 158, 11, 0.45);
+  --role-card-text: rgba(120, 53, 15, 0.85);
+  --role-card-accent: rgba(146, 64, 14, 0.8);
+  --role-card-muted: rgba(146, 64, 14, 0.7);
+  --role-card-control-bg: rgba(253, 230, 138, 0.25);
+  --role-card-control-border: rgba(245, 158, 11, 0.45);
+}
 
-  .page-diagram .branch-section {
-    background: rgba(255, 255, 255, 0.88);
-    border-color: rgba(148, 163, 184, 0.35);
-  }
+.page-diagram .branch-section {
+  background: rgba(255, 255, 255, 0.88);
+  border-color: rgba(148, 163, 184, 0.35);
+}
 
-  .page-diagram .branch-label {
-    color: rgba(15, 23, 42, 0.6);
-  }
+.page-diagram .branch-label {
+  color: rgba(15, 23, 42, 0.6);
+}
 
-  .page-diagram .branch-step {
-    --role-card-bg: rgba(241, 245, 249, 0.85);
-    --role-card-border: rgba(148, 163, 184, 0.3);
-    --role-card-text: rgba(15, 23, 42, 0.75);
-    --role-card-accent: rgba(15, 23, 42, 0.65);
-    --role-card-muted: rgba(15, 23, 42, 0.5);
-    --role-card-control-bg: rgba(241, 245, 249, 0.85);
-    --role-card-control-border: rgba(148, 163, 184, 0.3);
-  }
+.page-diagram .branch-step {
+  --role-card-bg: rgba(241, 245, 249, 0.85);
+  --role-card-border: rgba(148, 163, 184, 0.3);
+  --role-card-text: rgba(15, 23, 42, 0.75);
+  --role-card-accent: rgba(15, 23, 42, 0.65);
+  --role-card-muted: rgba(15, 23, 42, 0.5);
+  --role-card-control-bg: rgba(241, 245, 249, 0.85);
+  --role-card-control-border: rgba(148, 163, 184, 0.3);
+}
 
-  .page-diagram .branch-footer {
-    color: rgba(15, 23, 42, 0.6);
-  }
+.page-diagram .branch-footer {
+  color: rgba(15, 23, 42, 0.6);
+}
 
-  .page-diagram .branch-target {
-    background: rgba(241, 245, 249, 0.85);
-    border-color: rgba(148, 163, 184, 0.35);
-    color: #0f172a;
-  }
+.page-diagram .branch-target {
+  background: rgba(241, 245, 249, 0.85);
+  border-color: rgba(148, 163, 184, 0.35);
+  color: #0f172a;
+}
 
-  .page-diagram .assignment-field-label {
-    color: var(--role-card-muted);
-  }
+.page-diagram .assignment-field-label {
+  color: var(--role-card-muted);
+}
 
-  .page-diagram .assignment-select:disabled {
-    background: rgba(226, 232, 240, 0.6);
-    color: rgba(15, 23, 42, 0.5);
-  }
+.page-diagram .assignment-select:disabled {
+  background: rgba(226, 232, 240, 0.6);
+  color: rgba(15, 23, 42, 0.5);
+}
 
-  .page-diagram .info-header h2 {
-    color: #1d4ed8;
-  }
+.page-diagram .info-header h2 {
+  color: #1d4ed8;
+}
 
-  .page-diagram .info-section h3, .page-diagram .info-list {
-    color: rgba(15, 23, 42, 0.65);
-  }
+.page-diagram .info-section h3, .page-diagram .info-list {
+  color: rgba(15, 23, 42, 0.65);
+}
 
-  .page-diagram .legend-swatch {
-    box-shadow: 0 0 0 2px rgba(148, 163, 184, 0.35);
-  }
+.page-diagram .legend-swatch {
+  box-shadow: 0 0 0 2px rgba(148, 163, 184, 0.35);
+}
 
-  .page-diagram .step-input::placeholder {
-    color: var(--role-card-muted);
-  }
+.page-diagram .step-input::placeholder {
+  color: var(--role-card-muted);
+}
 
-  .page-diagram .icon-button {
-    background: rgba(148, 163, 184, 0.2);
-    color: rgba(15, 23, 42, 0.75);
-    border-color: rgba(148, 163, 184, 0.4);
-  }
+.page-diagram .icon-button {
+  background: rgba(148, 163, 184, 0.2);
+  color: rgba(15, 23, 42, 0.75);
+  border-color: rgba(148, 163, 184, 0.4);
+}
 
-  .page-diagram .icon-button:hover {
-    background: rgba(37, 99, 235, 0.12);
-  }
+.page-diagram .icon-button:hover {
+  background: rgba(37, 99, 235, 0.12);
+}
 
-  .page-diagram .secondary-button {
-    border-color: rgba(148, 163, 184, 0.5);
-    color: #1d4ed8;
-  }
+.page-diagram .secondary-button {
+  border-color: rgba(148, 163, 184, 0.5);
+  color: #1d4ed8;
+}
 
-  .page-diagram .secondary-button:hover {
-    background: rgba(59, 130, 246, 0.15);
-    color: #1e3a8a;
-  }
+.page-diagram .secondary-button:hover {
+  background: rgba(59, 130, 246, 0.15);
+  color: #1e3a8a;
+}
 
-  .page-diagram .entity-header h3 {
-    color: #1d4ed8;
-  }
+.page-diagram .entity-header h3 {
+  color: #1d4ed8;
+}
 
-  .page-diagram .entity-list:empty::before {
-    color: rgba(15, 23, 42, 0.45);
-  }
+.page-diagram .entity-list:empty::before {
+  color: rgba(15, 23, 42, 0.45);
+}
 
-  .page-diagram .entity-row {
-    background: rgba(241, 245, 249, 0.88);
-    border-color: rgba(148, 163, 184, 0.4);
-  }
+.page-diagram .entity-row {
+  background: rgba(241, 245, 249, 0.88);
+  border-color: rgba(148, 163, 184, 0.4);
+}
 
-  .page-diagram .entity-input {
-    color: #0f172a;
-  }
+.page-diagram .entity-input {
+  color: #0f172a;
+}
 
-  .page-diagram .entity-input::placeholder {
-    color: rgba(15, 23, 42, 0.45);
-  }
+.page-diagram .entity-input::placeholder {
+  color: rgba(15, 23, 42, 0.45);
+}
 
-  .page-diagram .role-list {
-    border-left-color: rgba(15, 23, 42, 0.12);
-  }
+.page-diagram .role-list {
+  border-left-color: rgba(15, 23, 42, 0.12);
+}
 
-  .page-diagram .role-list:empty::before {
-    color: rgba(15, 23, 42, 0.4);
-  }
+.page-diagram .role-list:empty::before {
+  color: rgba(15, 23, 42, 0.4);
+}
 
-  .page-diagram .add-role-button {
-    background: rgba(148, 163, 184, 0.18);
-    border-color: rgba(148, 163, 184, 0.35);
-    color: #0f172a;
-  }
+.page-diagram .add-role-button {
+  background: rgba(148, 163, 184, 0.18);
+  border-color: rgba(148, 163, 184, 0.35);
+  color: #0f172a;
+}
 
-  .page-diagram .add-role-button:hover, .page-diagram .add-role-button:focus-visible {
-    background: rgba(59, 130, 246, 0.18);
-    border-color: rgba(37, 99, 235, 0.45);
-    color: #1d4ed8;
-  }
+.page-diagram .add-role-button:hover, .page-diagram .add-role-button:focus-visible {
+  background: rgba(59, 130, 246, 0.18);
+  border-color: rgba(37, 99, 235, 0.45);
+  color: #1d4ed8;
+}
 
-  .page-diagram .helper-text {
-    color: rgba(15, 23, 42, 0.55);
-  }
+.page-diagram .helper-text {
+  color: rgba(15, 23, 42, 0.55);
 }
 
 /* Home page */
@@ -1649,7 +1652,7 @@ p {
 .page-home .home-sidebar h2 {
   margin: 0;
   font-size: 1.1rem;
-  color: #bfdbfe;
+  color: #1d4ed8;
 }
 
 .page-home .home-tree {
@@ -1667,8 +1670,8 @@ p {
   gap: 0.5rem;
   padding: 0.65rem 0.85rem;
   border-radius: 14px;
-  background: rgba(37, 99, 235, 0.18);
-  color: #e2e8f0;
+  background: rgba(59, 130, 246, 0.16);
+  color: #1e3a8a;
   font-weight: 600;
 }
 
@@ -1717,12 +1720,12 @@ p {
 .page-home .home-content h2 {
   margin: 0;
   font-size: clamp(1.3rem, 2.1vw, 1.8rem);
-  color: #f1f5f9;
+  color: #1d4ed8;
 }
 
 .page-home .home-content p {
   margin: 0;
-  color: rgba(226, 232, 240, 0.78);
+  color: rgba(30, 41, 59, 0.75);
   line-height: 1.6;
   font-size: 1rem;
 }
@@ -1749,20 +1752,20 @@ p {
 .page-home .metric-header h3 {
   margin: 0;
   font-size: 1.05rem;
-  color: #bfdbfe;
+  color: #1d4ed8;
 }
 
 .page-home .metric-caption {
   margin: 0.35rem 0 0;
   font-size: 0.9rem;
-  color: rgba(226, 232, 240, 0.7);
+  color: rgba(30, 41, 59, 0.6);
 }
 
 .page-home .metric-value {
   margin: 0;
   font-size: clamp(2.1rem, 4vw, 2.75rem);
   font-weight: 700;
-  color: #f8fafc;
+  color: #1f2937;
   letter-spacing: 0.02em;
 }
 
@@ -1789,13 +1792,13 @@ p {
 .page-home .highlight-card h3 {
   margin: 0;
   font-size: 1.05rem;
-  color: #bfdbfe;
+  color: #1d4ed8;
 }
 
 .page-home .highlight-card p {
   margin: 0;
   font-size: 0.95rem;
-  color: rgba(226, 232, 240, 0.75);
+  color: rgba(30, 41, 59, 0.7);
 }
 
 @media (max-width: 960px) {
@@ -1845,7 +1848,7 @@ p {
 .page-departments .icon-button:focus-visible {
   background: rgba(37, 99, 235, 0.25);
   border-color: rgba(59, 130, 246, 0.55);
-  color: #bfdbfe;
+  color: #1d4ed8;
   outline: none;
 }
 
@@ -1859,13 +1862,13 @@ p {
 .page-departments .info-header h2 {
   margin: 0;
   font-size: 1.15rem;
-  color: #bfdbfe;
+  color: #1d4ed8;
 }
 
 .page-departments .info-header p {
   margin: 0.35rem 0 0;
   font-size: 0.95rem;
-  color: rgba(226, 232, 240, 0.75);
+  color: rgba(30, 41, 59, 0.75);
   line-height: 1.5;
 }
 
@@ -1885,7 +1888,7 @@ p {
 .page-departments .entity-header h3 {
   margin: 0;
   font-size: 1.05rem;
-  color: #93c5fd;
+  color: #1d4ed8;
 }
 
 .page-departments .secondary-button {
@@ -1897,7 +1900,7 @@ p {
   border-radius: 12px;
   border: 1px solid var(--app-border-strong);
   background: var(--app-surface-soft);
-  color: #bfdbfe;
+  color: #1d4ed8;
   font-size: 0.85rem;
   font-weight: 600;
   font-family: inherit;
@@ -1906,9 +1909,9 @@ p {
 }
 
 .page-departments .secondary-button:hover, .page-departments .secondary-button:focus-visible {
-  background: rgba(37, 99, 235, 0.25);
+  background: rgba(59, 130, 246, 0.15);
   border-color: rgba(59, 130, 246, 0.55);
-  color: #e0f2fe;
+  color: #1e3a8a;
   outline: none;
 }
 
@@ -1921,7 +1924,7 @@ p {
 .page-departments .entity-list:empty::before {
   content: attr(data-empty-text);
   font-size: 0.88rem;
-  color: rgba(226, 232, 240, 0.55);
+  color: rgba(30, 41, 59, 0.55);
 }
 
 .page-departments .department-tree {
@@ -1946,7 +1949,7 @@ p {
 .page-departments .role-list:empty::before {
   content: attr(data-empty-text);
   font-size: 0.82rem;
-  color: rgba(226, 232, 240, 0.5);
+  color: rgba(30, 41, 59, 0.5);
 }
 
 .page-departments .entity-row {
@@ -2000,7 +2003,7 @@ p {
 }
 
 .page-departments .entity-input::placeholder {
-  color: rgba(226, 232, 240, 0.45);
+  color: rgba(30, 41, 59, 0.45);
 }
 
 .page-departments .entity-input:focus {
@@ -2047,16 +2050,16 @@ p {
 }
 
 .page-departments .add-role-button:hover, .page-departments .add-role-button:focus-visible {
-  background: rgba(37, 99, 235, 0.2);
+  background: rgba(59, 130, 246, 0.18);
   border-color: rgba(59, 130, 246, 0.5);
-  color: #bfdbfe;
+  color: #1d4ed8;
   outline: none;
 }
 
 .page-departments .helper-text {
   margin: 0;
   font-size: 0.85rem;
-  color: rgba(226, 232, 240, 0.6);
+  color: rgba(30, 41, 59, 0.6);
   line-height: 1.6;
 }
 
@@ -2070,12 +2073,12 @@ p {
 .page-departments .detail-header h2 {
   margin: 0;
   font-size: 1.25rem;
-  color: #bfdbfe;
+  color: #1d4ed8;
 }
 
 .page-departments .detail-header p {
   margin: 0.4rem 0 0;
-  color: rgba(226, 232, 240, 0.7);
+  color: rgba(30, 41, 59, 0.7);
   font-size: 0.96rem;
   line-height: 1.6;
 }
@@ -2086,7 +2089,7 @@ p {
   padding: 1.5rem;
   text-align: center;
   font-size: 0.95rem;
-  color: rgba(226, 232, 240, 0.65);
+  color: rgba(30, 41, 59, 0.6);
   background: var(--app-surface-soft);
 }
 
@@ -2111,14 +2114,14 @@ p {
 .page-departments .detail-field label {
   font-weight: 600;
   font-size: 0.85rem;
-  color: rgba(191, 219, 254, 0.9);
+  color: rgba(30, 64, 175, 0.85);
 }
 
 .page-departments .detail-field input, .page-departments .detail-field textarea {
   border-radius: 14px;
   border: 1px solid rgba(148, 163, 184, 0.35);
-  background: rgba(15, 23, 42, 0.75);
-  color: #e2e8f0;
+  background: rgba(241, 245, 249, 0.9);
+  color: #0f172a;
   font: inherit;
   padding: 0.7rem 0.85rem;
   resize: vertical;
@@ -2144,7 +2147,7 @@ p {
 .page-departments .detail-selection-summary {
   margin: 0;
   font-size: 0.92rem;
-  color: rgba(226, 232, 240, 0.75);
+  color: rgba(30, 41, 59, 0.7);
 }
 
 .page-departments .detail-badges {
@@ -2162,7 +2165,7 @@ p {
   border: 1px solid var(--app-border);
   background: var(--app-surface-soft);
   font-size: 0.82rem;
-  color: rgba(226, 232, 240, 0.78);
+  color: rgba(30, 41, 59, 0.72);
 }
 
 .page-departments .metrics-grid {
@@ -2188,12 +2191,12 @@ p {
 .page-departments .metric-value {
   font-size: 1.65rem;
   font-weight: 600;
-  color: #93c5fd;
+  color: #1d4ed8;
 }
 
 .page-departments .metric-label {
   font-size: 0.85rem;
-  color: rgba(226, 232, 240, 0.65);
+  color: rgba(30, 41, 59, 0.6);
   letter-spacing: 0.02em;
   text-transform: uppercase;
 }
@@ -2202,13 +2205,13 @@ p {
   margin: 0;
   padding-left: 1.2rem;
   font-size: 0.9rem;
-  color: rgba(226, 232, 240, 0.7);
+  color: rgba(30, 41, 59, 0.7);
   display: grid;
   gap: 0.4rem;
 }
 
 .page-departments .tips-list li::marker {
-  color: rgba(96, 165, 250, 0.65);
+  color: rgba(59, 130, 246, 0.7);
 }
 
 @media (max-width: 600px) {
