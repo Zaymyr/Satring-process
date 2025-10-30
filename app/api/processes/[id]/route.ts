@@ -17,51 +17,6 @@ const renameSchema = z.object({
     .max(120, 'Le titre ne peut pas dépasser 120 caractères.')
 });
 
-type SupabaseError = {
-  readonly code?: string;
-  readonly message?: string;
-  readonly details?: string | null;
-  readonly hint?: string | null;
-};
-
-const isRlsDeniedError = (error: SupabaseError) => {
-  const normalizedSegments = [error.message, error.details, error.hint]
-    .map((segment) => (typeof segment === 'string' ? segment.toLowerCase().replace(/[-_]+/g, ' ') : ''))
-    .filter((segment) => segment.length > 0);
-
-  return normalizedSegments.some((segment) =>
-    segment.includes('row level security') || segment.includes('permission denied for table')
-  );
-};
-
-const mapDeleteProcessError = (error: SupabaseError) => {
-  const code = error.code?.toUpperCase();
-
-  if (code === '28000') {
-    return { status: 401, body: { error: 'Authentification requise.' } } as const;
-  }
-
-  if (code === '42501') {
-    return {
-      status: 403,
-      body: { error: "Vous n'avez pas l'autorisation de supprimer ce process." }
-    } as const;
-  }
-
-  if (code === 'P0002') {
-    return { status: 404, body: { error: 'Process introuvable.' } } as const;
-  }
-
-  if (isRlsDeniedError(error)) {
-    return {
-      status: 403,
-      body: { error: "Vous n'avez pas l'autorisation de supprimer ce process." }
-    } as const;
-  }
-
-  return { status: 500, body: { error: 'Impossible de supprimer le process.' } } as const;
-};
-
 const normalizeUpdatedAt = (value: unknown): string | null => {
   if (!value) {
     return null;
@@ -150,48 +105,4 @@ export async function PATCH(request: Request, context: { params: { id: string } 
   }
 
   return NextResponse.json(parsed.data as ProcessSummary, { headers: NO_STORE_HEADERS });
-}
-
-export async function DELETE(_request: Request, context: { params: { id: string } }) {
-  const params = paramsSchema.safeParse(context.params);
-
-  if (!params.success) {
-    return NextResponse.json(
-      { error: 'Identifiant de process invalide.' },
-      { status: 400, headers: NO_STORE_HEADERS }
-    );
-  }
-
-  const supabase = createServerClient();
-  const {
-    data: { user },
-    error: authError
-  } = await supabase.auth.getUser();
-
-  if (authError || !user) {
-    return NextResponse.json({ error: 'Authentification requise.' }, { status: 401, headers: NO_STORE_HEADERS });
-  }
-
-  const { data, error } = await supabase
-    .from('process_snapshots')
-    .delete()
-    .eq('id', params.data.id)
-    .eq('owner_id', user.id)
-    .select('id')
-    .maybeSingle();
-
-  if (error) {
-    console.error('Erreur lors de la suppression du process', error);
-    const mapped = mapDeleteProcessError(error);
-    return NextResponse.json(mapped.body, { status: mapped.status, headers: NO_STORE_HEADERS });
-  }
-
-  if (!data) {
-    return NextResponse.json(
-      { error: 'Process introuvable.' },
-      { status: 404, headers: NO_STORE_HEADERS }
-    );
-  }
-
-  return new NextResponse(null, { status: 204, headers: NO_STORE_HEADERS });
 }
