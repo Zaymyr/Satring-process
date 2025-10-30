@@ -2,6 +2,12 @@ import { z } from 'zod';
 
 export const stepTypeValues = ['start', 'action', 'decision', 'finish'] as const;
 
+const departmentIdSchema = z
+  .string()
+  .uuid('Identifiant de département invalide.')
+  .nullish()
+  .transform((value) => (typeof value === 'string' ? value : null));
+
 const branchTargetSchema = z
   .string()
   .min(1)
@@ -20,6 +26,7 @@ export const stepSchema = z.object({
   id: z.string().min(1),
   label: z.string(),
   type: z.enum(stepTypeValues),
+  departmentId: departmentIdSchema,
   yesTargetId: branchTargetSchema.default(null),
   noTargetId: branchTargetSchema.default(null)
 });

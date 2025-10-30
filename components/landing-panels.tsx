@@ -195,13 +195,70 @@ const normalizeBranchTarget = (value: string | null | undefined) => {
   return trimmed.length > 0 ? trimmed : null;
 };
 
+const normalizeDepartmentId = (value: string | null | undefined) => {
+  if (typeof value !== 'string') {
+    return null;
+  }
+
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+};
+
 const normalizeStep = (step: ProcessStep): ProcessStep => ({
   ...step,
+  departmentId: normalizeDepartmentId(step.departmentId),
   yesTargetId: normalizeBranchTarget(step.yesTargetId),
   noTargetId: normalizeBranchTarget(step.noTargetId)
 });
 
 const cloneSteps = (steps: readonly ProcessStep[]): ProcessStep[] => steps.map((step) => normalizeStep({ ...step }));
+
+const escapeHtml = (value: string) =>
+  value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+
+const wrapStepLabel = (value: string) => {
+  const normalized = value.trim();
+  const source = normalized.length > 0 ? normalized : 'Étape';
+  const maxCharsPerLine = 18;
+  const words = source.split(/\s+/);
+  const lines: string[] = [];
+  let currentLine = '';
+
+  for (const word of words) {
+    const tentative = currentLine ? `${currentLine} ${word}` : word;
+    if (tentative.length <= maxCharsPerLine) {
+      currentLine = tentative;
+    } else {
+      if (currentLine) {
+        lines.push(currentLine);
+      }
+      if (word.length > maxCharsPerLine) {
+        const segments = word.match(new RegExp(`.{1,${maxCharsPerLine}}`, 'g')) ?? [word];
+        lines.push(...segments.slice(0, -1));
+        currentLine = segments.at(-1) ?? '';
+      } else {
+        currentLine = word;
+      }
+    }
+  }
+
+  if (currentLine) {
+    lines.push(currentLine);
+  }
+
+  return lines;
+};
+
+const formatDepartmentClusterLabel = (value: string) => {
+  const trimmed = value.trim();
+  const base = trimmed.length > 0 ? trimmed : 'Département';
+  const escaped = escapeHtml(base);
+  return escaped.replace(/&quot;/g, '\\"');
+};
 
 const clampValue = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
 
@@ -226,6 +283,7 @@ const areStepsEqual = (a: readonly ProcessStep[], b: readonly ProcessStep[]) => 
       normalized.id === normalizedOther.id &&
       normalized.label === normalizedOther.label &&
       normalized.type === normalizedOther.type &&
+      normalized.departmentId === normalizedOther.departmentId &&
       normalized.yesTargetId === normalizedOther.yesTargetId &&
       normalized.noTargetId === normalizedOther.noTargetId
     );
@@ -617,6 +675,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
     [selectedStepId, steps]
   );
   const departments = useMemo(() => departmentsQuery.data ?? [], [departmentsQuery.data]);
+  const hasDepartments = departments.length > 0;
   const isDepartmentUnauthorized =
     departmentsQuery.isError &&
     departmentsQuery.error instanceof ApiError &&
@@ -1071,6 +1130,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
     const payloadSteps = steps.map((step) => ({
       ...step,
       label: step.label.trim(),
+      departmentId: normalizeDepartmentId(step.departmentId),
       yesTargetId: normalizeBranchTarget(step.yesTargetId),
       noTargetId: normalizeBranchTarget(step.noTargetId)
     }));
@@ -1227,46 +1287,6 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
     });
   }, []);
 
-  const escapeHtml = (value: string) =>
-    value
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;');
-
-  const wrapStepLabel = (value: string) => {
-    const normalized = value.trim();
-    const source = normalized.length > 0 ? normalized : 'Étape';
-    const maxCharsPerLine = 18;
-    const words = source.split(/\s+/);
-    const lines: string[] = [];
-    let currentLine = '';
-
-    for (const word of words) {
-      const tentative = currentLine ? `${currentLine} ${word}` : word;
-      if (tentative.length <= maxCharsPerLine) {
-        currentLine = tentative;
-      } else {
-        if (currentLine) {
-          lines.push(currentLine);
-        }
-        if (word.length > maxCharsPerLine) {
-          const segments = word.match(new RegExp(`.{1,${maxCharsPerLine}}`, 'g')) ?? [word];
-          lines.push(...segments.slice(0, -1));
-          currentLine = segments.at(-1) ?? '';
-        } else {
-          currentLine = word;
-        }
-      }
-    }
-
-    if (currentLine) {
-      lines.push(currentLine);
-    }
-
-    return lines;
-  };
-
   const diagramDefinition = useMemo(() => {
     const flowchartDeclaration = `flowchart ${diagramDirection}`;
 
@@ -1276,25 +1296,52 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
 
     const classAssignments: string[] = [];
     const stepIndexMap = new Map(steps.map((step, index) => [step.id, index] as const));
+    const departmentLookup = new Map(
+      departments.map((department, index) => [
+        department.id,
+        { department, clusterId: `cluster_${index}` }
+      ])
+    );
+    const clusterNodes = new Map<string, { label: string; nodes: string[] }>();
+    const ungroupedNodes: string[] = [];
 
-    const nodes = steps.map((step, index) => {
+    steps.forEach((step, index) => {
       const nodeId = `S${index}`;
       const baseLabel = getStepDisplayLabel(step);
       const lines = wrapStepLabel(baseLabel);
       const label = lines.map((line) => escapeHtml(line)).join('<br/>');
+      const departmentId = normalizeDepartmentId(step.departmentId);
+
+      let declaration: string;
 
       if (step.type === 'action') {
         classAssignments.push(`class ${nodeId} action;`);
-        return `${nodeId}["${label}"]`;
-      }
-
-      if (step.type === 'decision') {
+        declaration = `${nodeId}["${label}"]`;
+      } else if (step.type === 'decision') {
         classAssignments.push(`class ${nodeId} decision;`);
-        return `${nodeId}{"${label}"}`;
+        declaration = `${nodeId}{"${label}"}`;
+      } else {
+        classAssignments.push(`class ${nodeId} terminal;`);
+        declaration = `${nodeId}(("${label}"))`;
       }
 
-      classAssignments.push(`class ${nodeId} terminal;`);
-      return `${nodeId}(("${label}"))`;
+      if (departmentId) {
+        const lookup = departmentLookup.get(departmentId);
+        if (lookup) {
+          const existing = clusterNodes.get(lookup.clusterId);
+          if (existing) {
+            existing.nodes.push(declaration);
+          } else {
+            clusterNodes.set(lookup.clusterId, {
+              label: lookup.department.name,
+              nodes: [declaration]
+            });
+          }
+          return;
+        }
+      }
+
+      ungroupedNodes.push(declaration);
     });
 
     const buildEdge = (sourceId: string, targetIndex: number, label?: string) =>
@@ -1361,14 +1408,31 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
       'classDef decision fill:#ffffff,stroke:#0f172a,color:#0f172a,stroke-width:2px;'
     ];
 
+    const clusterDirection = diagramDirection === 'TD' ? 'TB' : diagramDirection;
+    const clusterDeclarations: string[] = [];
+
+    for (const [clusterId, { label, nodes }] of clusterNodes.entries()) {
+      if (nodes.length === 0) {
+        continue;
+      }
+
+      clusterDeclarations.push(`subgraph ${clusterId}["${formatDepartmentClusterLabel(label)}"]`);
+      clusterDeclarations.push(`  direction ${clusterDirection}`);
+      nodes.forEach((node) => {
+        clusterDeclarations.push(`  ${node}`);
+      });
+      clusterDeclarations.push('end');
+    }
+
     return [
       flowchartDeclaration,
       ...classDefinitions,
-      ...nodes,
+      ...ungroupedNodes,
+      ...clusterDeclarations,
       ...connections,
       ...classAssignments
     ].join('\n');
-  }, [diagramDirection, steps]);
+  }, [departments, diagramDirection, steps]);
 
   useEffect(() => {
     setDiagramUserOffset((previous) =>
@@ -1397,6 +1461,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
     const contentPaddingY = 36;
 
     const stepById = new Map(steps.map((step) => [step.id, step] as const));
+    const departmentById = new Map(departments.map((department) => [department.id, department] as const));
 
     const nodes = steps.reduce<
       Array<{
@@ -1411,9 +1476,15 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
       const baseLabel = getStepDisplayLabel(step);
       const labelLines = wrapStepLabel(baseLabel);
       const displayLines = [...labelLines];
+      const department = step.departmentId ? departmentById.get(step.departmentId) : undefined;
       const stepIndex = acc.length;
       const defaultNextStep = steps[stepIndex + 1];
       const fallbackLabel = defaultNextStep ? getStepDisplayLabel(defaultNextStep) : '—';
+
+      if (department) {
+        displayLines.push('');
+        displayLines.push(`Département : ${department.name}`);
+      }
 
       if (step.type === 'decision') {
         const resolveTargetLabel = (targetId: string | null | undefined) => {
@@ -1584,7 +1655,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
         })}
       </svg>
     );
-  }, [steps]);
+  }, [departments, steps]);
 
   useEffect(() => {
     let isActive = true;
@@ -1669,6 +1740,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
       id: newStepId,
       label,
       type,
+      departmentId: null,
       yesTargetId: null,
       noTargetId: null
     };
@@ -1700,6 +1772,14 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
 
   const updateStepLabel = (id: string, label: string) => {
     setSteps((prev) => prev.map((step) => (step.id === id ? { ...step, label } : step)));
+  };
+
+  const updateStepDepartment = (id: string, departmentId: string | null) => {
+    setSteps((prev) =>
+      prev.map((step) =>
+        step.id === id ? { ...step, departmentId: normalizeDepartmentId(departmentId) } : step
+      )
+    );
   };
 
   const updateDecisionBranch = (id: string, branch: 'yes' | 'no', targetId: string | null) => {
@@ -2168,6 +2248,32 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                                 placeholder="Intitulé de l’étape"
                                 className="h-8 w-full border-slate-200 bg-white text-sm text-slate-900 placeholder:text-slate-400 focus-visible:ring-slate-900/20 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-50"
                               />
+                              <label className="flex flex-col gap-1 text-[0.6rem] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                                <span>Département</span>
+                                <select
+                                  value={step.departmentId ?? ''}
+                                  onChange={(event) =>
+                                    updateStepDepartment(
+                                      step.id,
+                                      event.target.value.length > 0 ? event.target.value : null
+                                    )
+                                  }
+                                  className="h-8 rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-900 transition focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10 disabled:cursor-not-allowed"
+                                  disabled={!hasDepartments}
+                                >
+                                  <option value="">Aucun département</option>
+                                  {departments.map((department) => (
+                                    <option key={department.id} value={department.id}>
+                                      {department.name}
+                                    </option>
+                                  ))}
+                                </select>
+                                {!hasDepartments ? (
+                                  <span className="text-[0.6rem] font-normal normal-case tracking-normal text-slate-500">
+                                    Ajoutez un département pour l’associer à cette étape.
+                                  </span>
+                                ) : null}
+                              </label>
                               {step.type === 'decision' ? (
                                 <div className="mt-2 grid gap-2 sm:grid-cols-2">
                                   <label className="flex flex-col gap-1 text-[0.6rem] font-semibold uppercase tracking-[0.18em] text-slate-500">
