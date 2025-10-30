@@ -13,7 +13,10 @@ export async function POST(request: Request) {
   const parsed = bodySchema.safeParse(json);
 
   if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+    const firstIssue = parsed.error.issues[0];
+    const message = firstIssue?.message ?? 'Requête invalide.';
+
+    return NextResponse.json({ error: message }, { status: 400 });
   }
 
   const supabase = createServerClient(cookies());
@@ -23,6 +26,15 @@ export async function POST(request: Request) {
   });
 
   if (error) {
+    const normalizedMessage = error.message?.toLowerCase();
+
+    if (normalizedMessage?.includes('invalid login credentials')) {
+      return NextResponse.json(
+        { error: 'Mot de passe incorrect. Veuillez réessayer.' },
+        { status: 401 }
+      );
+    }
+
     return NextResponse.json({ error: error.message }, { status: 400 });
   }
 
