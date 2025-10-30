@@ -6,6 +6,7 @@ import {
   useMemo,
   useRef,
   useState,
+  useId,
   type CSSProperties,
   type ReactNode
 } from 'react';
@@ -1704,6 +1705,8 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
     [primaryWidth, secondaryWidth]
   );
 
+  const diagramControlsContentId = useId();
+
   return (
     <div className="relative flex h-full flex-col overflow-hidden bg-gradient-to-br from-slate-100 via-white to-slate-200 text-slate-900">
       <div className="absolute inset-0 z-0 flex items-center justify-center overflow-visible">
@@ -2182,28 +2185,41 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
         </div>
       </div>
       <div className="pointer-events-auto flex w-full justify-center">
-        <div className="flex w-full max-w-4xl flex-col items-center">
+        <div className="relative w-full max-w-4xl pt-6">
           <button
             type="button"
             onClick={() => setIsBottomCollapsed((previous) => !previous)}
             aria-expanded={!isBottomCollapsed}
             aria-controls="diagram-controls-panel"
-            className="mt-2 inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white/90 text-slate-600 shadow-sm transition hover:bg-white"
+            aria-hidden={!isBottomCollapsed}
+            tabIndex={isBottomCollapsed ? 0 : -1}
+            className={cn(
+              'absolute left-1/2 top-0 z-20 flex h-10 w-10 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-slate-200 bg-white/90 text-slate-600 shadow-sm transition hover:bg-white',
+              isBottomCollapsed
+                ? 'pointer-events-auto opacity-100'
+                : 'pointer-events-none opacity-0'
+            )}
           >
             {isBottomCollapsed ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
             <span className="sr-only">Basculer le panneau des options du diagramme</span>
           </button>
           <section
             id="diagram-controls-panel"
+            aria-hidden={isBottomCollapsed}
             className={cn(
-              'mt-4 w-full rounded-3xl border border-slate-200 bg-white/85 p-6 shadow-[0_30px_120px_-50px_rgba(15,23,42,0.35)] backdrop-blur transition-all duration-300 ease-out',
+              'w-full rounded-3xl border border-slate-200 bg-white/85 p-6 pt-10 shadow-[0_30px_120px_-50px_rgba(15,23,42,0.35)] backdrop-blur transition-all duration-300 ease-out',
               isBottomCollapsed
                 ? 'pointer-events-none -translate-y-2 opacity-0'
                 : 'pointer-events-auto translate-y-0 opacity-100'
             )}
-            aria-hidden={isBottomCollapsed}
           >
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <button
+              type="button"
+              onClick={() => setIsBottomCollapsed((previous) => !previous)}
+              aria-expanded={!isBottomCollapsed}
+              aria-controls={diagramControlsContentId}
+              className="flex w-full items-center justify-between gap-3 text-left"
+            >
               <div className="space-y-1 text-left">
                 <h2 className="text-sm font-semibold text-slate-900">Options du diagramme</h2>
                 <p className="text-xs text-slate-600">
@@ -2212,6 +2228,21 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                     : 'Affichage actuel : de gauche à droite.'}
                 </p>
               </div>
+              <ChevronDown
+                aria-hidden="true"
+                className={cn(
+                  'h-4 w-4 text-slate-500 transition-transform duration-200',
+                  !isBottomCollapsed && 'rotate-180'
+                )}
+              />
+            </button>
+            <div
+              id={diagramControlsContentId}
+              className={cn(
+                'mt-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between',
+                isBottomCollapsed && 'hidden'
+              )}
+            >
               <div
                 role="group"
                 aria-label="Orientation du diagramme"
