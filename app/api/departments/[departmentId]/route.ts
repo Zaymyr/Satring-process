@@ -54,10 +54,10 @@ export async function PATCH(request: Request, context: RouteContext) {
 
   const { data, error } = await supabase
     .from('departments')
-    .update({ name: parsedBody.data.name })
+    .update({ name: parsedBody.data.name, color: parsedBody.data.color })
     .eq('id', departmentId)
     .eq('owner_id', user.id)
-    .select('id, name, created_at, updated_at')
+    .select('id, name, color, created_at, updated_at')
     .maybeSingle();
 
   if (error) {
