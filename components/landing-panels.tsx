@@ -15,6 +15,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   ArrowLeftRight,
   ArrowUpDown,
+  Building,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
@@ -34,6 +35,7 @@ import {
   type LucideIcon
 } from 'lucide-react';
 
+import { DepartmentsPanel } from '@/components/departments-panel';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -364,6 +366,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
   const queryClient = useQueryClient();
   const [isPrimaryCollapsed, setIsPrimaryCollapsed] = useState(false);
   const [isSecondaryCollapsed, setIsSecondaryCollapsed] = useState(false);
+  const [activeSecondaryTab, setActiveSecondaryTab] = useState<'processes' | 'departments'>('processes');
   const [isBottomCollapsed, setIsBottomCollapsed] = useState(false);
   const [diagramDirection, setDiagramDirection] = useState<'TD' | 'LR'>('TD');
   const [selectedProcessId, setSelectedProcessId] = useState<string | null>(null);
@@ -2017,155 +2020,210 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                 : 'pointer-events-auto opacity-100 lg:translate-x-0'
             )}
           >
-            <div className="space-y-2">
-              <div className="flex items-start justify-between gap-3">
+            <div className="space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div
+                  role="tablist"
+                  aria-label="Gestion des éléments"
+                  className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white/70 p-1 shadow-sm"
+                >
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={activeSecondaryTab === 'processes'}
+                    onClick={() => setActiveSecondaryTab('processes')}
+                    className={cn(
+                      'inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400',
+                      activeSecondaryTab === 'processes'
+                        ? 'bg-slate-900 text-white shadow'
+                        : 'text-slate-600 hover:bg-slate-100'
+                    )}
+                  >
+                    <FolderTree className="h-3.5 w-3.5" />
+                    Process
+                  </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={activeSecondaryTab === 'departments'}
+                    onClick={() => setActiveSecondaryTab('departments')}
+                    className={cn(
+                      'inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400',
+                      activeSecondaryTab === 'departments'
+                        ? 'bg-slate-900 text-white shadow'
+                        : 'text-slate-600 hover:bg-slate-100'
+                    )}
+                  >
+                    <Building className="h-3.5 w-3.5" />
+                    Départements
+                  </button>
+                </div>
+                {activeSecondaryTab === 'processes' ? (
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={handleCreateProcess}
+                    disabled={isUnauthorized || isCreating}
+                    className="inline-flex h-8 items-center gap-1 rounded-md bg-slate-900 px-3 text-xs font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600"
+                  >
+                    {isCreating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
+                    Nouveau
+                  </Button>
+                ) : null}
+              </div>
+              {activeSecondaryTab === 'processes' ? (
                 <div>
                   <h2 className="text-lg font-semibold text-slate-900">Mes process</h2>
                   <p className="text-xs text-slate-600">
                     Gérez vos parcours enregistrés et renommez-les directement depuis cette liste.
                   </p>
                 </div>
-                <Button
-                  type="button"
-                  size="sm"
-                  onClick={handleCreateProcess}
-                  disabled={isUnauthorized || isCreating}
-                  className="inline-flex h-8 items-center gap-1 rounded-md bg-slate-900 px-3 text-xs font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600"
-                >
-                  {isCreating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
-                  Nouveau
-                </Button>
-              </div>
+              ) : (
+                <div>
+                  <h2 className="text-lg font-semibold text-slate-900">Mes départements</h2>
+                  <p className="text-xs text-slate-600">
+                    Organisez vos départements pour structurer vos process et vos équipes.
+                  </p>
+                </div>
+              )}
             </div>
-            <div className="flex-1 min-h-0 overflow-hidden">
-              <div className="flex h-full flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white/80">
-                <div className="flex-1 overflow-y-auto px-3 py-4">
-                  {isProcessListUnauthorized ? (
-                    <p className="text-sm text-slate-600">
-                      Connectez-vous pour accéder à vos process sauvegardés.
-                    </p>
-                  ) : processSummariesQuery.isLoading ? (
-                    <div className="flex items-center gap-2 text-sm text-slate-500">
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      Chargement des process…
-                    </div>
-                  ) : processSummariesQuery.isError ? (
-                    <p className="text-sm text-red-600">
-                      {processSummariesQuery.error instanceof ApiError
-                        ? processSummariesQuery.error.message
-                        : 'Impossible de récupérer la liste des process.'}
-                    </p>
-                  ) : hasProcesses ? (
-                    <ul role="tree" aria-label="Process sauvegardés" className="space-y-2">
-                      {processSummaries.map((summary) => {
-                        const isSelected = summary.id === currentProcessId;
-                        const isEditing = editingProcessId === summary.id;
-                        const updatedLabel = formatUpdatedAt(summary.updatedAt);
+            {activeSecondaryTab === 'processes' ? (
+              <div className="flex-1 min-h-0 overflow-hidden">
+                <div className="flex h-full flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white/80">
+                  <div className="flex-1 overflow-y-auto px-3 py-4">
+                    {isProcessListUnauthorized ? (
+                      <p className="text-sm text-slate-600">
+                        Connectez-vous pour accéder à vos process sauvegardés.
+                      </p>
+                    ) : processSummariesQuery.isLoading ? (
+                      <div className="flex items-center gap-2 text-sm text-slate-500">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Chargement des process…
+                      </div>
+                    ) : processSummariesQuery.isError ? (
+                      <p className="text-sm text-red-600">
+                        {processSummariesQuery.error instanceof ApiError
+                          ? processSummariesQuery.error.message
+                          : 'Impossible de récupérer la liste des process.'}
+                      </p>
+                    ) : hasProcesses ? (
+                      <ul role="tree" aria-label="Process sauvegardés" className="space-y-2">
+                        {processSummaries.map((summary) => {
+                          const isSelected = summary.id === currentProcessId;
+                          const isEditing = editingProcessId === summary.id;
+                          const updatedLabel = formatUpdatedAt(summary.updatedAt);
 
-                        return (
-                          <li
-                            key={summary.id}
-                            role="treeitem"
-                            aria-selected={isSelected}
-                            className="focus:outline-none"
-                          >
-                            <div
-                              role={isEditing ? undefined : 'button'}
-                              tabIndex={isEditing ? undefined : 0}
-                              onClick={
-                                isEditing
-                                  ? undefined
-                                  : () => {
-                                      setSelectedProcessId(summary.id);
-                                    }
-                              }
-                              onDoubleClick={
-                                isEditing ? undefined : () => startEditingProcess(summary)
-                              }
-                              onKeyDown={
-                                isEditing
-                                  ? undefined
-                                  : (event) => {
-                                      if (event.key === 'Enter' || event.key === ' ') {
-                                        event.preventDefault();
+                          return (
+                            <li
+                              key={summary.id}
+                              role="treeitem"
+                              aria-selected={isSelected}
+                              className="focus:outline-none"
+                            >
+                              <div
+                                role={isEditing ? undefined : 'button'}
+                                tabIndex={isEditing ? undefined : 0}
+                                onClick={
+                                  isEditing
+                                    ? undefined
+                                    : () => {
                                         setSelectedProcessId(summary.id);
                                       }
-                                    }
-                              }
-                              className={cn(
-                                'group flex flex-col gap-1 rounded-lg border border-transparent px-2 py-2 transition focus:outline-none',
-                                isSelected
-                                  ? 'border-slate-900/30 bg-slate-900/5 shadow-inner'
-                                  : 'hover:border-slate-300 hover:bg-slate-100',
-                                isEditing ? undefined : 'cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400'
-                              )}
-                            >
-                              {isEditing ? (
-                                <Input
-                                  ref={(node) => {
-                                    renameInputRef.current = node;
-                                  }}
-                                  value={renameDraft}
-                                  onChange={(event) => setRenameDraft(event.target.value)}
-                                  onBlur={submitRename}
-                                  onKeyDown={(event) => {
-                                    if (event.key === 'Enter') {
-                                      event.preventDefault();
-                                      submitRename();
-                                    } else if (event.key === 'Escape') {
-                                      event.preventDefault();
-                                      cancelEditingProcess();
-                                    }
-                                  }}
-                                  disabled={isRenaming}
-                                  className="h-8"
-                                />
-                              ) : (
-                                <div className="flex items-center gap-2">
-                                  <div
-                                    className={cn(
-                                      'flex flex-1 items-center gap-2 rounded-md px-2 py-1.5 text-sm font-medium transition',
-                                      isSelected
-                                        ? 'bg-slate-900 text-white shadow-sm'
-                                        : 'bg-white/40 text-slate-700 group-hover:bg-white'
-                                    )}
-                                  >
-                                    <FolderTree className={cn('h-4 w-4', isSelected ? 'text-white' : 'text-slate-500')} />
-                                    <span className="truncate">{normalizeProcessTitle(summary.title)}</span>
-                                  </div>
-                                  <button
-                                    type="button"
-                                    onClick={(event) => {
-                                      event.stopPropagation();
-                                      setSelectedProcessId(summary.id);
-                                      startEditingProcess(summary);
+                                }
+                                onDoubleClick={
+                                  isEditing ? undefined : () => startEditingProcess(summary)
+                                }
+                                onKeyDown={
+                                  isEditing
+                                    ? undefined
+                                    : (event) => {
+                                        if (event.key === 'Enter' || event.key === ' ') {
+                                          event.preventDefault();
+                                          setSelectedProcessId(summary.id);
+                                        }
+                                      }
+                                }
+                                className={cn(
+                                  'group flex flex-col gap-1 rounded-lg border border-transparent px-2 py-2 transition focus:outline-none',
+                                  isSelected
+                                    ? 'border-slate-900/30 bg-slate-900/5 shadow-inner'
+                                    : 'hover:border-slate-300 hover:bg-slate-100',
+                                  isEditing ? undefined : 'cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400'
+                                )}
+                              >
+                                {isEditing ? (
+                                  <Input
+                                    ref={(node) => {
+                                      renameInputRef.current = node;
                                     }}
-                                    className={cn(
-                                      'inline-flex h-8 w-8 items-center justify-center rounded-md border border-transparent text-slate-500 transition hover:border-slate-300 hover:bg-white hover:text-slate-700',
-                                      isSelected ? 'border-slate-300 bg-white/80' : 'bg-white/60'
-                                    )}
-                                  >
-                                    <Pencil className="h-3.5 w-3.5" />
-                                    <span className="sr-only">Renommer le process</span>
-                                  </button>
+                                    value={renameDraft}
+                                    onChange={(event) => setRenameDraft(event.target.value)}
+                                    onBlur={submitRename}
+                                    onKeyDown={(event) => {
+                                      if (event.key === 'Enter') {
+                                        event.preventDefault();
+                                        submitRename();
+                                      } else if (event.key === 'Escape') {
+                                        event.preventDefault();
+                                        cancelEditingProcess();
+                                      }
+                                    }}
+                                    disabled={isRenaming}
+                                    className="h-8"
+                                  />
+                                ) : (
+                                  <div className="flex items-center gap-2">
+                                    <div
+                                      className={cn(
+                                        'flex flex-1 items-center gap-2 rounded-md px-2 py-1.5 text-sm font-medium transition',
+                                        isSelected
+                                          ? 'bg-slate-900 text-white shadow-sm'
+                                          : 'bg-white/40 text-slate-700 group-hover:bg-white'
+                                      )}
+                                    >
+                                      <FolderTree className={cn('h-4 w-4', isSelected ? 'text-white' : 'text-slate-500')} />
+                                      <span className="truncate">{normalizeProcessTitle(summary.title)}</span>
+                                    </div>
+                                    <button
+                                      type="button"
+                                      onClick={(event) => {
+                                        event.stopPropagation();
+                                        setSelectedProcessId(summary.id);
+                                        startEditingProcess(summary);
+                                      }}
+                                      className={cn(
+                                        'inline-flex h-8 w-8 items-center justify-center rounded-md border border-transparent text-slate-500 transition hover:border-slate-300 hover:bg-white hover:text-slate-700',
+                                        isSelected ? 'border-slate-300 bg-white/80' : 'bg-white/60'
+                                      )}
+                                    >
+                                      <Pencil className="h-3.5 w-3.5" />
+                                      <span className="sr-only">Renommer le process</span>
+                                    </button>
+                                  </div>
+                                )}
+                                <div className="px-2 text-xs text-slate-500">
+                                  {updatedLabel ? `Mis à jour le ${updatedLabel}` : 'Jamais sauvegardé'}
                                 </div>
-                              )}
-                              <div className="px-2 text-xs text-slate-500">
-                                {updatedLabel ? `Mis à jour le ${updatedLabel}` : 'Jamais sauvegardé'}
                               </div>
-                            </div>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  ) : (
-                    <p className="text-sm text-slate-600">
-                      Créez votre premier process pour le retrouver facilement ici.
-                    </p>
-                  )}
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    ) : (
+                      <p className="text-sm text-slate-600">
+                        Créez votre premier process pour le retrouver facilement ici.
+                      </p>
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
+            ) : (
+              <div className="flex-1 min-h-0 overflow-hidden">
+                <div className="flex h-full flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white/80 px-4 py-4">
+                  <DepartmentsPanel />
+                </div>
+              </div>
+            )}
             <div className="grid gap-3.5 sm:grid-cols-2">
               {highlights.map((item) => {
                 const Icon = highlightIcons[item.icon];
