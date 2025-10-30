@@ -2796,6 +2796,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                                           variant="ghost"
                                           onClick={() => startEditingDepartment(department)}
                                           disabled={isDepartmentActionsDisabled || isDeletingCurrent}
+                                          className="border border-slate-200 !text-slate-600 hover:bg-slate-100 hover:!text-slate-900"
                                         >
                                           <Pencil className="h-4 w-4" />
                                           <span className="sr-only">Renommer le département</span>
