@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { DEFAULT_DEPARTMENT_COLOR } from '@/lib/validation/department';
+
 export const NO_STORE_HEADERS = { 'Cache-Control': 'no-store, max-age=0, must-revalidate' } as const;
 
 export const normalizeTimestamp = (value: unknown) => {
@@ -13,9 +15,24 @@ export const normalizeTimestamp = (value: unknown) => {
   return date.toISOString();
 };
 
+const HEX_COLOR_REGEX = /^#[0-9A-F]{6}$/;
+
+const normalizeDepartmentColor = (value: unknown) => {
+  if (typeof value === 'string') {
+    const trimmed = value.trim().toUpperCase();
+    if (HEX_COLOR_REGEX.test(trimmed)) {
+      return trimmed;
+    }
+  }
+
+  console.error('Couleur de département invalide', value);
+  return DEFAULT_DEPARTMENT_COLOR;
+};
+
 export const normalizeDepartmentRecord = (item: {
   id: unknown;
   name: unknown;
+  color: unknown;
   created_at: unknown;
   updated_at: unknown;
 }) => ({
@@ -24,6 +41,7 @@ export const normalizeDepartmentRecord = (item: {
     typeof item.name === 'string' && item.name.trim().length > 0
       ? item.name.trim()
       : 'Département',
+  color: normalizeDepartmentColor(item.color),
   createdAt: normalizeTimestamp(item.created_at),
   updatedAt: normalizeTimestamp(item.updated_at)
 });

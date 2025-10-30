@@ -26,6 +26,7 @@ export const departments = pgTable(
     id: uuid('id').defaultRandom().primaryKey(),
     ownerId: uuid('owner_id').notNull(),
     name: text('name').notNull(),
+    color: text('color').notNull().default('#C7D2FE'),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull()
   },

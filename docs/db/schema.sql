@@ -16,8 +16,10 @@ create table if not exists public.departments (
     id uuid primary key default gen_random_uuid(),
     owner_id uuid not null references auth.users(id) on delete cascade,
     name text not null,
+    color text not null default '#C7D2FE',
     created_at timestamptz not null default timezone('utc', now()),
-    updated_at timestamptz not null default timezone('utc', now())
+    updated_at timestamptz not null default timezone('utc', now()),
+    constraint departments_color_check check (color ~ '^#[0-9A-F]{6}$')
 );
 
 create index if not exists departments_owner_id_idx on public.departments(owner_id);

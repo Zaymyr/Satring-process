@@ -52,6 +52,7 @@ import {
   type StepType
 } from '@/lib/validation/process';
 import {
+  DEFAULT_DEPARTMENT_COLOR,
   departmentInputSchema,
   departmentListSchema,
   departmentSchema,
@@ -65,6 +66,43 @@ const highlightIcons = {
 } as const satisfies Record<string, LucideIcon>;
 
 const DEFAULT_DEPARTMENT_NAME = 'Nouveau département';
+
+const HEX_COLOR_REGEX = /^#[0-9A-F]{6}$/;
+const CLUSTER_STYLE_TEXT_COLOR = '#0f172a';
+const CLUSTER_FILL_OPACITY = 0.18;
+const FALLBACK_STEP_FILL_ALPHA = 0.22;
+
+const parseHexColor = (color: string): [number, number, number] | null => {
+  if (!HEX_COLOR_REGEX.test(color)) {
+    return null;
+  }
+
+  const red = Number.parseInt(color.slice(1, 3), 16);
+  const green = Number.parseInt(color.slice(3, 5), 16);
+  const blue = Number.parseInt(color.slice(5, 7), 16);
+
+  if ([red, green, blue].some((component) => Number.isNaN(component))) {
+    return null;
+  }
+
+  return [red, green, blue];
+};
+
+const toRgba = (color: string, alpha: number, fallback: string) => {
+  const rgb = parseHexColor(color);
+
+  if (!rgb) {
+    return fallback;
+  }
+
+  const normalizedAlpha = Math.min(Math.max(alpha, 0), 1);
+  return `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, ${normalizedAlpha})`;
+};
+
+const getClusterStyleDeclaration = (clusterId: string, color: string) => {
+  const normalized = HEX_COLOR_REGEX.test(color) ? color : DEFAULT_DEPARTMENT_COLOR;
+  return `style ${clusterId} fill:${normalized},stroke:${normalized},color:${CLUSTER_STYLE_TEXT_COLOR},stroke-width:2px,fill-opacity:${CLUSTER_FILL_OPACITY};`;
+};
 
 type Highlight = {
   title: string;
@@ -564,7 +602,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
   const [deleteDepartmentId, setDeleteDepartmentId] = useState<string | null>(null);
   const departmentEditForm = useForm<DepartmentInput>({
     resolver: zodResolver(departmentInputSchema),
-    defaultValues: { name: '' }
+    defaultValues: { name: '', color: DEFAULT_DEPARTMENT_COLOR }
   });
 
   const processSummariesQuery = useQuery<ProcessSummary[], ApiError>({
@@ -604,7 +642,8 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
   });
 
   const createDepartmentMutation = useMutation<Department, ApiError, void>({
-    mutationFn: () => createDepartmentRequest({ name: DEFAULT_DEPARTMENT_NAME }),
+    mutationFn: () =>
+      createDepartmentRequest({ name: DEFAULT_DEPARTMENT_NAME, color: DEFAULT_DEPARTMENT_COLOR }),
     onSuccess: async (department) => {
       queryClient.setQueryData(['departments'], (previous?: Department[]) => {
         if (!previous) {
@@ -615,7 +654,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
         return [department, ...filtered];
       });
       setEditingDepartmentId(department.id);
-      departmentEditForm.reset({ name: department.name });
+      departmentEditForm.reset({ name: department.name, color: department.color });
       await queryClient.invalidateQueries({ queryKey: ['departments'] });
     }
   });
@@ -625,7 +664,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
     onSuccess: async (_data, variables) => {
       await queryClient.invalidateQueries({ queryKey: ['departments'] });
       setEditingDepartmentId((current) => (current === variables.id ? null : current));
-      departmentEditForm.reset({ name: '' });
+      departmentEditForm.reset({ name: '', color: DEFAULT_DEPARTMENT_COLOR });
     }
   });
 
@@ -724,20 +763,20 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
         return;
       }
       setEditingDepartmentId(department.id);
-      departmentEditForm.reset({ name: department.name });
+      departmentEditForm.reset({ name: department.name, color: department.color });
     },
     [departmentEditForm, isDepartmentActionsDisabled]
   );
 
   const cancelEditingDepartment = useCallback(() => {
     setEditingDepartmentId(null);
-    departmentEditForm.reset({ name: '' });
+    departmentEditForm.reset({ name: '', color: DEFAULT_DEPARTMENT_COLOR });
   }, [departmentEditForm]);
 
   useEffect(() => {
     if (isDepartmentActionsDisabled) {
       setEditingDepartmentId(null);
-      departmentEditForm.reset({ name: '' });
+      departmentEditForm.reset({ name: '', color: DEFAULT_DEPARTMENT_COLOR });
     }
   }, [departmentEditForm, isDepartmentActionsDisabled]);
 
@@ -1302,7 +1341,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
         { department, clusterId: `cluster_${index}` }
       ])
     );
-    const clusterNodes = new Map<string, { label: string; nodes: string[] }>();
+    const clusterNodes = new Map<string, { label: string; nodes: string[]; color: string }>();
     const ungroupedNodes: string[] = [];
 
     steps.forEach((step, index) => {
@@ -1334,7 +1373,8 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
           } else {
             clusterNodes.set(lookup.clusterId, {
               label: lookup.department.name,
-              nodes: [declaration]
+              nodes: [declaration],
+              color: lookup.department.color
             });
           }
           return;
@@ -1411,7 +1451,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
     const clusterDirection = diagramDirection === 'TD' ? 'TB' : diagramDirection;
     const clusterDeclarations: string[] = [];
 
-    for (const [clusterId, { label, nodes }] of clusterNodes.entries()) {
+    for (const [clusterId, { label, nodes, color }] of clusterNodes.entries()) {
       if (nodes.length === 0) {
         continue;
       }
@@ -1422,6 +1462,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
         clusterDeclarations.push(`  ${node}`);
       });
       clusterDeclarations.push('end');
+      clusterDeclarations.push(getClusterStyleDeclaration(clusterId, color));
     }
 
     return [
@@ -1471,6 +1512,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
         lines: string[];
         width: number;
         height: number;
+        department: Department | undefined;
       }>
     >((acc, step) => {
       const baseLabel = getStepDisplayLabel(step);
@@ -1534,7 +1576,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
         ? previous.centerY + previous.halfHeight + stackSpacing + halfHeight
         : verticalPadding + halfHeight;
 
-      acc.push({ step, centerY, halfHeight, lines: displayLines, width, height });
+      acc.push({ step, centerY, halfHeight, lines: displayLines, width, height, department });
       return acc;
     }, []);
 
@@ -1590,12 +1632,16 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
           );
         })}
         {nodes.map((node) => {
-          const { step, centerY, lines, width, height } = node;
+          const { step, centerY, lines, width, height, department } = node;
           const isTerminal = step.type === 'start' || step.type === 'finish';
           const isDecision = step.type === 'decision';
           const isAction = step.type === 'action';
-          const primaryFill = isTerminal ? '#f8fafc' : '#ffffff';
-          const strokeColor = '#0f172a';
+          const baseFill = isTerminal ? '#f8fafc' : '#ffffff';
+          const strokeDefault = '#0f172a';
+          const fillColor = department
+            ? toRgba(department.color, FALLBACK_STEP_FILL_ALPHA, baseFill)
+            : baseFill;
+          const strokeColor = department ? department.color : strokeDefault;
           const blockOffset = ((lines.length - 1) * 24) / 2;
 
           return (
@@ -1606,7 +1652,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                   cy={centerY}
                   rx={width / 2}
                   ry={height / 2}
-                  fill={primaryFill}
+                  fill={fillColor}
                   stroke={strokeColor}
                   strokeWidth={2}
                 />
@@ -1618,7 +1664,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                   width={width}
                   height={height}
                   rx={24}
-                  fill={primaryFill}
+                  fill={fillColor}
                   stroke={strokeColor}
                   strokeWidth={2}
                 />
@@ -1626,7 +1672,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
               {isDecision ? (
                 <polygon
                   points={diamondPoints(centerY, width, height)}
-                  fill={primaryFill}
+                  fill={fillColor}
                   stroke={strokeColor}
                   strokeWidth={2}
                 />
@@ -2653,6 +2699,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                               const isUpdatingCurrent = isUpdatingDepartment && editingDepartmentId === department.id;
                               const isDeletingCurrent = isDeletingDepartment && deleteDepartmentId === department.id;
                               const updatedLabel = formatUpdatedAt(department.updatedAt);
+                              const colorInputId = `department-color-${department.id}`;
 
                               return (
                                 <li key={department.id} className="rounded-xl border border-slate-200 bg-white/80 p-3 shadow-sm">
@@ -2662,12 +2709,31 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                                       className="space-y-2"
                                     >
                                       <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                                        <Input
-                                          {...departmentEditForm.register('name')}
-                                          autoFocus
-                                          disabled={isUpdatingCurrent}
-                                          className="h-9 flex-1 rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
-                                        />
+                                        <div className="flex flex-1 flex-col gap-2 sm:flex-row sm:items-center">
+                                          <div className="flex items-center gap-2">
+                                            <label htmlFor={colorInputId} className="sr-only">
+                                              Couleur du département
+                                            </label>
+                                            <input
+                                              id={colorInputId}
+                                              type="color"
+                                              {...departmentEditForm.register('color')}
+                                              disabled={isUpdatingCurrent}
+                                              className="h-9 w-9 cursor-pointer rounded-md border border-slate-300 bg-white p-1 shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
+                                              aria-describedby={
+                                                departmentEditForm.formState.errors.color
+                                                  ? `${colorInputId}-error`
+                                                  : undefined
+                                              }
+                                            />
+                                          </div>
+                                          <Input
+                                            {...departmentEditForm.register('name')}
+                                            autoFocus
+                                            disabled={isUpdatingCurrent}
+                                            className="h-9 flex-1 rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
+                                          />
+                                        </div>
                                         <div className="flex items-center gap-2">
                                           <Button
                                             type="submit"
@@ -2693,6 +2759,11 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                                           </Button>
                                         </div>
                                       </div>
+                                      {departmentEditForm.formState.errors.color ? (
+                                        <p id={`${colorInputId}-error`} className="text-xs text-red-600">
+                                          {departmentEditForm.formState.errors.color.message}
+                                        </p>
+                                      ) : null}
                                       {departmentEditForm.formState.errors.name ? (
                                         <p className="text-xs text-red-600">
                                           {departmentEditForm.formState.errors.name.message}
@@ -2705,7 +2776,15 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                                   ) : (
                                     <div className="flex items-center justify-between gap-3">
                                       <div className="min-w-0">
-                                        <p className="truncate text-sm font-medium text-slate-900">{department.name}</p>
+                                        <div className="flex items-center gap-2" title={department.color}>
+                                          <span
+                                            className="inline-flex h-3 w-3 shrink-0 rounded-full border border-slate-300"
+                                            style={{ backgroundColor: department.color }}
+                                            aria-hidden="true"
+                                          />
+                                          <p className="truncate text-sm font-medium text-slate-900">{department.name}</p>
+                                          <span className="sr-only">Couleur : {department.color}</span>
+                                        </div>
                                         {updatedLabel ? (
                                           <p className="text-xs text-slate-500">Mis à jour {updatedLabel}</p>
                                         ) : null}
