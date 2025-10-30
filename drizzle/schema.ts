@@ -19,3 +19,21 @@ export const processSnapshots = pgTable(
 
 export type ProcessSnapshot = typeof processSnapshots.$inferSelect;
 export type NewProcessSnapshot = typeof processSnapshots.$inferInsert;
+
+export const departments = pgTable(
+  'departments',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    ownerId: uuid('owner_id').notNull(),
+    name: text('name').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull()
+  },
+  (table) => ({
+    ownerIndex: index('departments_owner_id_idx').on(table.ownerId),
+    updatedAtIndex: index('departments_updated_at_idx').on(table.updatedAt)
+  })
+);
+
+export type Department = typeof departments.$inferSelect;
+export type NewDepartment = typeof departments.$inferInsert;
