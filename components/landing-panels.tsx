@@ -30,9 +30,11 @@ import {
   PlayCircle,
   Plus,
   GripVertical,
+  Save,
   ShieldCheck,
   Sparkles,
   Trash2,
+  X,
   type LucideIcon
 } from 'lucide-react';
 import { useForm } from 'react-hook-form';
@@ -2737,25 +2739,27 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                                         <div className="flex items-center gap-2">
                                           <Button
                                             type="submit"
-                                            size="sm"
+                                            size="icon"
                                             disabled={isUpdatingCurrent}
-                                            className="inline-flex h-9 items-center gap-2 rounded-md bg-slate-900 px-3 text-xs font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600"
+                                            className="inline-flex h-9 w-9 items-center justify-center rounded-md bg-slate-900 text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600"
                                           >
                                             {isUpdatingCurrent ? (
                                               <Loader2 className="h-3.5 w-3.5 animate-spin" />
                                             ) : (
-                                              <Pencil className="h-3.5 w-3.5" />
+                                              <Save className="h-4 w-4" />
                                             )}
-                                            Enregistrer
+                                            <span className="sr-only">Enregistrer le département</span>
                                           </Button>
                                           <Button
                                             type="button"
-                                            size="sm"
+                                            size="icon"
                                             variant="ghost"
                                             onClick={cancelEditingDepartment}
                                             disabled={isUpdatingCurrent}
+                                            className="text-red-500 hover:text-red-600"
                                           >
-                                            Annuler
+                                            <X className="h-4 w-4" />
+                                            <span className="sr-only">Annuler la modification</span>
                                           </Button>
                                         </div>
                                       </div>
@@ -2796,6 +2800,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                                           variant="ghost"
                                           onClick={() => startEditingDepartment(department)}
                                           disabled={isDepartmentActionsDisabled || isDeletingCurrent}
+                                          className="border border-slate-200 !text-slate-600 hover:bg-slate-100 hover:!text-slate-900"
                                         >
                                           <Pencil className="h-4 w-4" />
                                           <span className="sr-only">Renommer le département</span>
