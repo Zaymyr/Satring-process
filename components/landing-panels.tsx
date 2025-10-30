@@ -12,8 +12,12 @@ import {
 import Link from 'next/link';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
+  ArrowLeftRight,
+  ArrowUpDown,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
+  ChevronUp,
   Flag,
   FolderTree,
   GitBranch,
@@ -359,6 +363,8 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
   const queryClient = useQueryClient();
   const [isPrimaryCollapsed, setIsPrimaryCollapsed] = useState(false);
   const [isSecondaryCollapsed, setIsSecondaryCollapsed] = useState(false);
+  const [isBottomCollapsed, setIsBottomCollapsed] = useState(false);
+  const [diagramDirection, setDiagramDirection] = useState<'TD' | 'LR'>('TD');
   const [selectedProcessId, setSelectedProcessId] = useState<string | null>(null);
   const [processTitle, setProcessTitle] = useState(DEFAULT_PROCESS_TITLE);
   const [steps, setSteps] = useState<ProcessStep[]>(() => cloneSteps(DEFAULT_PROCESS_STEPS));
@@ -977,8 +983,10 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
   };
 
   const diagramDefinition = useMemo(() => {
+    const flowchartDeclaration = `flowchart ${diagramDirection}`;
+
     if (steps.length === 0) {
-      return 'graph TD';
+      return flowchartDeclaration;
     }
 
     const classAssignments: string[] = [];
@@ -1068,8 +1076,21 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
       'classDef decision fill:#ffffff,stroke:#0f172a,color:#0f172a,stroke-width:2px;'
     ];
 
-    return ['flowchart TD', ...classDefinitions, ...nodes, ...connections, ...classAssignments].join('\n');
-  }, [steps]);
+    return [
+      flowchartDeclaration,
+      ...classDefinitions,
+      ...nodes,
+      ...connections,
+      ...classAssignments
+    ].join('\n');
+  }, [diagramDirection, steps]);
+
+  useEffect(() => {
+    setDiagramUserOffset((previous) =>
+      previous.x === 0 && previous.y === 0 ? previous : { x: 0, y: 0 }
+    );
+    setDiagramScale((previous) => (previous === 1 ? previous : 1));
+  }, [diagramDirection]);
 
   const fallbackDiagram = useMemo(() => {
     if (steps.length === 0) {
@@ -1724,10 +1745,11 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
           </span>
         ) : null}
       </div>
-      <div
-        className="pointer-events-none relative z-10 flex h-full min-h-0 w-full flex-col gap-6 px-4 py-8 lg:grid lg:items-stretch lg:gap-0 lg:px-8 lg:py-12 xl:px-12"
-        style={layoutStyle}
-      >
+      <div className="pointer-events-none relative z-10 flex h-full min-h-0 w-full flex-col gap-6 px-4 py-8 lg:px-8 lg:py-12 xl:px-12">
+        <div
+          className="pointer-events-none flex min-h-0 flex-1 flex-col gap-6 lg:grid lg:items-stretch lg:gap-0"
+          style={layoutStyle}
+        >
         <div
           className="pointer-events-auto relative flex shrink-0 items-stretch overflow-hidden transition-[width] duration-300 ease-out lg:col-start-1 lg:row-start-1 lg:h-full lg:min-h-0"
           style={{ width: primaryWidth }}
@@ -2159,6 +2181,76 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
           </aside>
         </div>
       </div>
+      <div className="pointer-events-auto flex w-full justify-center">
+        <div className="flex w-full max-w-4xl flex-col items-center">
+          <button
+            type="button"
+            onClick={() => setIsBottomCollapsed((previous) => !previous)}
+            aria-expanded={!isBottomCollapsed}
+            aria-controls="diagram-controls-panel"
+            className="mt-2 inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white/90 text-slate-600 shadow-sm transition hover:bg-white"
+          >
+            {isBottomCollapsed ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
+            <span className="sr-only">Basculer le panneau des options du diagramme</span>
+          </button>
+          <section
+            id="diagram-controls-panel"
+            className={cn(
+              'mt-4 w-full rounded-3xl border border-slate-200 bg-white/85 p-6 shadow-[0_30px_120px_-50px_rgba(15,23,42,0.35)] backdrop-blur transition-all duration-300 ease-out',
+              isBottomCollapsed
+                ? 'pointer-events-none -translate-y-2 opacity-0'
+                : 'pointer-events-auto translate-y-0 opacity-100'
+            )}
+            aria-hidden={isBottomCollapsed}
+          >
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="space-y-1 text-left">
+                <h2 className="text-sm font-semibold text-slate-900">Options du diagramme</h2>
+                <p className="text-xs text-slate-600">
+                  {diagramDirection === 'TD'
+                    ? 'Affichage actuel : de haut en bas.'
+                    : 'Affichage actuel : de gauche à droite.'}
+                </p>
+              </div>
+              <div
+                role="group"
+                aria-label="Orientation du diagramme"
+                className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white/70 p-1 shadow-inner"
+              >
+                <button
+                  type="button"
+                  onClick={() => setDiagramDirection('TD')}
+                  aria-pressed={diagramDirection === 'TD'}
+                  className={cn(
+                    'inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400',
+                    diagramDirection === 'TD'
+                      ? 'bg-slate-900 text-white shadow'
+                      : 'text-slate-600 hover:bg-slate-100'
+                  )}
+                >
+                  <ArrowUpDown className="h-3.5 w-3.5" />
+                  Haut-bas
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDiagramDirection('LR')}
+                  aria-pressed={diagramDirection === 'LR'}
+                  className={cn(
+                    'inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400',
+                    diagramDirection === 'LR'
+                      ? 'bg-slate-900 text-white shadow'
+                      : 'text-slate-600 hover:bg-slate-100'
+                  )}
+                >
+                  <ArrowLeftRight className="h-3.5 w-3.5" />
+                  Gauche-droite
+                </button>
+              </div>
+            </div>
+          </section>
+        </div>
+      </div>
     </div>
+  </div>
   );
 }
