@@ -56,6 +56,13 @@ import {
   type ProcessSummary,
   type StepType
 } from '@/lib/validation/process';
+import {
+  departmentInputSchema,
+  departmentListSchema,
+  departmentSchema,
+  type Department,
+  type DepartmentInput
+} from '@/lib/validation/department';
 
 const highlightIcons = {
   sparkles: Sparkles,
@@ -833,6 +840,53 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
         renameInputRef.current.focus();
         renameInputRef.current.select();
       }
+    }
+  });
+
+  const deleteProcessMutation = useMutation<void, ApiError, string>({
+    mutationFn: deleteProcessRequest,
+    onSuccess: (_data, processId) => {
+      queryClient.setQueryData(['processes'], (previous?: ProcessSummary[]) => {
+        if (!previous) {
+          return previous;
+        }
+
+        return previous.filter((item) => item.id !== processId);
+      });
+      queryClient.removeQueries({ queryKey: ['process', processId] });
+
+      let shouldResetSelection = false;
+      setSelectedProcessId((current) => {
+        if (current === processId) {
+          shouldResetSelection = true;
+          return null;
+        }
+        return current;
+      });
+
+      let shouldResetRename = false;
+      setEditingProcessId((current) => {
+        if (current === processId) {
+          shouldResetRename = true;
+          return null;
+        }
+        return current;
+      });
+
+      if (shouldResetRename) {
+        setRenameDraft('');
+      }
+
+      if (shouldResetSelection) {
+        const fallback = cloneSteps(DEFAULT_PROCESS_STEPS);
+        baselineStepsRef.current = cloneSteps(fallback);
+        setSteps(fallback);
+        setProcessTitle(DEFAULT_PROCESS_TITLE);
+        setLastSavedAt(null);
+      }
+    },
+    onError: (error) => {
+      console.error('Erreur lors de la suppression du process', error);
     }
   });
 
