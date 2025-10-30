@@ -23,7 +23,12 @@ export async function POST(request: Request) {
   });
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 400 });
+    const message =
+      error.message === 'Invalid login credentials'
+        ? 'Wrong password. Please try again.'
+        : error.message;
+
+    return NextResponse.json({ error: message }, { status: 400 });
   }
 
   return NextResponse.json({ ok: true });
