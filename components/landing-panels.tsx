@@ -571,14 +571,6 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
     }
   }, [editingProcessId]);
 
-  useEffect(() => {
-    if (isDepartmentActionsDisabled) {
-      setEditingDepartmentId(null);
-      departmentForm.reset({ name: '' });
-      departmentEditForm.reset({ name: '' });
-    }
-  }, [departmentEditForm, departmentForm, isDepartmentActionsDisabled]);
-
   const isProcessListUnauthorized =
     processSummariesQuery.isError &&
     processSummariesQuery.error instanceof ApiError &&
@@ -658,6 +650,14 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
     setEditingDepartmentId(null);
     departmentEditForm.reset({ name: '' });
   }, [departmentEditForm]);
+
+  useEffect(() => {
+    if (isDepartmentActionsDisabled) {
+      setEditingDepartmentId(null);
+      departmentForm.reset({ name: '' });
+      departmentEditForm.reset({ name: '' });
+    }
+  }, [departmentEditForm, departmentForm, isDepartmentActionsDisabled]);
 
   useEffect(() => {
     if (steps.length === 0) {
