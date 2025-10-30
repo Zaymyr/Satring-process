@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 
+import { PasswordResetRequestForm } from '@/components/password-reset-request-form';
 import { SignInForm } from '@/components/sign-in-form';
 import { createServerClient } from '@/lib/supabase/server';
 
@@ -30,6 +31,7 @@ export default async function SignInPage() {
           </p>
         </div>
         <SignInForm />
+        <PasswordResetRequestForm />
         <div className="space-y-1 text-center text-xs text-slate-500">
           <p>
             Pas encore de compte ?{' '}
