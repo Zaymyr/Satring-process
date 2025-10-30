@@ -10,11 +10,13 @@ import {
   type CSSProperties,
   type ReactNode
 } from 'react';
+import { zodResolver } from '@hookform/resolvers/zod';
 import Link from 'next/link';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   ArrowLeftRight,
   ArrowUpDown,
+  Building2,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
@@ -33,6 +35,7 @@ import {
   Trash2,
   type LucideIcon
 } from 'lucide-react';
+import { useForm } from 'react-hook-form';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -48,6 +51,13 @@ import {
   type ProcessSummary,
   type StepType
 } from '@/lib/validation/process';
+import {
+  departmentInputSchema,
+  departmentListSchema,
+  departmentSchema,
+  type Department,
+  type DepartmentInput
+} from '@/lib/validation/department';
 
 const highlightIcons = {
   sparkles: Sparkles,
@@ -329,6 +339,88 @@ const renameProcessRequest = async (input: { id: string; title: string }): Promi
   return processSummarySchema.parse(json);
 };
 
+const requestDepartments = async (): Promise<Department[]> => {
+  const response = await fetch('/api/departments', {
+    method: 'GET',
+    credentials: 'include',
+    cache: 'no-store'
+  });
+
+  if (response.status === 401) {
+    throw new ApiError('Authentification requise', 401);
+  }
+
+  if (!response.ok) {
+    const message = await readErrorMessage(response, 'Impossible de lister vos départements.');
+    throw new ApiError(message, response.status);
+  }
+
+  const json = await response.json();
+  return departmentListSchema.parse(json);
+};
+
+const createDepartmentRequest = async (input: DepartmentInput): Promise<Department> => {
+  const response = await fetch('/api/departments', {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input)
+  });
+
+  if (response.status === 401) {
+    throw new ApiError('Authentification requise', 401);
+  }
+
+  if (!response.ok) {
+    const message = await readErrorMessage(response, 'Impossible de créer le département.');
+    throw new ApiError(message, response.status);
+  }
+
+  const json = await response.json();
+  return departmentSchema.parse(json);
+};
+
+const updateDepartmentRequest = async (input: { id: string; values: DepartmentInput }): Promise<Department> => {
+  const response = await fetch(`/api/departments/${encodeURIComponent(input.id)}`, {
+    method: 'PATCH',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input.values)
+  });
+
+  if (response.status === 401) {
+    throw new ApiError('Authentification requise', 401);
+  }
+
+  if (!response.ok) {
+    const message = await readErrorMessage(response, 'Impossible de mettre à jour le département.');
+    throw new ApiError(message, response.status);
+  }
+
+  const json = await response.json();
+  return departmentSchema.parse(json);
+};
+
+const deleteDepartmentRequest = async (departmentId: string): Promise<void> => {
+  const response = await fetch(`/api/departments/${encodeURIComponent(departmentId)}`, {
+    method: 'DELETE',
+    credentials: 'include'
+  });
+
+  if (response.status === 401) {
+    throw new ApiError('Authentification requise', 401);
+  }
+
+  if (response.status === 204) {
+    return;
+  }
+
+  if (!response.ok) {
+    const message = await readErrorMessage(response, 'Impossible de supprimer le département.');
+    throw new ApiError(message, response.status);
+  }
+};
+
 const STEP_TYPE_LABELS: Record<StepType, string> = {
   start: 'Départ',
   action: 'Action',
@@ -387,6 +479,17 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
   const [editingProcessId, setEditingProcessId] = useState<string | null>(null);
   const [renameDraft, setRenameDraft] = useState('');
   const renameInputRef = useRef<HTMLInputElement | null>(null);
+  const [activeSecondaryTab, setActiveSecondaryTab] = useState<'processes' | 'departments'>('processes');
+  const [editingDepartmentId, setEditingDepartmentId] = useState<string | null>(null);
+  const [deleteDepartmentId, setDeleteDepartmentId] = useState<string | null>(null);
+  const departmentForm = useForm<DepartmentInput>({
+    resolver: zodResolver(departmentInputSchema),
+    defaultValues: { name: '' }
+  });
+  const departmentEditForm = useForm<DepartmentInput>({
+    resolver: zodResolver(departmentInputSchema),
+    defaultValues: { name: '' }
+  });
 
   const processSummariesQuery = useQuery<ProcessSummary[], ApiError>({
     queryKey: ['processes'],
@@ -413,6 +516,48 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
     }
   });
 
+  const departmentsQuery = useQuery<Department[], ApiError>({
+    queryKey: ['departments'],
+    queryFn: requestDepartments,
+    retry: (failureCount, error) => {
+      if (error instanceof ApiError && error.status === 401) {
+        return false;
+      }
+      return failureCount < 2;
+    }
+  });
+
+  const createDepartmentMutation = useMutation<Department, ApiError, DepartmentInput>({
+    mutationFn: createDepartmentRequest,
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['departments'] });
+      departmentForm.reset({ name: '' });
+    }
+  });
+
+  const updateDepartmentMutation = useMutation<Department, ApiError, { id: string; values: DepartmentInput }>({
+    mutationFn: updateDepartmentRequest,
+    onSuccess: async (_data, variables) => {
+      await queryClient.invalidateQueries({ queryKey: ['departments'] });
+      setEditingDepartmentId((current) => (current === variables.id ? null : current));
+      departmentEditForm.reset({ name: '' });
+    }
+  });
+
+  const deleteDepartmentMutation = useMutation<void, ApiError, { id: string }>({
+    mutationFn: ({ id }) => deleteDepartmentRequest(id),
+    onMutate: async ({ id }) => {
+      setDeleteDepartmentId(id);
+    },
+    onSuccess: async (_data, variables) => {
+      await queryClient.invalidateQueries({ queryKey: ['departments'] });
+      setEditingDepartmentId((current) => (current === variables.id ? null : current));
+    },
+    onSettled: () => {
+      setDeleteDepartmentId(null);
+    }
+  });
+
   useEffect(() => {
     if (editingProcessId && renameInputRef.current) {
       renameInputRef.current.focus();
@@ -425,6 +570,14 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
       renameInputRef.current = null;
     }
   }, [editingProcessId]);
+
+  useEffect(() => {
+    if (isDepartmentActionsDisabled) {
+      setEditingDepartmentId(null);
+      departmentForm.reset({ name: '' });
+      departmentEditForm.reset({ name: '' });
+    }
+  }, [departmentEditForm, departmentForm, isDepartmentActionsDisabled]);
 
   const isProcessListUnauthorized =
     processSummariesQuery.isError &&
@@ -444,6 +597,67 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
     () => steps.find((step) => step.id === selectedStepId) ?? null,
     [selectedStepId, steps]
   );
+  const departments = useMemo(() => departmentsQuery.data ?? [], [departmentsQuery.data]);
+  const isDepartmentUnauthorized =
+    departmentsQuery.isError &&
+    departmentsQuery.error instanceof ApiError &&
+    departmentsQuery.error.status === 401;
+  const isProcessesTabActive = activeSecondaryTab === 'processes';
+  const isDepartmentsTabActive = activeSecondaryTab === 'departments';
+  const isDepartmentActionsDisabled = isUnauthorized || isDepartmentUnauthorized;
+  const isCreatingDepartment = createDepartmentMutation.isPending;
+  const isUpdatingDepartment = updateDepartmentMutation.isPending;
+  const isDeletingDepartment = deleteDepartmentMutation.isPending;
+  const secondaryPanelTitle = isDepartmentsTabActive ? 'Mes départements' : 'Mes process';
+  const secondaryPanelDescription = isDepartmentsTabActive
+    ? 'Organisez vos départements et renommez-les pour structurer votre équipe.'
+    : 'Gérez vos parcours enregistrés et renommez-les directement depuis cette liste.';
+
+  const handleCreateDepartment = useCallback(
+    (values: DepartmentInput) => {
+      if (isDepartmentActionsDisabled) {
+        return;
+      }
+      createDepartmentMutation.mutate(values);
+    },
+    [createDepartmentMutation, isDepartmentActionsDisabled]
+  );
+
+  const handleUpdateDepartment = useCallback(
+    (values: DepartmentInput) => {
+      if (!editingDepartmentId || isDepartmentActionsDisabled) {
+        return;
+      }
+      updateDepartmentMutation.mutate({ id: editingDepartmentId, values });
+    },
+    [editingDepartmentId, isDepartmentActionsDisabled, updateDepartmentMutation]
+  );
+
+  const handleDeleteDepartment = useCallback(
+    (id: string) => {
+      if (isDepartmentActionsDisabled) {
+        return;
+      }
+      deleteDepartmentMutation.mutate({ id });
+    },
+    [deleteDepartmentMutation, isDepartmentActionsDisabled]
+  );
+
+  const startEditingDepartment = useCallback(
+    (department: Department) => {
+      if (isDepartmentActionsDisabled) {
+        return;
+      }
+      setEditingDepartmentId(department.id);
+      departmentEditForm.reset({ name: department.name });
+    },
+    [departmentEditForm, isDepartmentActionsDisabled]
+  );
+
+  const cancelEditingDepartment = useCallback(() => {
+    setEditingDepartmentId(null);
+    departmentEditForm.reset({ name: '' });
+  }, [departmentEditForm]);
 
   useEffect(() => {
     if (steps.length === 0) {
@@ -816,29 +1030,29 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
     setRenameDraft('');
   }, []);
 
-  const submitRename = useCallback(() => {
-    if (!editingProcessId || isRenaming) {
-      return;
-    }
+  const confirmRenameProcess = useCallback(
+    (processId: string) => {
+      if (isRenaming) {
+        return;
+      }
 
-    const trimmed = renameDraft.trim();
-    const normalized = trimmed.length > 0 ? trimmed : DEFAULT_PROCESS_TITLE;
-    const current = processSummaries.find((item) => item.id === editingProcessId);
+      const trimmed = renameDraft.trim();
+      const normalized = trimmed.length > 0 ? trimmed : DEFAULT_PROCESS_TITLE;
+      const current = processSummaries.find((item) => item.id === processId);
 
-    if (current && normalizeProcessTitle(current.title) === normalizeProcessTitle(normalized)) {
-      cancelEditingProcess();
-      return;
-    }
+      if (!current) {
+        return;
+      }
 
-    renameProcessMutation.mutate({ id: editingProcessId, title: normalized });
-  }, [
-    cancelEditingProcess,
-    editingProcessId,
-    isRenaming,
-    processSummaries,
-    renameDraft,
-    renameProcessMutation
-  ]);
+      if (normalizeProcessTitle(current.title) === normalizeProcessTitle(normalized)) {
+        cancelEditingProcess();
+        return;
+      }
+
+      renameProcessMutation.mutate({ id: processId, title: normalized });
+    },
+    [cancelEditingProcess, isRenaming, processSummaries, renameDraft, renameProcessMutation]
+  );
 
   const handleCreateProcess = useCallback(() => {
     if (isUnauthorized || isCreating) {
@@ -2017,152 +2231,365 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                 : 'pointer-events-auto opacity-100 lg:translate-x-0'
             )}
           >
-            <div className="space-y-2">
+            <div className="space-y-3">
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <h2 className="text-lg font-semibold text-slate-900">Mes process</h2>
-                  <p className="text-xs text-slate-600">
-                    Gérez vos parcours enregistrés et renommez-les directement depuis cette liste.
-                  </p>
+                  <h2 className="text-lg font-semibold text-slate-900">{secondaryPanelTitle}</h2>
+                  <p className="text-xs text-slate-600">{secondaryPanelDescription}</p>
                 </div>
-                <Button
+                {isProcessesTabActive ? (
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={handleCreateProcess}
+                    disabled={isUnauthorized || isCreating}
+                    className="inline-flex h-8 items-center gap-1 rounded-md bg-slate-900 px-3 text-xs font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600"
+                  >
+                    {isCreating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
+                    Nouveau
+                  </Button>
+                ) : null}
+              </div>
+              <div className="flex items-center gap-2" role="tablist" aria-label="Navigation des listes">
+                <button
                   type="button"
-                  size="sm"
-                  onClick={handleCreateProcess}
-                  disabled={isUnauthorized || isCreating}
-                  className="inline-flex h-8 items-center gap-1 rounded-md bg-slate-900 px-3 text-xs font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600"
+                  id="processes-tab"
+                  role="tab"
+                  aria-selected={isProcessesTabActive}
+                  aria-controls="processes-panel"
+                  onClick={() => setActiveSecondaryTab('processes')}
+                  className={cn(
+                    'flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium transition',
+                    isProcessesTabActive
+                      ? 'bg-slate-900 text-white shadow'
+                      : 'bg-transparent text-slate-600 hover:bg-slate-100'
+                  )}
                 >
-                  {isCreating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
-                  Nouveau
-                </Button>
+                  <FolderTree className="h-3.5 w-3.5" />
+                  Process
+                </button>
+                <button
+                  type="button"
+                  id="departments-tab"
+                  role="tab"
+                  aria-selected={isDepartmentsTabActive}
+                  aria-controls="departments-panel"
+                  onClick={() => setActiveSecondaryTab('departments')}
+                  className={cn(
+                    'flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium transition',
+                    isDepartmentsTabActive
+                      ? 'bg-slate-900 text-white shadow'
+                      : 'bg-transparent text-slate-600 hover:bg-slate-100'
+                  )}
+                >
+                  <Building2 className="h-3.5 w-3.5" />
+                  Départements
+                </button>
               </div>
             </div>
             <div className="flex-1 min-h-0 overflow-hidden">
               <div className="flex h-full flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white/80">
                 <div className="flex-1 overflow-y-auto px-3 py-4">
-                  {isProcessListUnauthorized ? (
-                    <p className="text-sm text-slate-600">
-                      Connectez-vous pour accéder à vos process sauvegardés.
-                    </p>
-                  ) : processSummariesQuery.isLoading ? (
-                    <div className="flex items-center gap-2 text-sm text-slate-500">
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      Chargement des process…
-                    </div>
-                  ) : processSummariesQuery.isError ? (
-                    <p className="text-sm text-red-600">
-                      {processSummariesQuery.error instanceof ApiError
-                        ? processSummariesQuery.error.message
-                        : 'Impossible de récupérer la liste des process.'}
-                    </p>
-                  ) : hasProcesses ? (
-                    <ul role="tree" aria-label="Process sauvegardés" className="space-y-2">
-                      {processSummaries.map((summary) => {
-                        const isSelected = summary.id === currentProcessId;
-                        const isEditing = editingProcessId === summary.id;
-                        const updatedLabel = formatUpdatedAt(summary.updatedAt);
+                  <div
+                    role="tabpanel"
+                    id="processes-panel"
+                    aria-labelledby="processes-tab"
+                    hidden={!isProcessesTabActive}
+                    className={cn('h-full', !isProcessesTabActive && 'hidden')}
+                  >
+                    {isProcessListUnauthorized ? (
+                      <p className="text-sm text-slate-600">
+                        Connectez-vous pour accéder à vos process sauvegardés.
+                      </p>
+                    ) : processSummariesQuery.isLoading ? (
+                      <div className="flex items-center gap-2 text-sm text-slate-500">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Chargement des process…
+                      </div>
+                    ) : processSummariesQuery.isError ? (
+                      <p className="text-sm text-red-600">
+                        {processSummariesQuery.error instanceof ApiError
+                          ? processSummariesQuery.error.message
+                          : 'Impossible de récupérer la liste des process.'}
+                      </p>
+                    ) : hasProcesses ? (
+                      <ul role="tree" aria-label="Process sauvegardés" className="space-y-2">
+                        {processSummaries.map((summary) => {
+                          const isSelected = summary.id === currentProcessId;
+                          const isEditing = editingProcessId === summary.id;
+                          const updatedLabel = formatUpdatedAt(summary.updatedAt);
 
-                        return (
-                          <li
-                            key={summary.id}
-                            role="treeitem"
-                            aria-selected={isSelected}
-                            className="focus:outline-none"
-                          >
-                            <div
-                              role={isEditing ? undefined : 'button'}
-                              tabIndex={isEditing ? undefined : 0}
-                              onClick={
-                                isEditing
-                                  ? undefined
-                                  : () => {
-                                      setSelectedProcessId(summary.id);
-                                    }
-                              }
-                              onDoubleClick={
-                                isEditing ? undefined : () => startEditingProcess(summary)
-                              }
-                              onKeyDown={
-                                isEditing
-                                  ? undefined
-                                  : (event) => {
-                                      if (event.key === 'Enter' || event.key === ' ') {
-                                        event.preventDefault();
+                          return (
+                            <li key={summary.id} role="treeitem" aria-selected={isSelected} className="focus:outline-none">
+                              <div
+                                role={isEditing ? undefined : 'button'}
+                                tabIndex={isEditing ? undefined : 0}
+                                onClick={
+                                  isEditing
+                                    ? undefined
+                                    : () => {
                                         setSelectedProcessId(summary.id);
                                       }
-                                    }
-                              }
-                              className={cn(
-                                'group flex flex-col gap-1 rounded-lg border border-transparent px-2 py-2 transition focus:outline-none',
-                                isSelected
-                                  ? 'border-slate-900/30 bg-slate-900/5 shadow-inner'
-                                  : 'hover:border-slate-300 hover:bg-slate-100',
-                                isEditing ? undefined : 'cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400'
-                              )}
-                            >
-                              {isEditing ? (
-                                <Input
-                                  ref={(node) => {
-                                    renameInputRef.current = node;
-                                  }}
-                                  value={renameDraft}
-                                  onChange={(event) => setRenameDraft(event.target.value)}
-                                  onBlur={submitRename}
-                                  onKeyDown={(event) => {
-                                    if (event.key === 'Enter') {
-                                      event.preventDefault();
-                                      submitRename();
-                                    } else if (event.key === 'Escape') {
-                                      event.preventDefault();
-                                      cancelEditingProcess();
-                                    }
-                                  }}
-                                  disabled={isRenaming}
-                                  className="h-8"
-                                />
-                              ) : (
-                                <div className="flex items-center gap-2">
-                                  <div
-                                    className={cn(
-                                      'flex flex-1 items-center gap-2 rounded-md px-2 py-1.5 text-sm font-medium transition',
-                                      isSelected
-                                        ? 'bg-slate-900 text-white shadow-sm'
-                                        : 'bg-white/40 text-slate-700 group-hover:bg-white'
-                                    )}
-                                  >
-                                    <FolderTree className={cn('h-4 w-4', isSelected ? 'text-white' : 'text-slate-500')} />
-                                    <span className="truncate">{normalizeProcessTitle(summary.title)}</span>
+                                }
+                                onDoubleClick={isEditing ? undefined : () => startEditingProcess(summary)}
+                                onKeyDown={
+                                  isEditing
+                                    ? undefined
+                                    : (event) => {
+                                        if (event.key === 'Enter' || event.key === ' ') {
+                                          event.preventDefault();
+                                          setSelectedProcessId(summary.id);
+                                        }
+                                      }
+                                }
+                                className={cn(
+                                  'group flex flex-col gap-1 rounded-lg border border-transparent px-2 py-2 transition focus:outline-none',
+                                  isSelected
+                                    ? 'border-slate-900/30 bg-slate-900/5 shadow-inner'
+                                    : 'hover:border-slate-300 hover:bg-slate-100',
+                                  isEditing
+                                    ? undefined
+                                    : 'cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400'
+                                )}
+                              >
+                                <div className="flex items-center justify-between gap-2">
+                                  <div className="flex items-center gap-2">
+                                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-200 text-slate-700">
+                                      <FolderTree className="h-4 w-4" />
+                                    </div>
+                                    <div className="min-w-0">
+                                      {isEditing ? (
+                                        <div className="flex items-center gap-2">
+                                          <Input
+                                            ref={renameInputRef}
+                                            value={renameDraft}
+                                            onChange={(event) => setRenameDraft(event.target.value)}
+                                            className="h-8 w-40 rounded-md border border-slate-300 bg-white px-2 text-sm text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
+                                          />
+                                          <div className="flex items-center gap-1">
+                                            <button
+                                              type="button"
+                                              onClick={() => confirmRenameProcess(summary.id)}
+                                              className="inline-flex h-8 items-center justify-center rounded-md bg-slate-900 px-2 text-xs font-medium text-white hover:bg-slate-800"
+                                            >
+                                              Enregistrer
+                                            </button>
+                                            <button
+                                              type="button"
+                                              onClick={cancelEditingProcess}
+                                              className="inline-flex h-8 items-center justify-center rounded-md border border-slate-200 px-2 text-xs font-medium text-slate-700 hover:bg-slate-100"
+                                            >
+                                              Annuler
+                                            </button>
+                                          </div>
+                                        </div>
+                                      ) : (
+                                        <>
+                                          <p className="truncate text-sm font-medium text-slate-900">{summary.title}</p>
+                                          {updatedLabel ? (
+                                            <p className="text-xs text-slate-500">Mis à jour {updatedLabel}</p>
+                                          ) : null}
+                                        </>
+                                      )}
+                                    </div>
                                   </div>
-                                  <button
-                                    type="button"
-                                    onClick={(event) => {
-                                      event.stopPropagation();
-                                      setSelectedProcessId(summary.id);
-                                      startEditingProcess(summary);
-                                    }}
-                                    className={cn(
-                                      'inline-flex h-8 w-8 items-center justify-center rounded-md border border-transparent text-slate-500 transition hover:border-slate-300 hover:bg-white hover:text-slate-700',
-                                      isSelected ? 'border-slate-300 bg-white/80' : 'bg-white/60'
-                                    )}
-                                  >
-                                    <Pencil className="h-3.5 w-3.5" />
-                                    <span className="sr-only">Renommer le process</span>
-                                  </button>
+                                  {!isEditing ? (
+                                    <div className="flex items-center gap-1">
+                                      <button
+                                        type="button"
+                                        onClick={() => startEditingProcess(summary)}
+                                        className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-transparent text-slate-500 transition hover:border-slate-300 hover:bg-slate-100 hover:text-slate-900"
+                                      >
+                                        <Pencil className="h-4 w-4" />
+                                        <span className="sr-only">Renommer le process</span>
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => deleteProcessMutation.mutate(summary.id)}
+                                        disabled={deleteProcessMutation.isPending && deleteProcessMutation.variables === summary.id}
+                                        className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-transparent text-red-500 transition hover:border-red-200 hover:bg-red-50 hover:text-red-600 disabled:opacity-60"
+                                      >
+                                        {deleteProcessMutation.isPending && deleteProcessMutation.variables === summary.id ? (
+                                          <Loader2 className="h-4 w-4 animate-spin" />
+                                        ) : (
+                                          <Trash2 className="h-4 w-4" />
+                                        )}
+                                        <span className="sr-only">Supprimer le process</span>
+                                      </button>
+                                    </div>
+                                  ) : null}
                                 </div>
-                              )}
-                              <div className="px-2 text-xs text-slate-500">
-                                {updatedLabel ? `Mis à jour le ${updatedLabel}` : 'Jamais sauvegardé'}
                               </div>
-                            </div>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  ) : (
-                    <p className="text-sm text-slate-600">
-                      Créez votre premier process pour le retrouver facilement ici.
-                    </p>
-                  )}
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    ) : (
+                      <p className="text-sm text-slate-600">Créez votre premier process pour le retrouver facilement ici.</p>
+                    )}
+                  </div>
+                  <div
+                    role="tabpanel"
+                    id="departments-panel"
+                    aria-labelledby="departments-tab"
+                    hidden={!isDepartmentsTabActive}
+                    className={cn('h-full', !isDepartmentsTabActive && 'hidden')}
+                  >
+                    {isDepartmentUnauthorized ? (
+                      <p className="text-sm text-slate-600">
+                        Connectez-vous pour gérer vos départements.
+                      </p>
+                    ) : (
+                      <div className="space-y-4">
+                        <form
+                          onSubmit={departmentForm.handleSubmit(handleCreateDepartment)}
+                          className="space-y-2 rounded-xl border border-slate-200 bg-white/70 p-3"
+                        >
+                          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                            <Input
+                              {...departmentForm.register('name')}
+                              placeholder="Nom du département"
+                              disabled={isDepartmentActionsDisabled || isCreatingDepartment}
+                              className="h-9 flex-1 rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
+                            />
+                            <Button
+                              type="submit"
+                              size="sm"
+                              disabled={isDepartmentActionsDisabled || isCreatingDepartment}
+                              className="inline-flex h-9 items-center gap-2 rounded-md bg-slate-900 px-3 text-xs font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600"
+                            >
+                              {isCreatingDepartment ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              ) : (
+                                <Plus className="h-3.5 w-3.5" />
+                              )}
+                              Ajouter
+                            </Button>
+                          </div>
+                          {departmentForm.formState.errors.name ? (
+                            <p className="text-xs text-red-600">{departmentForm.formState.errors.name.message}</p>
+                          ) : null}
+                          {createDepartmentMutation.isError ? (
+                            <p className="text-xs text-red-600">{createDepartmentMutation.error.message}</p>
+                          ) : null}
+                        </form>
+                        {departmentsQuery.isLoading ? (
+                          <div className="flex items-center gap-2 text-sm text-slate-500">
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            Chargement des départements…
+                          </div>
+                        ) : departmentsQuery.isError ? (
+                          <p className="text-sm text-red-600">
+                            {departmentsQuery.error instanceof ApiError
+                              ? departmentsQuery.error.message
+                              : 'Impossible de récupérer la liste des départements.'}
+                          </p>
+                        ) : departments.length > 0 ? (
+                          <ul role="list" aria-label="Départements" className="space-y-2">
+                            {departments.map((department) => {
+                              const isEditingDepartment = editingDepartmentId === department.id;
+                              const isUpdatingCurrent = isUpdatingDepartment && editingDepartmentId === department.id;
+                              const isDeletingCurrent = isDeletingDepartment && deleteDepartmentId === department.id;
+                              const updatedLabel = formatUpdatedAt(department.updatedAt);
+
+                              return (
+                                <li key={department.id} className="rounded-xl border border-slate-200 bg-white/80 p-3 shadow-sm">
+                                  {isEditingDepartment ? (
+                                    <form
+                                      onSubmit={departmentEditForm.handleSubmit(handleUpdateDepartment)}
+                                      className="space-y-2"
+                                    >
+                                      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                                        <Input
+                                          {...departmentEditForm.register('name')}
+                                          autoFocus
+                                          disabled={isUpdatingCurrent}
+                                          className="h-9 flex-1 rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
+                                        />
+                                        <div className="flex items-center gap-2">
+                                          <Button
+                                            type="submit"
+                                            size="sm"
+                                            disabled={isUpdatingCurrent}
+                                            className="inline-flex h-9 items-center gap-2 rounded-md bg-slate-900 px-3 text-xs font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600"
+                                          >
+                                            {isUpdatingCurrent ? (
+                                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                            ) : (
+                                              <Pencil className="h-3.5 w-3.5" />
+                                            )}
+                                            Enregistrer
+                                          </Button>
+                                          <Button
+                                            type="button"
+                                            size="sm"
+                                            variant="ghost"
+                                            onClick={cancelEditingDepartment}
+                                            disabled={isUpdatingCurrent}
+                                          >
+                                            Annuler
+                                          </Button>
+                                        </div>
+                                      </div>
+                                      {departmentEditForm.formState.errors.name ? (
+                                        <p className="text-xs text-red-600">
+                                          {departmentEditForm.formState.errors.name.message}
+                                        </p>
+                                      ) : null}
+                                      {updateDepartmentMutation.isError && isEditingDepartment ? (
+                                        <p className="text-xs text-red-600">{updateDepartmentMutation.error.message}</p>
+                                      ) : null}
+                                    </form>
+                                  ) : (
+                                    <div className="flex items-center justify-between gap-3">
+                                      <div className="min-w-0">
+                                        <p className="truncate text-sm font-medium text-slate-900">{department.name}</p>
+                                        {updatedLabel ? (
+                                          <p className="text-xs text-slate-500">Mis à jour {updatedLabel}</p>
+                                        ) : null}
+                                      </div>
+                                      <div className="flex items-center gap-2">
+                                        <Button
+                                          type="button"
+                                          size="icon"
+                                          variant="ghost"
+                                          onClick={() => startEditingDepartment(department)}
+                                          disabled={isDepartmentActionsDisabled || isDeletingCurrent}
+                                        >
+                                          <Pencil className="h-4 w-4" />
+                                          <span className="sr-only">Renommer le département</span>
+                                        </Button>
+                                        <Button
+                                          type="button"
+                                          size="icon"
+                                          variant="ghost"
+                                          onClick={() => handleDeleteDepartment(department.id)}
+                                          disabled={isDepartmentActionsDisabled || isDeletingCurrent}
+                                          className="text-red-500 hover:text-red-600"
+                                        >
+                                          {isDeletingCurrent ? (
+                                            <Loader2 className="h-4 w-4 animate-spin" />
+                                          ) : (
+                                            <Trash2 className="h-4 w-4" />
+                                          )}
+                                          <span className="sr-only">Supprimer le département</span>
+                                        </Button>
+                                      </div>
+                                    </div>
+                                  )}
+                                  {deleteDepartmentMutation.isError && deleteDepartmentId === department.id ? (
+                                    <p className="mt-2 text-xs text-red-600">{deleteDepartmentMutation.error.message}</p>
+                                  ) : null}
+                                </li>
+                              );
+                            })}
+                          </ul>
+                        ) : (
+                          <p className="text-sm text-slate-600">Aucun département enregistré pour le moment.</p>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
