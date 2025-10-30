@@ -339,6 +339,26 @@ const renameProcessRequest = async (input: { id: string; title: string }): Promi
   return processSummarySchema.parse(json);
 };
 
+const deleteProcessRequest = async (processId: string): Promise<void> => {
+  const response = await fetch(`/api/processes/${encodeURIComponent(processId)}`, {
+    method: 'DELETE',
+    credentials: 'include'
+  });
+
+  if (response.status === 401) {
+    throw new ApiError('Authentification requise', 401);
+  }
+
+  if (response.status === 204) {
+    return;
+  }
+
+  if (!response.ok) {
+    const message = await readErrorMessage(response, 'Impossible de supprimer le process.');
+    throw new ApiError(message, response.status);
+  }
+};
+
 const requestDepartments = async (): Promise<Department[]> => {
   const response = await fetch('/api/departments', {
     method: 'GET',
@@ -835,6 +855,53 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
         renameInputRef.current.focus();
         renameInputRef.current.select();
       }
+    }
+  });
+
+  const deleteProcessMutation = useMutation<void, ApiError, string>({
+    mutationFn: deleteProcessRequest,
+    onSuccess: (_data, processId) => {
+      queryClient.setQueryData(['processes'], (previous?: ProcessSummary[]) => {
+        if (!previous) {
+          return previous;
+        }
+
+        return previous.filter((item) => item.id !== processId);
+      });
+      queryClient.removeQueries({ queryKey: ['process', processId] });
+
+      let shouldResetSelection = false;
+      setSelectedProcessId((current) => {
+        if (current === processId) {
+          shouldResetSelection = true;
+          return null;
+        }
+        return current;
+      });
+
+      let shouldResetRename = false;
+      setEditingProcessId((current) => {
+        if (current === processId) {
+          shouldResetRename = true;
+          return null;
+        }
+        return current;
+      });
+
+      if (shouldResetRename) {
+        setRenameDraft('');
+      }
+
+      if (shouldResetSelection) {
+        const fallback = cloneSteps(DEFAULT_PROCESS_STEPS);
+        baselineStepsRef.current = cloneSteps(fallback);
+        setSteps(fallback);
+        setProcessTitle(DEFAULT_PROCESS_TITLE);
+        setLastSavedAt(null);
+      }
+    },
+    onError: (error) => {
+      console.error('Erreur lors de la suppression du process', error);
     }
   });
 
