@@ -43,6 +43,11 @@ import { Input } from '@/components/ui/input';
 import { DEFAULT_PROCESS_STEPS, DEFAULT_PROCESS_TITLE } from '@/lib/process/defaults';
 import { cn } from '@/lib/utils/cn';
 import {
+  departmentInputSchema,
+  departmentListSchema,
+  departmentSchema,
+  type Department,
+  type DepartmentInput,
   processResponseSchema,
   processSummarySchema,
   type ProcessPayload,
@@ -339,26 +344,6 @@ const renameProcessRequest = async (input: { id: string; title: string }): Promi
   return processSummarySchema.parse(json);
 };
 
-const deleteProcessRequest = async (processId: string): Promise<void> => {
-  const response = await fetch(`/api/processes/${encodeURIComponent(processId)}`, {
-    method: 'DELETE',
-    credentials: 'include'
-  });
-
-  if (response.status === 401) {
-    throw new ApiError('Authentification requise', 401);
-  }
-
-  if (response.status === 204) {
-    return;
-  }
-
-  if (!response.ok) {
-    const message = await readErrorMessage(response, 'Impossible de supprimer le process.');
-    throw new ApiError(message, response.status);
-  }
-};
-
 const requestDepartments = async (): Promise<Department[]> => {
   const response = await fetch('/api/departments', {
     method: 'GET',
@@ -591,6 +576,14 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
     }
   }, [editingProcessId]);
 
+  useEffect(() => {
+    if (isDepartmentActionsDisabled) {
+      setEditingDepartmentId(null);
+      departmentForm.reset({ name: '' });
+      departmentEditForm.reset({ name: '' });
+    }
+  }, [departmentEditForm, departmentForm, isDepartmentActionsDisabled]);
+
   const isProcessListUnauthorized =
     processSummariesQuery.isError &&
     processSummariesQuery.error instanceof ApiError &&
@@ -670,14 +663,6 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
     setEditingDepartmentId(null);
     departmentEditForm.reset({ name: '' });
   }, [departmentEditForm]);
-
-  useEffect(() => {
-    if (isDepartmentActionsDisabled) {
-      setEditingDepartmentId(null);
-      departmentForm.reset({ name: '' });
-      departmentEditForm.reset({ name: '' });
-    }
-  }, [departmentEditForm, departmentForm, isDepartmentActionsDisabled]);
 
   useEffect(() => {
     if (steps.length === 0) {
