@@ -2191,13 +2191,11 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
             onClick={() => setIsBottomCollapsed((previous) => !previous)}
             aria-expanded={!isBottomCollapsed}
             aria-controls="diagram-controls-panel"
-            aria-hidden={!isBottomCollapsed}
-            tabIndex={isBottomCollapsed ? 0 : -1}
             className={cn(
-              'absolute left-1/2 top-0 z-20 flex h-10 w-10 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-slate-200 bg-white/90 text-slate-600 shadow-sm transition hover:bg-white',
+              'z-30 flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white/90 text-slate-600 shadow-sm transition hover:bg-white',
               isBottomCollapsed
-                ? 'pointer-events-auto opacity-100'
-                : 'pointer-events-none opacity-0'
+                ? 'fixed bottom-6 left-1/2 -translate-x-1/2'
+                : 'absolute left-1/2 top-0 -translate-x-1/2 -translate-y-1/2'
             )}
           >
             {isBottomCollapsed ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
@@ -2213,40 +2211,23 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                 : 'pointer-events-auto translate-y-0 opacity-100'
             )}
           >
-            <button
-              type="button"
-              onClick={() => setIsBottomCollapsed((previous) => !previous)}
-              aria-expanded={!isBottomCollapsed}
-              aria-controls={diagramControlsContentId}
-              className="flex w-full items-center justify-between gap-3 text-left"
-            >
-              <div className="space-y-1 text-left">
+            <div className="flex flex-wrap items-center gap-4">
+              <div className="flex min-w-0 flex-1 items-center gap-3">
                 <h2 className="text-sm font-semibold text-slate-900">Options du diagramme</h2>
-                <p className="text-xs text-slate-600">
+                <p className="truncate text-xs text-slate-600">
                   {diagramDirection === 'TD'
                     ? 'Affichage actuel : de haut en bas.'
                     : 'Affichage actuel : de gauche à droite.'}
                 </p>
               </div>
-              <ChevronDown
-                aria-hidden="true"
-                className={cn(
-                  'h-4 w-4 text-slate-500 transition-transform duration-200',
-                  !isBottomCollapsed && 'rotate-180'
-                )}
-              />
-            </button>
-            <div
-              id={diagramControlsContentId}
-              className={cn(
-                'mt-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between',
-                isBottomCollapsed && 'hidden'
-              )}
-            >
               <div
+                id={diagramControlsContentId}
                 role="group"
                 aria-label="Orientation du diagramme"
-                className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white/70 p-1 shadow-inner"
+                className={cn(
+                  'flex flex-1 items-center justify-center gap-1 rounded-lg border border-slate-200 bg-white/70 p-1 shadow-inner sm:flex-none',
+                  isBottomCollapsed && 'hidden'
+                )}
               >
                 <button
                   type="button"
@@ -2277,6 +2258,19 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                   Gauche-droite
                 </button>
               </div>
+              <button
+                type="button"
+                onClick={() => setIsBottomCollapsed((previous) => !previous)}
+                aria-expanded={!isBottomCollapsed}
+                aria-controls={diagramControlsContentId}
+                className="ml-auto flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-slate-200 text-slate-500 transition hover:bg-slate-100"
+              >
+                <ChevronDown
+                  aria-hidden="true"
+                  className={cn('h-4 w-4 transition-transform duration-200', !isBottomCollapsed && 'rotate-180')}
+                />
+                <span className="sr-only">Replier les options du diagramme</span>
+              </button>
             </div>
           </section>
         </div>
