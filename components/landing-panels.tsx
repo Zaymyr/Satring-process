@@ -37,7 +37,7 @@ import {
   UserRound,
   type LucideIcon
 } from 'lucide-react';
-import { useFieldArray, useForm } from 'react-hook-form';
+import { Controller, useFieldArray, useForm } from 'react-hook-form';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -2964,19 +2964,33 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                                                 const roleIdField = `roles.${index}.roleId` as const;
                                                 return (
                                                   <div key={field.id} className="space-y-1">
-                                                    <input
-                                                      type="hidden"
+                                                    <Controller
+                                                      control={departmentEditForm.control}
+                                                      name={roleIdField}
                                                       defaultValue={field.roleId ?? ''}
-                                                      {...departmentEditForm.register(roleIdField)}
+                                                      render={({ field: roleIdControl }) => (
+                                                        <input
+                                                          type="hidden"
+                                                          {...roleIdControl}
+                                                          value={roleIdControl.value ?? ''}
+                                                        />
+                                                      )}
                                                     />
                                                     <div className="flex flex-wrap items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2.5 shadow-sm">
                                                       <div className="flex min-w-0 flex-1 items-center gap-2">
                                                         <UserRound className="h-4 w-4 text-slate-500" />
-                                                        <Input
+                                                        <Controller
+                                                          control={departmentEditForm.control}
+                                                          name={roleNameField}
                                                           defaultValue={field.name}
-                                                          {...departmentEditForm.register(roleNameField)}
-                                                          disabled={isSavingDepartment}
-                                                          className="h-8 min-w-[10rem] flex-1 rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
+                                                          render={({ field: roleNameControl }) => (
+                                                            <Input
+                                                              {...roleNameControl}
+                                                              value={roleNameControl.value ?? ''}
+                                                              disabled={isSavingDepartment}
+                                                              className="h-8 min-w-[10rem] flex-1 rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
+                                                            />
+                                                          )}
                                                         />
                                                       </div>
                                                       <Button
