@@ -77,6 +77,8 @@ const highlightIcons = {
 const DEFAULT_DEPARTMENT_NAME = 'Nouveau département';
 
 const HEX_COLOR_REGEX = /^#[0-9A-F]{6}$/;
+const ROLE_ID_REGEX =
+  /^[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}$/i;
 const CLUSTER_STYLE_TEXT_COLOR = '#0f172a';
 const CLUSTER_FILL_OPACITY = 0.18;
 const FALLBACK_STEP_FILL_ALPHA = 0.22;
@@ -739,9 +741,9 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
   const saveDepartmentMutation = useMutation<
     void,
     ApiError,
-    { department: Department; values: DepartmentCascadeForm }
+    { department: Department; values: DepartmentCascadeForm; fieldRoleIds: Array<string | undefined> }
   >({
-    mutationFn: async ({ department, values }) => {
+    mutationFn: async ({ department, values, fieldRoleIds }) => {
       const operations: Promise<unknown>[] = [];
 
       if (values.name !== department.name || values.color !== department.color) {
@@ -755,18 +757,27 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
 
       const remainingRoleIds = new Set(department.roles.map((role) => role.id));
 
-      for (const roleInput of values.roles) {
-        if (roleInput.roleId) {
-          remainingRoleIds.delete(roleInput.roleId);
-          const originalRole = department.roles.find((role) => role.id === roleInput.roleId);
+      values.roles.forEach((roleInput, index) => {
+        const fieldRoleId = fieldRoleIds[index];
+        const normalizedRoleId =
+          typeof fieldRoleId === 'string' && ROLE_ID_REGEX.test(fieldRoleId)
+            ? fieldRoleId
+            : roleInput.roleId && ROLE_ID_REGEX.test(roleInput.roleId)
+              ? roleInput.roleId
+              : undefined;
+
+        if (normalizedRoleId) {
+          remainingRoleIds.delete(normalizedRoleId);
+          const originalRole = department.roles.find((role) => role.id === normalizedRoleId);
 
           if (originalRole && originalRole.name !== roleInput.name) {
-            operations.push(updateRoleRequest({ id: roleInput.roleId, name: roleInput.name }));
+            operations.push(updateRoleRequest({ id: normalizedRoleId, name: roleInput.name }));
           }
-        } else {
-          operations.push(createRoleRequest({ departmentId: department.id, name: roleInput.name }));
+          return;
         }
-      }
+
+        operations.push(createRoleRequest({ departmentId: department.id, name: roleInput.name }));
+      });
 
       for (const roleId of remainingRoleIds) {
         operations.push(deleteRoleRequest(roleId));
@@ -886,9 +897,17 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
         return;
       }
 
-      saveDepartmentMutation.mutate({ department, values });
+      const fieldRoleIds = departmentRoleFields.fields.map((field) => field.roleId);
+      saveDepartmentMutation.mutate({ department, values, fieldRoleIds });
     },
-    [departments, editingDepartmentId, isDepartmentActionsDisabled, isSavingDepartment, saveDepartmentMutation]
+    [
+      departmentRoleFields.fields,
+      departments,
+      editingDepartmentId,
+      isDepartmentActionsDisabled,
+      isSavingDepartment,
+      saveDepartmentMutation
+    ]
   );
 
   const handleDeleteDepartment = useCallback(
