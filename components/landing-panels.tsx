@@ -3019,143 +3019,43 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                                   role="treeitem"
                                   aria-expanded={!isCollapsed}
                                   aria-selected={isEditingDepartment}
-                                  className="department-node rounded-xl border border-slate-200 bg-white/80 p-3 shadow-sm"
+                                  className="department-node"
                                   data-collapsed={isCollapsed ? 'true' : 'false'}
                                 >
-                                  {isEditingDepartment ? (
-                                    <>
-                                      <form
-                                        onSubmit={departmentEditForm.handleSubmit(handleUpdateDepartment)}
-                                        className="entity-row"
-                                        data-entity-type="department"
-                                      >
-                                        <button
-                                          type="button"
-                                          className="department-collapse inline-flex items-center justify-center rounded-md border border-transparent text-slate-500 transition hover:border-slate-300 hover:bg-slate-100"
-                                          aria-expanded={!isCollapsed}
-                                          aria-controls={`department-${department.id}-roles`}
-                                          disabled
-                                        >
-                                          <ChevronDown
-                                            className="department-collapse-icon h-4 w-4"
-                                            aria-hidden="true"
-                                          />
-                                          <span className="sr-only">
-                                            Basculer l’affichage des rôles du département
-                                          </span>
-                                        </button>
-                                        <div className="flex items-center justify-center">
-                                          <label htmlFor={colorInputId} className="sr-only">
-                                            Couleur du département
-                                          </label>
-                                          <input
-                                            id={colorInputId}
-                                            type="color"
-                                            {...departmentEditForm.register('color')}
-                                            disabled={isUpdatingCurrent}
-                                            className="h-9 w-9 cursor-pointer rounded-md border border-slate-300 bg-white p-1 shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
-                                            aria-describedby={
-                                              departmentEditForm.formState.errors.color
-                                                ? `${colorInputId}-error`
-                                                : undefined
-                                            }
-                                          />
-                                        </div>
-                                        <div className="min-w-[10rem] max-w-[18rem]">
-                                          <Input
-                                            {...departmentEditForm.register('name')}
-                                            autoFocus
-                                            disabled={isUpdatingCurrent}
-                                            className="h-9 w-full rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
-                                          />
-                                          {departmentEditForm.formState.errors.color ? (
-                                            <p id={`${colorInputId}-error`} className="mt-1 text-xs text-red-600">
-                                              {departmentEditForm.formState.errors.color.message}
-                                            </p>
-                                          ) : null}
-                                          {departmentEditForm.formState.errors.name ? (
-                                            <p className="mt-1 text-xs text-red-600">
-                                              {departmentEditForm.formState.errors.name.message}
-                                            </p>
-                                          ) : null}
-                                        </div>
-                                        <div className="col-span-2 flex items-center gap-1.5 justify-self-end">
-                                          <Button
-                                            type="submit"
-                                            size="icon"
-                                            disabled={isUpdatingCurrent}
-                                            className="h-9 w-9 rounded-md bg-slate-900 text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600"
-                                          >
-                                            {isUpdatingCurrent ? (
-                                              <Loader2 aria-hidden="true" className="h-4 w-4 animate-spin" />
-                                            ) : (
-                                              <Save aria-hidden="true" className="h-4 w-4" />
-                                            )}
-                                            <span className="sr-only">Enregistrer le département</span>
-                                          </Button>
-                                          <Button
-                                            type="button"
-                                            size="icon"
-                                            variant="ghost"
-                                            onClick={() => handleDeleteDepartment(department.id)}
-                                            disabled={isDepartmentActionsDisabled || isDeletingCurrent}
-                                            className="h-9 w-9 text-red-500 hover:bg-red-50 hover:text-red-600"
-                                          >
-                                            {isDeletingCurrent ? (
-                                              <Loader2 aria-hidden="true" className="h-4 w-4 animate-spin" />
-                                            ) : (
-                                              <Trash2 aria-hidden="true" className="h-4 w-4" />
-                                            )}
-                                            <span className="sr-only">Supprimer le département</span>
-                                          </Button>
-                                        </div>
-                                      </form>
-                                      {updateDepartmentMutation.isError && isEditingDepartment ? (
-                                        <p className="mt-2 text-xs text-red-600">
-                                          {updateDepartmentMutation.error.message}
-                                        </p>
-                                      ) : null}
-                                    </>
-                                  ) : (
-                                    <div
+                                  <Card
+                                    className={cn(
+                                      'border-slate-200 bg-white/90 shadow-sm transition focus-within:ring-2 focus-within:ring-slate-900/20',
+                                      isEditingDepartment
+                                        ? 'border-slate-900 ring-2 ring-slate-900/20'
+                                        : 'hover:border-slate-300'
+                                    )}
+                                  >
+                                    <CardContent
                                       className={cn(
-                                        'entity-row',
-                                        !(isDepartmentActionsDisabled || isDeletingCurrent) &&
-                                          'cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400'
+                                        'flex gap-3 transition',
+                                        isEditingDepartment ? 'items-start p-3.5' : 'items-center p-2.5'
                                       )}
-                                      data-entity-type="department"
-                                      role="button"
-                                      tabIndex={isDepartmentActionsDisabled || isDeletingCurrent ? -1 : 0}
-                                      aria-disabled={isDepartmentActionsDisabled || isDeletingCurrent}
-                                      onClick={() => {
-                                        if (isDepartmentActionsDisabled || isDeletingCurrent) {
-                                          return;
-                                        }
-                                        startEditingDepartment(department);
-                                      }}
-                                      onKeyDown={(event) => {
-                                        if (event.key === 'Enter' || event.key === ' ') {
-                                          event.preventDefault();
-                                          if (isDepartmentActionsDisabled || isDeletingCurrent) {
-                                            return;
-                                          }
-                                          startEditingDepartment(department);
-                                        }
-                                      }}
                                     >
                                       <button
                                         type="button"
-                                        className="department-collapse inline-flex items-center justify-center rounded-md border border-transparent text-slate-500 transition hover:border-slate-300 hover:bg-slate-100"
+                                        className={cn(
+                                          'department-collapse inline-flex h-8 w-8 items-center justify-center rounded-md border border-transparent text-slate-500 transition hover:border-slate-300 hover:bg-slate-100',
+                                          isEditingDepartment && 'cursor-default opacity-60'
+                                        )}
                                         aria-expanded={!isCollapsed}
                                         aria-controls={`department-${department.id}-roles`}
                                         onClick={(event) => {
                                           event.stopPropagation();
+                                          if (isEditingDepartment) {
+                                            return;
+                                          }
                                           toggleDepartmentCollapse(department.id);
                                         }}
+                                        disabled={isEditingDepartment}
                                       >
                                         <ChevronDown
                                           className={cn(
-                                            'department-collapse-icon h-4 w-4',
+                                            'department-collapse-icon h-4 w-4 transition',
                                             isCollapsed && '-rotate-90'
                                           )}
                                           aria-hidden="true"
@@ -3164,40 +3064,147 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                                           {isCollapsed ? 'Déplier' : 'Replier'} le département
                                         </span>
                                       </button>
-                                      <div className="flex items-center justify-center">
-                                        <span
-                                          className="inline-flex h-6 w-6 shrink-0 rounded-full border border-slate-300"
-                                          style={{ backgroundColor: department.color }}
-                                          aria-hidden="true"
-                                        />
-                                        <span className="sr-only">Couleur : {department.color}</span>
-                                      </div>
-                                      <div className="min-w-0">
-                                        <p className="truncate text-sm font-medium text-slate-900">{department.name}</p>
-                                        {updatedLabel ? (
-                                          <p className="text-xs text-slate-500">Mis à jour {updatedLabel}</p>
-                                        ) : null}
-                                      </div>
-                                      <Button
-                                        type="button"
-                                        size="icon"
-                                        variant="ghost"
-                                        onClick={(event) => {
-                                          event.stopPropagation();
-                                          handleDeleteDepartment(department.id);
-                                        }}
-                                        disabled={isDepartmentActionsDisabled || isDeletingCurrent}
-                                        className="text-red-500 hover:text-red-600"
-                                      >
-                                        {isDeletingCurrent ? (
-                                          <Loader2 className="h-4 w-4 animate-spin" />
-                                        ) : (
-                                          <Trash2 className="h-4 w-4" />
-                                        )}
-                                        <span className="sr-only">Supprimer le département</span>
-                                      </Button>
-                                    </div>
-                                  )}
+                                      {isEditingDepartment ? (
+                                        <form
+                                          onSubmit={departmentEditForm.handleSubmit(handleUpdateDepartment)}
+                                          className="flex flex-1 flex-col gap-2"
+                                          data-entity-type="department"
+                                        >
+                                          <div className="flex flex-wrap items-center gap-2">
+                                            <div className="flex items-center">
+                                              <label htmlFor={colorInputId} className="sr-only">
+                                                Couleur du département
+                                              </label>
+                                              <input
+                                                id={colorInputId}
+                                                type="color"
+                                                {...departmentEditForm.register('color')}
+                                                disabled={isUpdatingCurrent}
+                                                className="h-9 w-9 cursor-pointer rounded-md border border-slate-300 bg-white p-1 shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
+                                                aria-describedby={
+                                                  departmentEditForm.formState.errors.color
+                                                    ? `${colorInputId}-error`
+                                                    : undefined
+                                                }
+                                              />
+                                            </div>
+                                            <Input
+                                              {...departmentEditForm.register('name')}
+                                              autoFocus
+                                              disabled={isUpdatingCurrent}
+                                              className="h-9 min-w-[12rem] flex-1 rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
+                                            />
+                                            <div className="ml-auto flex items-center gap-1.5">
+                                              <Button
+                                                type="submit"
+                                                size="sm"
+                                                disabled={isUpdatingCurrent}
+                                                className="inline-flex h-8 items-center gap-1 rounded-md bg-slate-900 px-3 text-xs font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600"
+                                              >
+                                                {isUpdatingCurrent ? (
+                                                  <Loader2 aria-hidden="true" className="h-3.5 w-3.5 animate-spin" />
+                                                ) : (
+                                                  <Save aria-hidden="true" className="h-3.5 w-3.5" />
+                                                )}
+                                                Enregistrer
+                                              </Button>
+                                              <Button
+                                                type="button"
+                                                size="icon"
+                                                variant="ghost"
+                                                onClick={() => handleDeleteDepartment(department.id)}
+                                                disabled={isDepartmentActionsDisabled || isDeletingCurrent}
+                                                className="h-8 w-8 text-red-500 hover:bg-red-50 hover:text-red-600"
+                                              >
+                                                {isDeletingCurrent ? (
+                                                  <Loader2 aria-hidden="true" className="h-4 w-4 animate-spin" />
+                                                ) : (
+                                                  <Trash2 aria-hidden="true" className="h-4 w-4" />
+                                                )}
+                                                <span className="sr-only">Supprimer le département</span>
+                                              </Button>
+                                            </div>
+                                          </div>
+                                          {departmentEditForm.formState.errors.color ? (
+                                            <p id={`${colorInputId}-error`} className="text-xs text-red-600">
+                                              {departmentEditForm.formState.errors.color.message}
+                                            </p>
+                                          ) : null}
+                                          {departmentEditForm.formState.errors.name ? (
+                                            <p className="text-xs text-red-600">
+                                              {departmentEditForm.formState.errors.name.message}
+                                            </p>
+                                          ) : null}
+                                          {updateDepartmentMutation.isError && isEditingDepartment ? (
+                                            <p className="text-xs text-red-600">
+                                              {updateDepartmentMutation.error.message}
+                                            </p>
+                                          ) : null}
+                                        </form>
+                                      ) : (
+                                        <div
+                                          className={cn(
+                                            'flex min-w-0 flex-1 items-center gap-3 rounded-lg border border-transparent px-1 py-1 transition',
+                                            !(isDepartmentActionsDisabled || isDeletingCurrent) &&
+                                              'cursor-pointer hover:border-slate-300 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400'
+                                          )}
+                                          role="button"
+                                          tabIndex={isDepartmentActionsDisabled || isDeletingCurrent ? -1 : 0}
+                                          aria-disabled={isDepartmentActionsDisabled || isDeletingCurrent}
+                                          onClick={() => {
+                                            if (isDepartmentActionsDisabled || isDeletingCurrent) {
+                                              return;
+                                            }
+                                            startEditingDepartment(department);
+                                          }}
+                                          onKeyDown={(event) => {
+                                            if (event.key === 'Enter' || event.key === ' ') {
+                                              event.preventDefault();
+                                              if (isDepartmentActionsDisabled || isDeletingCurrent) {
+                                                return;
+                                              }
+                                              startEditingDepartment(department);
+                                            }
+                                          }}
+                                        >
+                                          <div className="flex min-w-0 flex-1 items-center gap-3">
+                                            <span
+                                              className="inline-flex h-8 w-8 shrink-0 rounded-md border border-slate-200 shadow-inner"
+                                              style={{ backgroundColor: department.color }}
+                                              aria-hidden="true"
+                                            />
+                                            <span className="sr-only">Couleur : {department.color}</span>
+                                            <div className="min-w-0">
+                                              <p className="truncate text-sm font-medium text-slate-900">{department.name}</p>
+                                              {updatedLabel ? (
+                                                <p className="text-xs text-slate-500">Mis à jour {updatedLabel}</p>
+                                              ) : null}
+                                            </div>
+                                          </div>
+                                        </div>
+                                      )}
+                                      {!isEditingDepartment ? (
+                                        <Button
+                                          type="button"
+                                          size="icon"
+                                          variant="ghost"
+                                          onClick={(event) => {
+                                            event.stopPropagation();
+                                            handleDeleteDepartment(department.id);
+                                          }}
+                                          disabled={isDepartmentActionsDisabled || isDeletingCurrent}
+                                          className="h-8 w-8 text-red-500 hover:bg-red-50 hover:text-red-600"
+                                        >
+                                          {isDeletingCurrent ? (
+                                            <Loader2 className="h-4 w-4 animate-spin" />
+                                          ) : (
+                                            <Trash2 className="h-4 w-4" />
+                                          )}
+                                          <span className="sr-only">Supprimer le département</span>
+                                        </Button>
+                                      ) : null}
+                                    </CardContent>
+                                  </Card>
                                   {deleteDepartmentMutation.isError && deleteDepartmentId === department.id ? (
                                     <p className="mt-2 text-xs text-red-600">
                                       {deleteDepartmentMutation.error.message}
@@ -3221,31 +3228,31 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                                             <>
                                               <form
                                                 onSubmit={roleEditForm.handleSubmit(handleUpdateRole)}
-                                                className="entity-row"
+                                                className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white/90 px-3 py-2.5 shadow-sm"
                                                 data-entity-type="role"
                                               >
-                                                <div className="flex min-w-[10rem] max-w-[18rem] items-center gap-2">
+                                                <div className="flex min-w-0 flex-1 items-center gap-2">
                                                   <UserRound className="h-4 w-4 text-slate-500" />
                                                   <Input
                                                     {...roleEditForm.register('name')}
                                                     autoFocus
                                                     disabled={isUpdatingRole}
-                                                    className="h-8 w-full rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
+                                                    className="h-8 min-w-[10rem] flex-1 rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
                                                   />
                                                 </div>
-                                                <div className="col-span-2 flex items-center gap-1.5 justify-self-end">
+                                                <div className="flex items-center gap-1.5">
                                                   <Button
                                                     type="submit"
-                                                    size="icon"
+                                                    size="sm"
                                                     disabled={isUpdatingRole}
-                                                    className="h-8 w-8 rounded-md bg-slate-900 text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600"
+                                                    className="inline-flex h-8 items-center gap-1 rounded-md bg-slate-900 px-3 text-xs font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600"
                                                   >
                                                     {isUpdatingRole ? (
-                                                      <Loader2 aria-hidden="true" className="h-4 w-4 animate-spin" />
+                                                      <Loader2 aria-hidden="true" className="h-3.5 w-3.5 animate-spin" />
                                                     ) : (
-                                                      <Save aria-hidden="true" className="h-4 w-4" />
+                                                      <Save aria-hidden="true" className="h-3.5 w-3.5" />
                                                     )}
-                                                    <span className="sr-only">Enregistrer le rôle</span>
+                                                    Enregistrer
                                                   </Button>
                                                   <Button
                                                     type="button"
@@ -3278,9 +3285,9 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                                           ) : (
                                             <div
                                               className={cn(
-                                                'entity-row',
+                                                'flex min-w-0 items-center gap-3 rounded-lg border border-transparent px-3 py-2.5 transition',
                                                 !(isRoleActionsDisabled || isDeletingRoleCurrent) &&
-                                                  'cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400'
+                                                  'cursor-pointer hover:border-slate-300 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400'
                                               )}
                                               data-entity-type="role"
                                               role="button"
@@ -3302,7 +3309,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                                                 }
                                               }}
                                             >
-                                              <div className="flex min-w-0 items-center gap-2">
+                                              <div className="flex min-w-0 flex-1 items-center gap-2">
                                                 <UserRound className="h-4 w-4 text-slate-500" />
                                                 <div className="min-w-0">
                                                   <p className="truncate text-sm font-medium text-slate-900">{role.name}</p>
@@ -3322,7 +3329,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                                                   handleDeleteRole(role);
                                                 }}
                                                 disabled={isRoleActionsDisabled || isDeletingRoleCurrent}
-                                                className="text-red-500 hover:text-red-600"
+                                                className="h-8 w-8 text-red-500 hover:bg-red-50 hover:text-red-600"
                                               >
                                                 {isDeletingRoleCurrent ? (
                                                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -3345,25 +3352,25 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                                       <li>
                                         <form
                                           onSubmit={roleCreateForm.handleSubmit(handleCreateRole)}
-                                          className="entity-row"
+                                          className="flex flex-wrap items-center gap-2 rounded-xl border border-dashed border-slate-300 bg-white/70 px-3 py-2.5"
                                           data-entity-type="role"
                                         >
-                                          <div className="flex min-w-[10rem] max-w-[18rem] items-center gap-2">
+                                          <div className="flex min-w-0 flex-1 items-center gap-2">
                                             <UserRound className="h-4 w-4 text-slate-500" />
                                             <Input
                                               {...roleCreateForm.register('name')}
                                               autoFocus
                                               disabled={isCreatingRole}
                                               placeholder="Nom du rôle"
-                                              className="h-8 w-full rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
+                                              className="h-8 min-w-[10rem] flex-1 rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
                                             />
                                           </div>
-                                          <div className="flex items-center gap-2 justify-self-end">
+                                          <div className="flex items-center gap-1.5">
                                             <Button
                                               type="submit"
                                               size="sm"
                                               disabled={isCreatingRole}
-                                              className="inline-flex items-center gap-1 rounded-md bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600"
+                                              className="inline-flex h-8 items-center gap-1 rounded-md bg-slate-900 px-3 text-xs font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600"
                                             >
                                               {isCreatingRole ? (
                                                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -3382,7 +3389,6 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                                               Annuler
                                             </Button>
                                           </div>
-                                          <div />
                                         </form>
                                         {roleCreateForm.formState.errors.name ? (
                                           <p className="mt-1 text-xs text-red-600">
