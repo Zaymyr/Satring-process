@@ -22,9 +22,10 @@ export async function GET() {
 
   const { data, error } = await supabase
     .from('departments')
-    .select('id, name, color, created_at, updated_at')
+    .select('id, name, color, created_at, updated_at, roles:roles(id, name, department_id, created_at, updated_at)')
     .eq('owner_id', user.id)
-    .order('updated_at', { ascending: false });
+    .order('updated_at', { ascending: false })
+    .order('updated_at', { foreignTable: 'roles', ascending: false });
 
   if (error) {
     console.error('Erreur lors de la récupération des départements', error);
@@ -78,7 +79,7 @@ export async function POST(request: Request) {
   const { data, error } = await supabase
     .from('departments')
     .insert({ name: parsedBody.data.name, color: parsedBody.data.color })
-    .select('id, name, color, created_at, updated_at')
+    .select('id, name, color, created_at, updated_at, roles:roles(id, name, department_id, created_at, updated_at)')
     .single();
 
   if (error) {

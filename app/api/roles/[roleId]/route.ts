@@ -1,25 +1,25 @@
 import { NextResponse } from 'next/server';
 
 import { createServerClient } from '@/lib/supabase/server';
-import { departmentInputSchema, departmentSchema } from '@/lib/validation/department';
+import { roleInputSchema, roleSchema } from '@/lib/validation/role';
 
 import {
-  departmentIdParamSchema,
-  mapDepartmentWriteError,
+  mapRoleWriteError,
   NO_STORE_HEADERS,
-  normalizeDepartmentRecord
-} from '../helpers';
+  normalizeRoleRecord,
+  roleIdParamSchema
+} from '../../departments/helpers';
 
 type RouteContext = {
-  params: { departmentId?: string };
+  params: { roleId?: string };
 };
 
 export async function PATCH(request: Request, context: RouteContext) {
-  const parsedParams = departmentIdParamSchema.safeParse(context.params);
+  const parsedParams = roleIdParamSchema.safeParse(context.params);
 
   if (!parsedParams.success) {
     return NextResponse.json(
-      { error: 'Identifiant de département invalide.' },
+      { error: 'Identifiant de rôle invalide.' },
       { status: 400, headers: NO_STORE_HEADERS }
     );
   }
@@ -32,7 +32,7 @@ export async function PATCH(request: Request, context: RouteContext) {
     body = {};
   }
 
-  const parsedBody = departmentInputSchema.safeParse(body ?? {});
+  const parsedBody = roleInputSchema.safeParse(body ?? {});
   if (!parsedBody.success) {
     return NextResponse.json(
       { error: 'Le nom fourni est invalide.', details: parsedBody.error.flatten() },
@@ -50,50 +50,49 @@ export async function PATCH(request: Request, context: RouteContext) {
     return NextResponse.json({ error: 'Authentification requise.' }, { status: 401, headers: NO_STORE_HEADERS });
   }
 
-  const departmentId = parsedParams.data.departmentId;
+  const roleId = parsedParams.data.roleId;
 
   const { data, error } = await supabase
-    .from('departments')
-    .update({ name: parsedBody.data.name, color: parsedBody.data.color })
-    .eq('id', departmentId)
+    .from('roles')
+    .update({ name: parsedBody.data.name })
+    .eq('id', roleId)
     .eq('owner_id', user.id)
-    .select('id, name, color, created_at, updated_at, roles:roles(id, name, department_id, created_at, updated_at)')
-    .order('updated_at', { foreignTable: 'roles', ascending: false })
+    .select('id, name, department_id, created_at, updated_at')
     .maybeSingle();
 
   if (error) {
-    console.error('Erreur lors de la mise à jour du département', error);
-    const mapped = mapDepartmentWriteError(error);
+    console.error('Erreur lors de la mise à jour du rôle', error);
+    const mapped = mapRoleWriteError(error);
     return NextResponse.json(mapped.body, { status: mapped.status, headers: NO_STORE_HEADERS });
   }
 
   if (!data) {
     return NextResponse.json(
-      { error: 'Département introuvable.' },
+      { error: 'Rôle introuvable.' },
       { status: 404, headers: NO_STORE_HEADERS }
     );
   }
 
-  const normalized = normalizeDepartmentRecord(data);
-  const parsedDepartment = departmentSchema.safeParse(normalized);
+  const normalized = normalizeRoleRecord(data);
+  const parsedRole = roleSchema.safeParse(normalized);
 
-  if (!parsedDepartment.success) {
-    console.error('Département mis à jour invalide', parsedDepartment.error);
+  if (!parsedRole.success) {
+    console.error('Rôle mis à jour invalide', parsedRole.error);
     return NextResponse.json(
-      { error: 'Les données du département mis à jour sont invalides.' },
+      { error: 'Les données du rôle mis à jour sont invalides.' },
       { status: 500, headers: NO_STORE_HEADERS }
     );
   }
 
-  return NextResponse.json(parsedDepartment.data, { headers: NO_STORE_HEADERS });
+  return NextResponse.json(parsedRole.data, { headers: NO_STORE_HEADERS });
 }
 
 export async function DELETE(_request: Request, context: RouteContext) {
-  const parsedParams = departmentIdParamSchema.safeParse(context.params);
+  const parsedParams = roleIdParamSchema.safeParse(context.params);
 
   if (!parsedParams.success) {
     return NextResponse.json(
-      { error: 'Identifiant de département invalide.' },
+      { error: 'Identifiant de rôle invalide.' },
       { status: 400, headers: NO_STORE_HEADERS }
     );
   }
@@ -108,25 +107,25 @@ export async function DELETE(_request: Request, context: RouteContext) {
     return NextResponse.json({ error: 'Authentification requise.' }, { status: 401, headers: NO_STORE_HEADERS });
   }
 
-  const departmentId = parsedParams.data.departmentId;
+  const roleId = parsedParams.data.roleId;
 
   const { data, error } = await supabase
-    .from('departments')
+    .from('roles')
     .delete()
-    .eq('id', departmentId)
+    .eq('id', roleId)
     .eq('owner_id', user.id)
     .select('id')
     .maybeSingle();
 
   if (error) {
-    console.error('Erreur lors de la suppression du département', error);
-    const mapped = mapDepartmentWriteError(error);
+    console.error('Erreur lors de la suppression du rôle', error);
+    const mapped = mapRoleWriteError(error);
     return NextResponse.json(mapped.body, { status: mapped.status, headers: NO_STORE_HEADERS });
   }
 
   if (!data) {
     return NextResponse.json(
-      { error: 'Département introuvable.' },
+      { error: 'Rôle introuvable.' },
       { status: 404, headers: NO_STORE_HEADERS }
     );
   }
