@@ -38,3 +38,23 @@ export const departments = pgTable(
 
 export type Department = typeof departments.$inferSelect;
 export type NewDepartment = typeof departments.$inferInsert;
+
+export const roles = pgTable(
+  'roles',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    ownerId: uuid('owner_id').notNull(),
+    departmentId: uuid('department_id').notNull(),
+    name: text('name').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull()
+  },
+  (table) => ({
+    ownerIndex: index('roles_owner_id_idx').on(table.ownerId),
+    departmentIndex: index('roles_department_id_idx').on(table.departmentId),
+    updatedAtIndex: index('roles_updated_at_idx').on(table.updatedAt)
+  })
+);
+
+export type Role = typeof roles.$inferSelect;
+export type NewRole = typeof roles.$inferInsert;

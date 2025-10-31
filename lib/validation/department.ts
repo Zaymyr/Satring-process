@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { roleListSchema, type Role } from './role';
+
 export const DEFAULT_DEPARTMENT_COLOR = '#C7D2FE';
 
 export const departmentNameSchema = z
@@ -19,7 +21,8 @@ export const departmentSchema = z.object({
   name: departmentNameSchema,
   color: departmentColorSchema,
   createdAt: z.string().datetime({ offset: true }),
-  updatedAt: z.string().datetime({ offset: true })
+  updatedAt: z.string().datetime({ offset: true }),
+  roles: roleListSchema.optional().default([])
 });
 
 export const departmentListSchema = departmentSchema.array();
@@ -29,5 +32,5 @@ export const departmentInputSchema = z.object({
   color: departmentColorSchema
 });
 
-export type Department = z.infer<typeof departmentSchema>;
+export type Department = Omit<z.infer<typeof departmentSchema>, 'roles'> & { roles: Role[] };
 export type DepartmentInput = z.infer<typeof departmentInputSchema>;

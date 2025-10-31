@@ -29,12 +29,32 @@ const normalizeDepartmentColor = (value: unknown) => {
   return DEFAULT_DEPARTMENT_COLOR;
 };
 
+type RawRoleRecord = {
+  id: unknown;
+  department_id: unknown;
+  name: unknown;
+  created_at: unknown;
+  updated_at: unknown;
+};
+
+export const normalizeRoleRecord = (item: RawRoleRecord) => ({
+  id: String(item.id),
+  departmentId: typeof item.department_id === 'string' ? item.department_id : String(item.department_id ?? ''),
+  name:
+    typeof item.name === 'string' && item.name.trim().length > 0
+      ? item.name.trim()
+      : 'Rôle',
+  createdAt: normalizeTimestamp(item.created_at),
+  updatedAt: normalizeTimestamp(item.updated_at)
+});
+
 export const normalizeDepartmentRecord = (item: {
   id: unknown;
   name: unknown;
   color: unknown;
   created_at: unknown;
   updated_at: unknown;
+  roles?: RawRoleRecord[] | null;
 }) => ({
   id: String(item.id),
   name:
@@ -43,7 +63,8 @@ export const normalizeDepartmentRecord = (item: {
       : 'Département',
   color: normalizeDepartmentColor(item.color),
   createdAt: normalizeTimestamp(item.created_at),
-  updatedAt: normalizeTimestamp(item.updated_at)
+  updatedAt: normalizeTimestamp(item.updated_at),
+  roles: Array.isArray(item.roles) ? item.roles.map((role) => normalizeRoleRecord(role)) : []
 });
 
 const isRlsDeniedError = (error: { message?: string; details?: string | null; hint?: string | null }) => {
@@ -94,4 +115,44 @@ export const mapDepartmentWriteError = (error: {
 
 export const departmentIdParamSchema = z.object({
   departmentId: z.string().uuid('Identifiant de département invalide.')
+});
+
+export const mapRoleWriteError = (error: {
+  code?: string;
+  message?: string;
+  details?: string | null;
+  hint?: string | null;
+}) => {
+  const code = error.code?.toUpperCase();
+
+  if (code === '28000') {
+    return { status: 401, body: { error: 'Authentification requise.' } } as const;
+  }
+
+  if (code === '23505') {
+    return {
+      status: 409,
+      body: { error: 'Un rôle portant ce nom existe déjà dans ce département.' }
+    } as const;
+  }
+
+  if (code === '23514' || code === '23502') {
+    return {
+      status: 400,
+      body: { error: 'Les données fournies pour le rôle sont invalides.' }
+    } as const;
+  }
+
+  if (code === '42501' || isRlsDeniedError(error)) {
+    return {
+      status: 403,
+      body: { error: "Vous n'avez pas l'autorisation de modifier ce rôle." }
+    } as const;
+  }
+
+  return { status: 500, body: { error: 'Impossible de traiter le rôle.' } } as const;
+};
+
+export const roleIdParamSchema = z.object({
+  roleId: z.string().uuid('Identifiant de rôle invalide.')
 });
