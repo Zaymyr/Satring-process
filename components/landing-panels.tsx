@@ -676,7 +676,6 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
     resolver: zodResolver(departmentInputSchema),
     defaultValues: { name: '', color: DEFAULT_DEPARTMENT_COLOR }
   });
-  const [collapsedDepartmentIds, setCollapsedDepartmentIds] = useState<Set<string>>(() => new Set());
   const [creatingRoleDepartmentId, setCreatingRoleDepartmentId] = useState<string | null>(null);
   const [editingRoleId, setEditingRoleId] = useState<string | null>(null);
   const [deletingRoleId, setDeletingRoleId] = useState<string | null>(null);
@@ -764,15 +763,6 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
     onSuccess: async (_data, variables) => {
       await queryClient.invalidateQueries({ queryKey: ['departments'] });
       setEditingDepartmentId((current) => (current === variables.id ? null : current));
-      setCollapsedDepartmentIds((previous) => {
-        if (!previous.has(variables.id)) {
-          return previous;
-        }
-
-        const next = new Set(previous);
-        next.delete(variables.id);
-        return next;
-      });
     },
     onSettled: () => {
       setDeleteDepartmentId(null);
@@ -784,15 +774,6 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
     onSuccess: async (role) => {
       roleCreateForm.reset({ name: '' });
       setCreatingRoleDepartmentId(null);
-      setCollapsedDepartmentIds((previous) => {
-        if (!previous.has(role.departmentId)) {
-          return previous;
-        }
-
-        const next = new Set(previous);
-        next.delete(role.departmentId);
-        return next;
-      });
 
       queryClient.setQueryData(['departments'], (previous?: Department[]) => {
         if (!previous) {
@@ -987,20 +968,6 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
     roleEditForm
   ]);
 
-  const toggleDepartmentCollapse = useCallback((departmentId: string) => {
-    setCollapsedDepartmentIds((previous) => {
-      const next = new Set(previous);
-
-      if (next.has(departmentId)) {
-        next.delete(departmentId);
-      } else {
-        next.add(departmentId);
-      }
-
-      return next;
-    });
-  }, []);
-
   const startCreatingRole = useCallback(
     (departmentId: string) => {
       if (isRoleActionsDisabled || isCreatingRole) {
@@ -1010,15 +977,6 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
       setEditingRoleId(null);
       setCreatingRoleDepartmentId(departmentId);
       roleCreateForm.reset({ name: '' });
-      setCollapsedDepartmentIds((previous) => {
-        if (!previous.has(departmentId)) {
-          return previous;
-        }
-
-        const next = new Set(previous);
-        next.delete(departmentId);
-        return next;
-      });
     },
     [isCreatingRole, isRoleActionsDisabled, roleCreateForm]
   );
@@ -1048,15 +1006,6 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
       setCreatingRoleDepartmentId(null);
       setEditingRoleId(role.id);
       roleEditForm.reset({ name: role.name });
-      setCollapsedDepartmentIds((previous) => {
-        if (!previous.has(role.departmentId)) {
-          return previous;
-        }
-
-        const next = new Set(previous);
-        next.delete(role.departmentId);
-        return next;
-      });
     },
     [isRoleActionsDisabled, isUpdatingRole, roleEditForm]
   );
@@ -3007,17 +2956,28 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                                 isUpdatingDepartment && editingDepartmentId === department.id;
                               const isDeletingCurrent =
                                 isDeletingDepartment && deleteDepartmentId === department.id;
-                              const isCollapsed = collapsedDepartmentIds.has(department.id);
-                              const updatedLabel = formatUpdatedAt(department.updatedAt);
-                              const colorInputId = `department-color-${department.id}`;
                               const roles = department.roles;
                               const isCreatingRoleHere = creatingRoleDepartmentId === department.id;
+                              const isRoleEditingHere =
+                                editingRoleId !== null &&
+                                roles.some((role) => role.id === editingRoleId);
+                              const isRoleDeletingHere =
+                                deletingRoleId !== null &&
+                                roles.some((role) => role.id === deletingRoleId);
+                              const isExpanded =
+                                isEditingDepartment ||
+                                isCreatingRoleHere ||
+                                isRoleEditingHere ||
+                                isRoleDeletingHere;
+                              const isCollapsed = !isExpanded;
+                              const updatedLabel = formatUpdatedAt(department.updatedAt);
+                              const colorInputId = `department-color-${department.id}`;
 
                               return (
                                 <li
                                   key={department.id}
                                   role="treeitem"
-                                  aria-expanded={!isCollapsed}
+                                  aria-expanded={isExpanded}
                                   aria-selected={isEditingDepartment}
                                   className="department-node"
                                   data-collapsed={isCollapsed ? 'true' : 'false'}
@@ -3036,34 +2996,6 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                                         isEditingDepartment ? 'items-start p-3.5' : 'items-center p-2.5'
                                       )}
                                     >
-                                      <button
-                                        type="button"
-                                        className={cn(
-                                          'department-collapse inline-flex h-8 w-8 items-center justify-center rounded-md border border-transparent text-slate-500 transition hover:border-slate-300 hover:bg-slate-100',
-                                          isEditingDepartment && 'cursor-default opacity-60'
-                                        )}
-                                        aria-expanded={!isCollapsed}
-                                        aria-controls={`department-${department.id}-roles`}
-                                        onClick={(event) => {
-                                          event.stopPropagation();
-                                          if (isEditingDepartment) {
-                                            return;
-                                          }
-                                          toggleDepartmentCollapse(department.id);
-                                        }}
-                                        disabled={isEditingDepartment}
-                                      >
-                                        <ChevronDown
-                                          className={cn(
-                                            'department-collapse-icon h-4 w-4 transition',
-                                            isCollapsed && '-rotate-90'
-                                          )}
-                                          aria-hidden="true"
-                                        />
-                                        <span className="sr-only">
-                                          {isCollapsed ? 'Déplier' : 'Replier'} le département
-                                        </span>
-                                      </button>
                                       {isEditingDepartment ? (
                                         <form
                                           onSubmit={departmentEditForm.handleSubmit(handleUpdateDepartment)}
@@ -3403,17 +3335,19 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                                       </li>
                                     ) : null}
                                   </ul>
-                                  <div className="mt-3 flex flex-wrap gap-2">
-                                    <button
-                                      type="button"
-                                      onClick={() => startCreatingRole(department.id)}
-                                      className="add-role-button inline-flex items-center gap-2"
-                                      disabled={isRoleActionsDisabled || isCreatingRoleHere || isCreatingRole}
-                                    >
-                                      <Plus className="h-3.5 w-3.5" />
-                                      Ajouter un rôle
-                                    </button>
-                                  </div>
+                                  {isCollapsed ? null : (
+                                    <div className="mt-3 flex flex-wrap gap-2">
+                                      <button
+                                        type="button"
+                                        onClick={() => startCreatingRole(department.id)}
+                                        className="add-role-button inline-flex items-center gap-2"
+                                        disabled={isRoleActionsDisabled || isCreatingRoleHere || isCreatingRole}
+                                      >
+                                        <Plus className="h-3.5 w-3.5" />
+                                        Ajouter un rôle
+                                      </button>
+                                    </div>
+                                  )}
                                 </li>
                               );
                             })}

@@ -1973,16 +1973,6 @@ p {
   grid-template-columns: minmax(0, 1fr) auto auto;
 }
 
-.page-departments .department-collapse {
-  width: 2rem;
-  height: 2rem;
-}
-
-.page-departments .department-collapse-icon {
-  transition: transform 0.2s ease;
-  font-size: 0.95rem;
-}
-
 .page-departments .department-node[data-collapsed='true'] .role-list {
   display: none;
 }
