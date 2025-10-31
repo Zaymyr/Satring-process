@@ -40,10 +40,19 @@ export const departmentCascadeFormSchema = departmentInputSchema.extend({
     .array(
       z.object({
         roleId: z
-          .preprocess(
-            (value) => (typeof value === 'string' && value.trim().length === 0 ? undefined : value),
-            z.string().uuid('Identifiant de rôle invalide.')
-          )
+          .preprocess((value) => {
+            if (typeof value !== 'string') {
+              return value;
+            }
+
+            const trimmed = value.trim();
+
+            if (trimmed.length === 0 || trimmed.toLowerCase() === 'undefined') {
+              return undefined;
+            }
+
+            return trimmed;
+          }, z.string().uuid('Identifiant de rôle invalide.'))
           .optional(),
         name: roleNameSchema
       })
