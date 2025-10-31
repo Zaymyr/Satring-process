@@ -37,7 +37,7 @@ import {
   UserRound,
   type LucideIcon
 } from 'lucide-react';
-import { useForm } from 'react-hook-form';
+import { useFieldArray, useForm } from 'react-hook-form';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -55,18 +55,17 @@ import {
 } from '@/lib/validation/process';
 import {
   DEFAULT_DEPARTMENT_COLOR,
-  departmentInputSchema,
+  departmentCascadeFormSchema,
   departmentListSchema,
   departmentSchema,
   type Department,
+  type DepartmentCascadeForm,
   type DepartmentInput
 } from '@/lib/validation/department';
 import {
-  roleInputSchema,
   roleSchema,
   type Role,
   type RoleCreateInput,
-  type RoleInput,
   type RoleUpdateInput
 } from '@/lib/validation/role';
 
@@ -672,20 +671,13 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
   const [activeSecondaryTab, setActiveSecondaryTab] = useState<'processes' | 'departments'>('processes');
   const [editingDepartmentId, setEditingDepartmentId] = useState<string | null>(null);
   const [deleteDepartmentId, setDeleteDepartmentId] = useState<string | null>(null);
-  const departmentEditForm = useForm<DepartmentInput>({
-    resolver: zodResolver(departmentInputSchema),
-    defaultValues: { name: '', color: DEFAULT_DEPARTMENT_COLOR }
+  const departmentEditForm = useForm<DepartmentCascadeForm>({
+    resolver: zodResolver(departmentCascadeFormSchema),
+    defaultValues: { name: '', color: DEFAULT_DEPARTMENT_COLOR, roles: [] }
   });
-  const [creatingRoleDepartmentId, setCreatingRoleDepartmentId] = useState<string | null>(null);
-  const [editingRoleId, setEditingRoleId] = useState<string | null>(null);
-  const [deletingRoleId, setDeletingRoleId] = useState<string | null>(null);
-  const roleCreateForm = useForm<RoleInput>({
-    resolver: zodResolver(roleInputSchema),
-    defaultValues: { name: '' }
-  });
-  const roleEditForm = useForm<RoleInput>({
-    resolver: zodResolver(roleInputSchema),
-    defaultValues: { name: '' }
+  const departmentRoleFields = useFieldArray({
+    control: departmentEditForm.control,
+    name: 'roles'
   });
 
   const processSummariesQuery = useQuery<ProcessSummary[], ApiError>({
@@ -737,17 +729,64 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
         return [department, ...filtered];
       });
       setEditingDepartmentId(department.id);
-      departmentEditForm.reset({ name: department.name, color: department.color });
+      const mappedRoles = department.roles.map((role) => ({ roleId: role.id, name: role.name }));
+      departmentEditForm.reset({ name: department.name, color: department.color, roles: mappedRoles });
+      departmentRoleFields.replace(mappedRoles);
       await queryClient.invalidateQueries({ queryKey: ['departments'] });
     }
   });
 
-  const updateDepartmentMutation = useMutation<Department, ApiError, { id: string; values: DepartmentInput }>({
-    mutationFn: updateDepartmentRequest,
-    onSuccess: async (_data, variables) => {
+  const saveDepartmentMutation = useMutation<
+    void,
+    ApiError,
+    { department: Department; values: DepartmentCascadeForm }
+  >({
+    mutationFn: async ({ department, values }) => {
+      const operations: Promise<unknown>[] = [];
+
+      if (values.name !== department.name || values.color !== department.color) {
+        operations.push(
+          updateDepartmentRequest({
+            id: department.id,
+            values: { name: values.name, color: values.color }
+          })
+        );
+      }
+
+      const remainingRoleIds = new Set(department.roles.map((role) => role.id));
+
+      for (const roleInput of values.roles) {
+        if (roleInput.roleId) {
+          remainingRoleIds.delete(roleInput.roleId);
+          const originalRole = department.roles.find((role) => role.id === roleInput.roleId);
+
+          if (originalRole && originalRole.name !== roleInput.name) {
+            operations.push(updateRoleRequest({ id: roleInput.roleId, name: roleInput.name }));
+          }
+        } else {
+          operations.push(createRoleRequest({ departmentId: department.id, name: roleInput.name }));
+        }
+      }
+
+      for (const roleId of remainingRoleIds) {
+        operations.push(deleteRoleRequest(roleId));
+      }
+
+      if (operations.length === 0) {
+        return;
+      }
+
+      await Promise.all(operations);
+    },
+    onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['departments'] });
-      setEditingDepartmentId((current) => (current === variables.id ? null : current));
-      departmentEditForm.reset({ name: '', color: DEFAULT_DEPARTMENT_COLOR });
+      setEditingDepartmentId(null);
+      departmentEditForm.reset({
+        name: '',
+        color: DEFAULT_DEPARTMENT_COLOR,
+        roles: []
+      });
+      departmentRoleFields.replace([]);
     }
   });
 
@@ -755,101 +794,28 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
     mutationFn: ({ id }) => deleteDepartmentRequest(id),
     onMutate: async ({ id }) => {
       setDeleteDepartmentId(id);
-      setCreatingRoleDepartmentId((current) => (current === id ? null : current));
-      setEditingRoleId(null);
-      roleCreateForm.reset({ name: '' });
-      roleEditForm.reset({ name: '' });
     },
     onSuccess: async (_data, variables) => {
       await queryClient.invalidateQueries({ queryKey: ['departments'] });
-      setEditingDepartmentId((current) => (current === variables.id ? null : current));
+      let shouldReset = false;
+      setEditingDepartmentId((current) => {
+        if (current === variables.id) {
+          shouldReset = true;
+          return null;
+        }
+        return current;
+      });
+      if (shouldReset) {
+        departmentEditForm.reset({
+          name: '',
+          color: DEFAULT_DEPARTMENT_COLOR,
+          roles: []
+        });
+        departmentRoleFields.replace([]);
+      }
     },
     onSettled: () => {
       setDeleteDepartmentId(null);
-    }
-  });
-
-  const createRoleMutation = useMutation<Role, ApiError, RoleCreateInput>({
-    mutationFn: createRoleRequest,
-    onSuccess: async (role) => {
-      roleCreateForm.reset({ name: '' });
-      setCreatingRoleDepartmentId(null);
-
-      queryClient.setQueryData(['departments'], (previous?: Department[]) => {
-        if (!previous) {
-          return previous;
-        }
-
-        return previous.map((department) =>
-          department.id === role.departmentId
-            ? { ...department, roles: [role, ...department.roles] }
-            : department
-        );
-      });
-
-      await queryClient.invalidateQueries({ queryKey: ['departments'] });
-    },
-    onError: (error) => {
-      console.error('Création du rôle impossible', error);
-    }
-  });
-
-  const updateRoleMutation = useMutation<Role, ApiError, RoleUpdateInput>({
-    mutationFn: updateRoleRequest,
-    onSuccess: async (role) => {
-      setEditingRoleId(null);
-      roleEditForm.reset({ name: '' });
-
-      queryClient.setQueryData(['departments'], (previous?: Department[]) => {
-        if (!previous) {
-          return previous;
-        }
-
-        return previous.map((department) =>
-          department.id === role.departmentId
-            ? {
-                ...department,
-                roles: department.roles.map((item) => (item.id === role.id ? role : item))
-              }
-            : department
-        );
-      });
-
-      await queryClient.invalidateQueries({ queryKey: ['departments'] });
-    },
-    onError: (error) => {
-      console.error('Mise à jour du rôle impossible', error);
-    }
-  });
-
-  const deleteRoleMutation = useMutation<void, ApiError, { id: string; departmentId: string }>({
-    mutationFn: ({ id }) => deleteRoleRequest(id),
-    onMutate: ({ id }) => {
-      setDeletingRoleId(id);
-    },
-    onSuccess: async (_data, variables) => {
-      setEditingRoleId((current) => (current === variables.id ? null : current));
-      setCreatingRoleDepartmentId((current) => (current === variables.departmentId ? null : current));
-
-      queryClient.setQueryData(['departments'], (previous?: Department[]) => {
-        if (!previous) {
-          return previous;
-        }
-
-        return previous.map((department) =>
-          department.id === variables.departmentId
-            ? { ...department, roles: department.roles.filter((role) => role.id !== variables.id) }
-            : department
-        );
-      });
-
-      await queryClient.invalidateQueries({ queryKey: ['departments'] });
-    },
-    onError: (error) => {
-      console.error('Suppression du rôle impossible', error);
-    },
-    onSettled: () => {
-      setDeletingRoleId(null);
     }
   });
 
@@ -894,12 +860,8 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
   const isDepartmentsTabActive = activeSecondaryTab === 'departments';
   const isDepartmentActionsDisabled = isUnauthorized || isDepartmentUnauthorized;
   const isCreatingDepartment = createDepartmentMutation.isPending;
-  const isUpdatingDepartment = updateDepartmentMutation.isPending;
+  const isSavingDepartment = saveDepartmentMutation.isPending;
   const isDeletingDepartment = deleteDepartmentMutation.isPending;
-  const isCreatingRole = createRoleMutation.isPending;
-  const isUpdatingRole = updateRoleMutation.isPending;
-  const isDeletingRole = deleteRoleMutation.isPending;
-  const isRoleActionsDisabled = isDepartmentActionsDisabled;
   const secondaryPanelTitle = isDepartmentsTabActive ? 'Mes départements' : 'Mes process';
   const secondaryPanelDescription = isDepartmentsTabActive
     ? 'Organisez vos départements et renommez-les pour structurer votre équipe.'
@@ -912,14 +874,21 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
     createDepartmentMutation.mutate();
   }, [createDepartmentMutation, isCreatingDepartment, isDepartmentActionsDisabled]);
 
-  const handleUpdateDepartment = useCallback(
-    (values: DepartmentInput) => {
-      if (!editingDepartmentId || isDepartmentActionsDisabled) {
+  const handleSaveDepartment = useCallback(
+    (values: DepartmentCascadeForm) => {
+      if (!editingDepartmentId || isDepartmentActionsDisabled || isSavingDepartment) {
         return;
       }
-      updateDepartmentMutation.mutate({ id: editingDepartmentId, values });
+
+      const department = departments.find((item) => item.id === editingDepartmentId);
+
+      if (!department) {
+        return;
+      }
+
+      saveDepartmentMutation.mutate({ department, values });
     },
-    [editingDepartmentId, isDepartmentActionsDisabled, updateDepartmentMutation]
+    [departments, editingDepartmentId, isDepartmentActionsDisabled, isSavingDepartment, saveDepartmentMutation]
   );
 
   const handleDeleteDepartment = useCallback(
@@ -934,103 +903,34 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
 
   const startEditingDepartment = useCallback(
     (department: Department) => {
-      if (isDepartmentActionsDisabled) {
+      if (isDepartmentActionsDisabled || isSavingDepartment) {
         return;
       }
+
       setEditingDepartmentId(department.id);
-      departmentEditForm.reset({ name: department.name, color: department.color });
-      setCreatingRoleDepartmentId(null);
-      setEditingRoleId(null);
-      roleCreateForm.reset({ name: '' });
-      roleEditForm.reset({ name: '' });
+      const mappedRoles = department.roles.map((role) => ({ roleId: role.id, name: role.name }));
+      departmentEditForm.reset({ name: department.name, color: department.color, roles: mappedRoles });
+      departmentRoleFields.replace(mappedRoles);
     },
     [
       departmentEditForm,
+      departmentRoleFields,
       isDepartmentActionsDisabled,
-      roleCreateForm,
-      roleEditForm
+      isSavingDepartment
     ]
   );
 
   useEffect(() => {
     if (isDepartmentActionsDisabled) {
       setEditingDepartmentId(null);
-      departmentEditForm.reset({ name: '', color: DEFAULT_DEPARTMENT_COLOR });
-      setCreatingRoleDepartmentId(null);
-      setEditingRoleId(null);
-      roleCreateForm.reset({ name: '' });
-      roleEditForm.reset({ name: '' });
+      departmentEditForm.reset({
+        name: '',
+        color: DEFAULT_DEPARTMENT_COLOR,
+        roles: []
+      });
+      departmentRoleFields.replace([]);
     }
-  }, [
-    departmentEditForm,
-    isDepartmentActionsDisabled,
-    roleCreateForm,
-    roleEditForm
-  ]);
-
-  const startCreatingRole = useCallback(
-    (departmentId: string) => {
-      if (isRoleActionsDisabled || isCreatingRole) {
-        return;
-      }
-
-      setEditingRoleId(null);
-      setCreatingRoleDepartmentId(departmentId);
-      roleCreateForm.reset({ name: '' });
-    },
-    [isCreatingRole, isRoleActionsDisabled, roleCreateForm]
-  );
-
-  const cancelCreatingRole = useCallback(() => {
-    setCreatingRoleDepartmentId(null);
-    roleCreateForm.reset({ name: '' });
-  }, [roleCreateForm]);
-
-  const handleCreateRole = useCallback(
-    (values: RoleInput) => {
-      if (!creatingRoleDepartmentId || isRoleActionsDisabled || isCreatingRole) {
-        return;
-      }
-
-      createRoleMutation.mutate({ departmentId: creatingRoleDepartmentId, name: values.name });
-    },
-    [createRoleMutation, creatingRoleDepartmentId, isCreatingRole, isRoleActionsDisabled]
-  );
-
-  const startEditingRole = useCallback(
-    (role: Role) => {
-      if (isRoleActionsDisabled || isUpdatingRole) {
-        return;
-      }
-
-      setCreatingRoleDepartmentId(null);
-      setEditingRoleId(role.id);
-      roleEditForm.reset({ name: role.name });
-    },
-    [isRoleActionsDisabled, isUpdatingRole, roleEditForm]
-  );
-
-  const handleUpdateRole = useCallback(
-    (values: RoleInput) => {
-      if (!editingRoleId || isRoleActionsDisabled || isUpdatingRole) {
-        return;
-      }
-
-      updateRoleMutation.mutate({ id: editingRoleId, name: values.name });
-    },
-    [editingRoleId, isRoleActionsDisabled, isUpdatingRole, updateRoleMutation]
-  );
-
-  const handleDeleteRole = useCallback(
-    (role: Role) => {
-      if (isRoleActionsDisabled || isDeletingRole) {
-        return;
-      }
-
-      deleteRoleMutation.mutate({ id: role.id, departmentId: role.departmentId });
-    },
-    [deleteRoleMutation, isDeletingRole, isRoleActionsDisabled]
-  );
+  }, [departmentEditForm, departmentRoleFields, isDepartmentActionsDisabled]);
 
   useEffect(() => {
     if (steps.length === 0) {
@@ -2952,27 +2852,12 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                           >
                             {departments.map((department) => {
                               const isEditingDepartment = editingDepartmentId === department.id;
-                              const isUpdatingCurrent =
-                                isUpdatingDepartment && editingDepartmentId === department.id;
                               const isDeletingCurrent =
                                 isDeletingDepartment && deleteDepartmentId === department.id;
-                              const roles = department.roles;
-                              const isCreatingRoleHere = creatingRoleDepartmentId === department.id;
-                              const isRoleEditingHere =
-                                editingRoleId !== null &&
-                                roles.some((role) => role.id === editingRoleId);
-                              const isRoleDeletingHere =
-                                deletingRoleId !== null &&
-                                roles.some((role) => role.id === deletingRoleId);
-                              const isExpanded =
-                                isEditingDepartment ||
-                                isCreatingRoleHere ||
-                                isRoleEditingHere ||
-                                isRoleDeletingHere;
+                              const isExpanded = isEditingDepartment;
                               const isCollapsed = !isExpanded;
                               const updatedLabel = formatUpdatedAt(department.updatedAt);
                               const colorInputId = `department-color-${department.id}`;
-
                               return (
                                 <li
                                   key={department.id}
@@ -2993,13 +2878,13 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                                     <CardContent
                                       className={cn(
                                         'flex gap-3 transition',
-                                        isEditingDepartment ? 'items-start p-3.5' : 'items-center p-2.5'
+                                        isEditingDepartment ? 'flex-col p-3.5' : 'items-center p-2.5'
                                       )}
                                     >
                                       {isEditingDepartment ? (
                                         <form
-                                          onSubmit={departmentEditForm.handleSubmit(handleUpdateDepartment)}
-                                          className="flex flex-1 flex-col gap-2"
+                                          onSubmit={departmentEditForm.handleSubmit(handleSaveDepartment)}
+                                          className="flex w-full flex-col gap-3"
                                           data-entity-type="department"
                                         >
                                           <div className="flex flex-wrap items-center gap-2">
@@ -3011,7 +2896,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                                                 id={colorInputId}
                                                 type="color"
                                                 {...departmentEditForm.register('color')}
-                                                disabled={isUpdatingCurrent}
+                                                disabled={isSavingDepartment}
                                                 className="h-9 w-9 cursor-pointer rounded-md border border-slate-300 bg-white p-1 shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
                                                 aria-describedby={
                                                   departmentEditForm.formState.errors.color
@@ -3023,17 +2908,17 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                                             <Input
                                               {...departmentEditForm.register('name')}
                                               autoFocus
-                                              disabled={isUpdatingCurrent}
+                                              disabled={isSavingDepartment}
                                               className="h-9 min-w-[12rem] flex-1 rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
                                             />
                                             <div className="ml-auto flex items-center gap-1.5">
                                               <Button
                                                 type="submit"
                                                 size="sm"
-                                                disabled={isUpdatingCurrent}
+                                                disabled={isSavingDepartment}
                                                 className="inline-flex h-8 items-center gap-1 rounded-md bg-slate-900 px-3 text-xs font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600"
                                               >
-                                                {isUpdatingCurrent ? (
+                                                {isSavingDepartment ? (
                                                   <Loader2 aria-hidden="true" className="h-3.5 w-3.5 animate-spin" />
                                                 ) : (
                                                   <Save aria-hidden="true" className="h-3.5 w-3.5" />
@@ -3045,7 +2930,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                                                 size="icon"
                                                 variant="ghost"
                                                 onClick={() => handleDeleteDepartment(department.id)}
-                                                disabled={isDepartmentActionsDisabled || isDeletingCurrent}
+                                                disabled={isDepartmentActionsDisabled || isDeletingCurrent || isSavingDepartment}
                                                 className="h-8 w-8 text-red-500 hover:bg-red-50 hover:text-red-600"
                                               >
                                                 {isDeletingCurrent ? (
@@ -3067,11 +2952,67 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                                               {departmentEditForm.formState.errors.name.message}
                                             </p>
                                           ) : null}
-                                          {updateDepartmentMutation.isError && isEditingDepartment ? (
-                                            <p className="text-xs text-red-600">
-                                              {updateDepartmentMutation.error.message}
-                                            </p>
-                                          ) : null}
+                                          <div className="flex flex-col gap-2">
+                                            {departmentRoleFields.fields.length > 0 ? (
+                                              departmentRoleFields.fields.map((field, index) => {
+                                                const roleError = departmentEditForm.formState.errors.roles?.[index]?.name;
+                                                const roleNameField = `roles.${index}.name` as const;
+                                                const roleIdField = `roles.${index}.roleId` as const;
+                                                return (
+                                                  <div key={field.id} className="space-y-1">
+                                                    <input type="hidden" {...departmentEditForm.register(roleIdField)} />
+                                                    <div className="flex flex-wrap items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2.5 shadow-sm">
+                                                      <div className="flex min-w-0 flex-1 items-center gap-2">
+                                                        <UserRound className="h-4 w-4 text-slate-500" />
+                                                        <Input
+                                                          {...departmentEditForm.register(roleNameField)}
+                                                          disabled={isSavingDepartment}
+                                                          className="h-8 min-w-[10rem] flex-1 rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
+                                                        />
+                                                      </div>
+                                                      <Button
+                                                        type="button"
+                                                        size="icon"
+                                                        variant="ghost"
+                                                        onClick={() => departmentRoleFields.remove(index)}
+                                                        disabled={isSavingDepartment}
+                                                        className="h-8 w-8 text-red-500 hover:bg-red-50 hover:text-red-600"
+                                                        title={
+                                                          field.roleId
+                                                            ? 'Supprimera ce rôle lors de l\'enregistrement'
+                                                            : 'Retirer ce rôle'
+                                                        }
+                                                      >
+                                                        <Trash2 aria-hidden="true" className="h-4 w-4" />
+                                                        <span className="sr-only">Retirer le rôle</span>
+                                                      </Button>
+                                                    </div>
+                                                    {roleError ? (
+                                                      <p className="text-xs text-red-600">{roleError.message}</p>
+                                                    ) : null}
+                                                  </div>
+                                                );
+                                              })
+                                            ) : (
+                                              <p className="text-xs text-slate-500">Aucun rôle pour ce département.</p>
+                                            )}
+                                          </div>
+                                          <div className="flex flex-wrap items-center justify-between gap-2">
+                                            <Button
+                                              type="button"
+                                              variant="outline"
+                                              size="sm"
+                                              onClick={() => departmentRoleFields.append({ roleId: undefined, name: '' })}
+                                              disabled={isSavingDepartment}
+                                              className="inline-flex h-8 items-center gap-1 rounded-md border-slate-300 text-xs font-medium text-slate-700 hover:bg-slate-100"
+                                            >
+                                              <Plus className="h-3.5 w-3.5" />
+                                              Ajouter un rôle
+                                            </Button>
+                                            {saveDepartmentMutation.isError ? (
+                                              <p className="text-xs text-red-600">{saveDepartmentMutation.error.message}</p>
+                                            ) : null}
+                                          </div>
                                         </form>
                                       ) : (
                                         <div
@@ -3142,216 +3083,11 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                                       {deleteDepartmentMutation.error.message}
                                     </p>
                                   ) : null}
-                                  <ul
-                                    id={`department-${department.id}-roles`}
-                                    role="group"
-                                    aria-label={`Rôles pour ${department.name}`}
-                                    className="role-list"
-                                    data-empty-text="Aucun rôle pour ce département."
-                                  >
-                                    {roles.map((role) => {
-                                      const isEditingRoleCurrent = editingRoleId === role.id;
-                                      const isDeletingRoleCurrent = deletingRoleId === role.id;
-                                      const roleUpdatedLabel = formatUpdatedAt(role.updatedAt);
-
-                                      return (
-                                        <li key={role.id} role="treeitem" aria-selected={isEditingRoleCurrent}>
-                                          {isEditingRoleCurrent ? (
-                                            <>
-                                              <form
-                                                onSubmit={roleEditForm.handleSubmit(handleUpdateRole)}
-                                                className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white/90 px-3 py-2.5 shadow-sm"
-                                                data-entity-type="role"
-                                              >
-                                                <div className="flex min-w-0 flex-1 items-center gap-2">
-                                                  <UserRound className="h-4 w-4 text-slate-500" />
-                                                  <Input
-                                                    {...roleEditForm.register('name')}
-                                                    autoFocus
-                                                    disabled={isUpdatingRole}
-                                                    className="h-8 min-w-[10rem] flex-1 rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
-                                                  />
-                                                </div>
-                                                <div className="flex items-center gap-1.5">
-                                                  <Button
-                                                    type="submit"
-                                                    size="sm"
-                                                    disabled={isUpdatingRole}
-                                                    className="inline-flex h-8 items-center gap-1 rounded-md bg-slate-900 px-3 text-xs font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600"
-                                                  >
-                                                    {isUpdatingRole ? (
-                                                      <Loader2 aria-hidden="true" className="h-3.5 w-3.5 animate-spin" />
-                                                    ) : (
-                                                      <Save aria-hidden="true" className="h-3.5 w-3.5" />
-                                                    )}
-                                                    Enregistrer
-                                                  </Button>
-                                                  <Button
-                                                    type="button"
-                                                    size="icon"
-                                                    variant="ghost"
-                                                    onClick={() => handleDeleteRole(role)}
-                                                    disabled={isDeletingRoleCurrent || isRoleActionsDisabled}
-                                                    className="h-8 w-8 text-red-500 hover:bg-red-50 hover:text-red-600"
-                                                  >
-                                                    {isDeletingRoleCurrent ? (
-                                                      <Loader2 aria-hidden="true" className="h-4 w-4 animate-spin" />
-                                                    ) : (
-                                                      <Trash2 aria-hidden="true" className="h-4 w-4" />
-                                                    )}
-                                                    <span className="sr-only">Supprimer le rôle</span>
-                                                  </Button>
-                                                </div>
-                                              </form>
-                                              {roleEditForm.formState.errors.name ? (
-                                                <p className="mt-1 text-xs text-red-600">
-                                                  {roleEditForm.formState.errors.name.message}
-                                                </p>
-                                              ) : null}
-                                              {updateRoleMutation.isError && editingRoleId === role.id ? (
-                                                <p className="mt-1 text-xs text-red-600">
-                                                  {updateRoleMutation.error.message}
-                                                </p>
-                                              ) : null}
-                                            </>
-                                          ) : (
-                                            <div
-                                              className={cn(
-                                                'flex min-w-0 items-center gap-3 rounded-lg border border-transparent px-3 py-2.5 transition',
-                                                !(isRoleActionsDisabled || isDeletingRoleCurrent) &&
-                                                  'cursor-pointer hover:border-slate-300 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400'
-                                              )}
-                                              data-entity-type="role"
-                                              role="button"
-                                              tabIndex={isRoleActionsDisabled || isDeletingRoleCurrent ? -1 : 0}
-                                              aria-disabled={isRoleActionsDisabled || isDeletingRoleCurrent}
-                                              onClick={() => {
-                                                if (isRoleActionsDisabled || isDeletingRoleCurrent) {
-                                                  return;
-                                                }
-                                                startEditingRole(role);
-                                              }}
-                                              onKeyDown={(event) => {
-                                                if (event.key === 'Enter' || event.key === ' ') {
-                                                  event.preventDefault();
-                                                  if (isRoleActionsDisabled || isDeletingRoleCurrent) {
-                                                    return;
-                                                  }
-                                                  startEditingRole(role);
-                                                }
-                                              }}
-                                            >
-                                              <div className="flex min-w-0 flex-1 items-center gap-2">
-                                                <UserRound className="h-4 w-4 text-slate-500" />
-                                                <div className="min-w-0">
-                                                  <p className="truncate text-sm font-medium text-slate-900">{role.name}</p>
-                                                  {roleUpdatedLabel ? (
-                                                    <p className="text-xs text-slate-500">
-                                                      Mis à jour {roleUpdatedLabel}
-                                                    </p>
-                                                  ) : null}
-                                                </div>
-                                              </div>
-                                              <Button
-                                                type="button"
-                                                size="icon"
-                                                variant="ghost"
-                                                onClick={(event) => {
-                                                  event.stopPropagation();
-                                                  handleDeleteRole(role);
-                                                }}
-                                                disabled={isRoleActionsDisabled || isDeletingRoleCurrent}
-                                                className="h-8 w-8 text-red-500 hover:bg-red-50 hover:text-red-600"
-                                              >
-                                                {isDeletingRoleCurrent ? (
-                                                  <Loader2 className="h-4 w-4 animate-spin" />
-                                                ) : (
-                                                  <Trash2 className="h-4 w-4" />
-                                                )}
-                                                <span className="sr-only">Supprimer le rôle</span>
-                                              </Button>
-                                            </div>
-                                          )}
-                                          {deleteRoleMutation.isError && deletingRoleId === role.id ? (
-                                            <p className="mt-1 text-xs text-red-600">
-                                              {deleteRoleMutation.error.message}
-                                            </p>
-                                          ) : null}
-                                        </li>
-                                      );
-                                    })}
-                                    {isCreatingRoleHere ? (
-                                      <li>
-                                        <form
-                                          onSubmit={roleCreateForm.handleSubmit(handleCreateRole)}
-                                          className="flex flex-wrap items-center gap-2 rounded-xl border border-dashed border-slate-300 bg-white/70 px-3 py-2.5"
-                                          data-entity-type="role"
-                                        >
-                                          <div className="flex min-w-0 flex-1 items-center gap-2">
-                                            <UserRound className="h-4 w-4 text-slate-500" />
-                                            <Input
-                                              {...roleCreateForm.register('name')}
-                                              autoFocus
-                                              disabled={isCreatingRole}
-                                              placeholder="Nom du rôle"
-                                              className="h-8 min-w-[10rem] flex-1 rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
-                                            />
-                                          </div>
-                                          <div className="flex items-center gap-1.5">
-                                            <Button
-                                              type="submit"
-                                              size="sm"
-                                              disabled={isCreatingRole}
-                                              className="inline-flex h-8 items-center gap-1 rounded-md bg-slate-900 px-3 text-xs font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600"
-                                            >
-                                              {isCreatingRole ? (
-                                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                              ) : (
-                                                <Plus className="h-3.5 w-3.5" />
-                                              )}
-                                              Ajouter
-                                            </Button>
-                                            <Button
-                                              type="button"
-                                              size="sm"
-                                              variant="ghost"
-                                              onClick={cancelCreatingRole}
-                                              disabled={isCreatingRole}
-                                            >
-                                              Annuler
-                                            </Button>
-                                          </div>
-                                        </form>
-                                        {roleCreateForm.formState.errors.name ? (
-                                          <p className="mt-1 text-xs text-red-600">
-                                            {roleCreateForm.formState.errors.name.message}
-                                          </p>
-                                        ) : null}
-                                        {createRoleMutation.isError && isCreatingRoleHere ? (
-                                          <p className="mt-1 text-xs text-red-600">
-                                            {createRoleMutation.error.message}
-                                          </p>
-                                        ) : null}
-                                      </li>
-                                    ) : null}
-                                  </ul>
-                                  {isCollapsed ? null : (
-                                    <div className="mt-3 flex flex-wrap gap-2">
-                                      <button
-                                        type="button"
-                                        onClick={() => startCreatingRole(department.id)}
-                                        className="add-role-button inline-flex items-center gap-2"
-                                        disabled={isRoleActionsDisabled || isCreatingRoleHere || isCreatingRole}
-                                      >
-                                        <Plus className="h-3.5 w-3.5" />
-                                        Ajouter un rôle
-                                      </button>
-                                    </div>
-                                  )}
                                 </li>
                               );
                             })}
                           </ul>
+
                         ) : (
                           <p className="text-sm text-slate-600">Aucun département enregistré pour le moment.</p>
                         )}
