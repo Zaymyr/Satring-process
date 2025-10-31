@@ -3026,7 +3026,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                                     <>
                                       <form
                                         onSubmit={departmentEditForm.handleSubmit(handleUpdateDepartment)}
-                                        className={cn('entity-row', 'is-selected')}
+                                        className="entity-row"
                                         data-entity-type="department"
                                       >
                                         <button
@@ -3079,7 +3079,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                                             </p>
                                           ) : null}
                                         </div>
-                                        <div className="flex items-center gap-1.5 justify-self-end">
+                                        <div className="col-span-2 flex items-center gap-1.5 justify-self-end">
                                           <Button
                                             type="submit"
                                             size="icon"
@@ -3093,22 +3093,22 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                                             )}
                                             <span className="sr-only">Enregistrer le département</span>
                                           </Button>
+                                          <Button
+                                            type="button"
+                                            size="icon"
+                                            variant="ghost"
+                                            onClick={() => handleDeleteDepartment(department.id)}
+                                            disabled={isDepartmentActionsDisabled || isDeletingCurrent}
+                                            className="h-9 w-9 text-red-500 hover:bg-red-50 hover:text-red-600"
+                                          >
+                                            {isDeletingCurrent ? (
+                                              <Loader2 aria-hidden="true" className="h-4 w-4 animate-spin" />
+                                            ) : (
+                                              <Trash2 aria-hidden="true" className="h-4 w-4" />
+                                            )}
+                                            <span className="sr-only">Supprimer le département</span>
+                                          </Button>
                                         </div>
-                                        <Button
-                                          type="button"
-                                          size="icon"
-                                          variant="ghost"
-                                          onClick={() => handleDeleteDepartment(department.id)}
-                                          disabled={isDepartmentActionsDisabled || isDeletingCurrent}
-                                          className="h-9 w-9 text-red-500 hover:bg-red-50 hover:text-red-600"
-                                        >
-                                          {isDeletingCurrent ? (
-                                            <Loader2 aria-hidden="true" className="h-4 w-4 animate-spin" />
-                                          ) : (
-                                            <Trash2 aria-hidden="true" className="h-4 w-4" />
-                                          )}
-                                          <span className="sr-only">Supprimer le département</span>
-                                        </Button>
                                       </form>
                                       {updateDepartmentMutation.isError && isEditingDepartment ? (
                                         <p className="mt-2 text-xs text-red-600">
@@ -3221,7 +3221,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                                             <>
                                               <form
                                                 onSubmit={roleEditForm.handleSubmit(handleUpdateRole)}
-                                                className={cn('entity-row', 'is-selected')}
+                                                className="entity-row"
                                                 data-entity-type="role"
                                               >
                                                 <div className="flex min-w-[10rem] max-w-[18rem] items-center gap-2">
@@ -3233,7 +3233,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                                                     className="h-8 w-full rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
                                                   />
                                                 </div>
-                                                <div className="flex items-center gap-1.5 justify-self-end">
+                                                <div className="col-span-2 flex items-center gap-1.5 justify-self-end">
                                                   <Button
                                                     type="submit"
                                                     size="icon"
@@ -3247,22 +3247,22 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                                                     )}
                                                     <span className="sr-only">Enregistrer le rôle</span>
                                                   </Button>
+                                                  <Button
+                                                    type="button"
+                                                    size="icon"
+                                                    variant="ghost"
+                                                    onClick={() => handleDeleteRole(role)}
+                                                    disabled={isDeletingRoleCurrent || isRoleActionsDisabled}
+                                                    className="h-8 w-8 text-red-500 hover:bg-red-50 hover:text-red-600"
+                                                  >
+                                                    {isDeletingRoleCurrent ? (
+                                                      <Loader2 aria-hidden="true" className="h-4 w-4 animate-spin" />
+                                                    ) : (
+                                                      <Trash2 aria-hidden="true" className="h-4 w-4" />
+                                                    )}
+                                                    <span className="sr-only">Supprimer le rôle</span>
+                                                  </Button>
                                                 </div>
-                                                <Button
-                                                  type="button"
-                                                  size="icon"
-                                                  variant="ghost"
-                                                  onClick={() => handleDeleteRole(role)}
-                                                  disabled={isDeletingRoleCurrent || isRoleActionsDisabled}
-                                                  className="h-8 w-8 text-red-500 hover:bg-red-50 hover:text-red-600"
-                                                >
-                                                  {isDeletingRoleCurrent ? (
-                                                    <Loader2 aria-hidden="true" className="h-4 w-4 animate-spin" />
-                                                  ) : (
-                                                    <Trash2 aria-hidden="true" className="h-4 w-4" />
-                                                  )}
-                                                  <span className="sr-only">Supprimer le rôle</span>
-                                                </Button>
                                               </form>
                                               {roleEditForm.formState.errors.name ? (
                                                 <p className="mt-1 text-xs text-red-600">
