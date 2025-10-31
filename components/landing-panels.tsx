@@ -654,6 +654,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
   const [selectedStepId, setSelectedStepId] = useState<string | null>(null);
   const baselineStepsRef = useRef<ProcessStep[]>(cloneSteps(DEFAULT_PROCESS_STEPS));
   const hasResetForUnauthorizedRef = useRef(false);
+  const hasResetDepartmentEditorRef = useRef(false);
   const draggedStepIdRef = useRef<string | null>(null);
   const [draggedStepId, setDraggedStepId] = useState<string | null>(null);
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
@@ -1031,23 +1032,32 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
   );
 
   useEffect(() => {
-    if (isDepartmentActionsDisabled) {
-      setEditingDepartmentId(null);
-      editingDepartmentBaselineRef.current = null;
-      departmentEditForm.reset({
-        name: '',
-        color: DEFAULT_DEPARTMENT_COLOR,
-        roles: []
-      });
-      departmentRoleFields.replace([]);
-      createDepartmentRoleMutation.reset();
+    if (!isDepartmentActionsDisabled) {
+      hasResetDepartmentEditorRef.current = false;
+      return;
     }
+
+    if (hasResetDepartmentEditorRef.current) {
+      return;
+    }
+
+    hasResetDepartmentEditorRef.current = true;
+
+    setEditingDepartmentId(null);
+    editingDepartmentBaselineRef.current = null;
+    departmentEditForm.reset({
+      name: '',
+      color: DEFAULT_DEPARTMENT_COLOR,
+      roles: []
+    });
+    departmentRoleFields.replace([]);
+    createDepartmentRoleMutation.reset();
   }, [
+    createDepartmentRoleMutation,
     departmentEditForm,
     departmentRoleFields,
     editingDepartmentBaselineRef,
-    isDepartmentActionsDisabled,
-    createDepartmentRoleMutation
+    isDepartmentActionsDisabled
   ]);
 
   useEffect(() => {
