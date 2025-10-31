@@ -62,6 +62,12 @@ import {
   type DepartmentCascadeForm,
   type DepartmentInput
 } from '@/lib/validation/department';
+import {
+  roleSchema,
+  type Role,
+  type RoleCreateInput,
+  type RoleUpdateInput
+} from '@/lib/validation/role';
 
 const highlightIcons = {
   sparkles: Sparkles,
@@ -521,15 +527,12 @@ const deleteDepartmentRequest = async (departmentId: string): Promise<void> => {
   }
 };
 
-const saveDepartmentCascadeRequest = async (input: {
-  id: string;
-  values: DepartmentCascadeForm;
-}): Promise<Department> => {
-  const response = await fetch(`/api/departments/${encodeURIComponent(input.id)}/cascade`, {
+const updateDepartmentRequest = async (input: DepartmentInput & { id: string }): Promise<Department> => {
+  const response = await fetch(`/api/departments/${encodeURIComponent(input.id)}`, {
     method: 'PATCH',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(input.values)
+    body: JSON.stringify({ name: input.name, color: input.color })
   });
 
   if (response.status === 401) {
@@ -537,12 +540,74 @@ const saveDepartmentCascadeRequest = async (input: {
   }
 
   if (!response.ok) {
-    const message = await readErrorMessage(response, "Impossible d'enregistrer le département.");
+    const message = await readErrorMessage(response, "Impossible de mettre à jour le département.");
     throw new ApiError(message, response.status);
   }
 
   const json = await response.json();
   return departmentSchema.parse(json);
+};
+
+const createRoleRequest = async (input: RoleCreateInput): Promise<Role> => {
+  const response = await fetch(`/api/departments/${encodeURIComponent(input.departmentId)}/roles`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name: input.name })
+  });
+
+  if (response.status === 401) {
+    throw new ApiError('Authentification requise', 401);
+  }
+
+  if (!response.ok) {
+    const message = await readErrorMessage(response, 'Impossible de créer le rôle.');
+    throw new ApiError(message, response.status);
+  }
+
+  const json = await response.json();
+  return roleSchema.parse(json);
+};
+
+const updateRoleRequest = async (input: RoleUpdateInput): Promise<Role> => {
+  const response = await fetch(`/api/roles/${encodeURIComponent(input.id)}`, {
+    method: 'PATCH',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name: input.name })
+  });
+
+  if (response.status === 401) {
+    throw new ApiError('Authentification requise', 401);
+  }
+
+  if (!response.ok) {
+    const message = await readErrorMessage(response, 'Impossible de mettre à jour le rôle.');
+    throw new ApiError(message, response.status);
+  }
+
+  const json = await response.json();
+  return roleSchema.parse(json);
+};
+
+const deleteRoleRequest = async (roleId: string): Promise<void> => {
+  const response = await fetch(`/api/roles/${encodeURIComponent(roleId)}`, {
+    method: 'DELETE',
+    credentials: 'include'
+  });
+
+  if (response.status === 401) {
+    throw new ApiError('Authentification requise', 401);
+  }
+
+  if (response.status === 204) {
+    return;
+  }
+
+  if (!response.ok) {
+    const message = await readErrorMessage(response, 'Impossible de supprimer le rôle.');
+    throw new ApiError(message, response.status);
+  }
 };
 
 const STEP_TYPE_LABELS: Record<StepType, string> = {
@@ -614,6 +679,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
     control: departmentEditForm.control,
     name: 'roles'
   });
+  const editingDepartmentBaselineRef = useRef<Department | null>(null);
 
   const processSummariesQuery = useQuery<ProcessSummary[], ApiError>({
     queryKey: ['processes'],
@@ -664,6 +730,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
         return [department, ...filtered];
       });
       setEditingDepartmentId(department.id);
+      editingDepartmentBaselineRef.current = department;
       const mappedRoles = department.roles.map((role) => ({ roleId: role.id, name: role.name }));
       departmentEditForm.reset({ name: department.name, color: department.color, roles: mappedRoles });
       departmentRoleFields.replace(mappedRoles);
@@ -672,30 +739,57 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
   });
 
   const saveDepartmentMutation = useMutation<
-    Department,
+    Department[],
     ApiError,
     { departmentId: string; values: DepartmentCascadeForm }
   >({
-    mutationFn: ({ departmentId, values }) =>
-      saveDepartmentCascadeRequest({ id: departmentId, values }),
-    onSuccess: async (department) => {
-      queryClient.setQueryData(['departments'], (previous?: Department[]) => {
-        if (!previous) {
-          return [department];
+    mutationFn: async ({ departmentId, values }) => {
+      const baseline =
+        editingDepartmentBaselineRef.current &&
+        editingDepartmentBaselineRef.current.id === departmentId
+          ? editingDepartmentBaselineRef.current
+          : (departmentsQuery.data ?? []).find((item) => item.id === departmentId) ?? null;
+
+      if (!baseline) {
+        throw new ApiError('Département introuvable.', 404);
+      }
+
+      if (baseline.name !== values.name || baseline.color !== values.color) {
+        await updateDepartmentRequest({ id: departmentId, name: values.name, color: values.color });
+      }
+
+      const baselineRoles = new Map(baseline.roles.map((role) => [role.id, role]));
+      const seenRoleIds = new Set<string>();
+
+      for (const roleInput of values.roles) {
+        if (roleInput.roleId) {
+          seenRoleIds.add(roleInput.roleId);
+          const originalRole = baselineRoles.get(roleInput.roleId);
+
+          if (!originalRole || originalRole.name !== roleInput.name) {
+            await updateRoleRequest({ id: roleInput.roleId, name: roleInput.name });
+          }
+
+          continue;
         }
 
-        const index = previous.findIndex((item) => item.id === department.id);
+        await createRoleRequest({ departmentId, name: roleInput.name });
+      }
 
-        if (index === -1) {
-          return [department, ...previous];
+      for (const [roleId] of baselineRoles) {
+        if (!seenRoleIds.has(roleId)) {
+          await deleteRoleRequest(roleId);
         }
+      }
 
-        const next = [...previous];
-        next[index] = department;
-        return next;
-      });
+      const refreshedDepartments = await requestDepartments();
+      return refreshedDepartments;
+    },
+    onSuccess: async (departmentsList) => {
+      queryClient.setQueryData(['departments'], departmentsList);
 
       setEditingDepartmentId(null);
+      editingDepartmentBaselineRef.current = null;
       departmentEditForm.reset({
         name: '',
         color: DEFAULT_DEPARTMENT_COLOR,
@@ -828,6 +922,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
       }
 
       setEditingDepartmentId(department.id);
+      editingDepartmentBaselineRef.current = department;
       const mappedRoles = department.roles.map((role) => ({ roleId: role.id, name: role.name }));
       departmentEditForm.reset({ name: department.name, color: department.color, roles: mappedRoles });
       departmentRoleFields.replace(mappedRoles);
@@ -835,6 +930,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
     [
       departmentEditForm,
       departmentRoleFields,
+      editingDepartmentBaselineRef,
       isDepartmentActionsDisabled,
       isSavingDepartment
     ]
@@ -843,6 +939,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
   useEffect(() => {
     if (isDepartmentActionsDisabled) {
       setEditingDepartmentId(null);
+      editingDepartmentBaselineRef.current = null;
       departmentEditForm.reset({
         name: '',
         color: DEFAULT_DEPARTMENT_COLOR,
@@ -850,7 +947,12 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
       });
       departmentRoleFields.replace([]);
     }
-  }, [departmentEditForm, departmentRoleFields, isDepartmentActionsDisabled]);
+  }, [
+    departmentEditForm,
+    departmentRoleFields,
+    editingDepartmentBaselineRef,
+    isDepartmentActionsDisabled
+  ]);
 
   useEffect(() => {
     if (steps.length === 0) {
