@@ -2911,36 +2911,21 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                                               disabled={isSavingDepartment}
                                               className="h-9 min-w-[12rem] flex-1 rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
                                             />
-                                            <div className="ml-auto flex items-center gap-1.5">
-                                              <Button
-                                                type="submit"
-                                                size="sm"
-                                                disabled={isSavingDepartment}
-                                                className="inline-flex h-8 items-center gap-1 rounded-md bg-slate-900 px-3 text-xs font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600"
-                                              >
-                                                {isSavingDepartment ? (
-                                                  <Loader2 aria-hidden="true" className="h-3.5 w-3.5 animate-spin" />
-                                                ) : (
-                                                  <Save aria-hidden="true" className="h-3.5 w-3.5" />
-                                                )}
-                                                Enregistrer
-                                              </Button>
-                                              <Button
-                                                type="button"
-                                                size="icon"
-                                                variant="ghost"
-                                                onClick={() => handleDeleteDepartment(department.id)}
-                                                disabled={isDepartmentActionsDisabled || isDeletingCurrent || isSavingDepartment}
-                                                className="h-8 w-8 text-red-500 hover:bg-red-50 hover:text-red-600"
-                                              >
-                                                {isDeletingCurrent ? (
-                                                  <Loader2 aria-hidden="true" className="h-4 w-4 animate-spin" />
-                                                ) : (
-                                                  <Trash2 aria-hidden="true" className="h-4 w-4" />
-                                                )}
-                                                <span className="sr-only">Supprimer le département</span>
-                                              </Button>
-                                            </div>
+                                            <Button
+                                              type="button"
+                                              size="icon"
+                                              variant="ghost"
+                                              onClick={() => handleDeleteDepartment(department.id)}
+                                              disabled={isDepartmentActionsDisabled || isDeletingCurrent || isSavingDepartment}
+                                              className="ml-auto h-8 w-8 text-red-500 hover:bg-red-50 hover:text-red-600"
+                                            >
+                                              {isDeletingCurrent ? (
+                                                <Loader2 aria-hidden="true" className="h-4 w-4 animate-spin" />
+                                              ) : (
+                                                <Trash2 aria-hidden="true" className="h-4 w-4" />
+                                              )}
+                                              <span className="sr-only">Supprimer le département</span>
+                                            </Button>
                                           </div>
                                           {departmentEditForm.formState.errors.color ? (
                                             <p id={`${colorInputId}-error`} className="text-xs text-red-600">
@@ -2998,17 +2983,32 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                                             )}
                                           </div>
                                           <div className="flex flex-wrap items-center justify-between gap-2">
-                                            <Button
-                                              type="button"
-                                              variant="outline"
-                                              size="sm"
-                                              onClick={() => departmentRoleFields.append({ roleId: undefined, name: '' })}
-                                              disabled={isSavingDepartment}
-                                              className="inline-flex h-8 items-center gap-1 rounded-md border-slate-300 text-xs font-medium text-slate-700 hover:bg-slate-100"
-                                            >
-                                              <Plus className="h-3.5 w-3.5" />
-                                              Ajouter un rôle
-                                            </Button>
+                                            <div className="flex flex-wrap items-center gap-2">
+                                              <Button
+                                                type="button"
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => departmentRoleFields.append({ roleId: undefined, name: '' })}
+                                                disabled={isSavingDepartment}
+                                                className="inline-flex h-8 items-center gap-1 rounded-md border-slate-300 text-xs font-medium text-slate-700 hover:bg-slate-100"
+                                              >
+                                                <Plus className="h-3.5 w-3.5" />
+                                                Ajouter un rôle
+                                              </Button>
+                                              <Button
+                                                type="submit"
+                                                size="sm"
+                                                disabled={isSavingDepartment}
+                                                className="inline-flex h-8 items-center gap-1 rounded-md bg-slate-900 px-3 text-xs font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600"
+                                              >
+                                                {isSavingDepartment ? (
+                                                  <Loader2 aria-hidden="true" className="h-3.5 w-3.5 animate-spin" />
+                                                ) : (
+                                                  <Save aria-hidden="true" className="h-3.5 w-3.5" />
+                                                )}
+                                                Enregistrer
+                                              </Button>
+                                            </div>
                                             {saveDepartmentMutation.isError ? (
                                               <p className="text-xs text-red-600">{saveDepartmentMutation.error.message}</p>
                                             ) : null}
