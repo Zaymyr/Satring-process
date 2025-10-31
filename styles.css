@@ -1961,25 +1961,16 @@ p {
   border-radius: 14px;
   background: var(--app-surface-soft);
   border: 1px solid var(--app-border);
+  overflow: hidden;
   transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
 }
 
 .page-departments .entity-row[data-entity-type='department'] {
-  grid-template-columns: auto minmax(0, 1fr) auto auto auto;
+  grid-template-columns: auto auto minmax(0, 1fr) auto auto;
 }
 
 .page-departments .entity-row[data-entity-type='role'] {
   grid-template-columns: minmax(0, 1fr) auto auto;
-}
-
-.page-departments .department-collapse {
-  width: 2rem;
-  height: 2rem;
-}
-
-.page-departments .department-collapse-icon {
-  transition: transform 0.2s ease;
-  font-size: 0.95rem;
 }
 
 .page-departments .department-node[data-collapsed='true'] .role-list {

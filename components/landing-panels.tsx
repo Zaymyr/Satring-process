@@ -37,7 +37,7 @@ import {
   UserRound,
   type LucideIcon
 } from 'lucide-react';
-import { useForm } from 'react-hook-form';
+import { Controller, useFieldArray, useForm } from 'react-hook-form';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -55,18 +55,17 @@ import {
 } from '@/lib/validation/process';
 import {
   DEFAULT_DEPARTMENT_COLOR,
-  departmentInputSchema,
+  departmentCascadeFormSchema,
   departmentListSchema,
   departmentSchema,
   type Department,
+  type DepartmentCascadeForm,
   type DepartmentInput
 } from '@/lib/validation/department';
 import {
-  roleInputSchema,
   roleSchema,
   type Role,
   type RoleCreateInput,
-  type RoleInput,
   type RoleUpdateInput
 } from '@/lib/validation/role';
 
@@ -76,6 +75,7 @@ const highlightIcons = {
 } as const satisfies Record<string, LucideIcon>;
 
 const DEFAULT_DEPARTMENT_NAME = 'Nouveau département';
+const DEFAULT_ROLE_NAME = 'Nouveau rôle';
 
 const HEX_COLOR_REGEX = /^#[0-9A-F]{6}$/;
 const CLUSTER_STYLE_TEXT_COLOR = '#0f172a';
@@ -508,27 +508,6 @@ const createDepartmentRequest = async (input: DepartmentInput): Promise<Departme
   return departmentSchema.parse(json);
 };
 
-const updateDepartmentRequest = async (input: { id: string; values: DepartmentInput }): Promise<Department> => {
-  const response = await fetch(`/api/departments/${encodeURIComponent(input.id)}`, {
-    method: 'PATCH',
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(input.values)
-  });
-
-  if (response.status === 401) {
-    throw new ApiError('Authentification requise', 401);
-  }
-
-  if (!response.ok) {
-    const message = await readErrorMessage(response, 'Impossible de mettre à jour le département.');
-    throw new ApiError(message, response.status);
-  }
-
-  const json = await response.json();
-  return departmentSchema.parse(json);
-};
-
 const deleteDepartmentRequest = async (departmentId: string): Promise<void> => {
   const response = await fetch(`/api/departments/${encodeURIComponent(departmentId)}`, {
     method: 'DELETE',
@@ -547,6 +526,27 @@ const deleteDepartmentRequest = async (departmentId: string): Promise<void> => {
     const message = await readErrorMessage(response, 'Impossible de supprimer le département.');
     throw new ApiError(message, response.status);
   }
+};
+
+const updateDepartmentRequest = async (input: DepartmentInput & { id: string }): Promise<Department> => {
+  const response = await fetch(`/api/departments/${encodeURIComponent(input.id)}`, {
+    method: 'PATCH',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name: input.name, color: input.color })
+  });
+
+  if (response.status === 401) {
+    throw new ApiError('Authentification requise', 401);
+  }
+
+  if (!response.ok) {
+    const message = await readErrorMessage(response, "Impossible de mettre à jour le département.");
+    throw new ApiError(message, response.status);
+  }
+
+  const json = await response.json();
+  return departmentSchema.parse(json);
 };
 
 const createRoleRequest = async (input: RoleCreateInput): Promise<Role> => {
@@ -672,22 +672,15 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
   const [activeSecondaryTab, setActiveSecondaryTab] = useState<'processes' | 'departments'>('processes');
   const [editingDepartmentId, setEditingDepartmentId] = useState<string | null>(null);
   const [deleteDepartmentId, setDeleteDepartmentId] = useState<string | null>(null);
-  const departmentEditForm = useForm<DepartmentInput>({
-    resolver: zodResolver(departmentInputSchema),
-    defaultValues: { name: '', color: DEFAULT_DEPARTMENT_COLOR }
+  const departmentEditForm = useForm<DepartmentCascadeForm>({
+    resolver: zodResolver(departmentCascadeFormSchema),
+    defaultValues: { name: '', color: DEFAULT_DEPARTMENT_COLOR, roles: [] }
   });
-  const [collapsedDepartmentIds, setCollapsedDepartmentIds] = useState<Set<string>>(() => new Set());
-  const [creatingRoleDepartmentId, setCreatingRoleDepartmentId] = useState<string | null>(null);
-  const [editingRoleId, setEditingRoleId] = useState<string | null>(null);
-  const [deletingRoleId, setDeletingRoleId] = useState<string | null>(null);
-  const roleCreateForm = useForm<RoleInput>({
-    resolver: zodResolver(roleInputSchema),
-    defaultValues: { name: '' }
+  const departmentRoleFields = useFieldArray({
+    control: departmentEditForm.control,
+    name: 'roles'
   });
-  const roleEditForm = useForm<RoleInput>({
-    resolver: zodResolver(roleInputSchema),
-    defaultValues: { name: '' }
-  });
+  const editingDepartmentBaselineRef = useRef<Department | null>(null);
 
   const processSummariesQuery = useQuery<ProcessSummary[], ApiError>({
     queryKey: ['processes'],
@@ -738,17 +731,127 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
         return [department, ...filtered];
       });
       setEditingDepartmentId(department.id);
-      departmentEditForm.reset({ name: department.name, color: department.color });
+      editingDepartmentBaselineRef.current = department;
+      const mappedRoles = department.roles.map((role) => ({ roleId: role.id, name: role.name }));
+      departmentEditForm.reset({ name: department.name, color: department.color, roles: mappedRoles });
+      departmentRoleFields.replace(mappedRoles);
+      createDepartmentRoleMutation.reset();
       await queryClient.invalidateQueries({ queryKey: ['departments'] });
     }
   });
 
-  const updateDepartmentMutation = useMutation<Department, ApiError, { id: string; values: DepartmentInput }>({
-    mutationFn: updateDepartmentRequest,
-    onSuccess: async (_data, variables) => {
+  const createDepartmentRoleMutation = useMutation<Role, ApiError, { departmentId: string }>({
+    mutationFn: ({ departmentId }) =>
+      createRoleRequest({ departmentId, name: DEFAULT_ROLE_NAME }),
+    onSuccess: (role) => {
+      queryClient.setQueryData(['departments'], (previous?: Department[]) => {
+        if (!previous) {
+          return previous;
+        }
+
+        return previous.map((department) => {
+          if (department.id !== role.departmentId) {
+            return department;
+          }
+
+          const filteredRoles = department.roles.filter((item) => item.id !== role.id);
+          return {
+            ...department,
+            roles: [...filteredRoles, role]
+          };
+        });
+      });
+
+      if (editingDepartmentBaselineRef.current?.id === role.departmentId) {
+        const baselineRoles = editingDepartmentBaselineRef.current.roles.filter((item) => item.id !== role.id);
+        editingDepartmentBaselineRef.current = {
+          ...editingDepartmentBaselineRef.current,
+          roles: [...baselineRoles, role]
+        };
+      }
+
+      const newIndex = departmentEditForm.getValues('roles').length;
+      departmentRoleFields.append({ roleId: role.id, name: role.name });
+
+      const roleIdField = `roles.${newIndex}.roleId` as const;
+      const roleNameField = `roles.${newIndex}.name` as const;
+
+      departmentEditForm.setValue(roleIdField, role.id, {
+        shouldDirty: true,
+        shouldTouch: true
+      });
+      departmentEditForm.setValue(roleNameField, role.name, {
+        shouldDirty: true,
+        shouldTouch: true
+      });
+      departmentEditForm.clearErrors(roleNameField);
+
+      setTimeout(() => {
+        departmentEditForm.setFocus(roleNameField);
+      }, 0);
+    }
+  });
+
+  const saveDepartmentMutation = useMutation<
+    Department[],
+    ApiError,
+    { departmentId: string; values: DepartmentCascadeForm }
+  >({
+    mutationFn: async ({ departmentId, values }) => {
+      const baseline =
+        editingDepartmentBaselineRef.current &&
+        editingDepartmentBaselineRef.current.id === departmentId
+          ? editingDepartmentBaselineRef.current
+          : (departmentsQuery.data ?? []).find((item) => item.id === departmentId) ?? null;
+
+      if (!baseline) {
+        throw new ApiError('Département introuvable.', 404);
+      }
+
+      if (baseline.name !== values.name || baseline.color !== values.color) {
+        await updateDepartmentRequest({ id: departmentId, name: values.name, color: values.color });
+      }
+
+      const baselineRoles = new Map(baseline.roles.map((role) => [role.id, role]));
+      const seenRoleIds = new Set<string>();
+
+      for (const roleInput of values.roles) {
+        if (roleInput.roleId) {
+          seenRoleIds.add(roleInput.roleId);
+          const originalRole = baselineRoles.get(roleInput.roleId);
+
+          if (!originalRole || originalRole.name !== roleInput.name) {
+            await updateRoleRequest({ id: roleInput.roleId, name: roleInput.name });
+          }
+
+          continue;
+        }
+
+        await createRoleRequest({ departmentId, name: roleInput.name });
+      }
+
+      for (const [roleId] of baselineRoles) {
+        if (!seenRoleIds.has(roleId)) {
+          await deleteRoleRequest(roleId);
+        }
+      }
+
+      const refreshedDepartments = await requestDepartments();
+      return refreshedDepartments;
+    },
+    onSuccess: async (departmentsList) => {
+      queryClient.setQueryData(['departments'], departmentsList);
+
+      setEditingDepartmentId(null);
+      editingDepartmentBaselineRef.current = null;
+      departmentEditForm.reset({
+        name: '',
+        color: DEFAULT_DEPARTMENT_COLOR,
+        roles: []
+      });
+      departmentRoleFields.replace([]);
+      createDepartmentRoleMutation.reset();
       await queryClient.invalidateQueries({ queryKey: ['departments'] });
-      setEditingDepartmentId((current) => (current === variables.id ? null : current));
-      departmentEditForm.reset({ name: '', color: DEFAULT_DEPARTMENT_COLOR });
     }
   });
 
@@ -756,119 +859,29 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
     mutationFn: ({ id }) => deleteDepartmentRequest(id),
     onMutate: async ({ id }) => {
       setDeleteDepartmentId(id);
-      setCreatingRoleDepartmentId((current) => (current === id ? null : current));
-      setEditingRoleId(null);
-      roleCreateForm.reset({ name: '' });
-      roleEditForm.reset({ name: '' });
     },
     onSuccess: async (_data, variables) => {
       await queryClient.invalidateQueries({ queryKey: ['departments'] });
-      setEditingDepartmentId((current) => (current === variables.id ? null : current));
-      setCollapsedDepartmentIds((previous) => {
-        if (!previous.has(variables.id)) {
-          return previous;
+      let shouldReset = false;
+      setEditingDepartmentId((current) => {
+        if (current === variables.id) {
+          shouldReset = true;
+          return null;
         }
-
-        const next = new Set(previous);
-        next.delete(variables.id);
-        return next;
+        return current;
       });
+      if (shouldReset) {
+        departmentEditForm.reset({
+          name: '',
+          color: DEFAULT_DEPARTMENT_COLOR,
+          roles: []
+        });
+        departmentRoleFields.replace([]);
+        createDepartmentRoleMutation.reset();
+      }
     },
     onSettled: () => {
       setDeleteDepartmentId(null);
-    }
-  });
-
-  const createRoleMutation = useMutation<Role, ApiError, RoleCreateInput>({
-    mutationFn: createRoleRequest,
-    onSuccess: async (role) => {
-      roleCreateForm.reset({ name: '' });
-      setCreatingRoleDepartmentId(null);
-      setCollapsedDepartmentIds((previous) => {
-        if (!previous.has(role.departmentId)) {
-          return previous;
-        }
-
-        const next = new Set(previous);
-        next.delete(role.departmentId);
-        return next;
-      });
-
-      queryClient.setQueryData(['departments'], (previous?: Department[]) => {
-        if (!previous) {
-          return previous;
-        }
-
-        return previous.map((department) =>
-          department.id === role.departmentId
-            ? { ...department, roles: [role, ...department.roles] }
-            : department
-        );
-      });
-
-      await queryClient.invalidateQueries({ queryKey: ['departments'] });
-    },
-    onError: (error) => {
-      console.error('Création du rôle impossible', error);
-    }
-  });
-
-  const updateRoleMutation = useMutation<Role, ApiError, RoleUpdateInput>({
-    mutationFn: updateRoleRequest,
-    onSuccess: async (role) => {
-      setEditingRoleId(null);
-      roleEditForm.reset({ name: '' });
-
-      queryClient.setQueryData(['departments'], (previous?: Department[]) => {
-        if (!previous) {
-          return previous;
-        }
-
-        return previous.map((department) =>
-          department.id === role.departmentId
-            ? {
-                ...department,
-                roles: department.roles.map((item) => (item.id === role.id ? role : item))
-              }
-            : department
-        );
-      });
-
-      await queryClient.invalidateQueries({ queryKey: ['departments'] });
-    },
-    onError: (error) => {
-      console.error('Mise à jour du rôle impossible', error);
-    }
-  });
-
-  const deleteRoleMutation = useMutation<void, ApiError, { id: string; departmentId: string }>({
-    mutationFn: ({ id }) => deleteRoleRequest(id),
-    onMutate: ({ id }) => {
-      setDeletingRoleId(id);
-    },
-    onSuccess: async (_data, variables) => {
-      setEditingRoleId((current) => (current === variables.id ? null : current));
-      setCreatingRoleDepartmentId((current) => (current === variables.departmentId ? null : current));
-
-      queryClient.setQueryData(['departments'], (previous?: Department[]) => {
-        if (!previous) {
-          return previous;
-        }
-
-        return previous.map((department) =>
-          department.id === variables.departmentId
-            ? { ...department, roles: department.roles.filter((role) => role.id !== variables.id) }
-            : department
-        );
-      });
-
-      await queryClient.invalidateQueries({ queryKey: ['departments'] });
-    },
-    onError: (error) => {
-      console.error('Suppression du rôle impossible', error);
-    },
-    onSettled: () => {
-      setDeletingRoleId(null);
     }
   });
 
@@ -884,6 +897,12 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
       renameInputRef.current = null;
     }
   }, [editingProcessId]);
+
+  useEffect(() => {
+    if (!editingDepartmentId) {
+      createDepartmentRoleMutation.reset();
+    }
+  }, [createDepartmentRoleMutation, editingDepartmentId]);
 
   const isProcessListUnauthorized =
     processSummariesQuery.isError &&
@@ -913,12 +932,9 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
   const isDepartmentsTabActive = activeSecondaryTab === 'departments';
   const isDepartmentActionsDisabled = isUnauthorized || isDepartmentUnauthorized;
   const isCreatingDepartment = createDepartmentMutation.isPending;
-  const isUpdatingDepartment = updateDepartmentMutation.isPending;
+  const isSavingDepartment = saveDepartmentMutation.isPending;
+  const isAddingDepartmentRole = createDepartmentRoleMutation.isPending;
   const isDeletingDepartment = deleteDepartmentMutation.isPending;
-  const isCreatingRole = createRoleMutation.isPending;
-  const isUpdatingRole = updateRoleMutation.isPending;
-  const isDeletingRole = deleteRoleMutation.isPending;
-  const isRoleActionsDisabled = isDepartmentActionsDisabled;
   const secondaryPanelTitle = isDepartmentsTabActive ? 'Mes départements' : 'Mes process';
   const secondaryPanelDescription = isDepartmentsTabActive
     ? 'Organisez vos départements et renommez-les pour structurer votre équipe.'
@@ -931,15 +947,56 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
     createDepartmentMutation.mutate();
   }, [createDepartmentMutation, isCreatingDepartment, isDepartmentActionsDisabled]);
 
-  const handleUpdateDepartment = useCallback(
-    (values: DepartmentInput) => {
-      if (!editingDepartmentId || isDepartmentActionsDisabled) {
+  const handleSaveDepartment = useCallback(
+    (values: DepartmentCascadeForm) => {
+      if (
+        !editingDepartmentId ||
+        isDepartmentActionsDisabled ||
+        isSavingDepartment ||
+        isAddingDepartmentRole
+      ) {
         return;
       }
-      updateDepartmentMutation.mutate({ id: editingDepartmentId, values });
+
+      if (!departments.some((department) => department.id === editingDepartmentId)) {
+        return;
+      }
+
+      saveDepartmentMutation.mutate({ departmentId: editingDepartmentId, values });
     },
-    [editingDepartmentId, isDepartmentActionsDisabled, updateDepartmentMutation]
+    [
+      departments,
+      editingDepartmentId,
+      isDepartmentActionsDisabled,
+      isAddingDepartmentRole,
+      isSavingDepartment,
+      saveDepartmentMutation
+    ]
   );
+
+  const handleAddRole = useCallback(() => {
+    if (
+      !editingDepartmentId ||
+      isDepartmentActionsDisabled ||
+      isSavingDepartment ||
+      isAddingDepartmentRole
+    ) {
+      return;
+    }
+
+    if (!departments.some((department) => department.id === editingDepartmentId)) {
+      return;
+    }
+
+    createDepartmentRoleMutation.mutate({ departmentId: editingDepartmentId });
+  }, [
+    departments,
+    createDepartmentRoleMutation,
+    editingDepartmentId,
+    isAddingDepartmentRole,
+    isDepartmentActionsDisabled,
+    isSavingDepartment
+  ]);
 
   const handleDeleteDepartment = useCallback(
     (id: string) => {
@@ -953,145 +1010,44 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
 
   const startEditingDepartment = useCallback(
     (department: Department) => {
-      if (isDepartmentActionsDisabled) {
+      if (isDepartmentActionsDisabled || isSavingDepartment) {
         return;
       }
+
       setEditingDepartmentId(department.id);
-      departmentEditForm.reset({ name: department.name, color: department.color });
-      setCreatingRoleDepartmentId(null);
-      setEditingRoleId(null);
-      roleCreateForm.reset({ name: '' });
-      roleEditForm.reset({ name: '' });
+      editingDepartmentBaselineRef.current = department;
+      const mappedRoles = department.roles.map((role) => ({ roleId: role.id, name: role.name }));
+      departmentEditForm.reset({ name: department.name, color: department.color, roles: mappedRoles });
+      departmentRoleFields.replace(mappedRoles);
     },
     [
       departmentEditForm,
+      departmentRoleFields,
+      editingDepartmentBaselineRef,
       isDepartmentActionsDisabled,
-      roleCreateForm,
-      roleEditForm
+      isSavingDepartment
     ]
   );
-
-  const cancelEditingDepartment = useCallback(() => {
-    setEditingDepartmentId(null);
-    departmentEditForm.reset({ name: '', color: DEFAULT_DEPARTMENT_COLOR });
-  }, [departmentEditForm]);
 
   useEffect(() => {
     if (isDepartmentActionsDisabled) {
       setEditingDepartmentId(null);
-      departmentEditForm.reset({ name: '', color: DEFAULT_DEPARTMENT_COLOR });
-      setCreatingRoleDepartmentId(null);
-      setEditingRoleId(null);
-      roleCreateForm.reset({ name: '' });
-      roleEditForm.reset({ name: '' });
+      editingDepartmentBaselineRef.current = null;
+      departmentEditForm.reset({
+        name: '',
+        color: DEFAULT_DEPARTMENT_COLOR,
+        roles: []
+      });
+      departmentRoleFields.replace([]);
+      createDepartmentRoleMutation.reset();
     }
   }, [
     departmentEditForm,
+    departmentRoleFields,
+    editingDepartmentBaselineRef,
     isDepartmentActionsDisabled,
-    roleCreateForm,
-    roleEditForm
+    createDepartmentRoleMutation
   ]);
-
-  const toggleDepartmentCollapse = useCallback((departmentId: string) => {
-    setCollapsedDepartmentIds((previous) => {
-      const next = new Set(previous);
-
-      if (next.has(departmentId)) {
-        next.delete(departmentId);
-      } else {
-        next.add(departmentId);
-      }
-
-      return next;
-    });
-  }, []);
-
-  const startCreatingRole = useCallback(
-    (departmentId: string) => {
-      if (isRoleActionsDisabled || isCreatingRole) {
-        return;
-      }
-
-      setEditingRoleId(null);
-      setCreatingRoleDepartmentId(departmentId);
-      roleCreateForm.reset({ name: '' });
-      setCollapsedDepartmentIds((previous) => {
-        if (!previous.has(departmentId)) {
-          return previous;
-        }
-
-        const next = new Set(previous);
-        next.delete(departmentId);
-        return next;
-      });
-    },
-    [isCreatingRole, isRoleActionsDisabled, roleCreateForm]
-  );
-
-  const cancelCreatingRole = useCallback(() => {
-    setCreatingRoleDepartmentId(null);
-    roleCreateForm.reset({ name: '' });
-  }, [roleCreateForm]);
-
-  const handleCreateRole = useCallback(
-    (values: RoleInput) => {
-      if (!creatingRoleDepartmentId || isRoleActionsDisabled || isCreatingRole) {
-        return;
-      }
-
-      createRoleMutation.mutate({ departmentId: creatingRoleDepartmentId, name: values.name });
-    },
-    [createRoleMutation, creatingRoleDepartmentId, isCreatingRole, isRoleActionsDisabled]
-  );
-
-  const startEditingRole = useCallback(
-    (role: Role) => {
-      if (isRoleActionsDisabled || isUpdatingRole) {
-        return;
-      }
-
-      setCreatingRoleDepartmentId(null);
-      setEditingRoleId(role.id);
-      roleEditForm.reset({ name: role.name });
-      setCollapsedDepartmentIds((previous) => {
-        if (!previous.has(role.departmentId)) {
-          return previous;
-        }
-
-        const next = new Set(previous);
-        next.delete(role.departmentId);
-        return next;
-      });
-    },
-    [isRoleActionsDisabled, isUpdatingRole, roleEditForm]
-  );
-
-  const cancelEditingRole = useCallback(() => {
-    setEditingRoleId(null);
-    roleEditForm.reset({ name: '' });
-  }, [roleEditForm]);
-
-  const handleUpdateRole = useCallback(
-    (values: RoleInput) => {
-      if (!editingRoleId || isRoleActionsDisabled || isUpdatingRole) {
-        return;
-      }
-
-      updateRoleMutation.mutate({ id: editingRoleId, name: values.name });
-    },
-    [editingRoleId, isRoleActionsDisabled, isUpdatingRole, updateRoleMutation]
-  );
-
-  const handleDeleteRole = useCallback(
-    (role: Role) => {
-      if (isRoleActionsDisabled || isDeletingRole) {
-        return;
-      }
-
-      deleteRoleMutation.mutate({ id: role.id, departmentId: role.departmentId });
-    },
-    [deleteRoleMutation, isDeletingRole, isRoleActionsDisabled]
-  );
 
   useEffect(() => {
     if (steps.length === 0) {
@@ -3013,114 +2969,256 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                           >
                             {departments.map((department) => {
                               const isEditingDepartment = editingDepartmentId === department.id;
-                              const isUpdatingCurrent =
-                                isUpdatingDepartment && editingDepartmentId === department.id;
                               const isDeletingCurrent =
                                 isDeletingDepartment && deleteDepartmentId === department.id;
-                              const isCollapsed = collapsedDepartmentIds.has(department.id);
+                              const isExpanded = isEditingDepartment;
+                              const isCollapsed = !isExpanded;
                               const updatedLabel = formatUpdatedAt(department.updatedAt);
                               const colorInputId = `department-color-${department.id}`;
-                              const roles = department.roles;
-                              const isCreatingRoleHere = creatingRoleDepartmentId === department.id;
-
                               return (
                                 <li
                                   key={department.id}
                                   role="treeitem"
-                                  aria-expanded={!isCollapsed}
-                                  aria-selected={false}
-                                  className="department-node rounded-xl border border-slate-200 bg-white/80 p-3 shadow-sm"
+                                  aria-expanded={isExpanded}
+                                  aria-selected={isEditingDepartment}
+                                  className="department-node"
                                   data-collapsed={isCollapsed ? 'true' : 'false'}
                                 >
-                                  {isEditingDepartment ? (
-                                    <>
-                                      <form
-                                        onSubmit={departmentEditForm.handleSubmit(handleUpdateDepartment)}
-                                        className="entity-row"
-                                        data-entity-type="department"
-                                      >
-                                        <button
-                                          type="button"
-                                          className="department-collapse inline-flex items-center justify-center rounded-md border border-transparent text-slate-500 transition hover:border-slate-300 hover:bg-slate-100"
-                                          aria-expanded={!isCollapsed}
-                                          aria-controls={`department-${department.id}-roles`}
-                                          disabled
+                                  <Card
+                                    className={cn(
+                                      'border-slate-200 bg-white/90 shadow-sm transition focus-within:ring-2 focus-within:ring-slate-900/20',
+                                      isEditingDepartment
+                                        ? 'border-slate-900 ring-2 ring-slate-900/20'
+                                        : 'hover:border-slate-300'
+                                    )}
+                                  >
+                                    <CardContent
+                                      className={cn(
+                                        'flex gap-3 transition',
+                                        isEditingDepartment ? 'flex-col p-3.5' : 'items-center p-2.5'
+                                      )}
+                                    >
+                                      {isEditingDepartment ? (
+                                        <form
+                                          onSubmit={departmentEditForm.handleSubmit(handleSaveDepartment)}
+                                          className="flex w-full flex-col gap-3"
+                                          data-entity-type="department"
                                         >
-                                          <ChevronDown
-                                            className="department-collapse-icon h-4 w-4"
-                                            aria-hidden="true"
-                                          />
-                                          <span className="sr-only">
-                                            Basculer l’affichage des rôles du département
-                                          </span>
-                                        </button>
-                                        <div className="flex items-center justify-center">
-                                          <label htmlFor={colorInputId} className="sr-only">
-                                            Couleur du département
-                                          </label>
-                                          <input
-                                            id={colorInputId}
-                                            type="color"
-                                            {...departmentEditForm.register('color')}
-                                            disabled={isUpdatingCurrent}
-                                            className="h-9 w-9 cursor-pointer rounded-md border border-slate-300 bg-white p-1 shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
-                                            aria-describedby={
-                                              departmentEditForm.formState.errors.color
-                                                ? `${colorInputId}-error`
-                                                : undefined
-                                            }
-                                          />
-                                        </div>
-                                        <div className="min-w-0">
-                                          <Input
-                                            {...departmentEditForm.register('name')}
-                                            autoFocus
-                                            disabled={isUpdatingCurrent}
-                                            className="h-9 w-full rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
-                                          />
+                                          <div className="flex flex-wrap items-center gap-2">
+                                            <div className="flex items-center">
+                                              <label htmlFor={colorInputId} className="sr-only">
+                                                Couleur du département
+                                              </label>
+                                              <input
+                                                id={colorInputId}
+                                                type="color"
+                                                {...departmentEditForm.register('color')}
+                                                disabled={isSavingDepartment}
+                                                className="h-9 w-9 cursor-pointer rounded-md border border-slate-300 bg-white p-1 shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
+                                                aria-describedby={
+                                                  departmentEditForm.formState.errors.color
+                                                    ? `${colorInputId}-error`
+                                                    : undefined
+                                                }
+                                              />
+                                            </div>
+                                            <Input
+                                              {...departmentEditForm.register('name')}
+                                              autoFocus
+                                              disabled={isSavingDepartment}
+                                              className="h-9 min-w-[12rem] flex-1 rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
+                                            />
+                                            <Button
+                                              type="button"
+                                              size="icon"
+                                              variant="ghost"
+                                              onClick={() => handleDeleteDepartment(department.id)}
+                                              disabled={isDepartmentActionsDisabled || isDeletingCurrent || isSavingDepartment}
+                                              className="ml-auto h-8 w-8 text-red-500 hover:bg-red-50 hover:text-red-600"
+                                            >
+                                              {isDeletingCurrent ? (
+                                                <Loader2 aria-hidden="true" className="h-4 w-4 animate-spin" />
+                                              ) : (
+                                                <Trash2 aria-hidden="true" className="h-4 w-4" />
+                                              )}
+                                              <span className="sr-only">Supprimer le département</span>
+                                            </Button>
+                                          </div>
                                           {departmentEditForm.formState.errors.color ? (
-                                            <p id={`${colorInputId}-error`} className="mt-1 text-xs text-red-600">
+                                            <p id={`${colorInputId}-error`} className="text-xs text-red-600">
                                               {departmentEditForm.formState.errors.color.message}
                                             </p>
                                           ) : null}
                                           {departmentEditForm.formState.errors.name ? (
-                                            <p className="mt-1 text-xs text-red-600">
+                                            <p className="text-xs text-red-600">
                                               {departmentEditForm.formState.errors.name.message}
                                             </p>
                                           ) : null}
-                                        </div>
-                                        <div className="flex items-center gap-2 justify-self-end">
-                                          <Button
-                                            type="submit"
-                                            size="sm"
-                                            disabled={isUpdatingCurrent}
-                                            className="inline-flex items-center gap-1 rounded-md bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600"
-                                          >
-                                            {isUpdatingCurrent ? (
-                                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                          <div className="flex flex-col gap-2">
+                                            {departmentRoleFields.fields.length > 0 ? (
+                                              departmentRoleFields.fields.map((field, index) => {
+                                                const roleError = departmentEditForm.formState.errors.roles?.[index]?.name;
+                                                const roleNameField = `roles.${index}.name` as const;
+                                                const roleIdField = `roles.${index}.roleId` as const;
+                                                return (
+                                                  <div key={field.id} className="space-y-1">
+                                                    <Controller
+                                                      control={departmentEditForm.control}
+                                                      name={roleIdField}
+                                                      defaultValue={field.roleId ?? ''}
+                                                      render={({ field: roleIdControl }) => (
+                                                        <input
+                                                          type="hidden"
+                                                          {...roleIdControl}
+                                                          value={roleIdControl.value ?? ''}
+                                                        />
+                                                      )}
+                                                    />
+                                                    <div className="flex flex-wrap items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2.5 shadow-sm">
+                                                      <div className="flex min-w-0 flex-1 items-center gap-2">
+                                                        <UserRound className="h-4 w-4 text-slate-500" />
+                                                        <Controller
+                                                          control={departmentEditForm.control}
+                                                          name={roleNameField}
+                                                          defaultValue={field.name}
+                                                          render={({ field: roleNameControl }) => (
+                                                            <Input
+                                                              {...roleNameControl}
+                                                              value={roleNameControl.value ?? ''}
+                                                              disabled={isSavingDepartment}
+                                                              className="h-8 min-w-[10rem] flex-1 rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
+                                                            />
+                                                          )}
+                                                        />
+                                                      </div>
+                                                      <Button
+                                                        type="button"
+                                                        size="icon"
+                                                        variant="ghost"
+                                                        onClick={() => departmentRoleFields.remove(index)}
+                                                        disabled={isSavingDepartment || isAddingDepartmentRole}
+                                                        className="h-8 w-8 text-red-500 hover:bg-red-50 hover:text-red-600"
+                                                        title={
+                                                          field.roleId
+                                                            ? 'Supprimera ce rôle lors de l\'enregistrement'
+                                                            : 'Retirer ce rôle'
+                                                        }
+                                                      >
+                                                        <Trash2 aria-hidden="true" className="h-4 w-4" />
+                                                        <span className="sr-only">Retirer le rôle</span>
+                                                      </Button>
+                                                    </div>
+                                                    {roleError ? (
+                                                      <p className="text-xs text-red-600">{roleError.message}</p>
+                                                    ) : null}
+                                                  </div>
+                                                );
+                                              })
                                             ) : (
-                                              <Save className="h-3.5 w-3.5" />
+                                              <p className="text-xs text-slate-500">Aucun rôle pour ce département.</p>
                                             )}
-                                            Enregistrer
-                                          </Button>
-                                          <Button
-                                            type="button"
-                                            size="sm"
-                                            variant="ghost"
-                                            onClick={cancelEditingDepartment}
-                                            disabled={isUpdatingCurrent}
-                                            className="text-red-500 hover:text-red-600"
-                                          >
-                                            Annuler
-                                          </Button>
+                                          </div>
+                                          <div className="flex flex-wrap items-center justify-between gap-2">
+                                            <div className="flex flex-wrap items-center gap-2">
+                                              <Button
+                                                type="button"
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={handleAddRole}
+                                                disabled={
+                                                  isSavingDepartment ||
+                                                  isAddingDepartmentRole ||
+                                                  !editingDepartmentId ||
+                                                  isDepartmentActionsDisabled
+                                                }
+                                                className="inline-flex h-8 items-center gap-1 rounded-md border-slate-300 text-xs font-medium text-slate-700 hover:bg-slate-100"
+                                              >
+                                                {isAddingDepartmentRole ? (
+                                                  <Loader2 aria-hidden="true" className="h-3.5 w-3.5 animate-spin" />
+                                                ) : (
+                                                  <Plus className="h-3.5 w-3.5" />
+                                                )}
+                                                Ajouter un rôle
+                                              </Button>
+                                              <Button
+                                                type="submit"
+                                                size="sm"
+                                                disabled={isSavingDepartment || isAddingDepartmentRole}
+                                                className="inline-flex h-8 items-center gap-1 rounded-md bg-slate-900 px-3 text-xs font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600"
+                                              >
+                                                {isSavingDepartment ? (
+                                                  <Loader2 aria-hidden="true" className="h-3.5 w-3.5 animate-spin" />
+                                                ) : (
+                                                  <Save aria-hidden="true" className="h-3.5 w-3.5" />
+                                                )}
+                                                Enregistrer
+                                              </Button>
+                                            </div>
+                                            <div className="space-y-1">
+                                              {createDepartmentRoleMutation.isError ? (
+                                                <p className="text-xs text-red-600">
+                                                  {createDepartmentRoleMutation.error.message}
+                                                </p>
+                                              ) : null}
+                                              {saveDepartmentMutation.isError ? (
+                                                <p className="text-xs text-red-600">{saveDepartmentMutation.error.message}</p>
+                                              ) : null}
+                                            </div>
+                                          </div>
+                                        </form>
+                                      ) : (
+                                        <div
+                                          className={cn(
+                                            'flex min-w-0 flex-1 items-center gap-3 rounded-lg border border-transparent px-1 py-1 transition',
+                                            !(isDepartmentActionsDisabled || isDeletingCurrent) &&
+                                              'cursor-pointer hover:border-slate-300 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400'
+                                          )}
+                                          role="button"
+                                          tabIndex={isDepartmentActionsDisabled || isDeletingCurrent ? -1 : 0}
+                                          aria-disabled={isDepartmentActionsDisabled || isDeletingCurrent}
+                                          onClick={() => {
+                                            if (isDepartmentActionsDisabled || isDeletingCurrent) {
+                                              return;
+                                            }
+                                            startEditingDepartment(department);
+                                          }}
+                                          onKeyDown={(event) => {
+                                            if (event.key === 'Enter' || event.key === ' ') {
+                                              event.preventDefault();
+                                              if (isDepartmentActionsDisabled || isDeletingCurrent) {
+                                                return;
+                                              }
+                                              startEditingDepartment(department);
+                                            }
+                                          }}
+                                        >
+                                          <div className="flex min-w-0 flex-1 items-center gap-3">
+                                            <span
+                                              className="inline-flex h-8 w-8 shrink-0 rounded-md border border-slate-200 shadow-inner"
+                                              style={{ backgroundColor: department.color }}
+                                              aria-hidden="true"
+                                            />
+                                            <span className="sr-only">Couleur : {department.color}</span>
+                                            <div className="min-w-0">
+                                              <p className="truncate text-sm font-medium text-slate-900">{department.name}</p>
+                                              {updatedLabel ? (
+                                                <p className="text-xs text-slate-500">Mis à jour {updatedLabel}</p>
+                                              ) : null}
+                                            </div>
+                                          </div>
                                         </div>
+                                      )}
+                                      {!isEditingDepartment ? (
                                         <Button
                                           type="button"
                                           size="icon"
                                           variant="ghost"
-                                          onClick={() => handleDeleteDepartment(department.id)}
+                                          onClick={(event) => {
+                                            event.stopPropagation();
+                                            handleDeleteDepartment(department.id);
+                                          }}
                                           disabled={isDepartmentActionsDisabled || isDeletingCurrent}
-                                          className="text-red-500 hover:text-red-600"
+                                          className="h-8 w-8 text-red-500 hover:bg-red-50 hover:text-red-600"
                                         >
                                           {isDeletingCurrent ? (
                                             <Loader2 className="h-4 w-4 animate-spin" />
@@ -3129,281 +3227,19 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                                           )}
                                           <span className="sr-only">Supprimer le département</span>
                                         </Button>
-                                      </form>
-                                      {updateDepartmentMutation.isError && isEditingDepartment ? (
-                                        <p className="mt-2 text-xs text-red-600">
-                                          {updateDepartmentMutation.error.message}
-                                        </p>
                                       ) : null}
-                                    </>
-                                  ) : (
-                                    <div className="entity-row" data-entity-type="department">
-                                      <button
-                                        type="button"
-                                        className="department-collapse inline-flex items-center justify-center rounded-md border border-transparent text-slate-500 transition hover:border-slate-300 hover:bg-slate-100"
-                                        aria-expanded={!isCollapsed}
-                                        aria-controls={`department-${department.id}-roles`}
-                                        onClick={() => toggleDepartmentCollapse(department.id)}
-                                      >
-                                        <ChevronDown
-                                          className={cn(
-                                            'department-collapse-icon h-4 w-4',
-                                            isCollapsed && '-rotate-90'
-                                          )}
-                                          aria-hidden="true"
-                                        />
-                                        <span className="sr-only">
-                                          {isCollapsed ? 'Déplier' : 'Replier'} le département
-                                        </span>
-                                      </button>
-                                      <div className="flex items-center justify-center">
-                                        <span
-                                          className="inline-flex h-6 w-6 shrink-0 rounded-full border border-slate-300"
-                                          style={{ backgroundColor: department.color }}
-                                          aria-hidden="true"
-                                        />
-                                        <span className="sr-only">Couleur : {department.color}</span>
-                                      </div>
-                                      <div className="min-w-0">
-                                        <p className="truncate text-sm font-medium text-slate-900">{department.name}</p>
-                                        {updatedLabel ? (
-                                          <p className="text-xs text-slate-500">Mis à jour {updatedLabel}</p>
-                                        ) : null}
-                                      </div>
-                                      <Button
-                                        type="button"
-                                        size="icon"
-                                        variant="ghost"
-                                        onClick={() => startEditingDepartment(department)}
-                                        disabled={isDepartmentActionsDisabled || isDeletingCurrent}
-                                        className="border border-slate-200 text-slate-600 hover:bg-slate-100 hover:text-slate-900"
-                                      >
-                                        <Pencil className="h-4 w-4" />
-                                        <span className="sr-only">Renommer le département</span>
-                                      </Button>
-                                      <Button
-                                        type="button"
-                                        size="icon"
-                                        variant="ghost"
-                                        onClick={() => handleDeleteDepartment(department.id)}
-                                        disabled={isDepartmentActionsDisabled || isDeletingCurrent}
-                                        className="text-red-500 hover:text-red-600"
-                                      >
-                                        {isDeletingCurrent ? (
-                                          <Loader2 className="h-4 w-4 animate-spin" />
-                                        ) : (
-                                          <Trash2 className="h-4 w-4" />
-                                        )}
-                                        <span className="sr-only">Supprimer le département</span>
-                                      </Button>
-                                    </div>
-                                  )}
+                                    </CardContent>
+                                  </Card>
                                   {deleteDepartmentMutation.isError && deleteDepartmentId === department.id ? (
                                     <p className="mt-2 text-xs text-red-600">
                                       {deleteDepartmentMutation.error.message}
                                     </p>
                                   ) : null}
-                                  <ul
-                                    id={`department-${department.id}-roles`}
-                                    role="group"
-                                    aria-label={`Rôles pour ${department.name}`}
-                                    className="role-list"
-                                    data-empty-text="Aucun rôle pour ce département."
-                                  >
-                                    {roles.map((role) => {
-                                      const isEditingRoleCurrent = editingRoleId === role.id;
-                                      const isDeletingRoleCurrent = deletingRoleId === role.id;
-                                      const roleUpdatedLabel = formatUpdatedAt(role.updatedAt);
-
-                                      return (
-                                        <li key={role.id}>
-                                          {isEditingRoleCurrent ? (
-                                            <>
-                                              <form
-                                                onSubmit={roleEditForm.handleSubmit(handleUpdateRole)}
-                                                className="entity-row"
-                                                data-entity-type="role"
-                                              >
-                                                <div className="flex items-center gap-2">
-                                                  <UserRound className="h-4 w-4 text-slate-500" />
-                                                  <Input
-                                                    {...roleEditForm.register('name')}
-                                                    autoFocus
-                                                    disabled={isUpdatingRole}
-                                                    className="h-8 w-full rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
-                                                  />
-                                                </div>
-                                                <div className="flex items-center gap-2 justify-self-end">
-                                                  <Button
-                                                    type="submit"
-                                                    size="sm"
-                                                    disabled={isUpdatingRole}
-                                                    className="inline-flex items-center gap-1 rounded-md bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600"
-                                                  >
-                                                    {isUpdatingRole ? (
-                                                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                                    ) : (
-                                                      <Save className="h-3.5 w-3.5" />
-                                                    )}
-                                                    Enregistrer
-                                                  </Button>
-                                                  <Button
-                                                    type="button"
-                                                    size="sm"
-                                                    variant="ghost"
-                                                    onClick={cancelEditingRole}
-                                                    disabled={isUpdatingRole}
-                                                  >
-                                                    Annuler
-                                                  </Button>
-                                                </div>
-                                                <Button
-                                                  type="button"
-                                                  size="icon"
-                                                  variant="ghost"
-                                                  onClick={() => handleDeleteRole(role)}
-                                                  disabled={isDeletingRoleCurrent || isRoleActionsDisabled}
-                                                  className="text-red-500 hover:text-red-600"
-                                                >
-                                                  {isDeletingRoleCurrent ? (
-                                                    <Loader2 className="h-4 w-4 animate-spin" />
-                                                  ) : (
-                                                    <Trash2 className="h-4 w-4" />
-                                                  )}
-                                                  <span className="sr-only">Supprimer le rôle</span>
-                                                </Button>
-                                              </form>
-                                              {roleEditForm.formState.errors.name ? (
-                                                <p className="mt-1 text-xs text-red-600">
-                                                  {roleEditForm.formState.errors.name.message}
-                                                </p>
-                                              ) : null}
-                                              {updateRoleMutation.isError && editingRoleId === role.id ? (
-                                                <p className="mt-1 text-xs text-red-600">
-                                                  {updateRoleMutation.error.message}
-                                                </p>
-                                              ) : null}
-                                            </>
-                                          ) : (
-                                            <div className="entity-row" data-entity-type="role">
-                                              <div className="flex items-center gap-2">
-                                                <UserRound className="h-4 w-4 text-slate-500" />
-                                                <div className="min-w-0">
-                                                  <p className="truncate text-sm font-medium text-slate-900">{role.name}</p>
-                                                  {roleUpdatedLabel ? (
-                                                    <p className="text-xs text-slate-500">
-                                                      Mis à jour {roleUpdatedLabel}
-                                                    </p>
-                                                  ) : null}
-                                                </div>
-                                              </div>
-                                              <Button
-                                                type="button"
-                                                size="icon"
-                                                variant="ghost"
-                                                onClick={() => startEditingRole(role)}
-                                                disabled={isRoleActionsDisabled || isDeletingRoleCurrent}
-                                                className="border border-slate-200 text-slate-600 hover:bg-slate-100 hover:text-slate-900"
-                                              >
-                                                <Pencil className="h-4 w-4" />
-                                                <span className="sr-only">Renommer le rôle</span>
-                                              </Button>
-                                              <Button
-                                                type="button"
-                                                size="icon"
-                                                variant="ghost"
-                                                onClick={() => handleDeleteRole(role)}
-                                                disabled={isRoleActionsDisabled || isDeletingRoleCurrent}
-                                                className="text-red-500 hover:text-red-600"
-                                              >
-                                                {isDeletingRoleCurrent ? (
-                                                  <Loader2 className="h-4 w-4 animate-spin" />
-                                                ) : (
-                                                  <Trash2 className="h-4 w-4" />
-                                                )}
-                                                <span className="sr-only">Supprimer le rôle</span>
-                                              </Button>
-                                            </div>
-                                          )}
-                                          {deleteRoleMutation.isError && deletingRoleId === role.id ? (
-                                            <p className="mt-1 text-xs text-red-600">
-                                              {deleteRoleMutation.error.message}
-                                            </p>
-                                          ) : null}
-                                        </li>
-                                      );
-                                    })}
-                                    {isCreatingRoleHere ? (
-                                      <li>
-                                        <form
-                                          onSubmit={roleCreateForm.handleSubmit(handleCreateRole)}
-                                          className="entity-row"
-                                          data-entity-type="role"
-                                        >
-                                          <div className="flex items-center gap-2">
-                                            <UserRound className="h-4 w-4 text-slate-500" />
-                                            <Input
-                                              {...roleCreateForm.register('name')}
-                                              autoFocus
-                                              disabled={isCreatingRole}
-                                              placeholder="Nom du rôle"
-                                              className="h-8 w-full rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
-                                            />
-                                          </div>
-                                          <div className="flex items-center gap-2 justify-self-end">
-                                            <Button
-                                              type="submit"
-                                              size="sm"
-                                              disabled={isCreatingRole}
-                                              className="inline-flex items-center gap-1 rounded-md bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600"
-                                            >
-                                              {isCreatingRole ? (
-                                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                              ) : (
-                                                <Plus className="h-3.5 w-3.5" />
-                                              )}
-                                              Ajouter
-                                            </Button>
-                                            <Button
-                                              type="button"
-                                              size="sm"
-                                              variant="ghost"
-                                              onClick={cancelCreatingRole}
-                                              disabled={isCreatingRole}
-                                            >
-                                              Annuler
-                                            </Button>
-                                          </div>
-                                          <div />
-                                        </form>
-                                        {roleCreateForm.formState.errors.name ? (
-                                          <p className="mt-1 text-xs text-red-600">
-                                            {roleCreateForm.formState.errors.name.message}
-                                          </p>
-                                        ) : null}
-                                        {createRoleMutation.isError && isCreatingRoleHere ? (
-                                          <p className="mt-1 text-xs text-red-600">
-                                            {createRoleMutation.error.message}
-                                          </p>
-                                        ) : null}
-                                      </li>
-                                    ) : null}
-                                  </ul>
-                                  <div className="mt-3 flex flex-wrap gap-2">
-                                    <button
-                                      type="button"
-                                      onClick={() => startCreatingRole(department.id)}
-                                      className="add-role-button inline-flex items-center gap-2"
-                                      disabled={isRoleActionsDisabled || isCreatingRoleHere || isCreatingRole}
-                                    >
-                                      <Plus className="h-3.5 w-3.5" />
-                                      Ajouter un rôle
-                                    </button>
-                                  </div>
                                 </li>
                               );
                             })}
                           </ul>
+
                         ) : (
                           <p className="text-sm text-slate-600">Aucun département enregistré pour le moment.</p>
                         )}

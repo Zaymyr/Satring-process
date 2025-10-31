@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { roleListSchema, type Role } from './role';
+import { roleListSchema, roleNameSchema, type Role } from './role';
 
 export const DEFAULT_DEPARTMENT_COLOR = '#C7D2FE';
 
@@ -34,3 +34,39 @@ export const departmentInputSchema = z.object({
 
 export type Department = Omit<z.infer<typeof departmentSchema>, 'roles'> & { roles: Role[] };
 export type DepartmentInput = z.infer<typeof departmentInputSchema>;
+
+const ROLE_ID_REGEX =
+  /^[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}$/i;
+
+const normalizeRoleId = (value: unknown) => {
+  if (typeof value !== 'string') {
+    return undefined;
+  }
+
+  const trimmed = value.trim();
+
+  if (trimmed.length === 0) {
+    return undefined;
+  }
+
+  if (!ROLE_ID_REGEX.test(trimmed)) {
+    return undefined;
+  }
+
+  return trimmed;
+};
+
+export const departmentCascadeFormSchema = departmentInputSchema.extend({
+  roles: z
+    .array(
+      z.object({
+        roleId: z
+          .preprocess(normalizeRoleId, z.string().uuid('Identifiant de rôle invalide.'))
+          .optional(),
+        name: roleNameSchema
+      })
+    )
+    .default([])
+});
+
+export type DepartmentCascadeForm = z.infer<typeof departmentCascadeFormSchema>;
