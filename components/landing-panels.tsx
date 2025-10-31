@@ -21,7 +21,6 @@ import {
   ChevronLeft,
   ChevronRight,
   ChevronUp,
-  CircleX,
   Flag,
   FolderTree,
   GitBranch,
@@ -972,11 +971,6 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
     ]
   );
 
-  const cancelEditingDepartment = useCallback(() => {
-    setEditingDepartmentId(null);
-    departmentEditForm.reset({ name: '', color: DEFAULT_DEPARTMENT_COLOR });
-  }, [departmentEditForm]);
-
   useEffect(() => {
     if (isDepartmentActionsDisabled) {
       setEditingDepartmentId(null);
@@ -1066,11 +1060,6 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
     },
     [isRoleActionsDisabled, isUpdatingRole, roleEditForm]
   );
-
-  const cancelEditingRole = useCallback(() => {
-    setEditingRoleId(null);
-    roleEditForm.reset({ name: '' });
-  }, [roleEditForm]);
 
   const handleUpdateRole = useCallback(
     (values: RoleInput) => {
@@ -3029,7 +3018,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                                   key={department.id}
                                   role="treeitem"
                                   aria-expanded={!isCollapsed}
-                                  aria-selected={false}
+                                  aria-selected={isEditingDepartment}
                                   className="department-node rounded-xl border border-slate-200 bg-white/80 p-3 shadow-sm"
                                   data-collapsed={isCollapsed ? 'true' : 'false'}
                                 >
@@ -3037,7 +3026,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                                     <>
                                       <form
                                         onSubmit={departmentEditForm.handleSubmit(handleUpdateDepartment)}
-                                        className="entity-row"
+                                        className={cn('entity-row', 'is-selected')}
                                         data-entity-type="department"
                                       >
                                         <button
@@ -3104,17 +3093,6 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                                             )}
                                             <span className="sr-only">Enregistrer le département</span>
                                           </Button>
-                                          <Button
-                                            type="button"
-                                            size="icon"
-                                            variant="ghost"
-                                            onClick={cancelEditingDepartment}
-                                            disabled={isUpdatingCurrent}
-                                            className="h-9 w-9 text-red-500 hover:bg-red-50 hover:text-red-600"
-                                          >
-                                            <CircleX aria-hidden="true" className="h-4 w-4" />
-                                            <span className="sr-only">Annuler l’édition du département</span>
-                                          </Button>
                                         </div>
                                         <Button
                                           type="button"
@@ -3139,13 +3117,41 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                                       ) : null}
                                     </>
                                   ) : (
-                                    <div className="entity-row" data-entity-type="department">
+                                    <div
+                                      className={cn(
+                                        'entity-row',
+                                        !(isDepartmentActionsDisabled || isDeletingCurrent) &&
+                                          'cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400'
+                                      )}
+                                      data-entity-type="department"
+                                      role="button"
+                                      tabIndex={isDepartmentActionsDisabled || isDeletingCurrent ? -1 : 0}
+                                      aria-disabled={isDepartmentActionsDisabled || isDeletingCurrent}
+                                      onClick={() => {
+                                        if (isDepartmentActionsDisabled || isDeletingCurrent) {
+                                          return;
+                                        }
+                                        startEditingDepartment(department);
+                                      }}
+                                      onKeyDown={(event) => {
+                                        if (event.key === 'Enter' || event.key === ' ') {
+                                          event.preventDefault();
+                                          if (isDepartmentActionsDisabled || isDeletingCurrent) {
+                                            return;
+                                          }
+                                          startEditingDepartment(department);
+                                        }
+                                      }}
+                                    >
                                       <button
                                         type="button"
                                         className="department-collapse inline-flex items-center justify-center rounded-md border border-transparent text-slate-500 transition hover:border-slate-300 hover:bg-slate-100"
                                         aria-expanded={!isCollapsed}
                                         aria-controls={`department-${department.id}-roles`}
-                                        onClick={() => toggleDepartmentCollapse(department.id)}
+                                        onClick={(event) => {
+                                          event.stopPropagation();
+                                          toggleDepartmentCollapse(department.id);
+                                        }}
                                       >
                                         <ChevronDown
                                           className={cn(
@@ -3176,18 +3182,10 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                                         type="button"
                                         size="icon"
                                         variant="ghost"
-                                        onClick={() => startEditingDepartment(department)}
-                                        disabled={isDepartmentActionsDisabled || isDeletingCurrent}
-                                        className="border border-slate-200 text-slate-600 hover:bg-slate-100 hover:text-slate-900"
-                                      >
-                                        <Pencil className="h-4 w-4" />
-                                        <span className="sr-only">Renommer le département</span>
-                                      </Button>
-                                      <Button
-                                        type="button"
-                                        size="icon"
-                                        variant="ghost"
-                                        onClick={() => handleDeleteDepartment(department.id)}
+                                        onClick={(event) => {
+                                          event.stopPropagation();
+                                          handleDeleteDepartment(department.id);
+                                        }}
                                         disabled={isDepartmentActionsDisabled || isDeletingCurrent}
                                         className="text-red-500 hover:text-red-600"
                                       >
@@ -3218,12 +3216,12 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                                       const roleUpdatedLabel = formatUpdatedAt(role.updatedAt);
 
                                       return (
-                                        <li key={role.id}>
+                                        <li key={role.id} role="treeitem" aria-selected={isEditingRoleCurrent}>
                                           {isEditingRoleCurrent ? (
                                             <>
                                               <form
                                                 onSubmit={roleEditForm.handleSubmit(handleUpdateRole)}
-                                                className="entity-row"
+                                                className={cn('entity-row', 'is-selected')}
                                                 data-entity-type="role"
                                               >
                                                 <div className="flex min-w-[10rem] max-w-[18rem] items-center gap-2">
@@ -3248,17 +3246,6 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                                                       <Save aria-hidden="true" className="h-4 w-4" />
                                                     )}
                                                     <span className="sr-only">Enregistrer le rôle</span>
-                                                  </Button>
-                                                  <Button
-                                                    type="button"
-                                                    size="icon"
-                                                    variant="ghost"
-                                                    onClick={cancelEditingRole}
-                                                    disabled={isUpdatingRole}
-                                                    className="h-8 w-8 text-red-500 hover:bg-red-50 hover:text-red-600"
-                                                  >
-                                                    <CircleX aria-hidden="true" className="h-4 w-4" />
-                                                    <span className="sr-only">Annuler l’édition du rôle</span>
                                                   </Button>
                                                 </div>
                                                 <Button
@@ -3289,7 +3276,32 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                                               ) : null}
                                             </>
                                           ) : (
-                                            <div className="entity-row" data-entity-type="role">
+                                            <div
+                                              className={cn(
+                                                'entity-row',
+                                                !(isRoleActionsDisabled || isDeletingRoleCurrent) &&
+                                                  'cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400'
+                                              )}
+                                              data-entity-type="role"
+                                              role="button"
+                                              tabIndex={isRoleActionsDisabled || isDeletingRoleCurrent ? -1 : 0}
+                                              aria-disabled={isRoleActionsDisabled || isDeletingRoleCurrent}
+                                              onClick={() => {
+                                                if (isRoleActionsDisabled || isDeletingRoleCurrent) {
+                                                  return;
+                                                }
+                                                startEditingRole(role);
+                                              }}
+                                              onKeyDown={(event) => {
+                                                if (event.key === 'Enter' || event.key === ' ') {
+                                                  event.preventDefault();
+                                                  if (isRoleActionsDisabled || isDeletingRoleCurrent) {
+                                                    return;
+                                                  }
+                                                  startEditingRole(role);
+                                                }
+                                              }}
+                                            >
                                               <div className="flex min-w-0 items-center gap-2">
                                                 <UserRound className="h-4 w-4 text-slate-500" />
                                                 <div className="min-w-0">
@@ -3305,18 +3317,10 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                                                 type="button"
                                                 size="icon"
                                                 variant="ghost"
-                                                onClick={() => startEditingRole(role)}
-                                                disabled={isRoleActionsDisabled || isDeletingRoleCurrent}
-                                                className="border border-slate-200 text-slate-600 hover:bg-slate-100 hover:text-slate-900"
-                                              >
-                                                <Pencil className="h-4 w-4" />
-                                                <span className="sr-only">Renommer le rôle</span>
-                                              </Button>
-                                              <Button
-                                                type="button"
-                                                size="icon"
-                                                variant="ghost"
-                                                onClick={() => handleDeleteRole(role)}
+                                                onClick={(event) => {
+                                                  event.stopPropagation();
+                                                  handleDeleteRole(role);
+                                                }}
                                                 disabled={isRoleActionsDisabled || isDeletingRoleCurrent}
                                                 className="text-red-500 hover:text-red-600"
                                               >
