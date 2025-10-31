@@ -21,6 +21,7 @@ import {
   ChevronLeft,
   ChevronRight,
   ChevronUp,
+  CircleX,
   Flag,
   FolderTree,
   GitBranch,
@@ -3089,29 +3090,30 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                                             </p>
                                           ) : null}
                                         </div>
-                                        <div className="flex items-center gap-2 justify-self-end">
+                                        <div className="flex items-center gap-1.5 justify-self-end">
                                           <Button
                                             type="submit"
-                                            size="sm"
+                                            size="icon"
                                             disabled={isUpdatingCurrent}
-                                            className="inline-flex items-center gap-1 rounded-md bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600"
+                                            className="h-9 w-9 rounded-md bg-slate-900 text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600"
                                           >
                                             {isUpdatingCurrent ? (
-                                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                              <Loader2 aria-hidden="true" className="h-4 w-4 animate-spin" />
                                             ) : (
-                                              <Save className="h-3.5 w-3.5" />
+                                              <Save aria-hidden="true" className="h-4 w-4" />
                                             )}
-                                            Enregistrer
+                                            <span className="sr-only">Enregistrer le département</span>
                                           </Button>
                                           <Button
                                             type="button"
-                                            size="sm"
+                                            size="icon"
                                             variant="ghost"
                                             onClick={cancelEditingDepartment}
                                             disabled={isUpdatingCurrent}
-                                            className="text-red-500 hover:text-red-600"
+                                            className="h-9 w-9 text-red-500 hover:bg-red-50 hover:text-red-600"
                                           >
-                                            Annuler
+                                            <CircleX aria-hidden="true" className="h-4 w-4" />
+                                            <span className="sr-only">Annuler l’édition du département</span>
                                           </Button>
                                         </div>
                                         <Button
@@ -3120,12 +3122,12 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                                           variant="ghost"
                                           onClick={() => handleDeleteDepartment(department.id)}
                                           disabled={isDepartmentActionsDisabled || isDeletingCurrent}
-                                          className="text-red-500 hover:text-red-600"
+                                          className="h-9 w-9 text-red-500 hover:bg-red-50 hover:text-red-600"
                                         >
                                           {isDeletingCurrent ? (
-                                            <Loader2 className="h-4 w-4 animate-spin" />
+                                            <Loader2 aria-hidden="true" className="h-4 w-4 animate-spin" />
                                           ) : (
-                                            <Trash2 className="h-4 w-4" />
+                                            <Trash2 aria-hidden="true" className="h-4 w-4" />
                                           )}
                                           <span className="sr-only">Supprimer le département</span>
                                         </Button>
@@ -3224,7 +3226,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                                                 className="entity-row"
                                                 data-entity-type="role"
                                               >
-                                                <div className="flex items-center gap-2">
+                                                <div className="flex min-w-0 items-center gap-2">
                                                   <UserRound className="h-4 w-4 text-slate-500" />
                                                   <Input
                                                     {...roleEditForm.register('name')}
@@ -3233,28 +3235,30 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                                                     className="h-8 w-full rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
                                                   />
                                                 </div>
-                                                <div className="flex items-center gap-2 justify-self-end">
+                                                <div className="flex items-center gap-1.5 justify-self-end">
                                                   <Button
                                                     type="submit"
-                                                    size="sm"
+                                                    size="icon"
                                                     disabled={isUpdatingRole}
-                                                    className="inline-flex items-center gap-1 rounded-md bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600"
+                                                    className="h-8 w-8 rounded-md bg-slate-900 text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600"
                                                   >
                                                     {isUpdatingRole ? (
-                                                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                                      <Loader2 aria-hidden="true" className="h-4 w-4 animate-spin" />
                                                     ) : (
-                                                      <Save className="h-3.5 w-3.5" />
+                                                      <Save aria-hidden="true" className="h-4 w-4" />
                                                     )}
-                                                    Enregistrer
+                                                    <span className="sr-only">Enregistrer le rôle</span>
                                                   </Button>
                                                   <Button
                                                     type="button"
-                                                    size="sm"
+                                                    size="icon"
                                                     variant="ghost"
                                                     onClick={cancelEditingRole}
                                                     disabled={isUpdatingRole}
+                                                    className="h-8 w-8 text-red-500 hover:bg-red-50 hover:text-red-600"
                                                   >
-                                                    Annuler
+                                                    <CircleX aria-hidden="true" className="h-4 w-4" />
+                                                    <span className="sr-only">Annuler l’édition du rôle</span>
                                                   </Button>
                                                 </div>
                                                 <Button
@@ -3263,12 +3267,12 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                                                   variant="ghost"
                                                   onClick={() => handleDeleteRole(role)}
                                                   disabled={isDeletingRoleCurrent || isRoleActionsDisabled}
-                                                  className="text-red-500 hover:text-red-600"
+                                                  className="h-8 w-8 text-red-500 hover:bg-red-50 hover:text-red-600"
                                                 >
                                                   {isDeletingRoleCurrent ? (
-                                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                                    <Loader2 aria-hidden="true" className="h-4 w-4 animate-spin" />
                                                   ) : (
-                                                    <Trash2 className="h-4 w-4" />
+                                                    <Trash2 aria-hidden="true" className="h-4 w-4" />
                                                   )}
                                                   <span className="sr-only">Supprimer le rôle</span>
                                                 </Button>
@@ -3286,7 +3290,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                                             </>
                                           ) : (
                                             <div className="entity-row" data-entity-type="role">
-                                              <div className="flex items-center gap-2">
+                                              <div className="flex min-w-0 items-center gap-2">
                                                 <UserRound className="h-4 w-4 text-slate-500" />
                                                 <div className="min-w-0">
                                                   <p className="truncate text-sm font-medium text-slate-900">{role.name}</p>

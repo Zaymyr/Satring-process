@@ -1961,11 +1961,12 @@ p {
   border-radius: 14px;
   background: var(--app-surface-soft);
   border: 1px solid var(--app-border);
+  overflow: hidden;
   transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
 }
 
 .page-departments .entity-row[data-entity-type='department'] {
-  grid-template-columns: auto minmax(0, 1fr) auto auto auto;
+  grid-template-columns: auto auto minmax(0, 1fr) auto auto;
 }
 
 .page-departments .entity-row[data-entity-type='role'] {
