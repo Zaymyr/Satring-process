@@ -75,6 +75,7 @@ const highlightIcons = {
 } as const satisfies Record<string, LucideIcon>;
 
 const DEFAULT_DEPARTMENT_NAME = 'Nouveau département';
+const DEFAULT_ROLE_NAME = 'Nouveau rôle';
 
 const HEX_COLOR_REGEX = /^#[0-9A-F]{6}$/;
 const CLUSTER_STYLE_TEXT_COLOR = '#0f172a';
@@ -734,7 +735,60 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
       const mappedRoles = department.roles.map((role) => ({ roleId: role.id, name: role.name }));
       departmentEditForm.reset({ name: department.name, color: department.color, roles: mappedRoles });
       departmentRoleFields.replace(mappedRoles);
+      createDepartmentRoleMutation.reset();
       await queryClient.invalidateQueries({ queryKey: ['departments'] });
+    }
+  });
+
+  const createDepartmentRoleMutation = useMutation<Role, ApiError, { departmentId: string }>({
+    mutationFn: ({ departmentId }) =>
+      createRoleRequest({ departmentId, name: DEFAULT_ROLE_NAME }),
+    onSuccess: (role) => {
+      queryClient.setQueryData(['departments'], (previous?: Department[]) => {
+        if (!previous) {
+          return previous;
+        }
+
+        return previous.map((department) => {
+          if (department.id !== role.departmentId) {
+            return department;
+          }
+
+          const filteredRoles = department.roles.filter((item) => item.id !== role.id);
+          return {
+            ...department,
+            roles: [...filteredRoles, role]
+          };
+        });
+      });
+
+      if (editingDepartmentBaselineRef.current?.id === role.departmentId) {
+        const baselineRoles = editingDepartmentBaselineRef.current.roles.filter((item) => item.id !== role.id);
+        editingDepartmentBaselineRef.current = {
+          ...editingDepartmentBaselineRef.current,
+          roles: [...baselineRoles, role]
+        };
+      }
+
+      const newIndex = departmentEditForm.getValues('roles').length;
+      departmentRoleFields.append({ roleId: role.id, name: role.name });
+
+      const roleIdField = `roles.${newIndex}.roleId` as const;
+      const roleNameField = `roles.${newIndex}.name` as const;
+
+      departmentEditForm.setValue(roleIdField, role.id, {
+        shouldDirty: true,
+        shouldTouch: true
+      });
+      departmentEditForm.setValue(roleNameField, role.name, {
+        shouldDirty: true,
+        shouldTouch: true
+      });
+      departmentEditForm.clearErrors(roleNameField);
+
+      setTimeout(() => {
+        departmentEditForm.setFocus(roleNameField);
+      }, 0);
     }
   });
 
@@ -796,6 +850,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
         roles: []
       });
       departmentRoleFields.replace([]);
+      createDepartmentRoleMutation.reset();
       await queryClient.invalidateQueries({ queryKey: ['departments'] });
     }
   });
@@ -822,6 +877,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
           roles: []
         });
         departmentRoleFields.replace([]);
+        createDepartmentRoleMutation.reset();
       }
     },
     onSettled: () => {
@@ -841,6 +897,12 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
       renameInputRef.current = null;
     }
   }, [editingProcessId]);
+
+  useEffect(() => {
+    if (!editingDepartmentId) {
+      createDepartmentRoleMutation.reset();
+    }
+  }, [createDepartmentRoleMutation, editingDepartmentId]);
 
   const isProcessListUnauthorized =
     processSummariesQuery.isError &&
@@ -871,6 +933,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
   const isDepartmentActionsDisabled = isUnauthorized || isDepartmentUnauthorized;
   const isCreatingDepartment = createDepartmentMutation.isPending;
   const isSavingDepartment = saveDepartmentMutation.isPending;
+  const isAddingDepartmentRole = createDepartmentRoleMutation.isPending;
   const isDeletingDepartment = deleteDepartmentMutation.isPending;
   const secondaryPanelTitle = isDepartmentsTabActive ? 'Mes départements' : 'Mes process';
   const secondaryPanelDescription = isDepartmentsTabActive
@@ -886,7 +949,12 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
 
   const handleSaveDepartment = useCallback(
     (values: DepartmentCascadeForm) => {
-      if (!editingDepartmentId || isDepartmentActionsDisabled || isSavingDepartment) {
+      if (
+        !editingDepartmentId ||
+        isDepartmentActionsDisabled ||
+        isSavingDepartment ||
+        isAddingDepartmentRole
+      ) {
         return;
       }
 
@@ -900,10 +968,35 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
       departments,
       editingDepartmentId,
       isDepartmentActionsDisabled,
+      isAddingDepartmentRole,
       isSavingDepartment,
       saveDepartmentMutation
     ]
   );
+
+  const handleAddRole = useCallback(() => {
+    if (
+      !editingDepartmentId ||
+      isDepartmentActionsDisabled ||
+      isSavingDepartment ||
+      isAddingDepartmentRole
+    ) {
+      return;
+    }
+
+    if (!departments.some((department) => department.id === editingDepartmentId)) {
+      return;
+    }
+
+    createDepartmentRoleMutation.mutate({ departmentId: editingDepartmentId });
+  }, [
+    departments,
+    createDepartmentRoleMutation,
+    editingDepartmentId,
+    isAddingDepartmentRole,
+    isDepartmentActionsDisabled,
+    isSavingDepartment
+  ]);
 
   const handleDeleteDepartment = useCallback(
     (id: string) => {
@@ -946,12 +1039,14 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
         roles: []
       });
       departmentRoleFields.replace([]);
+      createDepartmentRoleMutation.reset();
     }
   }, [
     departmentEditForm,
     departmentRoleFields,
     editingDepartmentBaselineRef,
-    isDepartmentActionsDisabled
+    isDepartmentActionsDisabled,
+    createDepartmentRoleMutation
   ]);
 
   useEffect(() => {
@@ -3001,7 +3096,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                                                         size="icon"
                                                         variant="ghost"
                                                         onClick={() => departmentRoleFields.remove(index)}
-                                                        disabled={isSavingDepartment}
+                                                        disabled={isSavingDepartment || isAddingDepartmentRole}
                                                         className="h-8 w-8 text-red-500 hover:bg-red-50 hover:text-red-600"
                                                         title={
                                                           field.roleId
@@ -3029,17 +3124,26 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                                                 type="button"
                                                 variant="outline"
                                                 size="sm"
-                                                onClick={() => departmentRoleFields.append({ roleId: undefined, name: '' })}
-                                                disabled={isSavingDepartment}
+                                                onClick={handleAddRole}
+                                                disabled={
+                                                  isSavingDepartment ||
+                                                  isAddingDepartmentRole ||
+                                                  !editingDepartmentId ||
+                                                  isDepartmentActionsDisabled
+                                                }
                                                 className="inline-flex h-8 items-center gap-1 rounded-md border-slate-300 text-xs font-medium text-slate-700 hover:bg-slate-100"
                                               >
-                                                <Plus className="h-3.5 w-3.5" />
+                                                {isAddingDepartmentRole ? (
+                                                  <Loader2 aria-hidden="true" className="h-3.5 w-3.5 animate-spin" />
+                                                ) : (
+                                                  <Plus className="h-3.5 w-3.5" />
+                                                )}
                                                 Ajouter un rôle
                                               </Button>
                                               <Button
                                                 type="submit"
                                                 size="sm"
-                                                disabled={isSavingDepartment}
+                                                disabled={isSavingDepartment || isAddingDepartmentRole}
                                                 className="inline-flex h-8 items-center gap-1 rounded-md bg-slate-900 px-3 text-xs font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600"
                                               >
                                                 {isSavingDepartment ? (
@@ -3050,9 +3154,16 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                                                 Enregistrer
                                               </Button>
                                             </div>
-                                            {saveDepartmentMutation.isError ? (
-                                              <p className="text-xs text-red-600">{saveDepartmentMutation.error.message}</p>
-                                            ) : null}
+                                            <div className="space-y-1">
+                                              {createDepartmentRoleMutation.isError ? (
+                                                <p className="text-xs text-red-600">
+                                                  {createDepartmentRoleMutation.error.message}
+                                                </p>
+                                              ) : null}
+                                              {saveDepartmentMutation.isError ? (
+                                                <p className="text-xs text-red-600">{saveDepartmentMutation.error.message}</p>
+                                              ) : null}
+                                            </div>
                                           </div>
                                         </form>
                                       ) : (
