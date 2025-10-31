@@ -62,12 +62,6 @@ import {
   type DepartmentCascadeForm,
   type DepartmentInput
 } from '@/lib/validation/department';
-import {
-  roleSchema,
-  type Role,
-  type RoleCreateInput,
-  type RoleUpdateInput
-} from '@/lib/validation/role';
 
 const highlightIcons = {
   sparkles: Sparkles,
@@ -77,8 +71,6 @@ const highlightIcons = {
 const DEFAULT_DEPARTMENT_NAME = 'Nouveau département';
 
 const HEX_COLOR_REGEX = /^#[0-9A-F]{6}$/;
-const ROLE_ID_REGEX =
-  /^[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}$/i;
 const CLUSTER_STYLE_TEXT_COLOR = '#0f172a';
 const CLUSTER_FILL_OPACITY = 0.18;
 const FALLBACK_STEP_FILL_ALPHA = 0.22;
@@ -509,27 +501,6 @@ const createDepartmentRequest = async (input: DepartmentInput): Promise<Departme
   return departmentSchema.parse(json);
 };
 
-const updateDepartmentRequest = async (input: { id: string; values: DepartmentInput }): Promise<Department> => {
-  const response = await fetch(`/api/departments/${encodeURIComponent(input.id)}`, {
-    method: 'PATCH',
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(input.values)
-  });
-
-  if (response.status === 401) {
-    throw new ApiError('Authentification requise', 401);
-  }
-
-  if (!response.ok) {
-    const message = await readErrorMessage(response, 'Impossible de mettre à jour le département.');
-    throw new ApiError(message, response.status);
-  }
-
-  const json = await response.json();
-  return departmentSchema.parse(json);
-};
-
 const deleteDepartmentRequest = async (departmentId: string): Promise<void> => {
   const response = await fetch(`/api/departments/${encodeURIComponent(departmentId)}`, {
     method: 'DELETE',
@@ -550,33 +521,15 @@ const deleteDepartmentRequest = async (departmentId: string): Promise<void> => {
   }
 };
 
-const createRoleRequest = async (input: RoleCreateInput): Promise<Role> => {
-  const response = await fetch(`/api/departments/${encodeURIComponent(input.departmentId)}/roles`, {
-    method: 'POST',
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name: input.name })
-  });
-
-  if (response.status === 401) {
-    throw new ApiError('Authentification requise', 401);
-  }
-
-  if (!response.ok) {
-    const message = await readErrorMessage(response, 'Impossible de créer le rôle.');
-    throw new ApiError(message, response.status);
-  }
-
-  const json = await response.json();
-  return roleSchema.parse(json);
-};
-
-const updateRoleRequest = async (input: RoleUpdateInput): Promise<Role> => {
-  const response = await fetch(`/api/roles/${encodeURIComponent(input.id)}`, {
+const saveDepartmentCascadeRequest = async (input: {
+  id: string;
+  values: DepartmentCascadeForm;
+}): Promise<Department> => {
+  const response = await fetch(`/api/departments/${encodeURIComponent(input.id)}/cascade`, {
     method: 'PATCH',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name: input.name })
+    body: JSON.stringify(input.values)
   });
 
   if (response.status === 401) {
@@ -584,32 +537,12 @@ const updateRoleRequest = async (input: RoleUpdateInput): Promise<Role> => {
   }
 
   if (!response.ok) {
-    const message = await readErrorMessage(response, 'Impossible de mettre à jour le rôle.');
+    const message = await readErrorMessage(response, "Impossible d'enregistrer le département.");
     throw new ApiError(message, response.status);
   }
 
   const json = await response.json();
-  return roleSchema.parse(json);
-};
-
-const deleteRoleRequest = async (roleId: string): Promise<void> => {
-  const response = await fetch(`/api/roles/${encodeURIComponent(roleId)}`, {
-    method: 'DELETE',
-    credentials: 'include'
-  });
-
-  if (response.status === 401) {
-    throw new ApiError('Authentification requise', 401);
-  }
-
-  if (response.status === 204) {
-    return;
-  }
-
-  if (!response.ok) {
-    const message = await readErrorMessage(response, 'Impossible de supprimer le rôle.');
-    throw new ApiError(message, response.status);
-  }
+  return departmentSchema.parse(json);
 };
 
 const STEP_TYPE_LABELS: Record<StepType, string> = {
@@ -739,54 +672,29 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
   });
 
   const saveDepartmentMutation = useMutation<
-    void,
+    Department,
     ApiError,
-    { department: Department; values: DepartmentCascadeForm }
+    { departmentId: string; values: DepartmentCascadeForm }
   >({
-    mutationFn: async ({ department, values }) => {
-      const operations: Promise<unknown>[] = [];
-
-      if (values.name !== department.name || values.color !== department.color) {
-        operations.push(
-          updateDepartmentRequest({
-            id: department.id,
-            values: { name: values.name, color: values.color }
-          })
-        );
-      }
-
-      const originalRolesById = new Map(department.roles.map((role) => [role.id, role] as const));
-      const remainingRoleIds = new Set(originalRolesById.keys());
-
-      values.roles.forEach((roleInput) => {
-        const normalizedRoleId =
-          roleInput.roleId && ROLE_ID_REGEX.test(roleInput.roleId) ? roleInput.roleId : undefined;
-
-        if (normalizedRoleId) {
-          remainingRoleIds.delete(normalizedRoleId);
-          const originalRole = originalRolesById.get(normalizedRoleId);
-
-          if (originalRole && originalRole.name !== roleInput.name) {
-            operations.push(updateRoleRequest({ id: normalizedRoleId, name: roleInput.name }));
-          }
-          return;
+    mutationFn: ({ departmentId, values }) =>
+      saveDepartmentCascadeRequest({ id: departmentId, values }),
+    onSuccess: async (department) => {
+      queryClient.setQueryData(['departments'], (previous?: Department[]) => {
+        if (!previous) {
+          return [department];
         }
 
-        operations.push(createRoleRequest({ departmentId: department.id, name: roleInput.name }));
+        const index = previous.findIndex((item) => item.id === department.id);
+
+        if (index === -1) {
+          return [department, ...previous];
+        }
+
+        const next = [...previous];
+        next[index] = department;
+        return next;
       });
 
-      for (const roleId of remainingRoleIds) {
-        operations.push(deleteRoleRequest(roleId));
-      }
-
-      if (operations.length === 0) {
-        return;
-      }
-
-      await Promise.all(operations);
-    },
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['departments'] });
       setEditingDepartmentId(null);
       departmentEditForm.reset({
         name: '',
@@ -794,6 +702,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
         roles: []
       });
       departmentRoleFields.replace([]);
+      await queryClient.invalidateQueries({ queryKey: ['departments'] });
     }
   });
 
@@ -887,13 +796,11 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
         return;
       }
 
-      const department = departments.find((item) => item.id === editingDepartmentId);
-
-      if (!department) {
+      if (!departments.some((department) => department.id === editingDepartmentId)) {
         return;
       }
 
-      saveDepartmentMutation.mutate({ department, values });
+      saveDepartmentMutation.mutate({ departmentId: editingDepartmentId, values });
     },
     [
       departments,
