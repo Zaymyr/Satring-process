@@ -39,7 +39,12 @@ export const departmentCascadeFormSchema = departmentInputSchema.extend({
   roles: z
     .array(
       z.object({
-        roleId: z.string().uuid('Identifiant de rôle invalide.').optional(),
+        roleId: z
+          .preprocess(
+            (value) => (typeof value === 'string' && value.trim().length === 0 ? undefined : value),
+            z.string().uuid('Identifiant de rôle invalide.')
+          )
+          .optional(),
         name: roleNameSchema
       })
     )
