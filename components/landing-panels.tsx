@@ -741,9 +741,9 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
   const saveDepartmentMutation = useMutation<
     void,
     ApiError,
-    { department: Department; values: DepartmentCascadeForm; fieldRoleIds: Array<string | undefined> }
+    { department: Department; values: DepartmentCascadeForm }
   >({
-    mutationFn: async ({ department, values, fieldRoleIds }) => {
+    mutationFn: async ({ department, values }) => {
       const operations: Promise<unknown>[] = [];
 
       if (values.name !== department.name || values.color !== department.color) {
@@ -755,20 +755,16 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
         );
       }
 
-      const remainingRoleIds = new Set(department.roles.map((role) => role.id));
+      const originalRolesById = new Map(department.roles.map((role) => [role.id, role] as const));
+      const remainingRoleIds = new Set(originalRolesById.keys());
 
-      values.roles.forEach((roleInput, index) => {
-        const fieldRoleId = fieldRoleIds[index];
+      values.roles.forEach((roleInput) => {
         const normalizedRoleId =
-          typeof fieldRoleId === 'string' && ROLE_ID_REGEX.test(fieldRoleId)
-            ? fieldRoleId
-            : roleInput.roleId && ROLE_ID_REGEX.test(roleInput.roleId)
-              ? roleInput.roleId
-              : undefined;
+          roleInput.roleId && ROLE_ID_REGEX.test(roleInput.roleId) ? roleInput.roleId : undefined;
 
         if (normalizedRoleId) {
           remainingRoleIds.delete(normalizedRoleId);
-          const originalRole = department.roles.find((role) => role.id === normalizedRoleId);
+          const originalRole = originalRolesById.get(normalizedRoleId);
 
           if (originalRole && originalRole.name !== roleInput.name) {
             operations.push(updateRoleRequest({ id: normalizedRoleId, name: roleInput.name }));
@@ -897,11 +893,9 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
         return;
       }
 
-      const fieldRoleIds = departmentRoleFields.fields.map((field) => field.roleId);
-      saveDepartmentMutation.mutate({ department, values, fieldRoleIds });
+      saveDepartmentMutation.mutate({ department, values });
     },
     [
-      departmentRoleFields.fields,
       departments,
       editingDepartmentId,
       isDepartmentActionsDisabled,
