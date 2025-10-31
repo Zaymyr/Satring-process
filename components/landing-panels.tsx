@@ -2945,11 +2945,16 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                                                 const roleIdField = `roles.${index}.roleId` as const;
                                                 return (
                                                   <div key={field.id} className="space-y-1">
-                                                    <input type="hidden" {...departmentEditForm.register(roleIdField)} />
+                                                    <input
+                                                      type="hidden"
+                                                      defaultValue={field.roleId ?? ''}
+                                                      {...departmentEditForm.register(roleIdField)}
+                                                    />
                                                     <div className="flex flex-wrap items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2.5 shadow-sm">
                                                       <div className="flex min-w-0 flex-1 items-center gap-2">
                                                         <UserRound className="h-4 w-4 text-slate-500" />
                                                         <Input
+                                                          defaultValue={field.name}
                                                           {...departmentEditForm.register(roleNameField)}
                                                           disabled={isSavingDepartment}
                                                           className="h-8 min-w-[10rem] flex-1 rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"

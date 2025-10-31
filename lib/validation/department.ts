@@ -35,24 +35,33 @@ export const departmentInputSchema = z.object({
 export type Department = Omit<z.infer<typeof departmentSchema>, 'roles'> & { roles: Role[] };
 export type DepartmentInput = z.infer<typeof departmentInputSchema>;
 
+const ROLE_ID_REGEX =
+  /^[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}$/i;
+
+const normalizeRoleId = (value: unknown) => {
+  if (typeof value !== 'string') {
+    return undefined;
+  }
+
+  const trimmed = value.trim();
+
+  if (trimmed.length === 0) {
+    return undefined;
+  }
+
+  if (!ROLE_ID_REGEX.test(trimmed)) {
+    return undefined;
+  }
+
+  return trimmed;
+};
+
 export const departmentCascadeFormSchema = departmentInputSchema.extend({
   roles: z
     .array(
       z.object({
         roleId: z
-          .preprocess((value) => {
-            if (typeof value !== 'string') {
-              return value;
-            }
-
-            const trimmed = value.trim();
-
-            if (trimmed.length === 0 || trimmed.toLowerCase() === 'undefined') {
-              return undefined;
-            }
-
-            return trimmed;
-          }, z.string().uuid('Identifiant de rôle invalide.'))
+          .preprocess(normalizeRoleId, z.string().uuid('Identifiant de rôle invalide.'))
           .optional(),
         name: roleNameSchema
       })
