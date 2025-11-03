@@ -2407,7 +2407,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
   const diagramControlsContentId = useId();
 
   return (
-    <div className="relative flex h-full flex-col overflow-hidden bg-gradient-to-br from-slate-100 via-white to-slate-200 text-slate-900">
+    <div className="relative flex h-full flex-col overflow-x-visible overflow-y-hidden bg-gradient-to-br from-slate-100 via-white to-slate-200 text-slate-900">
       <div className="absolute inset-0 z-0 flex items-center justify-center overflow-visible">
         <div
           ref={diagramViewportRef}
@@ -2453,7 +2453,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
           style={layoutStyle}
         >
         <div
-          className="pointer-events-auto relative flex shrink-0 items-stretch overflow-hidden transition-[width] duration-300 ease-out lg:col-start-1 lg:row-start-1 lg:h-full lg:min-h-0"
+          className="pointer-events-auto relative flex shrink-0 items-stretch overflow-visible transition-[width] duration-300 ease-out lg:col-start-1 lg:row-start-1 lg:h-full lg:min-h-0"
           style={{ width: primaryWidth }}
         >
           <button
@@ -2462,8 +2462,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
             aria-expanded={!isPrimaryCollapsed}
             aria-controls="primary-panel"
             className={cn(
-              'absolute right-2 top-6 z-20 flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white/90 text-slate-600 shadow-sm transition hover:bg-white',
-              'lg:right-3'
+              'absolute right-0 top-1/2 z-20 flex h-10 w-10 -translate-y-1/2 translate-x-1/2 items-center justify-center rounded-full border border-slate-200 bg-white/90 text-slate-600 shadow-sm transition hover:bg-white'
             )}
           >
             {isPrimaryCollapsed ? <ChevronRight className="h-5 w-5" /> : <ChevronLeft className="h-5 w-5" />}
@@ -2717,7 +2716,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
           </div>
         </div>
         <div
-          className="pointer-events-auto relative flex shrink-0 items-stretch overflow-hidden transition-[width] duration-300 ease-out lg:col-start-3 lg:row-start-1 lg:h-full lg:min-h-0"
+          className="pointer-events-auto relative flex shrink-0 items-stretch overflow-visible transition-[width] duration-300 ease-out lg:col-start-3 lg:row-start-1 lg:h-full lg:min-h-0"
           style={{ width: secondaryWidth }}
         >
           <button
@@ -2726,8 +2725,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
             aria-expanded={!isSecondaryCollapsed}
             aria-controls="secondary-panel"
             className={cn(
-              'absolute left-2 top-6 z-20 flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white/90 text-slate-600 shadow-sm transition hover:bg-white',
-              'lg:left-3'
+              'absolute left-0 top-1/2 z-20 flex h-10 w-10 -translate-y-1/2 -translate-x-1/2 items-center justify-center rounded-full border border-slate-200 bg-white/90 text-slate-600 shadow-sm transition hover:bg-white'
             )}
           >
             {isSecondaryCollapsed ? <ChevronLeft className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
@@ -3269,21 +3267,23 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                 </div>
               </div>
             </div>
-            <div className="grid gap-3.5 sm:grid-cols-2">
-              {highlights.map((item) => {
-                const Icon = highlightIcons[item.icon];
+            {highlights.length > 0 ? (
+              <div className="grid gap-3.5 sm:grid-cols-2">
+                {highlights.map((item) => {
+                  const Icon = highlightIcons[item.icon];
 
-                return (
-                  <Card key={item.title} className="border-slate-200 bg-white/90 shadow-sm">
-                    <CardContent className="flex flex-col gap-1.5 p-4">
-                      <Icon className="h-4 w-4 text-slate-500" />
-                      <p className="text-xs font-medium text-slate-900">{item.title}</p>
-                      <p className="text-xs text-slate-600">{item.description}</p>
-                    </CardContent>
-                  </Card>
-                );
-              })}
-            </div>
+                  return (
+                    <Card key={item.title} className="border-slate-200 bg-white/90 shadow-sm">
+                      <CardContent className="flex flex-col gap-1.5 p-4">
+                        <Icon className="h-4 w-4 text-slate-500" />
+                        <p className="text-xs font-medium text-slate-900">{item.title}</p>
+                        <p className="text-xs text-slate-600">{item.description}</p>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            ) : null}
           </aside>
         </div>
       </div>
