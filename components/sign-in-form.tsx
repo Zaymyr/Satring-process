@@ -24,6 +24,7 @@ export function SignInForm() {
   const {
     handleSubmit,
     register,
+    resetField,
     formState: { errors, isSubmitting }
   } = useForm<SignInSchema>({
     resolver: zodResolver(signInSchema),
@@ -85,6 +86,7 @@ export function SignInForm() {
 
       setError(message);
       setStatus('error');
+      resetField('password');
       return;
     }
     setStatus('success');
