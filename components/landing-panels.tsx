@@ -2449,11 +2449,11 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
       </div>
       <div className="pointer-events-none relative z-10 flex h-full min-h-0 w-full flex-col gap-6 px-4 py-8 lg:px-8 lg:py-12 xl:px-12">
         <div
-          className="pointer-events-none flex min-h-0 flex-1 flex-col gap-6 lg:grid lg:items-stretch lg:gap-0"
+          className="pointer-events-none flex min-h-0 flex-1 flex-col gap-6 lg:grid lg:auto-rows-[minmax(0,1fr)] lg:items-stretch lg:gap-0"
           style={layoutStyle}
         >
         <div
-          className="pointer-events-auto relative flex shrink-0 items-stretch overflow-visible transition-[width] duration-300 ease-out lg:col-start-1 lg:row-start-1 lg:h-full lg:min-h-0"
+          className="pointer-events-auto relative flex h-full min-h-0 shrink-0 items-stretch overflow-visible transition-[width] duration-300 ease-out lg:col-start-1 lg:row-start-1 lg:h-full lg:min-h-0"
           style={{ width: primaryWidth }}
         >
           <button
@@ -2716,7 +2716,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
           </div>
         </div>
         <div
-          className="pointer-events-auto relative flex shrink-0 items-stretch overflow-visible transition-[width] duration-300 ease-out lg:col-start-3 lg:row-start-1 lg:h-full lg:min-h-0"
+          className="pointer-events-auto relative flex h-full min-h-0 shrink-0 items-stretch overflow-visible transition-[width] duration-300 ease-out lg:col-start-3 lg:row-start-1 lg:h-full lg:min-h-0"
           style={{ width: secondaryWidth }}
         >
           <button
