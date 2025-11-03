@@ -112,7 +112,11 @@ type Highlight = {
   icon: keyof typeof highlightIcons;
 };
 
-type Step = ProcessStep;
+type Step = ProcessStep & {
+  description?: string | null;
+  assignee?: string | null;
+  nextStepId?: string | null;
+};
 
 type DiagramDragState = {
   pointerId: number;
