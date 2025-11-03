@@ -1,20 +1,12 @@
 'use client';
 
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  useId,
-  type CSSProperties,
-  type ReactNode
-} from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, useId, type ReactNode } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import Link from 'next/link';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   ArrowLeftRight,
+  ArrowRight,
   ArrowUpDown,
   Building2,
   ChevronDown,
@@ -932,11 +924,12 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
     departmentsQuery.error.status === 401;
   const isProcessesTabActive = activeSecondaryTab === 'processes';
   const isDepartmentsTabActive = activeSecondaryTab === 'departments';
-  const isDepartmentActionsDisabled = isUnauthorized || isDepartmentUnauthorized;
+  const isDeletingDepartment = deleteDepartmentMutation.isPending;
+  const isDepartmentActionsDisabled =
+    isUnauthorized || isDepartmentUnauthorized || isDeletingDepartment;
   const isCreatingDepartment = createDepartmentMutation.isPending;
   const isSavingDepartment = saveDepartmentMutation.isPending;
   const isAddingDepartmentRole = createDepartmentRoleMutation.isPending;
-  const isDeletingDepartment = deleteDepartmentMutation.isPending;
   const secondaryPanelTitle = isDepartmentsTabActive ? 'Mes départements' : 'Mes process';
   const secondaryPanelDescription = isDepartmentsTabActive
     ? 'Organisez vos départements et renommez-les pour structurer votre équipe.'
@@ -1470,11 +1463,6 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
     saveMutation.mutate(payload);
   };
 
-  const stepPositions = useMemo(
-    () => new Map(steps.map((step, index) => [step.id, index + 1] as const)),
-    [steps]
-  );
-
   const startEditingProcess = useCallback(
     (process: ProcessSummary) => {
       setEditingProcessId(process.id);
@@ -1487,6 +1475,14 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
     setEditingProcessId(null);
     setRenameDraft('');
   }, []);
+
+  const handleSelectProcess = useCallback(
+    (processId: string) => {
+      setSelectedProcessId(processId);
+      cancelEditingProcess();
+    },
+    [cancelEditingProcess]
+  );
 
   const confirmRenameProcess = useCallback(
     (processId: string) => {
@@ -1510,6 +1506,13 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
       renameProcessMutation.mutate({ id: processId, title: normalized });
     },
     [cancelEditingProcess, isRenaming, processSummaries, renameDraft, renameProcessMutation]
+  );
+
+  const deleteProcess = useCallback(
+    (processId: string) => {
+      deleteProcessMutation.mutate(processId);
+    },
+    [deleteProcessMutation]
   );
 
   const handleCreateProcess = useCallback(() => {
@@ -2395,579 +2398,751 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
     [diagramUserOffset.x, diagramUserOffset.y]
   );
 
-  const primaryWidth = isPrimaryCollapsed ? '3.5rem' : 'clamp(18rem, 28vw, 34rem)';
-  const secondaryWidth = isSecondaryCollapsed ? '3.5rem' : 'clamp(16rem, 22vw, 26rem)';
-  const layoutStyle = useMemo<CSSProperties>(
-    () => ({
-      gridTemplateColumns: `${primaryWidth} minmax(0, 1fr) ${secondaryWidth}`
-    }),
-    [primaryWidth, secondaryWidth]
-  );
+  const showPrimaryPanel = !isPrimaryCollapsed;
+  const showSecondaryPanel = !isSecondaryCollapsed;
+  const showBottomPanel = !isBottomCollapsed;
 
   const diagramControlsContentId = useId();
 
   return (
-    <div className="relative flex h-full flex-col overflow-x-visible overflow-y-hidden bg-gradient-to-br from-slate-100 via-white to-slate-200 text-slate-900">
-      <div className="absolute inset-0 z-0 flex items-center justify-center overflow-visible">
-        <div
-          ref={diagramViewportRef}
-          className={cn(
-            'pointer-events-auto relative flex h-full w-full select-none touch-none items-center justify-center',
-            isDiagramDragging ? 'cursor-grabbing' : 'cursor-grab'
-          )}
-          onPointerDown={handleDiagramPointerDown}
-          onPointerMove={handleDiagramPointerMove}
-          onPointerUp={handleDiagramPointerEnd}
-          onPointerCancel={handleDiagramPointerEnd}
-          onLostPointerCapture={handleDiagramPointerEnd}
-        >
-          <div
-            className={cn(
-              'pointer-events-auto absolute left-1/2 top-1/2 h-auto w-auto max-h-none max-w-none opacity-90 transition-transform [filter:drop-shadow(0_25px_65px_rgba(15,23,42,0.22))] [&_svg]:h-auto [&_svg]:max-h-none [&_svg]:max-w-none [&_.node rect]:stroke-slate-900 [&_.node rect]:stroke-[1.5px] [&_.node polygon]:stroke-slate-900 [&_.node polygon]:stroke-[1.5px] [&_.node circle]:stroke-slate-900 [&_.node circle]:stroke-[1.5px] [&_.node ellipse]:stroke-slate-900 [&_.node ellipse]:stroke-[1.5px] [&_.edgePath path]:stroke-slate-900 [&_.edgePath path]:stroke-[1.5px] [&_.edgeLabel]:text-slate-900'
-            )}
-            style={{
-              transform: `translate(-50%, -50%) translate3d(${diagramUserOffset.x}px, ${diagramUserOffset.y}px, 0) scale(${diagramScale})`,
-              transformOrigin: 'center center',
-              willChange: 'transform'
-            }}
-          >
-            {diagramSvg ? (
-              <div
-                aria-hidden="true"
-                dangerouslySetInnerHTML={{ __html: diagramSvg }}
-              />
-            ) : (
-              fallbackDiagram
-            )}
-          </div>
-        </div>
-        {diagramError ? (
-          <span role="status" aria-live="polite" className="sr-only">
-            {diagramError}
-          </span>
-        ) : null}
-      </div>
-      <div className="pointer-events-none relative z-10 flex h-full min-h-0 w-full flex-col gap-6 px-4 py-8 lg:px-8 lg:py-12 xl:px-12">
-        <div
-          className="pointer-events-none flex min-h-0 flex-1 flex-col gap-6 lg:grid lg:items-stretch lg:gap-0"
-          style={layoutStyle}
-        >
-        <div
-          className="pointer-events-auto relative flex shrink-0 items-stretch overflow-visible transition-[width] duration-300 ease-out lg:col-start-1 lg:row-start-1 lg:h-full lg:min-h-0"
-          style={{ width: primaryWidth }}
-        >
-          <button
-            type="button"
-            onClick={() => setIsPrimaryCollapsed((prev) => !prev)}
-            aria-expanded={!isPrimaryCollapsed}
-            aria-controls="primary-panel"
-            className={cn(
-              'absolute right-0 top-1/2 z-20 flex h-10 w-10 -translate-y-1/2 translate-x-1/2 items-center justify-center rounded-full border border-slate-200 bg-white/90 text-slate-600 shadow-sm transition hover:bg-white'
-            )}
-          >
-            {isPrimaryCollapsed ? <ChevronRight className="h-5 w-5" /> : <ChevronLeft className="h-5 w-5" />}
-            <span className="sr-only">Basculer le panneau principal</span>
-          </button>
-          <div
-            id="primary-panel"
-            className={cn(
-              'flex h-full w-full flex-col gap-8 overflow-hidden rounded-3xl border border-slate-200 bg-white/85 px-8 py-10 shadow-[0_30px_120px_-50px_rgba(15,23,42,0.35)] backdrop-blur transition-all duration-300 ease-out sm:px-10',
-              isPrimaryCollapsed
-                ? 'pointer-events-none opacity-0 lg:-translate-x-[110%]'
-                : 'pointer-events-auto opacity-100 lg:translate-x-0'
-            )}
-          >
-            <h1 className="text-base font-semibold text-slate-900">{processTitle}</h1>
-            <div className="flex flex-wrap gap-2.5">
-              <Button type="button" onClick={() => addStep('action')} className="h-9 rounded-md bg-slate-900 px-3 text-sm text-white hover:bg-slate-800">
-                <Plus className="mr-2 h-3.5 w-3.5" />
-                Ajouter une action
-              </Button>
-              <Button type="button" variant="outline" onClick={() => addStep('decision')} className="h-9 rounded-md border-slate-300 bg-white px-3 text-sm text-slate-900 hover:bg-slate-50">
-                <GitBranch className="mr-2 h-3.5 w-3.5" />
-                Ajouter une décision
-              </Button>
-            </div>
-            <div className="flex-1 min-h-0 overflow-hidden">
-              <div className="h-full space-y-6 overflow-y-auto rounded-2xl border border-slate-200 bg-white/75 p-5 pr-2 shadow-inner sm:pr-3">
-                {selectedStep ? (
-                  <p className="text-xs text-slate-600">
-                    Étape sélectionnée :{' '}
-                    <span className="font-medium text-slate-900">{getStepDisplayLabel(selectedStep)}</span>
-                  </p>
-                ) : null}
-                <div className="space-y-3.5">
-                  {steps.map((step, index) => {
-                    const Icon = STEP_TYPE_ICONS[step.type];
-                    const isRemovable = step.type === 'action' || step.type === 'decision';
-                    const stepPosition = index + 1;
-                    const availableTargets = steps.filter((candidate) => candidate.id !== step.id);
-                    const isDragging = draggedStepId === step.id;
-                    const isFixedStep = step.type === 'start' || step.type === 'finish';
-                    const canReorderStep = !isFixedStep;
-                    const isSelectedStep = selectedStepId === step.id;
-                    const displayLabel = getStepDisplayLabel(step);
-
-                    return (
-                      <Card
-                        key={step.id}
-                        className={cn(
-                          'border-slate-200 bg-white/90 shadow-sm transition',
-                          isDragging
-                            ? 'opacity-70 ring-2 ring-slate-300'
-                            : isSelectedStep
-                            ? 'border-slate-900 ring-2 ring-slate-900/20'
-                            : 'hover:border-slate-300'
-                        )}
-                        onDragOver={(event) => handleStepDragOver(event, step.id)}
-                        onDrop={handleStepDrop}
-                        onClick={() => setSelectedStepId(step.id)}
-                        onFocusCapture={() => setSelectedStepId(step.id)}
-                        aria-selected={isSelectedStep}
-                      >
-                        <CardContent
-                          className={cn(
-                            'flex gap-3 p-3.5',
-                            isSelectedStep ? 'items-start' : 'items-center gap-2 p-2.5'
-                          )}
-                        >
-                          <div
-                            className={cn(
-                              'flex items-center',
-                              isSelectedStep ? 'flex-col gap-1' : 'flex-row gap-2'
-                            )}
-                          >
-                            <button
-                              type="button"
-                              className={cn(
-                                'flex h-7 w-7 items-center justify-center rounded-full border border-transparent bg-slate-100 text-slate-500 transition',
-                                canReorderStep ? 'hover:border-slate-300 hover:bg-white' : 'cursor-not-allowed opacity-60'
-                              )}
-                              draggable={canReorderStep}
-                              onDragStart={(event) => {
-                                if (!canReorderStep) {
-                                  event.preventDefault();
-                                  return;
-                                }
-                                handleStepDragStart(event, step.id);
-                              }}
-                              onDragEnd={handleStepDragEnd}
-                              aria-label={`Réorganiser ${getStepDisplayLabel(step)}`}
-                              aria-grabbed={isDragging}
-                              disabled={!canReorderStep}
-                            >
-                              <GripVertical className="h-3.5 w-3.5" />
-                            </button>
-                            <span
-                              className={cn(
-                                'flex h-7 w-7 items-center justify-center rounded-full text-[0.65rem] font-semibold transition-colors',
-                                isSelectedStep ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600'
-                              )}
-                            >
-                              {stepPosition}
-                            </span>
-                          </div>
-                          {isSelectedStep ? (
-                            <div className="flex min-w-0 flex-1 flex-col gap-1">
-                              <div className="flex items-center gap-1.5 text-slate-500">
-                                <Icon className="h-3.5 w-3.5" />
-                                <span className="text-[0.6rem] font-medium uppercase tracking-[0.24em]">
-                                  {STEP_TYPE_LABELS[step.type]}
-                                </span>
-                              </div>
-                              <Input
-                                id={`step-${step.id}-label`}
-                                value={step.label}
-                                onChange={(event) => updateStepLabel(step.id, event.target.value)}
-                                placeholder="Intitulé de l’étape"
-                                className="h-8 w-full border-slate-200 bg-white text-sm text-slate-900 placeholder:text-slate-400 focus-visible:ring-slate-900/20 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-50"
-                              />
-                              <label className="flex flex-col gap-1 text-[0.6rem] font-semibold uppercase tracking-[0.18em] text-slate-500">
-                                <span>Département</span>
-                                <select
-                                  value={step.departmentId ?? ''}
-                                  onChange={(event) =>
-                                    updateStepDepartment(
-                                      step.id,
-                                      event.target.value.length > 0 ? event.target.value : null
-                                    )
-                                  }
-                                  className="h-8 rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-900 transition focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10 disabled:cursor-not-allowed"
-                                  disabled={!hasDepartments}
-                                >
-                                  <option value="">Aucun département</option>
-                                  {departments.map((department) => (
-                                    <option key={department.id} value={department.id}>
-                                      {department.name}
-                                    </option>
-                                  ))}
-                                </select>
-                                {!hasDepartments ? (
-                                  <span className="text-[0.6rem] font-normal normal-case tracking-normal text-slate-500">
-                                    Ajoutez un département pour l’associer à cette étape.
-                                  </span>
-                                ) : null}
-                              </label>
-                              {step.type === 'decision' ? (
-                                <div className="mt-2 grid gap-2 sm:grid-cols-2">
-                                  <label className="flex flex-col gap-1 text-[0.6rem] font-semibold uppercase tracking-[0.18em] text-slate-500">
-                                    <span>Branche Oui</span>
-                                    <select
-                                      value={step.yesTargetId ?? ''}
-                                      onChange={(event) =>
-                                        updateDecisionBranch(step.id, 'yes', event.target.value || null)
-                                      }
-                                      className="h-8 rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-900 transition focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10"
-                                    >
-                                      <option value="">Étape suivante (défaut)</option>
-                                      {availableTargets.map((candidate) => {
-                                        const position = stepPositions.get(candidate.id);
-                                        const optionLabel = position
-                                          ? `${position}. ${getStepDisplayLabel(candidate)}`
-                                          : getStepDisplayLabel(candidate);
-
-                                        return (
-                                          <option key={candidate.id} value={candidate.id}>
-                                            {optionLabel}
-                                          </option>
-                                        );
-                                      })}
-                                    </select>
-                                  </label>
-                                  <label className="flex flex-col gap-1 text-[0.6rem] font-semibold uppercase tracking-[0.18em] text-slate-500">
-                                    <span>Branche Non</span>
-                                    <select
-                                      value={step.noTargetId ?? ''}
-                                      onChange={(event) =>
-                                        updateDecisionBranch(step.id, 'no', event.target.value || null)
-                                      }
-                                      className="h-8 rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-900 transition focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10"
-                                    >
-                                      <option value="">Étape suivante (défaut)</option>
-                                      {availableTargets.map((candidate) => {
-                                        const position = stepPositions.get(candidate.id);
-                                        const optionLabel = position
-                                          ? `${position}. ${getStepDisplayLabel(candidate)}`
-                                          : getStepDisplayLabel(candidate);
-
-                                        return (
-                                          <option key={candidate.id} value={candidate.id}>
-                                            {optionLabel}
-                                          </option>
-                                        );
-                                      })}
-                                    </select>
-                                  </label>
-                                </div>
-                              ) : null}
-                            </div>
-                          ) : (
-                            <div className="flex min-w-0 flex-1 items-center gap-2">
-                              <span className="truncate text-sm font-medium text-slate-900" title={displayLabel}>
-                                {displayLabel}
-                              </span>
-                            </div>
-                          )}
-                          {isRemovable ? (
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => removeStep(step.id)}
-                              className="h-7 w-7 shrink-0 text-slate-400 hover:text-slate-900"
-                              aria-label="Supprimer l’étape"
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </Button>
-                          ) : null}
-                        </CardContent>
-                      </Card>
-                    );
-                  })}
-                  <div
-                    role="presentation"
-                    className={cn(
-                      'h-4 rounded border border-dashed border-transparent transition',
-                      draggedStepId ? 'border-slate-300 bg-white/60' : 'border-transparent'
-                    )}
-                    onDragOver={handleStepListDragOverEnd}
-                    onDrop={handleStepDrop}
-                  >
-                    {draggedStepId ? (
-                      <span className="sr-only">Déposer ici pour placer l’étape à la fin</span>
-                    ) : null}
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div className="rounded-2xl border border-slate-200 bg-white/80 p-4 shadow-inner">
-              <Button
-                type="button"
-                onClick={handleSave}
-                disabled={isSaveDisabled}
-                className="h-10 w-full rounded-md bg-slate-900 text-sm font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600"
-              >
-                {saveButtonLabel}
-              </Button>
-              <p className={cn('mt-2 text-xs', statusToneClass)} aria-live="polite">
-                {statusMessage}
-              </p>
-            </div>
-          </div>
-        </div>
-        <div
-          className="pointer-events-auto relative flex shrink-0 items-stretch overflow-visible transition-[width] duration-300 ease-out lg:col-start-3 lg:row-start-1 lg:h-full lg:min-h-0"
-          style={{ width: secondaryWidth }}
-        >
-          <button
-            type="button"
-            onClick={() => setIsSecondaryCollapsed((prev) => !prev)}
-            aria-expanded={!isSecondaryCollapsed}
-            aria-controls="secondary-panel"
-            className={cn(
-              'absolute left-0 top-1/2 z-20 flex h-10 w-10 -translate-y-1/2 -translate-x-1/2 items-center justify-center rounded-full border border-slate-200 bg-white/90 text-slate-600 shadow-sm transition hover:bg-white'
-            )}
-          >
-            {isSecondaryCollapsed ? <ChevronLeft className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
-            <span className="sr-only">Basculer le panneau secondaire</span>
-          </button>
+    <div className="flex min-h-full flex-col bg-gradient-to-br from-slate-100 via-white to-slate-200 text-slate-900">
+      <div className="flex flex-1 flex-col overflow-hidden lg:flex-row">
+        {showPrimaryPanel ? (
           <aside
-            id="secondary-panel"
-            className={cn(
-              'flex h-full w-full flex-col gap-5 overflow-hidden rounded-3xl border border-slate-200 bg-white/80 p-6 shadow-[0_30px_120px_-50px_rgba(15,23,42,0.35)] backdrop-blur transition-all duration-300 ease-out',
-              isSecondaryCollapsed
-                ? 'pointer-events-none opacity-0 lg:translate-x-[110%]'
-                : 'pointer-events-auto opacity-100 lg:translate-x-0'
-            )}
+            className="order-2 flex h-full w-full shrink-0 flex-col px-4 py-6 sm:px-6 lg:order-1 lg:px-8"
+            style={{ width: 'clamp(18rem, 28vw, 34rem)' }}
           >
-            <div className="space-y-3">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <h2 className="text-lg font-semibold text-slate-900">{secondaryPanelTitle}</h2>
-                  <p className="text-xs text-slate-600">{secondaryPanelDescription}</p>
+            <div className="relative flex h-full flex-col">
+              <button
+                type="button"
+                onClick={() => setIsPrimaryCollapsed(true)}
+                aria-expanded={showPrimaryPanel}
+                aria-controls="primary-panel"
+                className="absolute -right-3 top-1/2 z-20 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-slate-200 bg-white/90 text-slate-600 shadow-sm transition hover:bg-white"
+              >
+                <ChevronLeft className="h-5 w-5" />
+                <span className="sr-only">Replier le panneau des étapes</span>
+              </button>
+              <div
+                id="primary-panel"
+                className="flex h-full w-full flex-col gap-8 overflow-hidden rounded-3xl border border-slate-200 bg-white/85 px-8 py-10 shadow-[0_30px_120px_-50px_rgba(15,23,42,0.35)] backdrop-blur sm:px-10"
+              >
+                <h1 className="text-base font-semibold text-slate-900">{processTitle}</h1>
+                <div className="flex flex-wrap gap-2.5">
+                  <Button type="button" onClick={() => addStep('action')} className="h-9 rounded-md bg-slate-900 px-3 text-sm text-white hover:bg-slate-800">
+                    <Plus className="mr-2 h-3.5 w-3.5" />
+                    Ajouter une action
+                  </Button>
+                  <Button type="button" variant="outline" onClick={() => addStep('decision')} className="h-9 rounded-md border-slate-300 bg-white px-3 text-sm text-slate-900 hover:bg-slate-50">
+                    <GitBranch className="mr-2 h-3.5 w-3.5" />
+                    Ajouter une décision
+                  </Button>
                 </div>
-                {isProcessesTabActive ? (
-                  <Button
-                    type="button"
-                    size="sm"
-                    onClick={handleCreateProcess}
-                    disabled={isUnauthorized || isCreating}
-                    className="inline-flex h-8 items-center gap-1 rounded-md bg-slate-900 px-3 text-xs font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600"
-                  >
-                    {isCreating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
-                    Nouveau
-                  </Button>
-                ) : isDepartmentsTabActive ? (
-                  <Button
-                    type="button"
-                    size="sm"
-                    onClick={handleCreateDepartment}
-                    disabled={isDepartmentActionsDisabled || isCreatingDepartment}
-                    className="inline-flex h-8 items-center gap-1 rounded-md bg-slate-900 px-3 text-xs font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600"
-                  >
-                    {isCreatingDepartment ? (
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    ) : (
-                      <Plus className="h-3.5 w-3.5" />
-                    )}
-                    Nouveau
-                  </Button>
-                ) : null}
-              </div>
-              <div className="flex items-center gap-2" role="tablist" aria-label="Navigation des listes">
-                <button
-                  type="button"
-                  id="processes-tab"
-                  role="tab"
-                  aria-selected={isProcessesTabActive}
-                  aria-controls="processes-panel"
-                  onClick={() => setActiveSecondaryTab('processes')}
-                  className={cn(
-                    'flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium transition',
-                    isProcessesTabActive
-                      ? 'bg-slate-900 text-white shadow'
-                      : 'bg-transparent text-slate-600 hover:bg-slate-100'
-                  )}
-                >
-                  <FolderTree className="h-3.5 w-3.5" />
-                  Process
-                </button>
-                <button
-                  type="button"
-                  id="departments-tab"
-                  role="tab"
-                  aria-selected={isDepartmentsTabActive}
-                  aria-controls="departments-panel"
-                  onClick={() => setActiveSecondaryTab('departments')}
-                  className={cn(
-                    'flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium transition',
-                    isDepartmentsTabActive
-                      ? 'bg-slate-900 text-white shadow'
-                      : 'bg-transparent text-slate-600 hover:bg-slate-100'
-                  )}
-                >
-                  <Building2 className="h-3.5 w-3.5" />
-                  Départements
-                </button>
-              </div>
-            </div>
-            <div className="flex-1 min-h-0 overflow-hidden">
-              <div className="flex h-full flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white/80">
-                <div className="flex-1 overflow-y-auto px-3 py-4">
-                  <div
-                    role="tabpanel"
-                    id="processes-panel"
-                    aria-labelledby="processes-tab"
-                    hidden={!isProcessesTabActive}
-                    className={cn('h-full', !isProcessesTabActive && 'hidden')}
-                  >
-                    {isProcessListUnauthorized ? (
-                      <p className="text-sm text-slate-600">
-                        Connectez-vous pour accéder à vos process sauvegardés.
+                <div className="flex-1 min-h-0 overflow-hidden">
+                  <div className="h-full space-y-6 overflow-y-auto rounded-2xl border border-slate-200 bg-white/75 p-5 pr-2 shadow-inner sm:pr-3">
+                    {selectedStep ? (
+                      <p className="text-xs text-slate-600">
+                        Étape sélectionnée :{' '}
+                        <span className="font-medium text-slate-900">{getStepDisplayLabel(selectedStep)}</span>
                       </p>
-                    ) : processSummariesQuery.isLoading ? (
-                      <div className="flex items-center gap-2 text-sm text-slate-500">
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        Chargement des process…
-                      </div>
-                    ) : processSummariesQuery.isError ? (
-                      <p className="text-sm text-red-600">
-                        {processSummariesQuery.error instanceof ApiError
-                          ? processSummariesQuery.error.message
-                          : 'Impossible de récupérer la liste des process.'}
-                      </p>
-                    ) : hasProcesses ? (
-                      <ul role="tree" aria-label="Process sauvegardés" className="space-y-2">
-                        {processSummaries.map((summary) => {
-                          const isSelected = summary.id === currentProcessId;
-                          const isEditing = editingProcessId === summary.id;
-                          const updatedLabel = formatUpdatedAt(summary.updatedAt);
+                    ) : null}
+                    <div className="space-y-3.5">
+                      {steps.map((step, index) => {
+                        const Icon = STEP_TYPE_ICONS[step.type];
+                        const isRemovable = step.type === 'action' || step.type === 'decision';
+                        const stepPosition = index + 1;
+                        const availableTargets = steps.filter((candidate) => candidate.id !== step.id);
+                        const isDragging = draggedStepId === step.id;
+                        const isFixedStep = step.type === 'start' || step.type === 'finish';
+                        const canReorderStep = !isFixedStep;
+                        const isSelectedStep = selectedStepId === step.id;
+                        const displayLabel = getStepDisplayLabel(step);
 
-                          return (
-                            <li key={summary.id} role="treeitem" aria-selected={isSelected} className="focus:outline-none">
+                        return (
+                          <Card
+                            key={step.id}
+                            className={cn(
+                              'border-slate-200 bg-white/90 shadow-sm transition',
+                              isDragging
+                                ? 'opacity-70 ring-2 ring-slate-300'
+                                : isSelectedStep
+                                ? 'border-slate-900 ring-2 ring-slate-900/20'
+                                : 'hover:border-slate-300'
+                            )}
+                            onDragOver={(event) => handleStepDragOver(event, step.id)}
+                            onDrop={handleStepDrop}
+                            onClick={() => setSelectedStepId(step.id)}
+                            onFocusCapture={() => setSelectedStepId(step.id)}
+                            aria-selected={isSelectedStep}
+                          >
+                            <CardContent
+                              className={cn(
+                                'flex gap-3 p-3.5',
+                                isSelectedStep ? 'items-start' : 'items-center gap-2 p-2.5'
+                              )}
+                            >
                               <div
-                                role={isEditing ? undefined : 'button'}
-                                tabIndex={isEditing ? undefined : 0}
-                                onClick={
-                                  isEditing
-                                    ? undefined
-                                    : () => {
-                                        setSelectedProcessId(summary.id);
-                                      }
-                                }
-                                onDoubleClick={isEditing ? undefined : () => startEditingProcess(summary)}
-                                onKeyDown={
-                                  isEditing
-                                    ? undefined
-                                    : (event) => {
-                                        if (event.key === 'Enter' || event.key === ' ') {
-                                          event.preventDefault();
-                                          setSelectedProcessId(summary.id);
-                                        }
-                                      }
-                                }
                                 className={cn(
-                                  'group flex flex-col gap-1 rounded-lg border border-transparent px-2 py-2 transition focus:outline-none',
-                                  isSelected
-                                    ? 'border-slate-900/30 bg-slate-900/5 shadow-inner'
-                                    : 'hover:border-slate-300 hover:bg-slate-100',
-                                  isEditing
-                                    ? undefined
-                                    : 'cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400'
+                                  'flex items-center',
+                                  isSelectedStep ? 'flex-col gap-1' : 'flex-row gap-2'
                                 )}
                               >
-                                <div className="flex items-center justify-between gap-2">
-                                  <div className="flex items-center gap-2">
-                                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-200 text-slate-700">
-                                      <FolderTree className="h-4 w-4" />
+                                <button
+                                  type="button"
+                                  className={cn(
+                                    'flex h-7 w-7 items-center justify-center rounded-full border border-transparent bg-slate-100 text-slate-500 transition',
+                                    canReorderStep ? 'hover:border-slate-300 hover:bg-white' : 'cursor-not-allowed opacity-60'
+                                  )}
+                                  draggable={canReorderStep}
+                                  onDragStart={(event) => {
+                                    if (!canReorderStep) {
+                                      event.preventDefault();
+                                      return;
+                                    }
+                                    handleStepDragStart(event, step.id);
+                                  }}
+                                  onDragEnd={handleStepDragEnd}
+                                  aria-label={`Réorganiser ${getStepDisplayLabel(step)}`}
+                                  aria-grabbed={isDragging}
+                                  disabled={!canReorderStep}
+                                >
+                                  <GripVertical className="h-3.5 w-3.5" />
+                                </button>
+                                <span
+                                  className={cn(
+                                    'flex h-7 w-7 items-center justify-center rounded-full text-[0.65rem] font-semibold transition-colors',
+                                    isSelectedStep ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600'
+                                  )}
+                                >
+                                  {stepPosition}
+                                </span>
+                              </div>
+                              {isSelectedStep ? (
+                                <div className="flex min-w-0 flex-1 flex-col gap-1">
+                                  <div className="flex items-center gap-1.5 text-slate-500">
+                                    <Icon className="h-3.5 w-3.5" />
+                                    <span className="text-[0.6rem] font-medium uppercase tracking-[0.24em]">
+                                      {STEP_TYPE_LABELS[step.type]}
+                                    </span>
+                                  </div>
+                                  <Input
+                                    id={`step-${step.id}-label`}
+                                    value={step.label}
+                                    onChange={(event) => updateStepLabel(step.id, event.target.value)}
+                                    className="h-9 rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
+                                  />
+                                  <div className="grid gap-2">
+                                    <label
+                                      htmlFor={`step-${step.id}-department`}
+                                      className="text-[0.65rem] font-medium uppercase tracking-[0.22em] text-slate-500"
+                                    >
+                                      Département
+                                    </label>
+                                    <select
+                                      id={`step-${step.id}-department`}
+                                      value={step.departmentId ?? ''}
+                                      onChange={(event) =>
+                                        updateStepDepartment(
+                                          step.id,
+                                          event.target.value ? event.target.value : null
+                                        )
+                                      }
+                                      className="h-9 rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
+                                    >
+                                      <option value="">Aucun département</option>
+                                      {departments.map((department) => (
+                                        <option key={department.id} value={department.id}>
+                                          {department.name}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  </div>
+                                  <div className="grid gap-2">
+                                    <label
+                                      htmlFor={`step-${step.id}-assignee`}
+                                      className="text-[0.65rem] font-medium uppercase tracking-[0.22em] text-slate-500"
+                                    >
+                                      Attribué à
+                                    </label>
+                                    <select
+                                      id={`step-${step.id}-assignee`}
+                                      value={step.assignee ?? ''}
+                                      onChange={(event) => updateStepAssignee(step.id, event.target.value)}
+                                      className="h-9 rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
+                                    >
+                                      <option value="">Aucun</option>
+                                      {departments.flatMap((department) =>
+                                        department.roles.map((role) => (
+                                          <option key={role.id} value={role.id}>
+                                            {department.name} — {role.name}
+                                          </option>
+                                        ))
+                                      )}
+                                    </select>
+                                  </div>
+                                  <div className="grid gap-2">
+                                    <label
+                                      htmlFor={`step-${step.id}-description`}
+                                      className="text-[0.65rem] font-medium uppercase tracking-[0.22em] text-slate-500"
+                                    >
+                                      Description
+                                    </label>
+                                    <textarea
+                                      id={`step-${step.id}-description`}
+                                      value={step.description ?? ''}
+                                      onChange={(event) => updateStepDescription(step.id, event.target.value)}
+                                      className="min-h-[5rem] rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
+                                    />
+                                  </div>
+                                  <div className="grid gap-2">
+                                    <label
+                                      htmlFor={`step-${step.id}-next`}
+                                      className="text-[0.65rem] font-medium uppercase tracking-[0.22em] text-slate-500"
+                                    >
+                                      Transition
+                                    </label>
+                                    <select
+                                      id={`step-${step.id}-next`}
+                                      value={step.nextStepId ?? ''}
+                                      onChange={(event) => updateStepNext(step.id, event.target.value)}
+                                      className="h-9 rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
+                                    >
+                                      <option value="">Fin du processus</option>
+                                      {availableTargets.map((candidate) => (
+                                        <option key={candidate.id} value={candidate.id}>
+                                          {getStepDisplayLabel(candidate)}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  </div>
+                                  {step.type === 'decision' ? (
+                                    <div className="grid gap-3">
+                                      <span className="text-[0.65rem] font-medium uppercase tracking-[0.22em] text-slate-500">
+                                        Branches conditionnelles
+                                      </span>
+                                      <div className="grid gap-3 sm:grid-cols-2">
+                                        <div className="grid gap-1.5">
+                                          <label
+                                            htmlFor={`step-${step.id}-yes-branch`}
+                                            className="text-[0.6rem] font-medium uppercase tracking-[0.24em] text-slate-500"
+                                          >
+                                            Chemin « oui »
+                                          </label>
+                                          <select
+                                            id={`step-${step.id}-yes-branch`}
+                                            value={step.yesTargetId ?? ''}
+                                            onChange={(event) =>
+                                              updateDecisionBranch(
+                                                step.id,
+                                                'yes',
+                                                event.target.value ? event.target.value : null
+                                              )
+                                            }
+                                            className="h-9 rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
+                                          >
+                                            <option value="">Fin du process</option>
+                                            {availableTargets.map((candidate) => (
+                                              <option key={candidate.id} value={candidate.id}>
+                                                {getStepDisplayLabel(candidate)}
+                                              </option>
+                                            ))}
+                                          </select>
+                                        </div>
+                                        <div className="grid gap-1.5">
+                                          <label
+                                            htmlFor={`step-${step.id}-no-branch`}
+                                            className="text-[0.6rem] font-medium uppercase tracking-[0.24em] text-slate-500"
+                                          >
+                                            Chemin « non »
+                                          </label>
+                                          <select
+                                            id={`step-${step.id}-no-branch`}
+                                            value={step.noTargetId ?? ''}
+                                            onChange={(event) =>
+                                              updateDecisionBranch(
+                                                step.id,
+                                                'no',
+                                                event.target.value ? event.target.value : null
+                                              )
+                                            }
+                                            className="h-9 rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
+                                          >
+                                            <option value="">Fin du process</option>
+                                            {availableTargets.map((candidate) => (
+                                              <option key={candidate.id} value={candidate.id}>
+                                                {getStepDisplayLabel(candidate)}
+                                              </option>
+                                            ))}
+                                          </select>
+                                        </div>
+                                      </div>
                                     </div>
-                                    <div className="min-w-0">
-                                      {isEditing ? (
-                                        <div className="flex items-center gap-2">
+                                  ) : null}
+                                  {isRemovable ? (
+                                    <Button
+                                      type="button"
+                                      variant="outline"
+                                      onClick={() => removeStep(step.id)}
+                                      className="inline-flex h-9 items-center justify-center gap-2 rounded-md border-red-200 bg-red-50 px-3 text-xs font-medium text-red-600 transition hover:bg-red-100"
+                                    >
+                                      <Trash2 className="h-3.5 w-3.5" />
+                                      Supprimer l’étape
+                                    </Button>
+                                  ) : null}
+                                </div>
+                              ) : (
+                                <div className="flex min-w-0 flex-1 flex-col gap-1">
+                                  <div className="flex items-center gap-2 text-slate-500">
+                                    <Icon className="h-3.5 w-3.5" />
+                                    <span className="text-xs font-medium text-slate-900">{displayLabel}</span>
+                                  </div>
+                                  <p className="line-clamp-2 text-xs text-slate-600">
+                                    {step.description ?? 'Ajoutez une description pour clarifier cette étape.'}
+                                  </p>
+                                </div>
+                              )}
+                            </CardContent>
+                            {isSelectedStep ? (
+                              <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 bg-white/60 px-4 py-3 text-xs text-slate-500">
+                                {step.assignee ? (
+                                  <span className="inline-flex items-center gap-1">
+                                    <UserRound className="h-3 w-3" />
+                                    Assigné
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center gap-1 text-slate-400">
+                                    <UserRound className="h-3 w-3" />
+                                    Non assigné
+                                  </span>
+                                )}
+                                {step.nextStepId ? (
+                                  <span className="inline-flex items-center gap-1">
+                                    <ArrowRight className="h-3 w-3" />
+                                    Suit : {getStepDisplayLabel(getStepById(step.nextStepId) ?? step)}
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center gap-1 text-slate-400">
+                                    <Flag className="h-3 w-3" />
+                                    Termine le process
+                                  </span>
+                                )}
+                              </div>
+                            ) : null}
+                          </Card>
+                        );
+                      })}
+                      <div
+                        className="grid place-items-center rounded-2xl border border-dashed border-slate-300 bg-white/70 p-6 text-center text-sm text-slate-500"
+                        onDragOver={(event) => handleStepDragOver(event, null)}
+                        onDragEnter={handleStepListDragOverEnd}
+                        onDragLeave={handleStepListDragOverEnd}
+                        onDrop={handleStepDrop}
+                      >
+                        <span className="font-medium text-slate-700">Glissez une étape ici</span>
+                        <p className="text-xs text-slate-500">Déposez l’étape sélectionnée pour l’ajouter à la fin.</p>
+                        <div
+                          className="mt-4 flex items-center justify-center rounded-full border border-slate-200 bg-white px-4 py-2 text-xs text-slate-500 shadow-sm"
+                          onDragOver={(event) => handleStepDragOver(event, FINISH_STEP_ID)}
+                          onDrop={handleStepDrop}
+                        >
+                          <span className="font-medium text-slate-600">Terminer</span>
+                        </div>
+                        {draggedStepId ? (
+                          <span className="sr-only">Déposer ici pour placer l’étape à la fin</span>
+                        ) : null}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div className="rounded-2xl border border-slate-200 bg-white/80 p-4 shadow-inner">
+                  <Button
+                    type="button"
+                    onClick={handleSave}
+                    disabled={isSaveDisabled}
+                    className="h-10 w-full rounded-md bg-slate-900 text-sm font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600"
+                  >
+                    {saveButtonLabel}
+                  </Button>
+                  <p className={cn('mt-2 text-xs', statusToneClass)} aria-live="polite">
+                    {statusMessage}
+                  </p>
+                </div>
+                {highlights.length > 0 ? (
+                  <div className="grid gap-3.5 sm:grid-cols-2">
+                    {highlights.map((item) => {
+                      const Icon = highlightIcons[item.icon];
+
+                      return (
+                        <Card key={item.title} className="border-slate-200 bg-white/90 shadow-sm">
+                          <CardContent className="flex flex-col gap-1.5 p-4">
+                            <Icon className="h-4 w-4 text-slate-500" />
+                            <p className="text-xs font-medium text-slate-900">{item.title}</p>
+                            <p className="text-xs text-slate-600">{item.description}</p>
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
+                  </div>
+                ) : null}
+              </div>
+            </div>
+          </aside>
+        ) : (
+          <div className="order-2 flex shrink-0 items-center justify-start px-4 py-6 lg:order-1 lg:px-8">
+            <button
+              type="button"
+              onClick={() => setIsPrimaryCollapsed(false)}
+              aria-expanded={showPrimaryPanel}
+              aria-controls="primary-panel"
+              className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white/90 text-slate-600 shadow-sm transition hover:bg-white"
+            >
+              <ChevronRight className="h-5 w-5" />
+              <span className="sr-only">Afficher le panneau des étapes</span>
+            </button>
+          </div>
+        )}
+        <div className="order-1 flex min-w-0 flex-1 flex-col overflow-hidden lg:order-2">
+          <div className="relative flex-1 overflow-hidden">
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div
+                ref={diagramViewportRef}
+                className={cn(
+                  'pointer-events-auto relative flex h-full w-full select-none touch-none items-center justify-center',
+                  isDiagramDragging ? 'cursor-grabbing' : 'cursor-grab'
+                )}
+                onPointerDown={handleDiagramPointerDown}
+                onPointerMove={handleDiagramPointerMove}
+                onPointerUp={handleDiagramPointerEnd}
+                onPointerCancel={handleDiagramPointerEnd}
+                onLostPointerCapture={handleDiagramPointerEnd}
+              >
+                <div
+                  className={cn(
+                    'pointer-events-auto absolute left-1/2 top-1/2 h-auto w-auto max-h-none max-w-none opacity-90 transition-transform [filter:drop-shadow(0_25px_65px_rgba(15,23,42,0.22))] [&_svg]:h-auto [&_svg]:max-h-none [&_svg]:max-w-none [&_.node rect]:stroke-slate-900 [&_.node rect]:stroke-[1.5px] [&_.node polygon]:stroke-slate-900 [&_.node polygon]:stroke-[1.5px] [&_.node circle]:stroke-slate-900 [&_.node circle]:stroke-[1.5px] [&_.node ellipse]:stroke-slate-900 [&_.node ellipse]:stroke-[1.5px] [&_.edgePath path]:stroke-slate-900 [&_.edgePath path]:stroke-[1.5px] [&_.edgeLabel]:text-slate-900'
+                  )}
+                  style={{
+                    transform: `translate(-50%, -50%) translate3d(${diagramUserOffset.x}px, ${diagramUserOffset.y}px, 0) scale(${diagramScale})`,
+                    transformOrigin: 'center center',
+                    willChange: 'transform'
+                  }}
+                >
+                  {diagramSvg ? (
+                    <div aria-hidden="true" dangerouslySetInnerHTML={{ __html: diagramSvg }} />
+                  ) : (
+                    fallbackDiagram
+                  )}
+                </div>
+              </div>
+            </div>
+            {diagramError ? (
+              <span role="status" aria-live="polite" className="sr-only">
+                {diagramError}
+              </span>
+            ) : null}
+          </div>
+          {showBottomPanel ? (
+            <div className="relative z-10 mx-auto w-full max-w-4xl px-4 pb-8 pt-6 sm:px-6 lg:px-8">
+              <button
+                type="button"
+                onClick={() => setIsBottomCollapsed(true)}
+                aria-expanded={showBottomPanel}
+                aria-controls="diagram-controls-panel"
+                className="absolute left-1/2 top-0 z-10 flex h-10 w-10 -translate-y-1/2 -translate-x-1/2 items-center justify-center rounded-full border border-slate-200 bg-white/90 text-slate-600 shadow-sm transition hover:bg-white"
+              >
+                <ChevronDown className="h-5 w-5" />
+                <span className="sr-only">Replier le panneau des options du diagramme</span>
+              </button>
+              <section
+                id="diagram-controls-panel"
+                className="w-full rounded-3xl border border-slate-200 bg-white/85 p-6 pt-10 shadow-[0_30px_120px_-50px_rgba(15,23,42,0.35)] backdrop-blur"
+              >
+                <div className="flex flex-wrap items-center gap-4">
+                  <div className="flex min-w-0 flex-1 items-center gap-3">
+                    <h2 className="text-sm font-semibold text-slate-900">Options du diagramme</h2>
+                    <p className="truncate text-xs text-slate-600">
+                      {diagramDirection === 'TD'
+                        ? 'Affichage actuel : de haut en bas.'
+                        : 'Affichage actuel : de gauche à droite.'}
+                    </p>
+                  </div>
+                  <div
+                    id={diagramControlsContentId}
+                    role="group"
+                    aria-label="Orientation du diagramme"
+                    className="flex flex-1 items-center justify-center gap-1 rounded-lg border border-slate-200 bg-white/70 p-1 shadow-inner sm:flex-none"
+                  >
+                    <button
+                      type="button"
+                      onClick={() => setDiagramDirection('TD')}
+                      aria-pressed={diagramDirection === 'TD'}
+                      className={cn(
+                        'inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400',
+                        diagramDirection === 'TD'
+                          ? 'bg-slate-900 text-white shadow'
+                          : 'text-slate-600 hover:bg-slate-100'
+                      )}
+                    >
+                      <ArrowUpDown className="h-3.5 w-3.5" />
+                      Haut-bas
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setDiagramDirection('LR')}
+                      aria-pressed={diagramDirection === 'LR'}
+                      className={cn(
+                        'inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400',
+                        diagramDirection === 'LR'
+                          ? 'bg-slate-900 text-white shadow'
+                          : 'text-slate-600 hover:bg-slate-100'
+                      )}
+                    >
+                      <ArrowLeftRight className="h-3.5 w-3.5" />
+                      Gauche-droite
+                    </button>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsBottomCollapsed(true)}
+                    aria-expanded={showBottomPanel}
+                    aria-controls={diagramControlsContentId}
+                    className="ml-auto flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-slate-200 text-slate-500 transition hover:bg-slate-100"
+                  >
+                    <ChevronDown aria-hidden="true" className="h-4 w-4 transition-transform duration-200" />
+                    <span className="sr-only">Replier les options du diagramme</span>
+                  </button>
+                </div>
+              </section>
+            </div>
+          ) : (
+            <div className="relative z-10 flex justify-center px-4 pb-8 pt-6">
+              <button
+                type="button"
+                onClick={() => setIsBottomCollapsed(false)}
+                aria-expanded={showBottomPanel}
+                aria-controls="diagram-controls-panel"
+                className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white/90 text-slate-600 shadow-sm transition hover:bg-white"
+              >
+                <ChevronUp className="h-5 w-5" />
+                <span className="sr-only">Afficher le panneau des options du diagramme</span>
+              </button>
+            </div>
+          )}
+        </div>
+        {showSecondaryPanel ? (
+          <aside
+            className="order-3 flex h-full w-full shrink-0 flex-col px-4 py-6 sm:px-6 lg:order-3 lg:px-8"
+            style={{ width: 'clamp(18rem, 26vw, 32rem)' }}
+          >
+            <div className="relative flex h-full flex-col">
+              <button
+                type="button"
+                onClick={() => setIsSecondaryCollapsed(true)}
+                aria-expanded={showSecondaryPanel}
+                aria-controls="secondary-panel"
+                className="absolute -left-3 top-1/2 z-20 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-slate-200 bg-white/90 text-slate-600 shadow-sm transition hover:bg-white"
+              >
+                <ChevronRight className="h-5 w-5" />
+                <span className="sr-only">Replier le panneau secondaire</span>
+              </button>
+              <div
+                id="secondary-panel"
+                className="flex h-full w-full flex-col gap-5 overflow-hidden rounded-3xl border border-slate-200 bg-white/80 p-6 shadow-[0_30px_120px_-50px_rgba(15,23,42,0.35)] backdrop-blur"
+              >
+                <div className="space-y-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <h2 className="text-lg font-semibold text-slate-900">{secondaryPanelTitle}</h2>
+                      <p className="text-xs text-slate-600">{secondaryPanelDescription}</p>
+                    </div>
+                    {isProcessesTabActive ? (
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={handleCreateProcess}
+                        disabled={isUnauthorized || isCreating}
+                        className="inline-flex h-8 items-center gap-1 rounded-md bg-slate-900 px-3 text-xs font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600"
+                      >
+                        {isCreating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
+                        Nouveau
+                      </Button>
+                    ) : isDepartmentsTabActive ? (
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={handleCreateDepartment}
+                        disabled={isDepartmentActionsDisabled || isCreatingDepartment}
+                        className="inline-flex h-8 items-center gap-1 rounded-md bg-slate-900 px-3 text-xs font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600"
+                      >
+                        {isCreatingDepartment ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <Plus className="h-3.5 w-3.5" />
+                        )}
+                        Nouveau
+                      </Button>
+                    ) : null}
+                  </div>
+                  <div className="flex items-center gap-2" role="tablist" aria-label="Navigation des listes">
+                    <button
+                      type="button"
+                      id="processes-tab"
+                      role="tab"
+                      aria-selected={isProcessesTabActive}
+                      aria-controls="processes-panel"
+                      onClick={() => setActiveSecondaryTab('processes')}
+                      className={cn(
+                        'flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium transition',
+                        isProcessesTabActive
+                          ? 'bg-slate-900 text-white shadow'
+                          : 'bg-transparent text-slate-600 hover:bg-slate-100'
+                      )}
+                    >
+                      <FolderTree className="h-3.5 w-3.5" />
+                      Process
+                    </button>
+                    <button
+                      type="button"
+                      id="departments-tab"
+                      role="tab"
+                      aria-selected={isDepartmentsTabActive}
+                      aria-controls="departments-panel"
+                      onClick={() => setActiveSecondaryTab('departments')}
+                      className={cn(
+                        'flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium transition',
+                        isDepartmentsTabActive
+                          ? 'bg-slate-900 text-white shadow'
+                          : 'bg-transparent text-slate-600 hover:bg-slate-100'
+                      )}
+                    >
+                      <Building2 className="h-3.5 w-3.5" />
+                      Départements
+                    </button>
+                  </div>
+                </div>
+                <div className="flex-1 min-h-0 overflow-hidden">
+                  <div className="flex h-full flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white/80">
+                    <div className="flex-1 overflow-y-auto px-3 py-4">
+                      <div
+                        role="tabpanel"
+                        id="processes-panel"
+                        aria-labelledby="processes-tab"
+                        hidden={!isProcessesTabActive}
+                        className={cn('h-full', !isProcessesTabActive && 'hidden')}
+                      >
+                        {isProcessListUnauthorized ? (
+                          <p className="text-sm text-slate-600">
+                            Connectez-vous pour accéder à vos process sauvegardés.
+                          </p>
+                        ) : processSummariesQuery.isLoading ? (
+                          <div className="flex items-center gap-2 text-sm text-slate-500">
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            Chargement des process…
+                          </div>
+                        ) : processSummariesQuery.isError ? (
+                          <p className="text-sm text-red-600">
+                            {processSummariesQuery.error instanceof ApiError
+                              ? processSummariesQuery.error.message
+                              : 'Impossible de récupérer la liste des process.'}
+                          </p>
+                        ) : hasProcesses ? (
+                          <ul role="tree" aria-label="Process sauvegardés" className="space-y-2">
+                            {processSummaries.map((summary) => {
+                              const isSelected = summary.id === currentProcessId;
+                              const isEditing = editingProcessId === summary.id;
+                              const updatedLabel = formatUpdatedAt(summary.updatedAt);
+
+                              return (
+                                <li key={summary.id} role="treeitem" aria-selected={isSelected} className="focus:outline-none">
+                                  <Card
+                                    className={cn(
+                                      'border-slate-200 bg-white/90 shadow-sm transition focus-within:border-slate-900 focus-within:shadow-lg',
+                                      isSelected ? 'border-slate-900 shadow-lg' : 'hover:border-slate-300'
+                                    )}
+                                  >
+                                    <CardContent className="flex flex-col gap-2 p-3">
+                                      <div className="flex items-start gap-2">
+                                        {isEditing ? (
                                           <Input
                                             ref={renameInputRef}
                                             value={renameDraft}
                                             onChange={(event) => setRenameDraft(event.target.value)}
-                                            className="h-8 w-40 rounded-md border border-slate-300 bg-white px-2 text-sm text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
+                                            className="h-8 flex-1 rounded-md border border-slate-300 bg-white px-2 text-sm text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
                                           />
-                                          <div className="flex items-center gap-1">
-                                            <button
-                                              type="button"
-                                              onClick={() => confirmRenameProcess(summary.id)}
-                                              className="inline-flex h-8 items-center justify-center rounded-md bg-slate-900 px-2 text-xs font-medium text-white hover:bg-slate-800"
-                                            >
-                                              Enregistrer
-                                            </button>
-                                            <button
-                                              type="button"
-                                              onClick={cancelEditingProcess}
-                                              className="inline-flex h-8 items-center justify-center rounded-md border border-slate-200 px-2 text-xs font-medium text-slate-700 hover:bg-slate-100"
-                                            >
-                                              Annuler
-                                            </button>
-                                          </div>
-                                        </div>
-                                      ) : (
-                                        <>
-                                          <p className="truncate text-sm font-medium text-slate-900">{summary.title}</p>
-                                          {updatedLabel ? (
-                                            <p className="text-xs text-slate-500">Mis à jour {updatedLabel}</p>
-                                          ) : null}
-                                        </>
-                                      )}
-                                    </div>
-                                  </div>
-                                  {!isEditing ? (
-                                    <div className="flex items-center gap-1">
-                                      <button
-                                        type="button"
-                                        onClick={() => startEditingProcess(summary)}
-                                        className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-transparent text-slate-500 transition hover:border-slate-300 hover:bg-slate-100 hover:text-slate-900"
-                                      >
-                                        <Pencil className="h-4 w-4" />
-                                        <span className="sr-only">Renommer le process</span>
-                                      </button>
-                                      <button
-                                        type="button"
-                                        onClick={() => deleteProcessMutation.mutate(summary.id)}
-                                        disabled={deleteProcessMutation.isPending && deleteProcessMutation.variables === summary.id}
-                                        className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-transparent text-red-500 transition hover:border-red-200 hover:bg-red-50 hover:text-red-600 disabled:opacity-60"
-                                      >
-                                        {deleteProcessMutation.isPending && deleteProcessMutation.variables === summary.id ? (
-                                          <Loader2 className="h-4 w-4 animate-spin" />
                                         ) : (
-                                          <Trash2 className="h-4 w-4" />
+                                          <button
+                                            type="button"
+                                            onClick={() => handleSelectProcess(summary.id)}
+                                            className={cn(
+                                              'flex-1 text-left text-sm font-medium text-slate-900 transition',
+                                              isSelected ? 'text-slate-900' : 'hover:text-slate-700'
+                                            )}
+                                          >
+                                            {summary.name}
+                                          </button>
                                         )}
-                                        <span className="sr-only">Supprimer le process</span>
-                                      </button>
-                                    </div>
-                                  ) : null}
-                                </div>
-                              </div>
-                            </li>
-                          );
-                        })}
-                      </ul>
-                    ) : (
-                      <p className="text-sm text-slate-600">Créez votre premier process pour le retrouver facilement ici.</p>
-                    )}
-                  </div>
-                  <div
-                    role="tabpanel"
-                    id="departments-panel"
-                    aria-labelledby="departments-tab"
-                    hidden={!isDepartmentsTabActive}
-                    className={cn('h-full', !isDepartmentsTabActive && 'hidden')}
-                  >
-                    {isDepartmentUnauthorized ? (
-                      <p className="text-sm text-slate-600">
-                        Connectez-vous pour gérer vos départements.
-                      </p>
-                    ) : (
-                      <div className="space-y-4">
-                        {createDepartmentMutation.isError ? (
-                          <p className="text-xs text-red-600">{createDepartmentMutation.error.message}</p>
-                        ) : null}
+                                        <div className="flex items-center gap-2">
+                                          {isEditing ? (
+                                            <Button
+                                              type="button"
+                                              size="icon"
+                                              variant="ghost"
+                                              onClick={() => confirmRenameProcess(summary.id)}
+                                              disabled={renameDraft.trim().length === 0}
+                                              className="h-8 w-8 text-slate-600 hover:bg-slate-100"
+                                            >
+                                              <Save className="h-4 w-4" />
+                                              <span className="sr-only">Enregistrer le nom</span>
+                                            </Button>
+                                          ) : (
+                                            <Button
+                                              type="button"
+                                              size="icon"
+                                              variant="ghost"
+                                              onClick={() => startEditingProcess(summary)}
+                                              className="h-8 w-8 text-slate-600 hover:bg-slate-100"
+                                            >
+                                              <Pencil className="h-4 w-4" />
+                                              <span className="sr-only">Renommer le process</span>
+                                            </Button>
+                                          )}
+                                          <Button
+                                            type="button"
+                                            size="icon"
+                                            variant="ghost"
+                                            onClick={() => deleteProcess(summary.id)}
+                                            className="h-8 w-8 text-red-500 hover:bg-red-50 hover:text-red-600"
+                                          >
+                                            <Trash2 className="h-4 w-4" />
+                                            <span className="sr-only">Supprimer le process</span>
+                                          </Button>
+                                        </div>
+                                      </div>
+                                      <div className="flex items-center justify-between text-xs text-slate-500">
+                                        <span>{updatedLabel ? `Mis à jour ${updatedLabel}` : 'Jamais mis à jour'}</span>
+                                        {isSelected ? (
+                                          <span className="inline-flex items-center gap-1 text-slate-900">
+                                            <ListChecks className="h-3 w-3" />
+                                            En cours d’édition
+                                          </span>
+                                        ) : null}
+                                      </div>
+                                    </CardContent>
+                                  </Card>
+                                </li>
+                              );
+                            })}
+                          </ul>
+                        ) : (
+                          <p className="text-sm text-slate-600">Aucun process sauvegardé pour le moment.</p>
+                        )}
+                      </div>
+                      <div
+                        role="tabpanel"
+                        id="departments-panel"
+                        aria-labelledby="departments-tab"
+                        hidden={!isDepartmentsTabActive}
+                        className={cn('h-full space-y-3', !isDepartmentsTabActive && 'hidden')}
+                      >
                         {departmentsQuery.isLoading ? (
                           <div className="flex items-center gap-2 text-sm text-slate-500">
                             <Loader2 className="h-4 w-4 animate-spin" />
@@ -2979,99 +3154,91 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                               ? departmentsQuery.error.message
                               : 'Impossible de récupérer la liste des départements.'}
                           </p>
-                        ) : departments.length > 0 ? (
-                          <ul
-                            role="tree"
-                            aria-label="Départements"
-                            className="department-tree flex flex-col gap-3"
-                          >
+                        ) : hasDepartments ? (
+                          <ul className="space-y-3">
                             {departments.map((department) => {
-                              const isEditingDepartment = editingDepartmentId === department.id;
-                              const isDeletingCurrent =
-                                isDeletingDepartment && deleteDepartmentId === department.id;
-                              const isExpanded = isEditingDepartment;
-                              const isCollapsed = !isExpanded;
                               const updatedLabel = formatUpdatedAt(department.updatedAt);
-                              const colorInputId = `department-color-${department.id}`;
+                              const isEditingDepartment = editingDepartmentId === department.id;
+                              const isDeletingCurrent = deleteDepartmentId === department.id;
+
                               return (
-                                <li
-                                  key={department.id}
-                                  role="treeitem"
-                                  aria-expanded={isExpanded}
-                                  aria-selected={isEditingDepartment}
-                                  className="department-node"
-                                  data-collapsed={isCollapsed ? 'true' : 'false'}
-                                >
-                                  <Card
-                                    className={cn(
-                                      'border-slate-200 bg-white/90 shadow-sm transition focus-within:ring-2 focus-within:ring-slate-900/20',
-                                      isEditingDepartment
-                                        ? 'border-slate-900 ring-2 ring-slate-900/20'
-                                        : 'hover:border-slate-300'
-                                    )}
-                                  >
-                                    <CardContent
-                                      className={cn(
-                                        'flex gap-3 transition',
-                                        isEditingDepartment ? 'flex-col p-3.5' : 'items-center p-2.5'
-                                      )}
-                                    >
-                                      {isEditingDepartment ? (
-                                        <form
-                                          onSubmit={departmentEditForm.handleSubmit(handleSaveDepartment)}
-                                          className="flex w-full flex-col gap-3"
-                                          data-entity-type="department"
+                                <li key={department.id} className="rounded-xl border border-slate-200 bg-white/90 p-3 shadow-sm">
+                                  <Card className="border-none shadow-none">
+                                    <CardContent className="flex flex-col gap-3 p-0">
+                                      <div className="flex items-center gap-3">
+                                        <span
+                                          className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-sm font-semibold text-slate-900 shadow-inner"
+                                          style={{ color: department.color }}
                                         >
-                                          <div className="flex flex-wrap items-center gap-2">
-                                            <div className="flex items-center">
-                                              <label htmlFor={colorInputId} className="sr-only">
-                                                Couleur du département
-                                              </label>
-                                              <input
-                                                id={colorInputId}
-                                                type="color"
-                                                {...departmentEditForm.register('color')}
+                                          <span className="sr-only">Couleur : {department.color}</span>
+                                          ●
+                                        </span>
+                                        <div className="min-w-0 flex-1">
+                                          <p className="truncate text-sm font-medium text-slate-900">{department.name}</p>
+                                          {updatedLabel ? (
+                                            <p className="text-xs text-slate-500">Mis à jour {updatedLabel}</p>
+                                          ) : null}
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                          <Button
+                                            type="button"
+                                            size="icon"
+                                            variant="ghost"
+                                            onClick={() => startEditingDepartment(department)}
+                                            disabled={isDepartmentActionsDisabled || isDeletingCurrent}
+                                            className="h-8 w-8 text-slate-600 hover:bg-slate-100"
+                                          >
+                                            <Pencil className="h-4 w-4" />
+                                            <span className="sr-only">Modifier le département</span>
+                                          </Button>
+                                          <Button
+                                            type="button"
+                                            size="icon"
+                                            variant="ghost"
+                                            onClick={() => handleDeleteDepartment(department.id)}
+                                            disabled={isDepartmentActionsDisabled || isDeletingCurrent}
+                                            className="h-8 w-8 text-red-500 hover:bg-red-50 hover:text-red-600"
+                                          >
+                                            {isDeletingCurrent ? (
+                                              <Loader2 className="h-4 w-4 animate-spin" />
+                                            ) : (
+                                              <Trash2 className="h-4 w-4" />
+                                            )}
+                                            <span className="sr-only">Supprimer le département</span>
+                                          </Button>
+                                        </div>
+                                      </div>
+                                      {isEditingDepartment ? (
+                                        <form className="space-y-3" onSubmit={departmentEditForm.handleSubmit(handleSaveDepartment)}>
+                                          <Controller
+                                            control={departmentEditForm.control}
+                                            name="color"
+                                            render={({ field }) => (
+                                              <div className="flex items-center gap-3">
+                                                <label htmlFor={`department-color-${department.id}`} className="text-xs font-medium text-slate-600">
+                                                  Couleur
+                                                </label>
+                                                <Input
+                                                  {...field}
+                                                  id={`department-color-${department.id}`}
+                                                  type="color"
+                                                  disabled={isSavingDepartment}
+                                                  className="h-9 w-16 rounded-md border border-slate-300 bg-white"
+                                                />
+                                              </div>
+                                            )}
+                                          />
+                                          <Controller
+                                            control={departmentEditForm.control}
+                                            name="name"
+                                            render={({ field }) => (
+                                              <Input
+                                                {...field}
                                                 disabled={isSavingDepartment}
-                                                className="h-9 w-9 cursor-pointer rounded-md border border-slate-300 bg-white p-1 shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
-                                                aria-describedby={
-                                                  departmentEditForm.formState.errors.color
-                                                    ? `${colorInputId}-error`
-                                                    : undefined
-                                                }
+                                                className="h-9 rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
                                               />
-                                            </div>
-                                            <Input
-                                              {...departmentEditForm.register('name')}
-                                              autoFocus
-                                              disabled={isSavingDepartment}
-                                              className="h-9 min-w-[12rem] flex-1 rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
-                                            />
-                                            <Button
-                                              type="button"
-                                              size="icon"
-                                              variant="ghost"
-                                              onClick={() => handleDeleteDepartment(department.id)}
-                                              disabled={isDepartmentActionsDisabled || isDeletingCurrent || isSavingDepartment}
-                                              className="ml-auto h-8 w-8 text-red-500 hover:bg-red-50 hover:text-red-600"
-                                            >
-                                              {isDeletingCurrent ? (
-                                                <Loader2 aria-hidden="true" className="h-4 w-4 animate-spin" />
-                                              ) : (
-                                                <Trash2 aria-hidden="true" className="h-4 w-4" />
-                                              )}
-                                              <span className="sr-only">Supprimer le département</span>
-                                            </Button>
-                                          </div>
-                                          {departmentEditForm.formState.errors.color ? (
-                                            <p id={`${colorInputId}-error`} className="text-xs text-red-600">
-                                              {departmentEditForm.formState.errors.color.message}
-                                            </p>
-                                          ) : null}
-                                          {departmentEditForm.formState.errors.name ? (
-                                            <p className="text-xs text-red-600">
-                                              {departmentEditForm.formState.errors.name.message}
-                                            </p>
-                                          ) : null}
+                                            )}
+                                          />
                                           <div className="flex flex-col gap-2">
                                             {departmentRoleFields.fields.length > 0 ? (
                                               departmentRoleFields.fields.map((field, index) => {
@@ -3162,7 +3329,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                                                 type="submit"
                                                 size="sm"
                                                 disabled={isSavingDepartment || isAddingDepartmentRole}
-                                                className="inline-flex h-8 items-center gap-1 rounded-md bg-slate-900 px-3 text-xs font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600"
+                                                className="inline-flex h-8 items-center gap-1 rounded-md bg-slate-900 px-3 text-xs font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600"
                                               >
                                                 {isSavingDepartment ? (
                                                   <Loader2 aria-hidden="true" className="h-3.5 w-3.5 animate-spin" />
@@ -3226,26 +3393,6 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                                           </div>
                                         </div>
                                       )}
-                                      {!isEditingDepartment ? (
-                                        <Button
-                                          type="button"
-                                          size="icon"
-                                          variant="ghost"
-                                          onClick={(event) => {
-                                            event.stopPropagation();
-                                            handleDeleteDepartment(department.id);
-                                          }}
-                                          disabled={isDepartmentActionsDisabled || isDeletingCurrent}
-                                          className="h-8 w-8 text-red-500 hover:bg-red-50 hover:text-red-600"
-                                        >
-                                          {isDeletingCurrent ? (
-                                            <Loader2 className="h-4 w-4 animate-spin" />
-                                          ) : (
-                                            <Trash2 className="h-4 w-4" />
-                                          )}
-                                          <span className="sr-only">Supprimer le département</span>
-                                        </Button>
-                                      ) : null}
                                     </CardContent>
                                   </Card>
                                   {deleteDepartmentMutation.isError && deleteDepartmentId === department.id ? (
@@ -3257,128 +3404,32 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                               );
                             })}
                           </ul>
-
                         ) : (
                           <p className="text-sm text-slate-600">Aucun département enregistré pour le moment.</p>
                         )}
                       </div>
-                    )}
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
-            {highlights.length > 0 ? (
-              <div className="grid gap-3.5 sm:grid-cols-2">
-                {highlights.map((item) => {
-                  const Icon = highlightIcons[item.icon];
-
-                  return (
-                    <Card key={item.title} className="border-slate-200 bg-white/90 shadow-sm">
-                      <CardContent className="flex flex-col gap-1.5 p-4">
-                        <Icon className="h-4 w-4 text-slate-500" />
-                        <p className="text-xs font-medium text-slate-900">{item.title}</p>
-                        <p className="text-xs text-slate-600">{item.description}</p>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
-              </div>
-            ) : null}
           </aside>
-        </div>
-      </div>
-      <div className="pointer-events-auto flex w-full justify-center">
-        <div className="relative w-full max-w-4xl pt-6">
-          <button
-            type="button"
-            onClick={() => setIsBottomCollapsed((previous) => !previous)}
-            aria-expanded={!isBottomCollapsed}
-            aria-controls="diagram-controls-panel"
-            className={cn(
-              'z-30 flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white/90 text-slate-600 shadow-sm transition hover:bg-white',
-              isBottomCollapsed
-                ? 'fixed bottom-6 left-1/2 -translate-x-1/2'
-                : 'absolute left-1/2 top-0 -translate-x-1/2 -translate-y-1/2'
-            )}
-          >
-            {isBottomCollapsed ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
-            <span className="sr-only">Basculer le panneau des options du diagramme</span>
-          </button>
-          <section
-            id="diagram-controls-panel"
-            aria-hidden={isBottomCollapsed}
-            className={cn(
-              'w-full rounded-3xl border border-slate-200 bg-white/85 p-6 pt-10 shadow-[0_30px_120px_-50px_rgba(15,23,42,0.35)] backdrop-blur transition-all duration-300 ease-out',
-              isBottomCollapsed
-                ? 'pointer-events-none -translate-y-2 opacity-0'
-                : 'pointer-events-auto translate-y-0 opacity-100'
-            )}
-          >
-            <div className="flex flex-wrap items-center gap-4">
-              <div className="flex min-w-0 flex-1 items-center gap-3">
-                <h2 className="text-sm font-semibold text-slate-900">Options du diagramme</h2>
-                <p className="truncate text-xs text-slate-600">
-                  {diagramDirection === 'TD'
-                    ? 'Affichage actuel : de haut en bas.'
-                    : 'Affichage actuel : de gauche à droite.'}
-                </p>
-              </div>
-              <div
-                id={diagramControlsContentId}
-                role="group"
-                aria-label="Orientation du diagramme"
-                className={cn(
-                  'flex flex-1 items-center justify-center gap-1 rounded-lg border border-slate-200 bg-white/70 p-1 shadow-inner sm:flex-none',
-                  isBottomCollapsed && 'hidden'
-                )}
-              >
-                <button
-                  type="button"
-                  onClick={() => setDiagramDirection('TD')}
-                  aria-pressed={diagramDirection === 'TD'}
-                  className={cn(
-                    'inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400',
-                    diagramDirection === 'TD'
-                      ? 'bg-slate-900 text-white shadow'
-                      : 'text-slate-600 hover:bg-slate-100'
-                  )}
-                >
-                  <ArrowUpDown className="h-3.5 w-3.5" />
-                  Haut-bas
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setDiagramDirection('LR')}
-                  aria-pressed={diagramDirection === 'LR'}
-                  className={cn(
-                    'inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400',
-                    diagramDirection === 'LR'
-                      ? 'bg-slate-900 text-white shadow'
-                      : 'text-slate-600 hover:bg-slate-100'
-                  )}
-                >
-                  <ArrowLeftRight className="h-3.5 w-3.5" />
-                  Gauche-droite
-                </button>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsBottomCollapsed((previous) => !previous)}
-                aria-expanded={!isBottomCollapsed}
-                aria-controls={diagramControlsContentId}
-                className="ml-auto flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-slate-200 text-slate-500 transition hover:bg-slate-100"
-              >
-                <ChevronDown
-                  aria-hidden="true"
-                  className={cn('h-4 w-4 transition-transform duration-200', !isBottomCollapsed && 'rotate-180')}
-                />
-                <span className="sr-only">Replier les options du diagramme</span>
-              </button>
-            </div>
-          </section>
-        </div>
+        ) : (
+          <div className="order-3 flex shrink-0 items-center justify-end px-4 py-6 lg:order-3 lg:px-8">
+            <button
+              type="button"
+              onClick={() => setIsSecondaryCollapsed(false)}
+              aria-expanded={showSecondaryPanel}
+              aria-controls="secondary-panel"
+              className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white/90 text-slate-600 shadow-sm transition hover:bg-white"
+            >
+              <ChevronLeft className="h-5 w-5" />
+              <span className="sr-only">Afficher le panneau secondaire</span>
+            </button>
+          </div>
+        )}
       </div>
     </div>
-  </div>
   );
 }
+
