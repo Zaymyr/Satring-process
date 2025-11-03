@@ -2453,7 +2453,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
           style={layoutStyle}
         >
         <div
-          className="pointer-events-auto relative flex shrink-0 items-stretch overflow-hidden transition-[width] duration-300 ease-out lg:col-start-1 lg:row-start-1 lg:h-full lg:min-h-0"
+          className="pointer-events-auto relative flex shrink-0 items-stretch overflow-visible transition-[width] duration-300 ease-out lg:col-start-1 lg:row-start-1 lg:h-full lg:min-h-0"
           style={{ width: primaryWidth }}
         >
           <button
@@ -2716,7 +2716,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
           </div>
         </div>
         <div
-          className="pointer-events-auto relative flex shrink-0 items-stretch overflow-hidden transition-[width] duration-300 ease-out lg:col-start-3 lg:row-start-1 lg:h-full lg:min-h-0"
+          className="pointer-events-auto relative flex shrink-0 items-stretch overflow-visible transition-[width] duration-300 ease-out lg:col-start-3 lg:row-start-1 lg:h-full lg:min-h-0"
           style={{ width: secondaryWidth }}
         >
           <button
