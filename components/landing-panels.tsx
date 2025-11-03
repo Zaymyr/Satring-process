@@ -936,7 +936,6 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
   const isCreatingDepartment = createDepartmentMutation.isPending;
   const isSavingDepartment = saveDepartmentMutation.isPending;
   const isAddingDepartmentRole = createDepartmentRoleMutation.isPending;
-  const isDeletingDepartment = deleteDepartmentMutation.isPending;
   const secondaryPanelTitle = isDepartmentsTabActive ? 'Mes départements' : 'Mes process';
   const secondaryPanelDescription = isDepartmentsTabActive
     ? 'Organisez vos départements et renommez-les pour structurer votre équipe.'
@@ -1511,6 +1510,14 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
     },
     [cancelEditingProcess, isRenaming, processSummaries, renameDraft, renameProcessMutation]
   );
+
+  const handleRenameProcess = useCallback(() => {
+    if (!editingProcessId) {
+      return;
+    }
+
+    confirmRenameProcess(editingProcessId);
+  }, [confirmRenameProcess, editingProcessId]);
 
   const handleCreateProcess = useCallback(() => {
     if (isUnauthorized || isCreating) {
@@ -2397,924 +2404,366 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
 
   const primaryWidth = isPrimaryCollapsed ? '3.5rem' : 'clamp(18rem, 28vw, 34rem)';
   const secondaryWidth = isSecondaryCollapsed ? '3.5rem' : 'clamp(16rem, 22vw, 26rem)';
-  const layoutStyle = useMemo<CSSProperties>(
-    () => ({
-      gridTemplateColumns: `${primaryWidth} minmax(0, 1fr) ${secondaryWidth}`,
-      gridTemplateRows: 'minmax(0, 1fr) auto'
-    }),
-    [primaryWidth, secondaryWidth]
+  const primaryPanelStyle = useMemo(
+    () =>
+      ({
+        '--primary-panel-width': primaryWidth
+      }) as CSSProperties,
+    [primaryWidth]
+  );
+  const secondaryPanelStyle = useMemo(
+    () =>
+      ({
+        '--secondary-panel-width': secondaryWidth
+      }) as CSSProperties,
+    [secondaryWidth]
   );
 
   const diagramControlsContentId = useId();
 
   return (
-    <div className="relative flex h-full min-h-0 w-full flex-col overflow-x-visible overflow-y-hidden bg-gradient-to-br from-slate-100 via-white to-slate-200 text-slate-900">
-      <div className="absolute inset-0 z-0 flex items-center justify-center overflow-visible">
-        <div
-          ref={diagramViewportRef}
-          className={cn(
-            'pointer-events-auto relative flex h-full w-full select-none touch-none items-center justify-center',
-            isDiagramDragging ? 'cursor-grabbing' : 'cursor-grab'
-          )}
-          onPointerDown={handleDiagramPointerDown}
-          onPointerMove={handleDiagramPointerMove}
-          onPointerUp={handleDiagramPointerEnd}
-          onPointerCancel={handleDiagramPointerEnd}
-          onLostPointerCapture={handleDiagramPointerEnd}
-        >
+    <div className="flex h-full min-h-0 w-full flex-col overflow-hidden bg-gradient-to-br from-slate-100 via-white to-slate-200 text-slate-900">
+      <div className="mx-auto flex h-full w-full max-w-6xl flex-1 flex-col gap-6 px-4 py-8 lg:px-8 lg:py-12 xl:px-12">
+        <div className="flex h-full min-h-0 flex-1 flex-col gap-6 overflow-hidden lg:flex-row lg:items-stretch">
           <div
             className={cn(
-              'pointer-events-auto absolute left-1/2 top-1/2 h-auto w-auto max-h-none max-w-none opacity-90 transition-transform [filter:drop-shadow(0_25px_65px_rgba(15,23,42,0.22))] [&_svg]:h-auto [&_svg]:max-h-none [&_svg]:max-w-none [&_.node rect]:stroke-slate-900 [&_.node rect]:stroke-[1.5px] [&_.node polygon]:stroke-slate-900 [&_.node polygon]:stroke-[1.5px] [&_.node circle]:stroke-slate-900 [&_.node circle]:stroke-[1.5px] [&_.node ellipse]:stroke-slate-900 [&_.node ellipse]:stroke-[1.5px] [&_.edgePath path]:stroke-slate-900 [&_.edgePath path]:stroke-[1.5px] [&_.edgeLabel]:text-slate-900'
-            )}
-            style={{
-              transform: `translate(-50%, -50%) translate3d(${diagramUserOffset.x}px, ${diagramUserOffset.y}px, 0) scale(${diagramScale})`,
-              transformOrigin: 'center center',
-              willChange: 'transform'
-            }}
-          >
-            {diagramSvg ? (
-              <div
-                aria-hidden="true"
-                dangerouslySetInnerHTML={{ __html: diagramSvg }}
-              />
-            ) : (
-              fallbackDiagram
-            )}
-          </div>
-        </div>
-        {diagramError ? (
-          <span role="status" aria-live="polite" className="sr-only">
-            {diagramError}
-          </span>
-        ) : null}
-      </div>
-      <div className="pointer-events-none relative z-10 mx-auto flex h-full w-full max-w-6xl flex-1 flex-col gap-6 px-4 py-8 lg:px-8 lg:py-12 xl:px-12">
-        <div
-          className="pointer-events-none flex h-full min-h-0 flex-1 flex-col gap-6 lg:grid lg:items-stretch lg:gap-0"
-          style={layoutStyle}
-        >
-          <div
-            className="pointer-events-auto relative flex h-full shrink-0 items-stretch overflow-visible transition-[width] duration-300 ease-out lg:col-start-1 lg:row-start-1 lg:row-end-2 lg:min-h-0"
-            style={{ width: primaryWidth }}
-          >
-          <button
-            type="button"
-            onClick={() => setIsPrimaryCollapsed((prev) => !prev)}
-            aria-expanded={!isPrimaryCollapsed}
-            aria-controls="primary-panel"
-            className={cn(
-              'absolute right-0 top-1/2 z-20 flex h-10 w-10 -translate-y-1/2 translate-x-1/2 items-center justify-center rounded-full border border-slate-200 bg-white/90 text-slate-600 shadow-sm transition hover:bg-white'
-            )}
-          >
-            {isPrimaryCollapsed ? <ChevronRight className="h-5 w-5" /> : <ChevronLeft className="h-5 w-5" />}
-            <span className="sr-only">Basculer le panneau principal</span>
-          </button>
-          <div
-            id="primary-panel"
-            className={cn(
-              'flex h-full w-full flex-col gap-8 overflow-hidden rounded-3xl border border-slate-200 bg-white/85 px-8 py-10 shadow-[0_30px_120px_-50px_rgba(15,23,42,0.35)] backdrop-blur transition-all duration-300 ease-out sm:px-10',
+              'flex h-full min-h-0 w-full flex-col transition-all duration-300 ease-out',
               isPrimaryCollapsed
-                ? 'pointer-events-none opacity-0 lg:-translate-x-[110%]'
-                : 'pointer-events-auto opacity-100 lg:translate-x-0'
+                ? 'lg:[flex-basis:3.5rem] lg:[max-width:3.5rem]'
+                : 'lg:[flex-basis:var(--primary-panel-width)] lg:[max-width:var(--primary-panel-width)]'
             )}
+            style={primaryPanelStyle}
           >
-            <h1 className="text-base font-semibold text-slate-900">{processTitle}</h1>
-            <div className="flex flex-wrap gap-2.5">
-              <Button type="button" onClick={() => addStep('action')} className="h-9 rounded-md bg-slate-900 px-3 text-sm text-white hover:bg-slate-800">
-                <Plus className="mr-2 h-3.5 w-3.5" />
-                Ajouter une action
-              </Button>
-              <Button type="button" variant="outline" onClick={() => addStep('decision')} className="h-9 rounded-md border-slate-300 bg-white px-3 text-sm text-slate-900 hover:bg-slate-50">
-                <GitBranch className="mr-2 h-3.5 w-3.5" />
-                Ajouter une décision
-              </Button>
-            </div>
-            <div className="flex-1 min-h-0 overflow-hidden">
-              <div className="h-full space-y-6 overflow-y-auto rounded-2xl border border-slate-200 bg-white/75 p-5 pr-2 shadow-inner sm:pr-3">
-                {selectedStep ? (
-                  <p className="text-xs text-slate-600">
-                    Étape sélectionnée :{' '}
-                    <span className="font-medium text-slate-900">{getStepDisplayLabel(selectedStep)}</span>
-                  </p>
-                ) : null}
-                <div className="space-y-3.5">
-                  {steps.map((step, index) => {
-                    const Icon = STEP_TYPE_ICONS[step.type];
-                    const isRemovable = step.type === 'action' || step.type === 'decision';
-                    const stepPosition = index + 1;
-                    const availableTargets = steps.filter((candidate) => candidate.id !== step.id);
-                    const isDragging = draggedStepId === step.id;
-                    const isFixedStep = step.type === 'start' || step.type === 'finish';
-                    const canReorderStep = !isFixedStep;
-                    const isSelectedStep = selectedStepId === step.id;
-                    const displayLabel = getStepDisplayLabel(step);
-
-                    return (
-                      <Card
-                        key={step.id}
-                        className={cn(
-                          'border-slate-200 bg-white/90 shadow-sm transition',
-                          isDragging
-                            ? 'opacity-70 ring-2 ring-slate-300'
-                            : isSelectedStep
-                            ? 'border-slate-900 ring-2 ring-slate-900/20'
-                            : 'hover:border-slate-300'
-                        )}
-                        onDragOver={(event) => handleStepDragOver(event, step.id)}
-                        onDrop={handleStepDrop}
-                        onClick={() => setSelectedStepId(step.id)}
-                        onFocusCapture={() => setSelectedStepId(step.id)}
-                        aria-selected={isSelectedStep}
-                      >
-                        <CardContent
-                          className={cn(
-                            'flex gap-3 p-3.5',
-                            isSelectedStep ? 'items-start' : 'items-center gap-2 p-2.5'
-                          )}
-                        >
-                          <div
-                            className={cn(
-                              'flex items-center',
-                              isSelectedStep ? 'flex-col gap-1' : 'flex-row gap-2'
-                            )}
-                          >
-                            <button
-                              type="button"
-                              className={cn(
-                                'flex h-7 w-7 items-center justify-center rounded-full border border-transparent bg-slate-100 text-slate-500 transition',
-                                canReorderStep ? 'hover:border-slate-300 hover:bg-white' : 'cursor-not-allowed opacity-60'
-                              )}
-                              draggable={canReorderStep}
-                              onDragStart={(event) => {
-                                if (!canReorderStep) {
-                                  event.preventDefault();
-                                  return;
-                                }
-                                handleStepDragStart(event, step.id);
-                              }}
-                              onDragEnd={handleStepDragEnd}
-                              aria-label={`Réorganiser ${getStepDisplayLabel(step)}`}
-                              aria-grabbed={isDragging}
-                              disabled={!canReorderStep}
-                            >
-                              <GripVertical className="h-3.5 w-3.5" />
-                            </button>
-                            <span
-                              className={cn(
-                                'flex h-7 w-7 items-center justify-center rounded-full text-[0.65rem] font-semibold transition-colors',
-                                isSelectedStep ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600'
-                              )}
-                            >
-                              {stepPosition}
-                            </span>
-                          </div>
-                          {isSelectedStep ? (
-                            <div className="flex min-w-0 flex-1 flex-col gap-1">
-                              <div className="flex items-center gap-1.5 text-slate-500">
-                                <Icon className="h-3.5 w-3.5" />
-                                <span className="text-[0.6rem] font-medium uppercase tracking-[0.24em]">
-                                  {STEP_TYPE_LABELS[step.type]}
-                                </span>
-                              </div>
-                              <Input
-                                id={`step-${step.id}-label`}
-                                value={step.label}
-                                onChange={(event) => updateStepLabel(step.id, event.target.value)}
-                                placeholder="Intitulé de l’étape"
-                                className="h-8 w-full border-slate-200 bg-white text-sm text-slate-900 placeholder:text-slate-400 focus-visible:ring-slate-900/20 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-50"
-                              />
-                              <label className="flex flex-col gap-1 text-[0.6rem] font-semibold uppercase tracking-[0.18em] text-slate-500">
-                                <span>Département</span>
-                                <select
-                                  value={step.departmentId ?? ''}
-                                  onChange={(event) =>
-                                    updateStepDepartment(
-                                      step.id,
-                                      event.target.value.length > 0 ? event.target.value : null
-                                    )
-                                  }
-                                  className="h-8 rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-900 transition focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10 disabled:cursor-not-allowed"
-                                  disabled={!hasDepartments}
-                                >
-                                  <option value="">Aucun département</option>
-                                  {departments.map((department) => (
-                                    <option key={department.id} value={department.id}>
-                                      {department.name}
-                                    </option>
-                                  ))}
-                                </select>
-                                {!hasDepartments ? (
-                                  <span className="text-[0.6rem] font-normal normal-case tracking-normal text-slate-500">
-                                    Ajoutez un département pour l’associer à cette étape.
-                                  </span>
-                                ) : null}
-                              </label>
-                              {step.type === 'decision' ? (
-                                <div className="mt-2 grid gap-2 sm:grid-cols-2">
-                                  <label className="flex flex-col gap-1 text-[0.6rem] font-semibold uppercase tracking-[0.18em] text-slate-500">
-                                    <span>Branche Oui</span>
-                                    <select
-                                      value={step.yesTargetId ?? ''}
-                                      onChange={(event) =>
-                                        updateDecisionBranch(step.id, 'yes', event.target.value || null)
-                                      }
-                                      className="h-8 rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-900 transition focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10"
-                                    >
-                                      <option value="">Étape suivante (défaut)</option>
-                                      {availableTargets.map((candidate) => {
-                                        const position = stepPositions.get(candidate.id);
-                                        const optionLabel = position
-                                          ? `${position}. ${getStepDisplayLabel(candidate)}`
-                                          : getStepDisplayLabel(candidate);
-
-                                        return (
-                                          <option key={candidate.id} value={candidate.id}>
-                                            {optionLabel}
-                                          </option>
-                                        );
-                                      })}
-                                    </select>
-                                  </label>
-                                  <label className="flex flex-col gap-1 text-[0.6rem] font-semibold uppercase tracking-[0.18em] text-slate-500">
-                                    <span>Branche Non</span>
-                                    <select
-                                      value={step.noTargetId ?? ''}
-                                      onChange={(event) =>
-                                        updateDecisionBranch(step.id, 'no', event.target.value || null)
-                                      }
-                                      className="h-8 rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-900 transition focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10"
-                                    >
-                                      <option value="">Étape suivante (défaut)</option>
-                                      {availableTargets.map((candidate) => {
-                                        const position = stepPositions.get(candidate.id);
-                                        const optionLabel = position
-                                          ? `${position}. ${getStepDisplayLabel(candidate)}`
-                                          : getStepDisplayLabel(candidate);
-
-                                        return (
-                                          <option key={candidate.id} value={candidate.id}>
-                                            {optionLabel}
-                                          </option>
-                                        );
-                                      })}
-                                    </select>
-                                  </label>
-                                </div>
-                              ) : null}
-                            </div>
-                          ) : (
-                            <div className="flex min-w-0 flex-1 items-center gap-2">
-                              <span className="truncate text-sm font-medium text-slate-900" title={displayLabel}>
-                                {displayLabel}
-                              </span>
-                            </div>
-                          )}
-                          {isRemovable ? (
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => removeStep(step.id)}
-                              className="h-7 w-7 shrink-0 text-slate-400 hover:text-slate-900"
-                              aria-label="Supprimer l’étape"
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </Button>
-                          ) : null}
-                        </CardContent>
-                      </Card>
-                    );
-                  })}
-                  <div
-                    role="presentation"
-                    className={cn(
-                      'h-4 rounded border border-dashed border-transparent transition',
-                      draggedStepId ? 'border-slate-300 bg-white/60' : 'border-transparent'
-                    )}
-                    onDragOver={handleStepListDragOverEnd}
-                    onDrop={handleStepDrop}
-                  >
-                    {draggedStepId ? (
-                      <span className="sr-only">Déposer ici pour placer l’étape à la fin</span>
-                    ) : null}
+            <section
+              id="primary-panel"
+              className={cn(
+                'flex h-full min-h-0 flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white/85 shadow-[0_30px_120px_-50px_rgba(15,23,42,0.35)] backdrop-blur transition-[padding,opacity] duration-300 ease-out',
+                isPrimaryCollapsed ? 'items-center justify-center gap-4 px-3 py-4 sm:px-4' : 'gap-8 px-8 py-10 sm:px-10'
+              )}
+            >
+              <div className={cn('flex w-full items-center justify-between gap-3', isPrimaryCollapsed && 'justify-center')}>
+                {!isPrimaryCollapsed ? (
+                  <h1 className="text-base font-semibold text-slate-900">{processTitle}</h1>
+                ) : (
+                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Étapes</p>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setIsPrimaryCollapsed((prev) => !prev)}
+                  aria-expanded={!isPrimaryCollapsed}
+                  aria-controls="primary-panel-content"
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:bg-slate-100"
+                >
+                  {isPrimaryCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+                  <span className="sr-only">
+                    {isPrimaryCollapsed ? 'Ouvrir le panneau principal' : 'Replier le panneau principal'}
+                  </span>
+                </button>
+              </div>
+              {!isPrimaryCollapsed ? (
+                <div id="primary-panel-content" className="flex h-full min-h-0 w-full flex-col gap-8">
+                  <div className="flex flex-wrap gap-2.5">
+                    <Button type="button" onClick={() => addStep('action')} className="h-9 rounded-md bg-slate-900 px-3 text-sm text-white hover:bg-slate-800">
+                      <Plus className="mr-2 h-3.5 w-3.5" />
+                      Ajouter une action
+                    </Button>
+                    <Button type="button" variant="outline" onClick={() => addStep('decision')} className="h-9 rounded-md border-slate-300 bg-white px-3 text-sm text-slate-900 hover:bg-slate-50">
+                      <GitBranch className="mr-2 h-3.5 w-3.5" />
+                      Ajouter une décision
+                    </Button>
                   </div>
-                </div>
-              </div>
-            </div>
-            <div className="rounded-2xl border border-slate-200 bg-white/80 p-4 shadow-inner">
-              <Button
-                type="button"
-                onClick={handleSave}
-                disabled={isSaveDisabled}
-                className="h-10 w-full rounded-md bg-slate-900 text-sm font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600"
-              >
-                {saveButtonLabel}
-              </Button>
-              <p className={cn('mt-2 text-xs', statusToneClass)} aria-live="polite">
-                {statusMessage}
-              </p>
-            </div>
-          </div>
-        </div>
-          <div
-            className="pointer-events-auto relative flex h-full shrink-0 items-stretch overflow-visible transition-[width] duration-300 ease-out lg:col-start-3 lg:row-start-1 lg:row-end-2 lg:min-h-0"
-            style={{ width: secondaryWidth }}
-          >
-          <button
-            type="button"
-            onClick={() => setIsSecondaryCollapsed((prev) => !prev)}
-            aria-expanded={!isSecondaryCollapsed}
-            aria-controls="secondary-panel"
-            className={cn(
-              'absolute left-0 top-1/2 z-20 flex h-10 w-10 -translate-y-1/2 -translate-x-1/2 items-center justify-center rounded-full border border-slate-200 bg-white/90 text-slate-600 shadow-sm transition hover:bg-white'
-            )}
-          >
-            {isSecondaryCollapsed ? <ChevronLeft className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
-            <span className="sr-only">Basculer le panneau secondaire</span>
-          </button>
-          <aside
-            id="secondary-panel"
-            className={cn(
-              'flex h-full w-full flex-col gap-5 overflow-hidden rounded-3xl border border-slate-200 bg-white/80 p-6 shadow-[0_30px_120px_-50px_rgba(15,23,42,0.35)] backdrop-blur transition-all duration-300 ease-out',
-              isSecondaryCollapsed
-                ? 'pointer-events-none opacity-0 lg:translate-x-[110%]'
-                : 'pointer-events-auto opacity-100 lg:translate-x-0'
-            )}
-          >
-            <div className="space-y-3">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <h2 className="text-lg font-semibold text-slate-900">{secondaryPanelTitle}</h2>
-                  <p className="text-xs text-slate-600">{secondaryPanelDescription}</p>
-                </div>
-                {isProcessesTabActive ? (
-                  <Button
-                    type="button"
-                    size="sm"
-                    onClick={handleCreateProcess}
-                    disabled={isUnauthorized || isCreating}
-                    className="inline-flex h-8 items-center gap-1 rounded-md bg-slate-900 px-3 text-xs font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600"
-                  >
-                    {isCreating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
-                    Nouveau
-                  </Button>
-                ) : isDepartmentsTabActive ? (
-                  <Button
-                    type="button"
-                    size="sm"
-                    onClick={handleCreateDepartment}
-                    disabled={isDepartmentActionsDisabled || isCreatingDepartment}
-                    className="inline-flex h-8 items-center gap-1 rounded-md bg-slate-900 px-3 text-xs font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600"
-                  >
-                    {isCreatingDepartment ? (
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    ) : (
-                      <Plus className="h-3.5 w-3.5" />
-                    )}
-                    Nouveau
-                  </Button>
-                ) : null}
-              </div>
-              <div className="flex items-center gap-2" role="tablist" aria-label="Navigation des listes">
-                <button
-                  type="button"
-                  id="processes-tab"
-                  role="tab"
-                  aria-selected={isProcessesTabActive}
-                  aria-controls="processes-panel"
-                  onClick={() => setActiveSecondaryTab('processes')}
-                  className={cn(
-                    'flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium transition',
-                    isProcessesTabActive
-                      ? 'bg-slate-900 text-white shadow'
-                      : 'bg-transparent text-slate-600 hover:bg-slate-100'
-                  )}
-                >
-                  <FolderTree className="h-3.5 w-3.5" />
-                  Process
-                </button>
-                <button
-                  type="button"
-                  id="departments-tab"
-                  role="tab"
-                  aria-selected={isDepartmentsTabActive}
-                  aria-controls="departments-panel"
-                  onClick={() => setActiveSecondaryTab('departments')}
-                  className={cn(
-                    'flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium transition',
-                    isDepartmentsTabActive
-                      ? 'bg-slate-900 text-white shadow'
-                      : 'bg-transparent text-slate-600 hover:bg-slate-100'
-                  )}
-                >
-                  <Building2 className="h-3.5 w-3.5" />
-                  Départements
-                </button>
-              </div>
-            </div>
-            <div className="flex-1 min-h-0 overflow-hidden">
-              <div className="flex h-full flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white/80">
-                <div className="flex-1 overflow-y-auto px-3 py-4">
-                  <div
-                    role="tabpanel"
-                    id="processes-panel"
-                    aria-labelledby="processes-tab"
-                    hidden={!isProcessesTabActive}
-                    className={cn('h-full', !isProcessesTabActive && 'hidden')}
-                  >
-                    {isProcessListUnauthorized ? (
-                      <p className="text-sm text-slate-600">
-                        Connectez-vous pour accéder à vos process sauvegardés.
-                      </p>
-                    ) : processSummariesQuery.isLoading ? (
-                      <div className="flex items-center gap-2 text-sm text-slate-500">
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        Chargement des process…
-                      </div>
-                    ) : processSummariesQuery.isError ? (
-                      <p className="text-sm text-red-600">
-                        {processSummariesQuery.error instanceof ApiError
-                          ? processSummariesQuery.error.message
-                          : 'Impossible de récupérer la liste des process.'}
-                      </p>
-                    ) : hasProcesses ? (
-                      <ul role="tree" aria-label="Process sauvegardés" className="space-y-2">
-                        {processSummaries.map((summary) => {
-                          const isSelected = summary.id === currentProcessId;
-                          const isEditing = editingProcessId === summary.id;
-                          const updatedLabel = formatUpdatedAt(summary.updatedAt);
+                  <div className="flex-1 min-h-0 overflow-hidden">
+                    <div className="h-full space-y-6 overflow-y-auto rounded-2xl border border-slate-200 bg-white/75 p-5 pr-2 shadow-inner sm:pr-3">
+                      {selectedStep ? (
+                        <p className="text-xs text-slate-600">
+                          Étape sélectionnée :{' '}
+                          <span className="font-medium text-slate-900">{getStepDisplayLabel(selectedStep)}</span>
+                        </p>
+                      ) : null}
+                      <div className="space-y-3.5">
+                        {steps.map((step, index) => {
+                          const Icon = STEP_TYPE_ICONS[step.type];
+                          const isRemovable = step.type === 'action' || step.type === 'decision';
+                          const stepPosition = index + 1;
+                          const availableTargets = steps.filter((candidate) => candidate.id !== step.id);
+                          const isDragging = draggedStepId === step.id;
+                          const isFixedStep = step.type === 'start' || step.type === 'finish';
+                          const canReorderStep = !isFixedStep;
+                          const isSelectedStep = selectedStepId === step.id;
+                          const displayLabel = getStepDisplayLabel(step);
 
                           return (
-                            <li key={summary.id} role="treeitem" aria-selected={isSelected} className="focus:outline-none">
-                              <div
-                                role={isEditing ? undefined : 'button'}
-                                tabIndex={isEditing ? undefined : 0}
-                                onClick={
-                                  isEditing
-                                    ? undefined
-                                    : () => {
-                                        setSelectedProcessId(summary.id);
-                                      }
-                                }
-                                onDoubleClick={isEditing ? undefined : () => startEditingProcess(summary)}
-                                onKeyDown={
-                                  isEditing
-                                    ? undefined
-                                    : (event) => {
-                                        if (event.key === 'Enter' || event.key === ' ') {
-                                          event.preventDefault();
-                                          setSelectedProcessId(summary.id);
-                                        }
-                                      }
-                                }
+                            <Card
+                              key={step.id}
+                              className={cn(
+                                'border-slate-200 bg-white/90 shadow-sm transition',
+                                isDragging
+                                  ? 'opacity-70 ring-2 ring-slate-300'
+                                  : isSelectedStep
+                                  ? 'border-slate-900 ring-2 ring-slate-900/20'
+                                  : 'hover:border-slate-300'
+                              )}
+                              onDragOver={(event) => handleStepDragOver(event, step.id)}
+                              onDrop={handleStepDrop}
+                              onClick={() => setSelectedStepId(step.id)}
+                              onFocusCapture={() => setSelectedStepId(step.id)}
+                              aria-selected={isSelectedStep}
+                            >
+                              <CardContent
                                 className={cn(
-                                  'group flex flex-col gap-1 rounded-lg border border-transparent px-2 py-2 transition focus:outline-none',
-                                  isSelected
-                                    ? 'border-slate-900/30 bg-slate-900/5 shadow-inner'
-                                    : 'hover:border-slate-300 hover:bg-slate-100',
-                                  isEditing
-                                    ? undefined
-                                    : 'cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400'
+                                  'flex gap-3 p-3.5',
+                                  isSelectedStep ? 'items-start' : 'items-center gap-2 p-2.5'
                                 )}
                               >
-                                <div className="flex items-center justify-between gap-2">
-                                  <div className="flex items-center gap-2">
-                                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-200 text-slate-700">
-                                      <FolderTree className="h-4 w-4" />
-                                    </div>
-                                    <div className="min-w-0">
-                                      {isEditing ? (
-                                        <div className="flex items-center gap-2">
-                                          <Input
-                                            ref={renameInputRef}
-                                            value={renameDraft}
-                                            onChange={(event) => setRenameDraft(event.target.value)}
-                                            className="h-8 w-40 rounded-md border border-slate-300 bg-white px-2 text-sm text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
-                                          />
-                                          <div className="flex items-center gap-1">
-                                            <button
-                                              type="button"
-                                              onClick={() => confirmRenameProcess(summary.id)}
-                                              className="inline-flex h-8 items-center justify-center rounded-md bg-slate-900 px-2 text-xs font-medium text-white hover:bg-slate-800"
-                                            >
-                                              Enregistrer
-                                            </button>
-                                            <button
-                                              type="button"
-                                              onClick={cancelEditingProcess}
-                                              className="inline-flex h-8 items-center justify-center rounded-md border border-slate-200 px-2 text-xs font-medium text-slate-700 hover:bg-slate-100"
-                                            >
-                                              Annuler
-                                            </button>
-                                          </div>
-                                        </div>
-                                      ) : (
-                                        <>
-                                          <p className="truncate text-sm font-medium text-slate-900">{summary.title}</p>
-                                          {updatedLabel ? (
-                                            <p className="text-xs text-slate-500">Mis à jour {updatedLabel}</p>
-                                          ) : null}
-                                        </>
-                                      )}
-                                    </div>
-                                  </div>
-                                  {!isEditing ? (
-                                    <div className="flex items-center gap-1">
-                                      <button
-                                        type="button"
-                                        onClick={() => startEditingProcess(summary)}
-                                        className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-transparent text-slate-500 transition hover:border-slate-300 hover:bg-slate-100 hover:text-slate-900"
-                                      >
-                                        <Pencil className="h-4 w-4" />
-                                        <span className="sr-only">Renommer le process</span>
-                                      </button>
-                                      <button
-                                        type="button"
-                                        onClick={() => deleteProcessMutation.mutate(summary.id)}
-                                        disabled={deleteProcessMutation.isPending && deleteProcessMutation.variables === summary.id}
-                                        className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-transparent text-red-500 transition hover:border-red-200 hover:bg-red-50 hover:text-red-600 disabled:opacity-60"
-                                      >
-                                        {deleteProcessMutation.isPending && deleteProcessMutation.variables === summary.id ? (
-                                          <Loader2 className="h-4 w-4 animate-spin" />
-                                        ) : (
-                                          <Trash2 className="h-4 w-4" />
-                                        )}
-                                        <span className="sr-only">Supprimer le process</span>
-                                      </button>
-                                    </div>
-                                  ) : null}
-                                </div>
-                              </div>
-                            </li>
-                          );
-                        })}
-                      </ul>
-                    ) : (
-                      <p className="text-sm text-slate-600">Créez votre premier process pour le retrouver facilement ici.</p>
-                    )}
-                  </div>
-                  <div
-                    role="tabpanel"
-                    id="departments-panel"
-                    aria-labelledby="departments-tab"
-                    hidden={!isDepartmentsTabActive}
-                    className={cn('h-full', !isDepartmentsTabActive && 'hidden')}
-                  >
-                    {isDepartmentUnauthorized ? (
-                      <p className="text-sm text-slate-600">
-                        Connectez-vous pour gérer vos départements.
-                      </p>
-                    ) : (
-                      <div className="space-y-4">
-                        {createDepartmentMutation.isError ? (
-                          <p className="text-xs text-red-600">{createDepartmentMutation.error.message}</p>
-                        ) : null}
-                        {departmentsQuery.isLoading ? (
-                          <div className="flex items-center gap-2 text-sm text-slate-500">
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                            Chargement des départements…
-                          </div>
-                        ) : departmentsQuery.isError ? (
-                          <p className="text-sm text-red-600">
-                            {departmentsQuery.error instanceof ApiError
-                              ? departmentsQuery.error.message
-                              : 'Impossible de récupérer la liste des départements.'}
-                          </p>
-                        ) : departments.length > 0 ? (
-                          <ul
-                            role="tree"
-                            aria-label="Départements"
-                            className="department-tree flex flex-col gap-3"
-                          >
-                            {departments.map((department) => {
-                              const isEditingDepartment = editingDepartmentId === department.id;
-                              const isDeletingCurrent =
-                                isDeletingDepartment && deleteDepartmentId === department.id;
-                              const isExpanded = isEditingDepartment;
-                              const isCollapsed = !isExpanded;
-                              const updatedLabel = formatUpdatedAt(department.updatedAt);
-                              const colorInputId = `department-color-${department.id}`;
-                              return (
-                                <li
-                                  key={department.id}
-                                  role="treeitem"
-                                  aria-expanded={isExpanded}
-                                  aria-selected={isEditingDepartment}
-                                  className="department-node"
-                                  data-collapsed={isCollapsed ? 'true' : 'false'}
+                                <div
+                                  className={cn(
+                                    'flex items-center',
+                                    isSelectedStep ? 'flex-col gap-1' : 'flex-row gap-2'
+                                  )}
                                 >
-                                  <Card
+                                  <button
+                                    type="button"
                                     className={cn(
-                                      'border-slate-200 bg-white/90 shadow-sm transition focus-within:ring-2 focus-within:ring-slate-900/20',
-                                      isEditingDepartment
-                                        ? 'border-slate-900 ring-2 ring-slate-900/20'
-                                        : 'hover:border-slate-300'
+                                      'flex h-7 w-7 items-center justify-center rounded-full border border-transparent bg-slate-100 text-slate-500 transition',
+                                      canReorderStep ? 'hover:border-slate-300 hover:bg-white' : 'cursor-not-allowed opacity-60'
+                                    )}
+                                    draggable={canReorderStep}
+                                    onDragStart={(event) => {
+                                      if (!canReorderStep) {
+                                        event.preventDefault();
+                                        return;
+                                      }
+                                      handleStepDragStart(event, step.id);
+                                    }}
+                                    onDragEnd={handleStepDragEnd}
+                                    aria-label={`Réorganiser ${getStepDisplayLabel(step)}`}
+                                    aria-grabbed={isDragging}
+                                    disabled={!canReorderStep}
+                                  >
+                                    <GripVertical className="h-3.5 w-3.5" />
+                                  </button>
+                                  <span
+                                    className={cn(
+                                      'flex h-7 w-7 items-center justify-center rounded-full text-[0.65rem] font-semibold transition-colors',
+                                      isSelectedStep ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600'
                                     )}
                                   >
-                                    <CardContent
-                                      className={cn(
-                                        'flex gap-3 transition',
-                                        isEditingDepartment ? 'flex-col p-3.5' : 'items-center p-2.5'
-                                      )}
-                                    >
-                                      {isEditingDepartment ? (
-                                        <form
-                                          onSubmit={departmentEditForm.handleSubmit(handleSaveDepartment)}
-                                          className="flex w-full flex-col gap-3"
-                                          data-entity-type="department"
-                                        >
-                                          <div className="flex flex-wrap items-center gap-2">
-                                            <div className="flex items-center">
-                                              <label htmlFor={colorInputId} className="sr-only">
-                                                Couleur du département
-                                              </label>
-                                              <input
-                                                id={colorInputId}
-                                                type="color"
-                                                {...departmentEditForm.register('color')}
-                                                disabled={isSavingDepartment}
-                                                className="h-9 w-9 cursor-pointer rounded-md border border-slate-300 bg-white p-1 shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
-                                                aria-describedby={
-                                                  departmentEditForm.formState.errors.color
-                                                    ? `${colorInputId}-error`
-                                                    : undefined
-                                                }
-                                              />
-                                            </div>
-                                            <Input
-                                              {...departmentEditForm.register('name')}
-                                              autoFocus
-                                              disabled={isSavingDepartment}
-                                              className="h-9 min-w-[12rem] flex-1 rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
-                                            />
-                                            <Button
-                                              type="button"
-                                              size="icon"
-                                              variant="ghost"
-                                              onClick={() => handleDeleteDepartment(department.id)}
-                                              disabled={isDepartmentActionsDisabled || isDeletingCurrent || isSavingDepartment}
-                                              className="ml-auto h-8 w-8 text-red-500 hover:bg-red-50 hover:text-red-600"
-                                            >
-                                              {isDeletingCurrent ? (
-                                                <Loader2 aria-hidden="true" className="h-4 w-4 animate-spin" />
-                                              ) : (
-                                                <Trash2 aria-hidden="true" className="h-4 w-4" />
-                                              )}
-                                              <span className="sr-only">Supprimer le département</span>
-                                            </Button>
-                                          </div>
-                                          {departmentEditForm.formState.errors.color ? (
-                                            <p id={`${colorInputId}-error`} className="text-xs text-red-600">
-                                              {departmentEditForm.formState.errors.color.message}
-                                            </p>
-                                          ) : null}
-                                          {departmentEditForm.formState.errors.name ? (
-                                            <p className="text-xs text-red-600">
-                                              {departmentEditForm.formState.errors.name.message}
-                                            </p>
-                                          ) : null}
-                                          <div className="flex flex-col gap-2">
-                                            {departmentRoleFields.fields.length > 0 ? (
-                                              departmentRoleFields.fields.map((field, index) => {
-                                                const roleError = departmentEditForm.formState.errors.roles?.[index]?.name;
-                                                const roleNameField = `roles.${index}.name` as const;
-                                                const roleIdField = `roles.${index}.roleId` as const;
-                                                return (
-                                                  <div key={field.id} className="space-y-1">
-                                                    <Controller
-                                                      control={departmentEditForm.control}
-                                                      name={roleIdField}
-                                                      defaultValue={field.roleId ?? ''}
-                                                      render={({ field: roleIdControl }) => (
-                                                        <input
-                                                          type="hidden"
-                                                          {...roleIdControl}
-                                                          value={roleIdControl.value ?? ''}
-                                                        />
-                                                      )}
-                                                    />
-                                                    <div className="flex flex-wrap items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2.5 shadow-sm">
-                                                      <div className="flex min-w-0 flex-1 items-center gap-2">
-                                                        <UserRound className="h-4 w-4 text-slate-500" />
-                                                        <Controller
-                                                          control={departmentEditForm.control}
-                                                          name={roleNameField}
-                                                          defaultValue={field.name}
-                                                          render={({ field: roleNameControl }) => (
-                                                            <Input
-                                                              {...roleNameControl}
-                                                              value={roleNameControl.value ?? ''}
-                                                              disabled={isSavingDepartment}
-                                                              className="h-8 min-w-[10rem] flex-1 rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
-                                                            />
-                                                          )}
-                                                        />
-                                                      </div>
-                                                      <Button
-                                                        type="button"
-                                                        size="icon"
-                                                        variant="ghost"
-                                                        onClick={() => departmentRoleFields.remove(index)}
-                                                        disabled={isSavingDepartment || isAddingDepartmentRole}
-                                                        className="h-8 w-8 text-red-500 hover:bg-red-50 hover:text-red-600"
-                                                        title={
-                                                          field.roleId
-                                                            ? 'Supprimera ce rôle lors de l\'enregistrement'
-                                                            : 'Retirer ce rôle'
-                                                        }
-                                                      >
-                                                        <Trash2 aria-hidden="true" className="h-4 w-4" />
-                                                        <span className="sr-only">Retirer le rôle</span>
-                                                      </Button>
-                                                    </div>
-                                                    {roleError ? (
-                                                      <p className="text-xs text-red-600">{roleError.message}</p>
-                                                    ) : null}
-                                                  </div>
-                                                );
-                                              })
-                                            ) : (
-                                              <p className="text-xs text-slate-500">Aucun rôle pour ce département.</p>
-                                            )}
-                                          </div>
-                                          <div className="flex flex-wrap items-center justify-between gap-2">
-                                            <div className="flex flex-wrap items-center gap-2">
-                                              <Button
-                                                type="button"
-                                                variant="outline"
-                                                size="sm"
-                                                onClick={handleAddRole}
-                                                disabled={
-                                                  isSavingDepartment ||
-                                                  isAddingDepartmentRole ||
-                                                  !editingDepartmentId ||
-                                                  isDepartmentActionsDisabled
-                                                }
-                                                className="inline-flex h-8 items-center gap-1 rounded-md border-slate-300 text-xs font-medium text-slate-700 hover:bg-slate-100"
-                                              >
-                                                {isAddingDepartmentRole ? (
-                                                  <Loader2 aria-hidden="true" className="h-3.5 w-3.5 animate-spin" />
-                                                ) : (
-                                                  <Plus className="h-3.5 w-3.5" />
-                                                )}
-                                                Ajouter un rôle
-                                              </Button>
-                                              <Button
-                                                type="submit"
-                                                size="sm"
-                                                disabled={isSavingDepartment || isAddingDepartmentRole}
-                                                className="inline-flex h-8 items-center gap-1 rounded-md bg-slate-900 px-3 text-xs font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600"
-                                              >
-                                                {isSavingDepartment ? (
-                                                  <Loader2 aria-hidden="true" className="h-3.5 w-3.5 animate-spin" />
-                                                ) : (
-                                                  <Save aria-hidden="true" className="h-3.5 w-3.5" />
-                                                )}
-                                                Enregistrer
-                                              </Button>
-                                            </div>
-                                            <div className="space-y-1">
-                                              {createDepartmentRoleMutation.isError ? (
-                                                <p className="text-xs text-red-600">
-                                                  {createDepartmentRoleMutation.error.message}
-                                                </p>
-                                              ) : null}
-                                              {saveDepartmentMutation.isError ? (
-                                                <p className="text-xs text-red-600">{saveDepartmentMutation.error.message}</p>
-                                              ) : null}
-                                            </div>
-                                          </div>
-                                        </form>
-                                      ) : (
-                                        <div
-                                          className={cn(
-                                            'flex min-w-0 flex-1 items-center gap-3 rounded-lg border border-transparent px-1 py-1 transition',
-                                            !(isDepartmentActionsDisabled || isDeletingCurrent) &&
-                                              'cursor-pointer hover:border-slate-300 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400'
-                                          )}
-                                          role="button"
-                                          tabIndex={isDepartmentActionsDisabled || isDeletingCurrent ? -1 : 0}
-                                          aria-disabled={isDepartmentActionsDisabled || isDeletingCurrent}
-                                          onClick={() => {
-                                            if (isDepartmentActionsDisabled || isDeletingCurrent) {
-                                              return;
-                                            }
-                                            startEditingDepartment(department);
-                                          }}
-                                          onKeyDown={(event) => {
-                                            if (event.key === 'Enter' || event.key === ' ') {
-                                              event.preventDefault();
-                                              if (isDepartmentActionsDisabled || isDeletingCurrent) {
-                                                return;
-                                              }
-                                              startEditingDepartment(department);
-                                            }
-                                          }}
-                                        >
-                                          <div className="flex min-w-0 flex-1 items-center gap-3">
-                                            <span
-                                              className="inline-flex h-8 w-8 shrink-0 rounded-md border border-slate-200 shadow-inner"
-                                              style={{ backgroundColor: department.color }}
-                                              aria-hidden="true"
-                                            />
-                                            <span className="sr-only">Couleur : {department.color}</span>
-                                            <div className="min-w-0">
-                                              <p className="truncate text-sm font-medium text-slate-900">{department.name}</p>
-                                              {updatedLabel ? (
-                                                <p className="text-xs text-slate-500">Mis à jour {updatedLabel}</p>
-                                              ) : null}
-                                            </div>
-                                          </div>
-                                        </div>
-                                      )}
-                                      {!isEditingDepartment ? (
-                                        <Button
-                                          type="button"
-                                          size="icon"
-                                          variant="ghost"
-                                          onClick={(event) => {
-                                            event.stopPropagation();
-                                            handleDeleteDepartment(department.id);
-                                          }}
-                                          disabled={isDepartmentActionsDisabled || isDeletingCurrent}
-                                          className="h-8 w-8 text-red-500 hover:bg-red-50 hover:text-red-600"
-                                        >
-                                          {isDeletingCurrent ? (
-                                            <Loader2 className="h-4 w-4 animate-spin" />
-                                          ) : (
-                                            <Trash2 className="h-4 w-4" />
-                                          )}
-                                          <span className="sr-only">Supprimer le département</span>
-                                        </Button>
+                                    {stepPosition}
+                                  </span>
+                                </div>
+                                {isSelectedStep ? (
+                                  <div className="flex min-w-0 flex-1 flex-col gap-1">
+                                    <div className="flex items-center gap-1.5 text-slate-500">
+                                      <Icon className="h-3.5 w-3.5" />
+                                      <span className="text-[0.6rem] font-medium uppercase tracking-[0.24em]">
+                                        {STEP_TYPE_LABELS[step.type]}
+                                      </span>
+                                    </div>
+                                    <Input
+                                      id={`step-${step.id}-label`}
+                                      value={step.label}
+                                      onChange={(event) => updateStepLabel(step.id, event.target.value)}
+                                      placeholder="Intitulé de l’étape"
+                                      className="h-8 w-full border-slate-200 bg-white text-sm text-slate-900 placeholder:text-slate-400 focus-visible:ring-slate-900/20 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-50"
+                                    />
+                                    <label className="flex flex-col gap-1 text-[0.6rem] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                                      <span>Département</span>
+                                      <select
+                                        value={step.departmentId ?? ''}
+                                        onChange={(event) =>
+                                          updateStepDepartment(
+                                            step.id,
+                                            event.target.value.length > 0 ? event.target.value : null
+                                          )
+                                        }
+                                        className="h-8 rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-900 transition focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10 disabled:cursor-not-allowed"
+                                        disabled={!hasDepartments}
+                                      >
+                                        <option value="">Aucun département</option>
+                                        {departments.map((department) => (
+                                          <option key={department.id} value={department.id}>
+                                            {department.name}
+                                          </option>
+                                        ))}
+                                      </select>
+                                      {!hasDepartments ? (
+                                        <span className="text-[0.6rem] font-normal normal-case tracking-normal text-slate-500">
+                                          Ajoutez un département pour l’associer à cette étape.
+                                        </span>
                                       ) : null}
-                                    </CardContent>
-                                  </Card>
-                                  {deleteDepartmentMutation.isError && deleteDepartmentId === department.id ? (
-                                    <p className="mt-2 text-xs text-red-600">
-                                      {deleteDepartmentMutation.error.message}
-                                    </p>
-                                  ) : null}
-                                </li>
-                              );
-                            })}
-                          </ul>
+                                    </label>
+                                    {step.type === 'decision' ? (
+                                      <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                                        <label className="flex flex-col gap-1 text-[0.6rem] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                                          <span>Branche Oui</span>
+                                          <select
+                                            value={step.yesTargetId ?? ''}
+                                            onChange={(event) =>
+                                              updateDecisionBranch(step.id, 'yes', event.target.value || null)
+                                            }
+                                            className="h-8 rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-900 transition focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10"
+                                          >
+                                            <option value="">Étape suivante (défaut)</option>
+                                            {availableTargets.map((candidate) => {
+                                              const position = stepPositions.get(candidate.id);
+                                              const optionLabel = position
+                                                ? `${position}. ${getStepDisplayLabel(candidate)}`
+                                                : getStepDisplayLabel(candidate);
 
-                        ) : (
-                          <p className="text-sm text-slate-600">Aucun département enregistré pour le moment.</p>
-                        )}
+                                              return (
+                                                <option key={candidate.id} value={candidate.id}>
+                                                  {optionLabel}
+                                                </option>
+                                              );
+                                            })}
+                                          </select>
+                                        </label>
+                                        <label className="flex flex-col gap-1 text-[0.6rem] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                                          <span>Branche Non</span>
+                                          <select
+                                            value={step.noTargetId ?? ''}
+                                            onChange={(event) =>
+                                              updateDecisionBranch(step.id, 'no', event.target.value || null)
+                                            }
+                                            className="h-8 rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-900 transition focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10"
+                                          >
+                                            <option value="">Étape suivante (défaut)</option>
+                                            {availableTargets.map((candidate) => {
+                                              const position = stepPositions.get(candidate.id);
+                                              const optionLabel = position
+                                                ? `${position}. ${getStepDisplayLabel(candidate)}`
+                                                : getStepDisplayLabel(candidate);
+
+                                              return (
+                                                <option key={candidate.id} value={candidate.id}>
+                                                  {optionLabel}
+                                                </option>
+                                              );
+                                            })}
+                                          </select>
+                                        </label>
+                                      </div>
+                                    ) : null}
+                                  </div>
+                                ) : (
+                                  <div className="flex min-w-0 flex-1 items-center gap-2">
+                                    <span className="truncate text-sm font-medium text-slate-900" title={displayLabel}>
+                                      {displayLabel}
+                                    </span>
+                                  </div>
+                                )}
+                                {isRemovable ? (
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => removeStep(step.id)}
+                                    className="h-7 w-7 shrink-0 text-slate-400 hover:text-slate-900"
+                                    aria-label="Supprimer l’étape"
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </Button>
+                                ) : null}
+                              </CardContent>
+                            </Card>
+                          );
+                        })}
+                        <div
+                          role="presentation"
+                          className={cn(
+                            'h-4 rounded border border-dashed border-transparent transition',
+                            draggedStepId ? 'border-slate-300 bg-white/60' : 'border-transparent'
+                          )}
+                          onDragOver={handleStepListDragOverEnd}
+                          onDrop={handleStepDrop}
+                        >
+                          {draggedStepId ? (
+                            <span className="sr-only">Déposer ici pour placer l’étape à la fin</span>
+                          ) : null}
+                        </div>
                       </div>
+                    </div>
+                  </div>
+                  <div className="rounded-2xl border border-slate-200 bg-white/80 p-4 shadow-inner">
+                    <Button
+                      type="button"
+                      onClick={handleSave}
+                      disabled={isSaveDisabled}
+                      className="h-10 w-full rounded-md bg-slate-900 text-sm font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600"
+                    >
+                      {saveButtonLabel}
+                    </Button>
+                    <p className={cn('mt-2 text-xs', statusToneClass)} aria-live="polite">
+                      {statusMessage}
+                    </p>
+                  </div>
+                  {highlights.length > 0 ? (
+                    <div className="grid gap-3.5 sm:grid-cols-2">
+                      {highlights.map((item) => {
+                        const Icon = highlightIcons[item.icon];
+
+                        return (
+                          <Card key={item.title} className="border-slate-200 bg-white/90 shadow-sm">
+                            <CardContent className="flex flex-col gap-1.5 p-4">
+                              <Icon className="h-4 w-4 text-slate-500" />
+                              <p className="text-xs font-medium text-slate-900">{item.title}</p>
+                              <p className="text-xs text-slate-600">{item.description}</p>
+                            </CardContent>
+                          </Card>
+                        );
+                      })}
+                    </div>
+                  ) : null}
+                </div>
+              ) : (
+                <p className="text-xs text-slate-600">Étapes du processus</p>
+              )}
+            </section>
+          </div>
+          <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-hidden">
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white/70 shadow-[0_30px_120px_-50px_rgba(15,23,42,0.35)] backdrop-blur">
+              <div className="relative flex min-h-0 flex-1 overflow-hidden">
+                <div
+                  ref={diagramViewportRef}
+                  className={cn(
+                    'flex h-full w-full select-none touch-none items-center justify-center',
+                    isDiagramDragging ? 'cursor-grabbing' : 'cursor-grab'
+                  )}
+                  onPointerDown={handleDiagramPointerDown}
+                  onPointerMove={handleDiagramPointerMove}
+                  onPointerUp={handleDiagramPointerEnd}
+                  onPointerCancel={handleDiagramPointerEnd}
+                  onLostPointerCapture={handleDiagramPointerEnd}
+                >
+                  <div
+                    className={cn(
+                      'pointer-events-auto absolute left-1/2 top-1/2 h-auto w-auto max-h-none max-w-none opacity-90 transition-transform [filter:drop-shadow(0_25px_65px_rgba(15,23,42,0.22))] [&_svg]:h-auto [&_svg]:max-h-none [&_svg]:max-w-none [&_.node rect]:stroke-slate-900 [&_.node rect]:stroke-[1.5px] [&_.node polygon]:stroke-slate-900 [&_.node polygon]:stroke-[1.5px] [&_.node circle]:stroke-slate-900 [&_.node circle]:stroke-[1.5px] [&_.node ellipse]:stroke-slate-900 [&_.node ellipse]:stroke-[1.5px] [&_.edgePath path]:stroke-slate-900 [&_.edgePath path]:stroke-[1.5px] [&_.edgeLabel]:text-slate-900'
+                    )}
+                    style={{
+                      transform: `translate(-50%, -50%) translate3d(${diagramUserOffset.x}px, ${diagramUserOffset.y}px, 0) scale(${diagramScale})`,
+                      transformOrigin: 'center center',
+                      willChange: 'transform'
+                    }}
+                  >
+                    {diagramSvg ? (
+                      <div aria-hidden="true" dangerouslySetInnerHTML={{ __html: diagramSvg }} />
+                    ) : (
+                      fallbackDiagram
                     )}
                   </div>
                 </div>
+                {diagramError ? (
+                  <span role="status" aria-live="polite" className="sr-only">
+                    {diagramError}
+                  </span>
+                ) : null}
               </div>
             </div>
-            {highlights.length > 0 ? (
-              <div className="grid gap-3.5 sm:grid-cols-2">
-                {highlights.map((item) => {
-                  const Icon = highlightIcons[item.icon];
-
-                  return (
-                    <Card key={item.title} className="border-slate-200 bg-white/90 shadow-sm">
-                      <CardContent className="flex flex-col gap-1.5 p-4">
-                        <Icon className="h-4 w-4 text-slate-500" />
-                        <p className="text-xs font-medium text-slate-900">{item.title}</p>
-                        <p className="text-xs text-slate-600">{item.description}</p>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
-              </div>
-            ) : null}
-          </aside>
-        </div>
-        <div className="pointer-events-auto flex w-full justify-center lg:col-start-2 lg:col-end-3 lg:row-start-2 lg:self-end">
-          <div className="relative w-full pt-6">
-            <button
-              type="button"
-              onClick={() => setIsBottomCollapsed((previous) => !previous)}
-              aria-expanded={!isBottomCollapsed}
-              aria-controls="diagram-controls-panel"
-              className={cn(
-                'z-30 flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white/90 text-slate-600 shadow-sm transition hover:bg-white',
-                isBottomCollapsed
-                  ? 'fixed bottom-6 left-1/2 -translate-x-1/2'
-                  : 'absolute left-1/2 top-0 -translate-x-1/2 -translate-y-1/2'
-              )}
-            >
-              {isBottomCollapsed ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
-              <span className="sr-only">Basculer le panneau des options du diagramme</span>
-            </button>
             <section
               id="diagram-controls-panel"
-              aria-hidden={isBottomCollapsed}
-              className={cn(
-                'w-full rounded-3xl border border-slate-200 bg-white/85 p-6 pt-10 shadow-[0_30px_120px_-50px_rgba(15,23,42,0.35)] backdrop-blur transition-all duration-300 ease-out',
-                isBottomCollapsed
-                  ? 'pointer-events-none -translate-y-2 opacity-0'
-                  : 'pointer-events-auto translate-y-0 opacity-100'
-              )}
+              className="shrink-0 rounded-3xl border border-slate-200 bg-white/85 shadow-[0_30px_120px_-50px_rgba(15,23,42,0.35)] backdrop-blur transition-all duration-300 ease-out"
             >
-              <div className="flex flex-wrap items-center gap-4">
+              <div className="flex flex-wrap items-center gap-4 px-6 py-4 sm:px-8">
                 <div className="flex min-w-0 flex-1 items-center gap-3">
                   <h2 className="text-sm font-semibold text-slate-900">Options du diagramme</h2>
                   <p className="truncate text-xs text-slate-600">
@@ -3323,15 +2772,32 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                       : 'Affichage actuel : de gauche à droite.'}
                   </p>
                 </div>
-                <div
-                  id={diagramControlsContentId}
-                  role="group"
-                  aria-label="Orientation du diagramme"
-                  className={cn(
-                    'flex flex-1 items-center justify-center gap-1 rounded-lg border border-slate-200 bg-white/70 p-1 shadow-inner sm:flex-none',
-                    isBottomCollapsed && 'hidden'
-                  )}
+                <button
+                  type="button"
+                  onClick={() => setIsBottomCollapsed((previous) => !previous)}
+                  aria-expanded={!isBottomCollapsed}
+                  aria-controls={diagramControlsContentId}
+                  className="ml-auto inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 text-slate-500 transition hover:bg-slate-100"
                 >
+                  {isBottomCollapsed ? (
+                    <ChevronUp aria-hidden="true" className="h-4 w-4" />
+                  ) : (
+                    <ChevronDown aria-hidden="true" className="h-4 w-4" />
+                  )}
+                  <span className="sr-only">
+                    {isBottomCollapsed ? 'Afficher les options du diagramme' : 'Replier les options du diagramme'}
+                  </span>
+                </button>
+              </div>
+              <div
+                id={diagramControlsContentId}
+                aria-hidden={isBottomCollapsed}
+                className={cn(
+                  'flex flex-wrap items-center justify-center gap-3 border-t border-slate-200 px-6 py-4 sm:flex-nowrap sm:justify-between sm:px-8',
+                  isBottomCollapsed && 'hidden'
+                )}
+              >
+                <div className="flex flex-1 items-center justify-center gap-1 rounded-lg border border-slate-200 bg-white/70 p-1 shadow-inner sm:flex-none">
                   <button
                     type="button"
                     onClick={() => setDiagramDirection('TD')}
@@ -3361,25 +2827,570 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                     Gauche-droite
                   </button>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setIsBottomCollapsed((previous) => !previous)}
-                  aria-expanded={!isBottomCollapsed}
-                  aria-controls={diagramControlsContentId}
-                  className="ml-auto flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-slate-200 text-slate-500 transition hover:bg-slate-100"
-                >
-                  <ChevronDown
-                    aria-hidden="true"
-                    className={cn('h-4 w-4 transition-transform duration-200', !isBottomCollapsed && 'rotate-180')}
-                  />
-                  <span className="sr-only">Replier les options du diagramme</span>
-                </button>
               </div>
             </section>
+          </div>
+          <div
+            className={cn(
+              'flex h-full min-h-0 w-full flex-col transition-all duration-300 ease-out',
+              isSecondaryCollapsed
+                ? 'lg:[flex-basis:3.5rem] lg:[max-width:3.5rem]'
+                : 'lg:[flex-basis:var(--secondary-panel-width)] lg:[max-width:var(--secondary-panel-width)]'
+            )}
+            style={secondaryPanelStyle}
+          >
+            <aside
+              id="secondary-panel"
+              className={cn(
+                'flex h-full min-h-0 flex-col gap-5 overflow-hidden rounded-3xl border border-slate-200 bg-white/80 shadow-[0_30px_120px_-50px_rgba(15,23,42,0.35)] backdrop-blur transition-[padding,opacity] duration-300 ease-out',
+                isSecondaryCollapsed ? 'items-center justify-center px-4 py-4' : 'px-6 py-6'
+              )}
+            >
+              <div className="flex w-full items-start gap-3">
+                <div className={cn('flex min-w-0 flex-1 flex-col', isSecondaryCollapsed && 'text-center')}>
+                  {!isSecondaryCollapsed ? (
+                    <>
+                      <h2 className="text-lg font-semibold text-slate-900">{secondaryPanelTitle}</h2>
+                      <p className="text-xs text-slate-600">{secondaryPanelDescription}</p>
+                    </>
+                  ) : (
+                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Process</p>
+                  )}
+                </div>
+                {!isSecondaryCollapsed ? (
+                  <div className="flex items-center gap-2">
+                    {isProcessesTabActive ? (
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={handleCreateProcess}
+                        disabled={isUnauthorized || isCreating}
+                        className="inline-flex h-8 items-center gap-1 rounded-md bg-slate-900 px-3 text-xs font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600"
+                      >
+                        {isCreating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
+                        Nouveau
+                      </Button>
+                    ) : isDepartmentsTabActive ? (
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={handleCreateDepartment}
+                        disabled={isDepartmentActionsDisabled || isCreatingDepartment}
+                        className="inline-flex h-8 items-center gap-1 rounded-md bg-slate-900 px-3 text-xs font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600"
+                      >
+                        {isCreatingDepartment ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <Plus className="h-3.5 w-3.5" />
+                        )}
+                        Nouveau
+                      </Button>
+                    ) : null}
+                  </div>
+                ) : null}
+                <button
+                  type="button"
+                  onClick={() => setIsSecondaryCollapsed((prev) => !prev)}
+                  aria-expanded={!isSecondaryCollapsed}
+                  aria-controls="secondary-panel-content"
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:bg-slate-100"
+                >
+                  {isSecondaryCollapsed ? <ChevronLeft className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                  <span className="sr-only">
+                    {isSecondaryCollapsed ? 'Ouvrir le panneau secondaire' : 'Replier le panneau secondaire'}
+                  </span>
+                </button>
+              </div>
+              {!isSecondaryCollapsed ? (
+                <div id="secondary-panel-content" className="flex h-full min-h-0 w-full flex-col gap-5">
+                  <div className="flex items-center gap-2" role="tablist" aria-label="Navigation des listes">
+                    <button
+                      type="button"
+                      id="processes-tab"
+                      role="tab"
+                      aria-selected={isProcessesTabActive}
+                      aria-controls="processes-panel"
+                      onClick={() => setActiveSecondaryTab('processes')}
+                      className={cn(
+                        'flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium transition',
+                        isProcessesTabActive
+                          ? 'bg-slate-900 text-white shadow'
+                          : 'bg-transparent text-slate-600 hover:bg-slate-100'
+                      )}
+                    >
+                      <FolderTree className="h-3.5 w-3.5" />
+                      Process
+                    </button>
+                    <button
+                      type="button"
+                      id="departments-tab"
+                      role="tab"
+                      aria-selected={isDepartmentsTabActive}
+                      aria-controls="departments-panel"
+                      onClick={() => setActiveSecondaryTab('departments')}
+                      className={cn(
+                        'flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium transition',
+                        isDepartmentsTabActive
+                          ? 'bg-slate-900 text-white shadow'
+                          : 'bg-transparent text-slate-600 hover:bg-slate-100'
+                      )}
+                    >
+                      <Building2 className="h-3.5 w-3.5" />
+                      Départements
+                    </button>
+                  </div>
+                  <div className="flex-1 min-h-0 overflow-hidden">
+                    <div className="flex h-full flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white/80">
+                      <div className="flex-1 overflow-y-auto px-3 py-4">
+                        <div
+                          role="tabpanel"
+                          id="processes-panel"
+                          aria-labelledby="processes-tab"
+                          hidden={!isProcessesTabActive}
+                          className={cn('h-full', !isProcessesTabActive && 'hidden')}
+                        >
+                          {isProcessListUnauthorized ? (
+                            <p className="text-sm text-slate-600">
+                              Connectez-vous pour accéder à vos process sauvegardés.
+                            </p>
+                          ) : processSummariesQuery.isLoading ? (
+                            <div className="flex items-center gap-2 text-sm text-slate-500">
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                              Chargement des process…
+                            </div>
+                          ) : processSummariesQuery.isError ? (
+                            <p className="text-sm text-red-600">
+                              {processSummariesQuery.error instanceof ApiError
+                                ? processSummariesQuery.error.message
+                                : 'Impossible de récupérer la liste des process.'}
+                            </p>
+                          ) : hasProcesses ? (
+                            <ul role="tree" aria-label="Process sauvegardés" className="space-y-2">
+                              {processSummaries.map((summary) => {
+                                const isSelected = summary.id === currentProcessId;
+                                const isEditing = editingProcessId === summary.id;
+                                const updatedLabel = formatUpdatedAt(summary.updatedAt);
+
+                                return (
+                                  <li key={summary.id} role="treeitem" aria-selected={isSelected} className="focus:outline-none">
+                                    <div
+                                      role={isEditing ? undefined : 'button'}
+                                      tabIndex={isEditing ? undefined : 0}
+                                      onClick={
+                                        isEditing
+                                          ? undefined
+                                          : () => {
+                                              setSelectedProcessId(summary.id);
+                                            }
+                                      }
+                                      onDoubleClick={isEditing ? undefined : () => startEditingProcess(summary)}
+                                      onKeyDown={
+                                        isEditing
+                                          ? undefined
+                                          : (event) => {
+                                              if (event.key === 'Enter' || event.key === ' ') {
+                                                event.preventDefault();
+                                                setSelectedProcessId(summary.id);
+                                              }
+                                            }
+                                      }
+                                      className={cn(
+                                        'group flex flex-col gap-1 rounded-lg border border-transparent px-2 py-2 transition focus:outline-none',
+                                        isSelected
+                                          ? 'border-slate-900/30 bg-slate-900/5 shadow-inner'
+                                          : 'hover:border-slate-300 hover:bg-slate-100',
+                                        isEditing
+                                          ? undefined
+                                          : 'cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400'
+                                      )}
+                                    >
+                                      <div className="flex items-center justify-between gap-2">
+                                        <div className="flex min-w-0 flex-col">
+                                          <p
+                                            className={cn(
+                                              'truncate text-sm font-medium transition',
+                                              isSelected ? 'text-slate-900' : 'text-slate-800'
+                                            )}
+                                          >
+                                            {summary.name}
+                                          </p>
+                                          {updatedLabel ? (
+                                            <p className="text-xs text-slate-500">Mis à jour {updatedLabel}</p>
+                                          ) : null}
+                                        </div>
+                                        {isSelected ? (
+                                          <span className="inline-flex items-center gap-1 rounded-full bg-slate-900 px-2 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-white">
+                                            <Flag className="h-3 w-3" />
+                                            Actif
+                                          </span>
+                                        ) : null}
+                                      </div>
+                                      {isEditing ? (
+                                        <form
+                                          onSubmit={(event) => {
+                                            event.preventDefault();
+                                            handleRenameProcess();
+                                          }}
+                                          className="flex items-center gap-2"
+                                        >
+                                          <Input
+                                            ref={renameInputRef}
+                                            value={renameDraft}
+                                            onChange={(event) => setRenameDraft(event.target.value)}
+                                            className="h-8 flex-1 border-slate-200 bg-white text-xs text-slate-900 focus-visible:ring-slate-900/20"
+                                          />
+                                          <Button type="submit" size="icon" className="h-8 w-8" aria-label="Enregistrer">
+                                            <Save className="h-3.5 w-3.5" />
+                                          </Button>
+                                        </form>
+                                      ) : (
+                                        <div className="flex items-center gap-2">
+                                          <Button
+                                            type="button"
+                                            variant="ghost"
+                                            size="icon"
+                                            onClick={() => startEditingProcess(summary)}
+                                            className="h-8 w-8 text-slate-400 hover:text-slate-900"
+                                            aria-label="Renommer"
+                                          >
+                                            <Pencil className="h-3.5 w-3.5" />
+                                          </Button>
+                                          <Button
+                                            type="button"
+                                            variant="ghost"
+                                            size="icon"
+                                            onClick={() => handleDeleteProcess(summary.id)}
+                                            className="h-8 w-8 text-red-500 hover:bg-red-50 hover:text-red-600"
+                                            aria-label="Supprimer"
+                                          >
+                                            <Trash2 className="h-3.5 w-3.5" />
+                                          </Button>
+                                        </div>
+                                      )}
+                                    </div>
+                                    {deleteProcessMutation.isError && deleteProcessId === summary.id ? (
+                                      <p className="mt-1 text-xs text-red-600">{deleteProcessMutation.error.message}</p>
+                                    ) : null}
+                                  </li>
+                                );
+                              })}
+                            </ul>
+                          ) : (
+                            <p className="text-sm text-slate-600">Aucun process sauvegardé pour le moment.</p>
+                          )}
+                        </div>
+                        <div
+                          role="tabpanel"
+                          id="departments-panel"
+                          aria-labelledby="departments-tab"
+                          hidden={!isDepartmentsTabActive}
+                          className={cn('h-full', !isDepartmentsTabActive && 'hidden')}
+                        >
+                          {departmentsQuery.isLoading ? (
+                            <div className="flex items-center gap-2 text-sm text-slate-500">
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                              Chargement des départements…
+                            </div>
+                          ) : departmentsQuery.isError ? (
+                            <p className="text-sm text-red-600">
+                              {departmentsQuery.error instanceof ApiError
+                                ? departmentsQuery.error.message
+                                : 'Impossible de récupérer les départements.'}
+                            </p>
+                          ) : departments.length > 0 ? (
+                            <ul role="tree" aria-label="Départements disponibles" className="space-y-2">
+                              {departments.map((department) => {
+                                const updatedLabel = formatUpdatedAt(department.updatedAt);
+                                const isEditingDepartment = editingDepartmentId === department.id;
+                                const isDeletingCurrent = deleteDepartmentId === department.id;
+                                const isExpanded = department.roles.length > 0 || isEditingDepartment;
+                                const isCollapsed = !isExpanded;
+                                const colorInputId = `department-color-${department.id}`;
+
+                                return (
+                                  <li
+                                    key={department.id}
+                                    className="space-y-2 rounded-lg border border-transparent transition focus-within:border-slate-300 focus-within:bg-slate-100"
+                                  >
+                                    <div
+                                      role="treeitem"
+                                      aria-expanded={isExpanded}
+                                      aria-selected={isEditingDepartment}
+                                      className="department-node"
+                                      data-collapsed={isCollapsed ? 'true' : 'false'}
+                                    >
+                                      <Card
+                                        className={cn(
+                                          'border-slate-200 bg-white/90 shadow-sm transition focus-within:ring-2 focus-within:ring-slate-900/20',
+                                          isEditingDepartment
+                                            ? 'border-slate-900 ring-2 ring-slate-900/20'
+                                            : 'hover:border-slate-300'
+                                        )}
+                                      >
+                                        <CardContent
+                                          className={cn(
+                                            'flex gap-3 transition',
+                                            isEditingDepartment ? 'flex-col p-3.5' : 'items-center p-2.5'
+                                          )}
+                                        >
+                                          {isEditingDepartment ? (
+                                            <form
+                                              onSubmit={departmentEditForm.handleSubmit(handleSaveDepartment)}
+                                              className="flex w-full flex-col gap-3"
+                                              data-entity-type="department"
+                                            >
+                                              <div className="flex flex-wrap items-center gap-2">
+                                                <div className="flex items-center">
+                                                  <label htmlFor={colorInputId} className="sr-only">
+                                                    Couleur du département
+                                                  </label>
+                                                  <input
+                                                    id={colorInputId}
+                                                    type="color"
+                                                    {...departmentEditForm.register('color')}
+                                                    disabled={isSavingDepartment}
+                                                    className="h-9 w-9 cursor-pointer rounded-md border border-slate-300 bg-white p-1 shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
+                                                    aria-describedby={
+                                                      departmentEditForm.formState.errors.color
+                                                        ? `${colorInputId}-error`
+                                                        : undefined
+                                                    }
+                                                  />
+                                                </div>
+                                                <Input
+                                                  {...departmentEditForm.register('name')}
+                                                  autoFocus
+                                                  disabled={isSavingDepartment}
+                                                  className="h-9 min-w-[12rem] flex-1 rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
+                                                />
+                                                <Button
+                                                  type="button"
+                                                  size="icon"
+                                                  variant="ghost"
+                                                  onClick={() => handleDeleteDepartment(department.id)}
+                                                  disabled={isDepartmentActionsDisabled || isDeletingCurrent || isSavingDepartment}
+                                                  className="ml-auto h-8 w-8 text-red-500 hover:bg-red-50 hover:text-red-600"
+                                                >
+                                                  {isDeletingCurrent ? (
+                                                    <Loader2 aria-hidden="true" className="h-4 w-4 animate-spin" />
+                                                  ) : (
+                                                    <Trash2 aria-hidden="true" className="h-4 w-4" />
+                                                  )}
+                                                  <span className="sr-only">Supprimer le département</span>
+                                                </Button>
+                                              </div>
+                                              {departmentEditForm.formState.errors.color ? (
+                                                <p id={`${colorInputId}-error`} className="text-xs text-red-600">
+                                                  {departmentEditForm.formState.errors.color.message}
+                                                </p>
+                                              ) : null}
+                                              {departmentEditForm.formState.errors.name ? (
+                                                <p className="text-xs text-red-600">
+                                                  {departmentEditForm.formState.errors.name.message}
+                                                </p>
+                                              ) : null}
+                                              <div className="flex flex-col gap-2">
+                                                {departmentRoleFields.fields.length > 0 ? (
+                                                  departmentRoleFields.fields.map((field, index) => {
+                                                    const roleError = departmentEditForm.formState.errors.roles?.[index]?.name;
+                                                    const roleNameField = `roles.${index}.name` as const;
+                                                    const roleIdField = `roles.${index}.roleId` as const;
+                                                    return (
+                                                      <div key={field.id} className="space-y-1">
+                                                        <Controller
+                                                          control={departmentEditForm.control}
+                                                          name={roleIdField}
+                                                          defaultValue={field.roleId ?? ''}
+                                                          render={({ field: roleIdControl }) => (
+                                                            <input
+                                                              type="hidden"
+                                                              {...roleIdControl}
+                                                              value={roleIdControl.value ?? ''}
+                                                            />
+                                                          )}
+                                                        />
+                                                        <div className="flex flex-wrap items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2.5 shadow-sm">
+                                                          <div className="flex min-w-0 flex-1 items-center gap-2">
+                                                            <UserRound className="h-4 w-4 text-slate-500" />
+                                                            <Controller
+                                                              control={departmentEditForm.control}
+                                                              name={roleNameField}
+                                                              defaultValue={field.name}
+                                                              render={({ field: roleNameControl }) => (
+                                                                <Input
+                                                                  {...roleNameControl}
+                                                                  value={roleNameControl.value ?? ''}
+                                                                  disabled={isSavingDepartment}
+                                                                  className="h-8 min-w-[10rem] flex-1 rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
+                                                                />
+                                                              )}
+                                                            />
+                                                          </div>
+                                                          <Button
+                                                            type="button"
+                                                            size="icon"
+                                                            variant="ghost"
+                                                            onClick={() => departmentRoleFields.remove(index)}
+                                                            disabled={isSavingDepartment || isAddingDepartmentRole}
+                                                            className="h-8 w-8 text-red-500 hover:bg-red-50 hover:text-red-600"
+                                                            title={
+                                                              field.roleId
+                                                                ? 'Supprimera ce rôle lors de l\'enregistrement'
+                                                                : 'Retirer ce rôle'
+                                                            }
+                                                          >
+                                                            <Trash2 aria-hidden="true" className="h-4 w-4" />
+                                                            <span className="sr-only">Retirer le rôle</span>
+                                                          </Button>
+                                                        </div>
+                                                        {roleError ? (
+                                                          <p className="text-xs text-red-600">{roleError.message}</p>
+                                                        ) : null}
+                                                      </div>
+                                                    );
+                                                  })
+                                                ) : (
+                                                  <p className="text-xs text-slate-500">Aucun rôle pour ce département.</p>
+                                                )}
+                                              </div>
+                                              <div className="flex flex-wrap items-center justify-between gap-2">
+                                                <div className="flex flex-wrap items-center gap-2">
+                                                  <Button
+                                                    type="button"
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={handleAddRole}
+                                                    disabled={
+                                                      isSavingDepartment ||
+                                                      isAddingDepartmentRole ||
+                                                      !editingDepartmentId ||
+                                                      isDepartmentActionsDisabled
+                                                    }
+                                                    className="inline-flex h-8 items-center gap-1 rounded-md border-slate-300 text-xs font-medium text-slate-700 hover:bg-slate-100"
+                                                  >
+                                                    {isAddingDepartmentRole ? (
+                                                      <Loader2 aria-hidden="true" className="h-3.5 w-3.5 animate-spin" />
+                                                    ) : (
+                                                      <Plus className="h-3.5 w-3.5" />
+                                                    )}
+                                                    Ajouter un rôle
+                                                  </Button>
+                                                  <Button
+                                                    type="submit"
+                                                    size="sm"
+                                                    disabled={isSavingDepartment || isAddingDepartmentRole}
+                                                    className="inline-flex h-8 items-center gap-1 rounded-md bg-slate-900 px-3 text-xs font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600"
+                                                  >
+                                                    {isSavingDepartment ? (
+                                                      <Loader2 aria-hidden="true" className="h-3.5 w-3.5 animate-spin" />
+                                                    ) : (
+                                                      <Save aria-hidden="true" className="h-3.5 w-3.5" />
+                                                    )}
+                                                    Enregistrer
+                                                  </Button>
+                                                </div>
+                                                <div className="space-y-1">
+                                                  {createDepartmentRoleMutation.isError ? (
+                                                    <p className="text-xs text-red-600">
+                                                      {createDepartmentRoleMutation.error.message}
+                                                    </p>
+                                                  ) : null}
+                                                  {saveDepartmentMutation.isError ? (
+                                                    <p className="text-xs text-red-600">{saveDepartmentMutation.error.message}</p>
+                                                  ) : null}
+                                                </div>
+                                              </div>
+                                            </form>
+                                          ) : (
+                                            <div
+                                              className={cn(
+                                                'flex min-w-0 flex-1 items-center gap-3 rounded-lg border border-transparent px-1 py-1 transition',
+                                                !(isDepartmentActionsDisabled || isDeletingCurrent) &&
+                                                  'cursor-pointer hover:border-slate-300 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400'
+                                              )}
+                                              role="button"
+                                              tabIndex={isDepartmentActionsDisabled || isDeletingCurrent ? -1 : 0}
+                                              aria-disabled={isDepartmentActionsDisabled || isDeletingCurrent}
+                                              onClick={() => {
+                                                if (isDepartmentActionsDisabled || isDeletingCurrent) {
+                                                  return;
+                                                }
+                                                startEditingDepartment(department);
+                                              }}
+                                              onKeyDown={(event) => {
+                                                if (event.key === 'Enter' || event.key === ' ') {
+                                                  event.preventDefault();
+                                                  if (isDepartmentActionsDisabled || isDeletingCurrent) {
+                                                    return;
+                                                  }
+                                                  startEditingDepartment(department);
+                                                }
+                                              }}
+                                            >
+                                              <div className="flex min-w-0 flex-1 items-center gap-3">
+                                                <span
+                                                  className="inline-flex h-8 w-8 shrink-0 rounded-md border border-slate-200 shadow-inner"
+                                                  style={{ backgroundColor: department.color }}
+                                                  aria-hidden="true"
+                                                />
+                                                <span className="sr-only">Couleur : {department.color}</span>
+                                                <div className="min-w-0">
+                                                  <p className="truncate text-sm font-medium text-slate-900">{department.name}</p>
+                                                  {updatedLabel ? (
+                                                    <p className="text-xs text-slate-500">Mis à jour {updatedLabel}</p>
+                                                  ) : null}
+                                                </div>
+                                              </div>
+                                            </div>
+                                          )}
+                                          {!isEditingDepartment ? (
+                                            <Button
+                                              type="button"
+                                              size="icon"
+                                              variant="ghost"
+                                              onClick={(event) => {
+                                                event.stopPropagation();
+                                                handleDeleteDepartment(department.id);
+                                              }}
+                                              disabled={isDepartmentActionsDisabled || isDeletingCurrent}
+                                              className="h-8 w-8 text-red-500 hover:bg-red-50 hover:text-red-600"
+                                            >
+                                              {isDeletingCurrent ? (
+                                                <Loader2 className="h-4 w-4 animate-spin" />
+                                              ) : (
+                                                <Trash2 className="h-4 w-4" />
+                                              )}
+                                              <span className="sr-only">Supprimer le département</span>
+                                            </Button>
+                                          ) : null}
+                                        </CardContent>
+                                      </Card>
+                                      {deleteDepartmentMutation.isError && deleteDepartmentId === department.id ? (
+                                        <p className="mt-2 text-xs text-red-600">
+                                          {deleteDepartmentMutation.error.message}
+                                        </p>
+                                      ) : null}
+                                    </div>
+                                  </li>
+                                );
+                              })}
+                            </ul>
+                          ) : (
+                            <p className="text-sm text-slate-600">Aucun département enregistré pour le moment.</p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-xs text-slate-600">Mes process</p>
+              )}
+            </aside>
           </div>
         </div>
       </div>
     </div>
-  </div>
   );
 }
+
