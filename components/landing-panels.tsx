@@ -2408,7 +2408,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
   const diagramControlsContentId = useId();
 
   return (
-    <div className="relative flex min-h-screen flex-col overflow-x-visible overflow-y-hidden bg-gradient-to-br from-slate-100 via-white to-slate-200 text-slate-900">
+    <div className="relative flex h-full min-h-0 w-full flex-col overflow-x-visible overflow-y-hidden bg-gradient-to-br from-slate-100 via-white to-slate-200 text-slate-900">
       <div className="absolute inset-0 z-0 flex items-center justify-center overflow-visible">
         <div
           ref={diagramViewportRef}
@@ -2448,9 +2448,9 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
           </span>
         ) : null}
       </div>
-      <div className="pointer-events-none relative z-10 flex h-full min-h-0 w-full flex-1 flex-col gap-6 px-4 py-8 lg:px-8 lg:py-12 xl:px-12">
+      <div className="pointer-events-none relative z-10 mx-auto flex h-full w-full max-w-6xl flex-1 flex-col gap-6 px-4 py-8 lg:px-8 lg:py-12 xl:px-12">
         <div
-          className="pointer-events-none flex min-h-0 flex-1 flex-col gap-6 lg:grid lg:items-stretch lg:gap-0"
+          className="pointer-events-none flex h-full min-h-0 flex-1 flex-col gap-6 lg:grid lg:items-stretch lg:gap-0"
           style={layoutStyle}
         >
           <div
