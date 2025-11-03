@@ -22,13 +22,35 @@ const branchTargetSchema = z
     return trimmed.length > 0 ? trimmed : null;
   });
 
+const roleIdSchema = z
+  .string()
+  .uuid('Identifiant de rôle invalide.')
+  .nullish()
+  .transform((value) => (typeof value === 'string' ? value : null));
+
+const stepDescriptionSchema = z
+  .string()
+  .optional()
+  .nullable()
+  .transform((value) => {
+    if (typeof value !== 'string') {
+      return null;
+    }
+
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : null;
+  });
+
 export const stepSchema = z.object({
   id: z.string().min(1),
   label: z.string(),
   type: z.enum(stepTypeValues),
   departmentId: departmentIdSchema,
   yesTargetId: branchTargetSchema.default(null),
-  noTargetId: branchTargetSchema.default(null)
+  noTargetId: branchTargetSchema.default(null),
+  nextStepId: branchTargetSchema.default(null),
+  assignee: roleIdSchema.default(null),
+  description: stepDescriptionSchema.default(null)
 });
 
 export const processPayloadSchema = z.object({

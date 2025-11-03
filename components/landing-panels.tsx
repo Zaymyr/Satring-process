@@ -68,6 +68,7 @@ const highlightIcons = {
 
 const DEFAULT_DEPARTMENT_NAME = 'Nouveau département';
 const DEFAULT_ROLE_NAME = 'Nouveau rôle';
+const FINISH_STEP_ID = 'finish';
 
 const HEX_COLOR_REGEX = /^#[0-9A-F]{6}$/;
 const CLUSTER_STYLE_TEXT_COLOR = '#0f172a';
@@ -248,11 +249,32 @@ const normalizeDepartmentId = (value: string | null | undefined) => {
   return trimmed.length > 0 ? trimmed : null;
 };
 
+const normalizeRoleId = (value: string | null | undefined) => {
+  if (typeof value !== 'string') {
+    return null;
+  }
+
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+};
+
+const normalizeDescription = (value: string | null | undefined) => {
+  if (typeof value !== 'string') {
+    return null;
+  }
+
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+};
+
 const normalizeStep = (step: ProcessStep): ProcessStep => ({
   ...step,
   departmentId: normalizeDepartmentId(step.departmentId),
   yesTargetId: normalizeBranchTarget(step.yesTargetId),
-  noTargetId: normalizeBranchTarget(step.noTargetId)
+  noTargetId: normalizeBranchTarget(step.noTargetId),
+  nextStepId: normalizeBranchTarget(step.nextStepId),
+  assignee: normalizeRoleId(step.assignee),
+  description: normalizeDescription(step.description)
 });
 
 const cloneSteps = (steps: readonly ProcessStep[]): ProcessStep[] => steps.map((step) => normalizeStep({ ...step }));
@@ -329,7 +351,10 @@ const areStepsEqual = (a: readonly ProcessStep[], b: readonly ProcessStep[]) => 
       normalized.type === normalizedOther.type &&
       normalized.departmentId === normalizedOther.departmentId &&
       normalized.yesTargetId === normalizedOther.yesTargetId &&
-      normalized.noTargetId === normalizedOther.noTargetId
+      normalized.noTargetId === normalizedOther.noTargetId &&
+      normalized.nextStepId === normalizedOther.nextStepId &&
+      normalized.assignee === normalizedOther.assignee &&
+      normalized.description === normalizedOther.description
     );
   });
 };
@@ -621,7 +646,7 @@ const STEP_TYPE_ICONS: Record<StepType, LucideIcon> = {
   finish: Flag
 };
 
-const getStepDisplayLabel = (step: Step) => {
+const getStepDisplayLabel = (step: ProcessStep) => {
   const trimmed = step.label.trim();
   return trimmed.length > 0 ? trimmed : STEP_TYPE_LABELS[step.type];
 };
@@ -679,6 +704,17 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
     name: 'roles'
   });
   const editingDepartmentBaselineRef = useRef<Department | null>(null);
+
+  const getStepById = useCallback(
+    (id: string | null | undefined) => {
+      if (!id) {
+        return null;
+      }
+
+      return steps.find((step) => step.id === id) ?? null;
+    },
+    [steps]
+  );
 
   const processSummariesQuery = useQuery<ProcessSummary[], ApiError>({
     queryKey: ['processes'],
@@ -1556,19 +1592,21 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
     [clearDragState]
   );
 
-  const handleStepDragOver = useCallback((event: React.DragEvent<HTMLElement>, overStepId: string) => {
+  const handleStepDragOver = useCallback((event: React.DragEvent<HTMLElement>, overStepId: string | null) => {
     event.preventDefault();
     event.dataTransfer.dropEffect = 'move';
     const draggedId = draggedStepIdRef.current;
 
-    if (!draggedId || draggedId === overStepId) {
+    if (!draggedId || (overStepId !== null && draggedId === overStepId)) {
       return;
     }
 
     setSteps((previous) => {
       const fromIndex = previous.findIndex((item) => item.id === draggedId);
-      const toIndex = previous.findIndex((item) => item.id === overStepId);
-      const lastDraggableIndex = previous.length - 2;
+      const finishIndex = previous.length - 1;
+      const lastDraggableIndex = finishIndex - 1;
+      const toIndex =
+        overStepId === null ? lastDraggableIndex : previous.findIndex((item) => item.id === overStepId);
 
       if (
         fromIndex <= 0 ||
@@ -2084,7 +2122,10 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
       type,
       departmentId: null,
       yesTargetId: null,
-      noTargetId: null
+      noTargetId: null,
+      nextStepId: null,
+      assignee: null,
+      description: null
     };
 
     setSteps((prev) => {
@@ -2121,6 +2162,26 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
       prev.map((step) =>
         step.id === id ? { ...step, departmentId: normalizeDepartmentId(departmentId) } : step
       )
+    );
+  };
+
+  const updateStepAssignee = (id: string, roleId: string | null) => {
+    setSteps((prev) =>
+      prev.map((step) => (step.id === id ? { ...step, assignee: normalizeRoleId(roleId) } : step))
+    );
+  };
+
+  const updateStepDescription = (id: string, description: string) => {
+    setSteps((prev) =>
+      prev.map((step) =>
+        step.id === id ? { ...step, description: normalizeDescription(description) } : step
+      )
+    );
+  };
+
+  const updateStepNext = (id: string, targetStepId: string | null) => {
+    setSteps((prev) =>
+      prev.map((step) => (step.id === id ? { ...step, nextStepId: normalizeBranchTarget(targetStepId) } : step))
     );
   };
 
@@ -3081,7 +3142,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                                               isSelected ? 'text-slate-900' : 'hover:text-slate-700'
                                             )}
                                           >
-                                            {summary.name}
+                                            {summary.title}
                                           </button>
                                         )}
                                         <div className="flex items-center gap-2">

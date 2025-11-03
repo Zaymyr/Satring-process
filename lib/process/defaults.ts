@@ -9,7 +9,10 @@ export const DEFAULT_PROCESS_STEPS: readonly ProcessStep[] = [
     type: 'start',
     departmentId: null,
     yesTargetId: null,
-    noTargetId: null
+    noTargetId: null,
+    nextStepId: null,
+    assignee: null,
+    description: null
   },
   {
     id: 'finish',
@@ -17,7 +20,10 @@ export const DEFAULT_PROCESS_STEPS: readonly ProcessStep[] = [
     type: 'finish',
     departmentId: null,
     yesTargetId: null,
-    noTargetId: null
+    noTargetId: null,
+    nextStepId: null,
+    assignee: null,
+    description: null
   }
 ];
 
