@@ -3269,21 +3269,23 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                 </div>
               </div>
             </div>
-            <div className="grid gap-3.5 sm:grid-cols-2">
-              {highlights.map((item) => {
-                const Icon = highlightIcons[item.icon];
+            {highlights.length > 0 ? (
+              <div className="grid gap-3.5 sm:grid-cols-2">
+                {highlights.map((item) => {
+                  const Icon = highlightIcons[item.icon];
 
-                return (
-                  <Card key={item.title} className="border-slate-200 bg-white/90 shadow-sm">
-                    <CardContent className="flex flex-col gap-1.5 p-4">
-                      <Icon className="h-4 w-4 text-slate-500" />
-                      <p className="text-xs font-medium text-slate-900">{item.title}</p>
-                      <p className="text-xs text-slate-600">{item.description}</p>
-                    </CardContent>
-                  </Card>
-                );
-              })}
-            </div>
+                  return (
+                    <Card key={item.title} className="border-slate-200 bg-white/90 shadow-sm">
+                      <CardContent className="flex flex-col gap-1.5 p-4">
+                        <Icon className="h-4 w-4 text-slate-500" />
+                        <p className="text-xs font-medium text-slate-900">{item.title}</p>
+                        <p className="text-xs text-slate-600">{item.description}</p>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            ) : null}
           </aside>
         </div>
       </div>
