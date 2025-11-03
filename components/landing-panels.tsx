@@ -43,6 +43,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { DEFAULT_PROCESS_STEPS, DEFAULT_PROCESS_TITLE } from '@/lib/process/defaults';
+import { getInviteDemoDepartments } from '@/lib/department/demo';
 import { cn } from '@/lib/utils/cn';
 import {
   processResponseSchema,
@@ -924,22 +925,28 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
     () => steps.find((step) => step.id === selectedStepId) ?? null,
     [selectedStepId, steps]
   );
-  const departments = useMemo(() => departmentsQuery.data ?? [], [departmentsQuery.data]);
-  const hasDepartments = departments.length > 0;
   const isDepartmentUnauthorized =
     departmentsQuery.isError &&
     departmentsQuery.error instanceof ApiError &&
     departmentsQuery.error.status === 401;
+  const shouldUseDepartmentDemo = isUnauthorized || isDepartmentUnauthorized;
+  const departments = useMemo(
+    () => (shouldUseDepartmentDemo ? getInviteDemoDepartments() : departmentsQuery.data ?? []),
+    [departmentsQuery.data, shouldUseDepartmentDemo]
+  );
+  const hasDepartments = departments.length > 0;
   const isProcessesTabActive = activeSecondaryTab === 'processes';
   const isDepartmentsTabActive = activeSecondaryTab === 'departments';
-  const isDepartmentActionsDisabled = isUnauthorized || isDepartmentUnauthorized;
+  const isDepartmentActionsDisabled = shouldUseDepartmentDemo;
   const isCreatingDepartment = createDepartmentMutation.isPending;
   const isSavingDepartment = saveDepartmentMutation.isPending;
   const isAddingDepartmentRole = createDepartmentRoleMutation.isPending;
   const isDeletingDepartment = deleteDepartmentMutation.isPending;
   const secondaryPanelTitle = isDepartmentsTabActive ? 'Mes départements' : 'Mes process';
   const secondaryPanelDescription = isDepartmentsTabActive
-    ? 'Organisez vos départements et renommez-les pour structurer votre équipe.'
+    ? shouldUseDepartmentDemo
+      ? 'Aperçu en lecture seule de départements d’exemple.'
+      : 'Organisez vos départements et renommez-les pour structurer votre équipe.'
     : 'Gérez vos parcours enregistrés et renommez-les directement depuis cette liste.';
 
   const handleCreateDepartment = useCallback(() => {
@@ -2959,33 +2966,34 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                     hidden={!isDepartmentsTabActive}
                     className={cn('h-full', !isDepartmentsTabActive && 'hidden')}
                   >
-                    {isDepartmentUnauthorized ? (
-                      <p className="text-sm text-slate-600">
-                        Connectez-vous pour gérer vos départements.
-                      </p>
-                    ) : (
-                      <div className="space-y-4">
-                        {createDepartmentMutation.isError ? (
-                          <p className="text-xs text-red-600">{createDepartmentMutation.error.message}</p>
-                        ) : null}
-                        {departmentsQuery.isLoading ? (
-                          <div className="flex items-center gap-2 text-sm text-slate-500">
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                            Chargement des départements…
-                          </div>
-                        ) : departmentsQuery.isError ? (
-                          <p className="text-sm text-red-600">
-                            {departmentsQuery.error instanceof ApiError
-                              ? departmentsQuery.error.message
-                              : 'Impossible de récupérer la liste des départements.'}
-                          </p>
-                        ) : departments.length > 0 ? (
-                          <ul
-                            role="tree"
-                            aria-label="Départements"
-                            className="department-tree flex flex-col gap-3"
-                          >
-                            {departments.map((department) => {
+                    <div className="space-y-4">
+                      {shouldUseDepartmentDemo ? (
+                        <p className="text-sm text-slate-600">
+                          Vous explorez des départements d’exemple en lecture seule. Connectez-vous pour gérer
+                          les vôtres.
+                        </p>
+                      ) : null}
+                      {!shouldUseDepartmentDemo && createDepartmentMutation.isError ? (
+                        <p className="text-xs text-red-600">{createDepartmentMutation.error.message}</p>
+                      ) : null}
+                      {!shouldUseDepartmentDemo && departmentsQuery.isLoading ? (
+                        <div className="flex items-center gap-2 text-sm text-slate-500">
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          Chargement des départements…
+                        </div>
+                      ) : !shouldUseDepartmentDemo && departmentsQuery.isError ? (
+                        <p className="text-sm text-red-600">
+                          {departmentsQuery.error instanceof ApiError
+                            ? departmentsQuery.error.message
+                            : 'Impossible de récupérer la liste des départements.'}
+                        </p>
+                      ) : departments.length > 0 ? (
+                        <ul
+                          role="tree"
+                          aria-label="Départements"
+                          className="department-tree flex flex-col gap-3"
+                        >
+                          {departments.map((department) => {
                               const isEditingDepartment = editingDepartmentId === department.id;
                               const isDeletingCurrent =
                                 isDeletingDepartment && deleteDepartmentId === department.id;
@@ -3255,14 +3263,17 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                                   ) : null}
                                 </li>
                               );
-                            })}
-                          </ul>
+                          })}
+                        </ul>
 
-                        ) : (
-                          <p className="text-sm text-slate-600">Aucun département enregistré pour le moment.</p>
-                        )}
-                      </div>
-                    )}
+                      ) : shouldUseDepartmentDemo ? (
+                        <p className="text-sm text-slate-600">
+                          Aucun département d’exemple n’est disponible pour le moment.
+                        </p>
+                      ) : (
+                        <p className="text-sm text-slate-600">Aucun département enregistré pour le moment.</p>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
