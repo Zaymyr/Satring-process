@@ -669,6 +669,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
   const mermaidAPIRef = useRef<MermaidAPI | null>(null);
   const diagramElementId = useMemo(() => `process-diagram-${generateStepId()}`, []);
   const [editingProcessId, setEditingProcessId] = useState<string | null>(null);
+  const [deleteProcessId, setDeleteProcessId] = useState<string | null>(null);
   const [renameDraft, setRenameDraft] = useState('');
   const renameInputRef = useRef<HTMLInputElement | null>(null);
   const [activeSecondaryTab, setActiveSecondaryTab] = useState<'processes' | 'departments'>('processes');
@@ -1249,6 +1250,9 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
 
   const deleteProcessMutation = useMutation<void, ApiError, string>({
     mutationFn: deleteProcessRequest,
+    onMutate: (processId) => {
+      setDeleteProcessId(processId);
+    },
     onSuccess: (_data, processId) => {
       queryClient.setQueryData(['processes'], (previous?: ProcessSummary[]) => {
         if (!previous) {
@@ -1291,6 +1295,9 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
     },
     onError: (error) => {
       console.error('Erreur lors de la suppression du process', error);
+    },
+    onSettled: (_data, _error, processId) => {
+      setDeleteProcessId((current) => (current === processId ? null : current));
     }
   });
 
@@ -1518,6 +1525,17 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
 
     confirmRenameProcess(editingProcessId);
   }, [confirmRenameProcess, editingProcessId]);
+
+  const handleDeleteProcess = useCallback(
+    (processId: string) => {
+      if (isUnauthorized || deleteProcessMutation.isPending) {
+        return;
+      }
+
+      deleteProcessMutation.mutate(processId);
+    },
+    [deleteProcessMutation, isUnauthorized]
+  );
 
   const handleCreateProcess = useCallback(() => {
     if (isUnauthorized || isCreating) {
@@ -3060,10 +3078,17 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                                             variant="ghost"
                                             size="icon"
                                             onClick={() => handleDeleteProcess(summary.id)}
+                                            disabled={
+                                              deleteProcessMutation.isPending && deleteProcessId === summary.id
+                                            }
                                             className="h-8 w-8 text-red-500 hover:bg-red-50 hover:text-red-600"
                                             aria-label="Supprimer"
                                           >
-                                            <Trash2 className="h-3.5 w-3.5" />
+                                            {deleteProcessMutation.isPending && deleteProcessId === summary.id ? (
+                                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                            ) : (
+                                              <Trash2 className="h-3.5 w-3.5" />
+                                            )}
                                           </Button>
                                         </div>
                                       )}
