@@ -673,6 +673,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
   const [renameDraft, setRenameDraft] = useState('');
   const renameInputRef = useRef<HTMLInputElement | null>(null);
   const [activeSecondaryTab, setActiveSecondaryTab] = useState<'processes' | 'departments'>('processes');
+  const hasAppliedInviteTabRef = useRef(false);
   const [editingDepartmentId, setEditingDepartmentId] = useState<string | null>(null);
   const [deleteDepartmentId, setDeleteDepartmentId] = useState<string | null>(null);
   const departmentEditForm = useForm<DepartmentCascadeForm>({
@@ -934,6 +935,13 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
     () => (shouldUseDepartmentDemo ? getInviteDemoDepartments() : departmentsQuery.data ?? []),
     [departmentsQuery.data, shouldUseDepartmentDemo]
   );
+
+  useEffect(() => {
+    if (!hasAppliedInviteTabRef.current && shouldUseDepartmentDemo) {
+      setActiveSecondaryTab('departments');
+      hasAppliedInviteTabRef.current = true;
+    }
+  }, [shouldUseDepartmentDemo]);
   const hasDepartments = departments.length > 0;
   const isProcessesTabActive = activeSecondaryTab === 'processes';
   const isDepartmentsTabActive = activeSecondaryTab === 'departments';
