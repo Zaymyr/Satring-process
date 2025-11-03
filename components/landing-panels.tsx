@@ -2407,7 +2407,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
   const diagramControlsContentId = useId();
 
   return (
-    <div className="relative flex h-full flex-col overflow-hidden bg-gradient-to-br from-slate-100 via-white to-slate-200 text-slate-900">
+    <div className="relative flex h-full flex-col overflow-x-visible overflow-y-hidden bg-gradient-to-br from-slate-100 via-white to-slate-200 text-slate-900">
       <div className="absolute inset-0 z-0 flex items-center justify-center overflow-visible">
         <div
           ref={diagramViewportRef}
