@@ -2462,8 +2462,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
             aria-expanded={!isPrimaryCollapsed}
             aria-controls="primary-panel"
             className={cn(
-              'absolute -right-4 top-1/2 z-20 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-slate-200 bg-white/90 text-slate-600 shadow-sm transition hover:bg-white',
-              'lg:-right-5'
+              'absolute right-0 top-1/2 z-20 flex h-10 w-10 -translate-y-1/2 translate-x-1/2 items-center justify-center rounded-full border border-slate-200 bg-white/90 text-slate-600 shadow-sm transition hover:bg-white'
             )}
           >
             {isPrimaryCollapsed ? <ChevronRight className="h-5 w-5" /> : <ChevronLeft className="h-5 w-5" />}
@@ -2726,8 +2725,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
             aria-expanded={!isSecondaryCollapsed}
             aria-controls="secondary-panel"
             className={cn(
-              'absolute -left-4 top-1/2 z-20 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-slate-200 bg-white/90 text-slate-600 shadow-sm transition hover:bg-white',
-              'lg:-left-5'
+              'absolute left-0 top-1/2 z-20 flex h-10 w-10 -translate-y-1/2 -translate-x-1/2 items-center justify-center rounded-full border border-slate-200 bg-white/90 text-slate-600 shadow-sm transition hover:bg-white'
             )}
           >
             {isSecondaryCollapsed ? <ChevronLeft className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
