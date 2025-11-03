@@ -3012,7 +3012,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                                               isSelected ? 'text-slate-900' : 'text-slate-800'
                                             )}
                                           >
-                                            {summary.name}
+                                            {summary.title}
                                           </p>
                                           {updatedLabel ? (
                                             <p className="text-xs text-slate-500">Mis à jour {updatedLabel}</p>
