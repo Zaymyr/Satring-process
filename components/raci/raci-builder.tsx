@@ -41,14 +41,13 @@ const raciDefinitions: Record<(typeof filledRaciValues)[number], { short: string
   }
 } as const;
 
-const raciOptions = ([
-  { value: '', label: '—' } as const
-].concat(
-  filledRaciValues.map((value) => ({
+const raciOptions: ReadonlyArray<{ value: RaciValue; label: string }> = [
+  { value: '', label: '—' },
+  ...filledRaciValues.map((value) => ({
     value,
     label: `${value} — ${raciDefinitions[value].short}`
   }))
-)) as const;
+];
 
 type DepartmentFormValues = z.infer<typeof departmentSchema>;
 type RoleFormValues = z.infer<typeof roleSchema>;
