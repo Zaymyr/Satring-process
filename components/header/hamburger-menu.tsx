@@ -2,14 +2,15 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import type { Route } from 'next';
 import { usePathname } from 'next/navigation';
 import { Menu, X } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
 
-const NAV_LINKS: Array<{ href: string; label: string }> = [
+const NAV_LINKS = [
   { href: '/', label: 'Accueil' },
   { href: '/raci', label: 'Matrices RACI' }
-];
+] satisfies Array<{ href: Route; label: string }>;
 
 export function HamburgerMenu() {
   const [open, setOpen] = useState(false);
