@@ -1,20 +1,60 @@
 'use client';
 
-import { useMemo, useState, type ChangeEvent } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { useQuery } from '@tanstack/react-query';
+import { Loader2 } from 'lucide-react';
+
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { cn } from '@/lib/utils/cn';
+import { departmentListSchema, type Department as ApiDepartment } from '@/lib/validation/department';
 
-const departmentSchema = z.object({
-  name: z.string().min(2, "Le nom doit comporter au moins 2 caractères.")
-});
+class ApiError extends Error {
+  readonly status: number;
 
-const roleSchema = z.object({
-  roleName: z.string().min(2, 'Le rôle doit comporter au moins 2 caractères.')
-});
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+  }
+}
+
+const readErrorMessage = async (response: Response, fallback: string) => {
+  try {
+    const json = await response.json();
+    if (json && typeof json === 'object' && typeof json.message === 'string') {
+      return json.message;
+    }
+  } catch (error) {
+    console.error('Unable to parse error response', error);
+  }
+
+  return fallback;
+};
+
+const fetchDepartments = async (): Promise<ApiDepartment[]> => {
+  const response = await fetch('/api/departments', {
+    method: 'GET',
+    credentials: 'include',
+    cache: 'no-store'
+  });
+
+  if (response.status === 401) {
+    throw new ApiError('Authentification requise', 401);
+  }
+
+  if (!response.ok) {
+    const message = await readErrorMessage(response, 'Impossible de lister vos départements.');
+    throw new ApiError(message, response.status);
+  }
+
+  const json = await response.json();
+  return departmentListSchema.parse(json);
+};
 
 const actionSchema = z.object({
   actionName: z.string().min(2, "L'action doit comporter au moins 2 caractères.")
@@ -49,63 +89,171 @@ const raciOptions: ReadonlyArray<{ value: RaciValue; label: string }> = [
   }))
 ];
 
-type DepartmentFormValues = z.infer<typeof departmentSchema>;
-type RoleFormValues = z.infer<typeof roleSchema>;
 type ActionFormValues = z.infer<typeof actionSchema>;
 
 type FilledRaciValue = (typeof filledRaciValues)[number];
 type RaciValue = FilledRaciValue | '';
 
-type Department = {
+type LoadedDepartment = {
   id: string;
   name: string;
+  color: string;
   roles: Array<{ id: string; name: string }>;
+};
+
+type DepartmentMatrixState = {
   actions: Array<{ id: string; name: string }>;
   matrix: Record<string, Record<string, RaciValue>>;
 };
 
-const createInitialDepartment = (): Department => ({
-  id: crypto.randomUUID(),
-  name: 'Opérations',
-  roles: [
-    { id: crypto.randomUUID(), name: 'Responsable de département' },
-    { id: crypto.randomUUID(), name: 'Chef de projet' },
-    { id: crypto.randomUUID(), name: 'Analyste qualité' }
-  ],
-  actions: [
-    { id: crypto.randomUUID(), name: 'Définir la feuille de route' },
-    { id: crypto.randomUUID(), name: 'Suivre l\'exécution' },
-    { id: crypto.randomUUID(), name: 'Communiquer les résultats' }
-  ],
+const EMPTY_DEPARTMENT_STATE: DepartmentMatrixState = {
+  actions: [],
   matrix: {}
-});
+};
 
-const ensureMatrixCoverage = (department: Department): Department => {
-  const nextMatrix: Department['matrix'] = { ...department.matrix };
+const areMatricesEqual = (
+  previous: DepartmentMatrixState['matrix'],
+  next: DepartmentMatrixState['matrix']
+) => {
+  const previousKeys = Object.keys(previous);
+  const nextKeys = Object.keys(next);
 
-  for (const action of department.actions) {
-    nextMatrix[action.id] = { ...nextMatrix[action.id] };
-    for (const role of department.roles) {
-      if (!nextMatrix[action.id][role.id]) {
-        nextMatrix[action.id][role.id] = '';
+  if (previousKeys.length !== nextKeys.length) {
+    return false;
+  }
+
+  for (const key of previousKeys) {
+    const previousRow = previous[key];
+    const nextRow = next[key];
+
+    if (!nextRow) {
+      return false;
+    }
+
+    const previousRowKeys = Object.keys(previousRow);
+    const nextRowKeys = Object.keys(nextRow);
+
+    if (previousRowKeys.length !== nextRowKeys.length) {
+      return false;
+    }
+
+    for (const roleId of nextRowKeys) {
+      if (previousRow[roleId] !== nextRow[roleId]) {
+        return false;
       }
     }
   }
 
-  return { ...department, matrix: nextMatrix };
+  return true;
 };
 
-const buildInitialDepartment = () => ensureMatrixCoverage(createInitialDepartment());
+const ensureMatrixCoverage = (
+  state: DepartmentMatrixState,
+  roles: ReadonlyArray<{ id: string; name: string }>
+): DepartmentMatrixState => {
+  if (state.actions.length === 0) {
+    if (Object.keys(state.matrix).length === 0) {
+      return state;
+    }
+
+    if (Object.keys(state.matrix).length > 0) {
+      return {
+        actions: state.actions,
+        matrix: {}
+      };
+    }
+  }
+
+  const nextMatrix = state.actions.reduce<DepartmentMatrixState['matrix']>((accumulator, action) => {
+    const previousRow = state.matrix[action.id] ?? {};
+    const nextRow: Record<string, RaciValue> = {};
+
+    for (const role of roles) {
+      nextRow[role.id] = previousRow[role.id] ?? '';
+    }
+
+    accumulator[action.id] = nextRow;
+    return accumulator;
+  }, {});
+
+  if (areMatricesEqual(state.matrix, nextMatrix)) {
+    return state;
+  }
+
+  return {
+    actions: state.actions,
+    matrix: nextMatrix
+  };
+};
 
 export function RaciBuilder() {
-  const initialDepartment = useMemo(() => buildInitialDepartment(), []);
-  const [departments, setDepartments] = useState<Department[]>([initialDepartment]);
-  const [selectedDepartmentId, setSelectedDepartmentId] = useState<string | null>(initialDepartment.id);
+  const departmentsQuery = useQuery<ApiDepartment[], ApiError>({
+    queryKey: ['departments'],
+    queryFn: fetchDepartments,
+    staleTime: 1000 * 60
+  });
+
+  const departments = useMemo<LoadedDepartment[]>(
+    () =>
+      (departmentsQuery.data ?? []).map((department) => ({
+        id: department.id,
+        name: department.name,
+        color: department.color,
+        roles: (department.roles ?? []).map((role) => ({ id: role.id, name: role.name }))
+      })),
+    [departmentsQuery.data]
+  );
+
+  const [selectedDepartmentId, setSelectedDepartmentId] = useState<string | null>(null);
+  const [departmentStates, setDepartmentStates] = useState<Record<string, DepartmentMatrixState>>({});
+
+  useEffect(() => {
+    if (departments.length === 0) {
+      setSelectedDepartmentId((current) => (current === null ? current : null));
+      return;
+    }
+
+    setSelectedDepartmentId((current) => {
+      if (current && departments.some((department) => department.id === current)) {
+        return current;
+      }
+
+      return departments[0]?.id ?? null;
+    });
+  }, [departments]);
 
   const selectedDepartment = useMemo(
-    () => departments.find((dept) => dept.id === selectedDepartmentId) ?? null,
+    () => departments.find((department) => department.id === selectedDepartmentId) ?? null,
     [departments, selectedDepartmentId]
   );
+
+  useEffect(() => {
+    if (!selectedDepartment) {
+      return;
+    }
+
+    setDepartmentStates((previous) => {
+      const current = previous[selectedDepartment.id];
+      if (!current) {
+        return previous;
+      }
+
+      const ensured = ensureMatrixCoverage(current, selectedDepartment.roles);
+
+      if (ensured === current) {
+        return previous;
+      }
+
+      return {
+        ...previous,
+        [selectedDepartment.id]: ensured
+      };
+    });
+  }, [selectedDepartment]);
+
+  const selectedDepartmentState = selectedDepartmentId
+    ? departmentStates[selectedDepartmentId] ?? EMPTY_DEPARTMENT_STATE
+    : EMPTY_DEPARTMENT_STATE;
 
   const assignments = useMemo(() => {
     if (!selectedDepartment) {
@@ -115,8 +263,8 @@ export function RaciBuilder() {
       }>;
     }
 
-    return selectedDepartment.actions.map((action) => {
-      const row = selectedDepartment.matrix[action.id] ?? {};
+    return selectedDepartmentState.actions.map((action) => {
+      const row = selectedDepartmentState.matrix[action.id] ?? {};
       const responsibilities = filledRaciValues.map((value) => ({
         value,
         roles: selectedDepartment.roles
@@ -129,58 +277,11 @@ export function RaciBuilder() {
         responsibilities
       };
     });
-  }, [selectedDepartment]);
-
-  const departmentForm = useForm<DepartmentFormValues>({
-    resolver: zodResolver(departmentSchema),
-    defaultValues: { name: '' }
-  });
-
-  const roleForm = useForm<RoleFormValues>({
-    resolver: zodResolver(roleSchema),
-    defaultValues: { roleName: '' }
-  });
+  }, [selectedDepartment, selectedDepartmentState]);
 
   const actionForm = useForm<ActionFormValues>({
     resolver: zodResolver(actionSchema),
     defaultValues: { actionName: '' }
-  });
-
-  const handleCreateDepartment = departmentForm.handleSubmit((values) => {
-    const newDepartment = ensureMatrixCoverage({
-      id: crypto.randomUUID(),
-      name: values.name.trim(),
-      roles: [],
-      actions: [],
-      matrix: {}
-    });
-
-    setDepartments((prev) => [...prev, newDepartment]);
-    setSelectedDepartmentId(newDepartment.id);
-    departmentForm.reset();
-  });
-
-  const handleAddRole = roleForm.handleSubmit((values) => {
-    if (!selectedDepartment) return;
-
-    const trimmedName = values.roleName.trim();
-    if (!trimmedName) return;
-
-    setDepartments((prev) =>
-      prev.map((dept) => {
-        if (dept.id !== selectedDepartment.id) return dept;
-
-        const newRole = { id: crypto.randomUUID(), name: trimmedName };
-        const updatedDepartment = ensureMatrixCoverage({
-          ...dept,
-          roles: [...dept.roles, newRole]
-        });
-
-        return updatedDepartment;
-      })
-    );
-
-    roleForm.reset();
   });
 
   const handleAddAction = actionForm.handleSubmit((values) => {
@@ -189,42 +290,57 @@ export function RaciBuilder() {
     const trimmedName = values.actionName.trim();
     if (!trimmedName) return;
 
-    setDepartments((prev) =>
-      prev.map((dept) => {
-        if (dept.id !== selectedDepartment.id) return dept;
+    setDepartmentStates((previous) => {
+      const current = previous[selectedDepartment.id] ?? EMPTY_DEPARTMENT_STATE;
+      const newAction = { id: crypto.randomUUID(), name: trimmedName };
+      const nextActions = [...current.actions, newAction];
+      const nextMatrix = {
+        ...current.matrix,
+        [newAction.id]: Object.fromEntries(
+          selectedDepartment.roles.map((role) => [role.id, '' as RaciValue])
+        )
+      };
 
-        const newAction = { id: crypto.randomUUID(), name: trimmedName };
-        const updatedDepartment = ensureMatrixCoverage({
-          ...dept,
-          actions: [...dept.actions, newAction]
-        });
-
-        return updatedDepartment;
-      })
-    );
+      return {
+        ...previous,
+        [selectedDepartment.id]: {
+          actions: nextActions,
+          matrix: nextMatrix
+        }
+      };
+    });
 
     actionForm.reset();
   });
 
   const updateMatrix = (departmentId: string, actionId: string, roleId: string, value: RaciValue) => {
-    setDepartments((prev) =>
-      prev.map((dept) => {
-        if (dept.id !== departmentId) return dept;
+    setDepartmentStates((previous) => {
+      const current = previous[departmentId];
+      if (!current) {
+        return previous;
+      }
 
-        const nextMatrix: Department['matrix'] = { ...dept.matrix };
-        nextMatrix[actionId] = { ...nextMatrix[actionId], [roleId]: value };
+      const currentRow = current.matrix[actionId] ?? {};
+      if (currentRow[roleId] === value) {
+        return previous;
+      }
 
-        return {
-          ...dept,
+      const nextMatrix = {
+        ...current.matrix,
+        [actionId]: {
+          ...currentRow,
+          [roleId]: value
+        }
+      };
+
+      return {
+        ...previous,
+        [departmentId]: {
+          actions: current.actions,
           matrix: nextMatrix
-        };
-      })
-    );
-  };
-
-  const handleDepartmentChange = (event: ChangeEvent<HTMLSelectElement>) => {
-    const nextId = event.target.value || null;
-    setSelectedDepartmentId(nextId);
+        }
+      };
+    });
   };
 
   return (
@@ -241,64 +357,88 @@ export function RaciBuilder() {
           </p>
         </header>
 
-        <section className="grid gap-6 lg:grid-cols-[320px_minmax(0,1fr)]">
+        <section className="grid gap-6 lg:grid-cols-[360px_minmax(0,1fr)]">
           <div className="flex flex-col gap-6 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
             <div className="space-y-4">
-              <div>
-                <Label htmlFor="department">Département actuel</Label>
-                <select
-                  id="department"
-                  value={selectedDepartmentId ?? ''}
-                  onChange={handleDepartmentChange}
-                  className="mt-2 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-500"
-                >
-                  {departments.length === 0 ? <option value="">Aucun département</option> : null}
-                  {departments.map((department) => (
-                    <option key={department.id} value={department.id}>
-                      {department.name}
-                    </option>
-                  ))}
-                </select>
+              <div className="space-y-1">
+                <h2 className="text-base font-semibold text-slate-900">Départements</h2>
+                <p className="text-sm text-slate-600">
+                  Sélectionnez un département pour construire sa matrice RACI et consultez les rôles disponibles.
+                </p>
               </div>
-              <form onSubmit={handleCreateDepartment} className="space-y-3">
-                <div className="space-y-2">
-                  <Label htmlFor="new-department">Ajouter un département</Label>
-                  <Input
-                    id="new-department"
-                    placeholder="Ex : Marketing"
-                    {...departmentForm.register('name')}
-                    aria-invalid={departmentForm.formState.errors.name ? 'true' : 'false'}
-                  />
-                  {departmentForm.formState.errors.name ? (
-                    <p className="text-xs text-red-600">{departmentForm.formState.errors.name.message}</p>
-                  ) : null}
+
+              {departmentsQuery.isLoading ? (
+                <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-500">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Chargement des départements…
                 </div>
-                <Button type="submit" className="w-full">
-                  Créer le département
-                </Button>
-              </form>
+              ) : departmentsQuery.isError ? (
+                <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">
+                  {departmentsQuery.error instanceof ApiError && departmentsQuery.error.status === 401
+                    ? 'Connectez-vous pour accéder à vos départements.'
+                    : departmentsQuery.error.message}
+                </div>
+              ) : departments.length > 0 ? (
+                <ul className="flex flex-col gap-3" role="tree" aria-label="Départements disponibles">
+                  {departments.map((department) => {
+                    const isSelected = department.id === selectedDepartmentId;
+                    const rolesCount = department.roles.length;
+
+                    return (
+                      <li key={department.id} role="treeitem" aria-selected={isSelected}>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedDepartmentId(department.id)}
+                          className={cn(
+                            'flex w-full items-center gap-3 rounded-lg border px-3 py-2 text-left transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400',
+                            isSelected
+                              ? 'border-slate-900 bg-slate-900/5 text-slate-900'
+                              : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50'
+                          )}
+                        >
+                          <span
+                            aria-hidden="true"
+                            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-slate-200 shadow-inner"
+                            style={{ backgroundColor: department.color }}
+                          />
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-sm font-semibold text-slate-900">{department.name}</p>
+                            <p className="truncate text-xs text-slate-500">
+                              {rolesCount > 0
+                                ? `${rolesCount} rôle${rolesCount > 1 ? 's' : ''} disponible${rolesCount > 1 ? 's' : ''}`
+                                : 'Aucun rôle défini'}
+                            </p>
+                          </div>
+                        </button>
+                        {isSelected ? (
+                          <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
+                            <p className="text-xs font-semibold uppercase tracking-wide text-slate-700">Rôles du département</p>
+                            {rolesCount > 0 ? (
+                              <ul className="mt-2 space-y-1">
+                                {department.roles.map((role) => (
+                                  <li key={role.id} className="text-sm text-slate-600">
+                                    {role.name}
+                                  </li>
+                                ))}
+                              </ul>
+                            ) : (
+                              <p className="mt-2 text-sm text-slate-500">Aucun rôle n’est associé à ce département.</p>
+                            )}
+                          </div>
+                        ) : null}
+                      </li>
+                    );
+                  })}
+                </ul>
+              ) : (
+                <p className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-500">
+                  Aucun département disponible. Créez vos départements depuis l’accueil pour commencer.
+                </p>
+              )}
             </div>
 
             {selectedDepartment ? (
               <div className="space-y-6 border-t border-slate-200 pt-6">
-                <form onSubmit={handleAddRole} className="space-y-3">
-                  <div className="space-y-2">
-                    <Label htmlFor="new-role">Ajouter un rôle</Label>
-                    <Input
-                      id="new-role"
-                      placeholder="Ex : Responsable produit"
-                      {...roleForm.register('roleName')}
-                      aria-invalid={roleForm.formState.errors.roleName ? 'true' : 'false'}
-                    />
-                    {roleForm.formState.errors.roleName ? (
-                      <p className="text-xs text-red-600">{roleForm.formState.errors.roleName.message}</p>
-                    ) : null}
-                  </div>
-                  <Button type="submit" variant="secondary" className="w-full">
-                    Ajouter le rôle
-                  </Button>
-                </form>
-
                 <form onSubmit={handleAddAction} className="space-y-3">
                   <div className="space-y-2">
                     <Label htmlFor="new-action">Ajouter une action</Label>
@@ -307,12 +447,13 @@ export function RaciBuilder() {
                       placeholder="Ex : Validation budget"
                       {...actionForm.register('actionName')}
                       aria-invalid={actionForm.formState.errors.actionName ? 'true' : 'false'}
+                      disabled={!selectedDepartment}
                     />
                     {actionForm.formState.errors.actionName ? (
                       <p className="text-xs text-red-600">{actionForm.formState.errors.actionName.message}</p>
                     ) : null}
                   </div>
-                  <Button type="submit" variant="secondary" className="w-full">
+                  <Button type="submit" variant="secondary" className="w-full" disabled={!selectedDepartment}>
                     Ajouter l’action
                   </Button>
                 </form>
@@ -347,7 +488,7 @@ export function RaciBuilder() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-200">
-                      {selectedDepartment.actions.length === 0 ? (
+                      {selectedDepartmentState.actions.length === 0 ? (
                         <tr>
                           <td
                             colSpan={selectedDepartment.roles.length + 1}
@@ -357,18 +498,15 @@ export function RaciBuilder() {
                           </td>
                         </tr>
                       ) : (
-                        selectedDepartment.actions.map((action) => (
+                        selectedDepartmentState.actions.map((action) => (
                           <tr key={action.id} className="bg-white hover:bg-slate-50/60">
-                            <th
-                              scope="row"
-                              className="px-6 py-4 text-left text-sm font-medium text-slate-900"
-                            >
+                            <th scope="row" className="px-6 py-4 text-left text-sm font-medium text-slate-900">
                               {action.name}
                             </th>
                             {selectedDepartment.roles.map((role) => (
                               <td key={role.id} className="px-4 py-3 text-sm">
                                 <select
-                                  value={selectedDepartment.matrix[action.id]?.[role.id] ?? ''}
+                                  value={selectedDepartmentState.matrix[action.id]?.[role.id] ?? ''}
                                   onChange={(event) =>
                                     updateMatrix(
                                       selectedDepartment.id,
@@ -393,7 +531,7 @@ export function RaciBuilder() {
                     </tbody>
                   </table>
                 </div>
-                {selectedDepartment.actions.length > 0 ? (
+                {selectedDepartmentState.actions.length > 0 ? (
                   <div className="border-t border-slate-200 bg-white px-6 py-5">
                     <h3 className="text-sm font-semibold text-slate-900">Synthèse par action</h3>
                     <div className="mt-4 grid gap-4 lg:grid-cols-2">
@@ -420,7 +558,7 @@ export function RaciBuilder() {
               </div>
             ) : (
               <div className="flex h-full flex-col items-center justify-center rounded-xl border border-dashed border-slate-300 bg-slate-50 p-10 text-center text-sm text-slate-600">
-                <p>Sélectionnez ou créez un département pour générer sa matrice RACI.</p>
+                <p>Sélectionnez un département pour générer sa matrice RACI.</p>
               </div>
             )}
 
