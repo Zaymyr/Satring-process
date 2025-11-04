@@ -1,15 +1,9 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
 import { useQuery } from '@tanstack/react-query';
 import { Loader2 } from 'lucide-react';
 
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils/cn';
 import { departmentListSchema, type Department as ApiDepartment } from '@/lib/validation/department';
 import { roleActionSummaryListSchema, type RoleActionSummary } from '@/lib/validation/role-action';
@@ -77,10 +71,6 @@ const fetchRoleActions = async (): Promise<RoleActionSummary[]> => {
   return roleActionSummaryListSchema.parse(json);
 };
 
-const actionSchema = z.object({
-  actionName: z.string().min(2, "L'action doit comporter au moins 2 caractères.")
-});
-
 const filledRaciValues = ['R', 'A', 'C', 'I'] as const;
 
 const raciDefinitions: Record<(typeof filledRaciValues)[number], { short: string; description: string }> = {
@@ -109,8 +99,6 @@ const raciOptions: ReadonlyArray<{ value: RaciValue; label: string }> = [
     label: `${value} — ${raciDefinitions[value].short}`
   }))
 ];
-
-type ActionFormValues = z.infer<typeof actionSchema>;
 
 type FilledRaciValue = (typeof filledRaciValues)[number];
 type RaciValue = FilledRaciValue | '';
@@ -370,40 +358,6 @@ export function RaciBuilder() {
     !hasAggregatedActions &&
     !hasManualActions;
 
-  const actionForm = useForm<ActionFormValues>({
-    resolver: zodResolver(actionSchema),
-    defaultValues: { actionName: '' }
-  });
-
-  const handleAddAction = actionForm.handleSubmit((values) => {
-    if (!selectedDepartment) return;
-
-    const trimmedName = values.actionName.trim();
-    if (!trimmedName) return;
-
-    setDepartmentStates((previous) => {
-      const current = previous[selectedDepartment.id] ?? EMPTY_DEPARTMENT_STATE;
-      const newAction = { id: crypto.randomUUID(), name: trimmedName };
-      const nextActions = [...current.actions, newAction];
-      const nextMatrix = {
-        ...current.matrix,
-        [newAction.id]: Object.fromEntries(
-          selectedDepartment.roles.map((role) => [role.id, '' as RaciValue])
-        )
-      };
-
-      return {
-        ...previous,
-        [selectedDepartment.id]: {
-          actions: nextActions,
-          matrix: nextMatrix
-        }
-      };
-    });
-
-    actionForm.reset();
-  });
-
   const updateMatrix = (departmentId: string, actionId: string, roleId: string, value: RaciValue) => {
     setDepartmentStates((previous) => {
       const current = previous[departmentId];
@@ -528,29 +482,6 @@ export function RaciBuilder() {
               )}
             </div>
 
-            {selectedDepartment ? (
-              <div className="space-y-6 border-t border-slate-200 pt-6">
-                <form onSubmit={handleAddAction} className="space-y-3">
-                  <div className="space-y-2">
-                    <Label htmlFor="new-action">Ajouter une action</Label>
-                    <Input
-                      id="new-action"
-                      placeholder="Ex : Validation budget"
-                      {...actionForm.register('actionName')}
-                      aria-invalid={actionForm.formState.errors.actionName ? 'true' : 'false'}
-                      disabled={!selectedDepartment}
-                    />
-                    {actionForm.formState.errors.actionName ? (
-                      <p className="text-xs text-red-600">{actionForm.formState.errors.actionName.message}</p>
-                    ) : null}
-                  </div>
-                  <Button type="submit" variant="secondary" className="w-full" disabled={!selectedDepartment}>
-                    Ajouter l’action
-                  </Button>
-                </form>
-              </div>
-            ) : null}
-
           </div>
 
           <div className="flex flex-col gap-6">
@@ -667,7 +598,7 @@ export function RaciBuilder() {
                             colSpan={selectedDepartment.roles.length + 1}
                             className="px-6 py-6 text-center text-sm text-slate-500"
                           >
-                            Ajoutez des actions pour commencer à construire votre matrice.
+                            Aucune action n’est disponible pour ce département pour le moment.
                           </td>
                         </tr>
                       ) : null}
