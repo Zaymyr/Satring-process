@@ -36,7 +36,7 @@ export function HamburgerMenu() {
         <div className="fixed inset-0 z-50">
           <button
             type="button"
-            className="absolute inset-0 h-full w-full bg-slate-950/80"
+            className="absolute inset-0 h-full w-full bg-slate-950"
             onClick={closeMenu}
             aria-label="Fermer la navigation"
           />
