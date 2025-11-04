@@ -25,7 +25,7 @@ export function HamburgerMenu() {
       return undefined;
     }
 
-    const handleClick = (event: MouseEvent) => {
+    const handlePointer = (event: MouseEvent | TouchEvent) => {
       const target = event.target as Node | null;
       if (
         target &&
@@ -43,13 +43,13 @@ export function HamburgerMenu() {
       }
     };
 
-    document.addEventListener('mousedown', handleClick);
-    document.addEventListener('touchstart', handleClick);
+    document.addEventListener('mousedown', handlePointer);
+    document.addEventListener('touchstart', handlePointer);
     document.addEventListener('keydown', handleKey);
 
     return () => {
-      document.removeEventListener('mousedown', handleClick);
-      document.removeEventListener('touchstart', handleClick);
+      document.removeEventListener('mousedown', handlePointer);
+      document.removeEventListener('touchstart', handlePointer);
       document.removeEventListener('keydown', handleKey);
     };
   }, [open]);
