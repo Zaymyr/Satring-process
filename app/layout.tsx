@@ -1,9 +1,10 @@
 import type { Metadata } from 'next';
+import { Inter } from 'next/font/google';
 import Link from 'next/link';
 import type { ReactNode } from 'react';
-import { Inter } from 'next/font/google';
 import './globals.css';
 import { QueryProvider } from '@/components/providers/query-provider';
+import { HamburgerMenu } from '@/components/header/hamburger-menu';
 import { createServerClient } from '@/lib/supabase/server';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-sans' });
@@ -31,17 +32,20 @@ export default async function RootLayout({
           <div className="flex h-screen flex-col overflow-hidden">
             <header className="relative z-50 w-full shrink-0 border-b border-slate-200 bg-white/90 backdrop-blur">
               <div className="mx-auto flex w-full max-w-6xl flex-col gap-3 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
-                <div className="flex items-center gap-3">
-                  <span className="text-sm font-medium text-slate-500">
-                    {user ? 'Connecté :' : 'Non connecté'}
-                  </span>
-                  {user ? (
-                    <span className="max-w-[220px] truncate rounded-full bg-slate-900 px-3 py-1 text-sm font-semibold text-white">
-                      {user.email}
+                <div className="flex items-center gap-4">
+                  <HamburgerMenu />
+                  <div className="flex items-center gap-3">
+                    <span className="text-sm font-medium text-slate-500">
+                      {user ? 'Connecté :' : 'Non connecté'}
                     </span>
-                  ) : (
-                    <span className="text-sm text-slate-600">Invité</span>
-                  )}
+                    {user ? (
+                      <span className="max-w-[220px] truncate rounded-full bg-slate-900 px-3 py-1 text-sm font-semibold text-white">
+                        {user.email}
+                      </span>
+                    ) : (
+                      <span className="text-sm text-slate-600">Invité</span>
+                    )}
+                  </div>
                 </div>
                 <div className="flex items-center gap-3">
                   {user ? (
