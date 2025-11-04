@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 
 import { createServerClient } from '@/lib/supabase/server';
+import { getInviteDemoDepartments } from '@/lib/department/demo';
 import { departmentInputSchema, departmentListSchema, departmentSchema } from '@/lib/validation/department';
 
 import {
@@ -16,8 +17,24 @@ export async function GET() {
     error: authError
   } = await supabase.auth.getUser();
 
-  if (authError || !user) {
+  if (authError) {
+    console.error("Erreur lors de la récupération de l'utilisateur", authError);
     return NextResponse.json({ error: 'Authentification requise.' }, { status: 401, headers: NO_STORE_HEADERS });
+  }
+
+  if (!user) {
+    const demoDepartments = getInviteDemoDepartments();
+    const parsedDemo = departmentListSchema.safeParse(demoDepartments);
+
+    if (!parsedDemo.success) {
+      console.error('Données de démonstration invalides', parsedDemo.error);
+      return NextResponse.json(
+        { error: 'Impossible de fournir les départements de démonstration.' },
+        { status: 500, headers: NO_STORE_HEADERS }
+      );
+    }
+
+    return NextResponse.json(parsedDemo.data, { headers: NO_STORE_HEADERS });
   }
 
   const { data, error } = await supabase
