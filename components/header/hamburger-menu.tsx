@@ -34,15 +34,9 @@ export function HamburgerMenu() {
 
       {open ? (
         <div className="fixed inset-0 z-50">
-          <button
-            type="button"
-            className="absolute inset-0 h-full w-full bg-slate-950"
-            onClick={closeMenu}
-            aria-label="Fermer la navigation"
-          />
           <nav
             id="global-navigation"
-            className="absolute left-0 top-0 flex h-full w-72 max-w-[80vw] flex-col bg-white shadow-xl"
+            className="absolute inset-0 flex h-full w-full flex-col bg-white shadow-xl"
             aria-label="Navigation principale"
           >
             <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
