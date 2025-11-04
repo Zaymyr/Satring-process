@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils/cn';
 import { departmentListSchema, type Department as ApiDepartment } from '@/lib/validation/department';
+import { roleActionSummaryListSchema, type RoleActionSummary } from '@/lib/validation/role-action';
 
 class ApiError extends Error {
   readonly status: number;
@@ -54,6 +55,26 @@ const fetchDepartments = async (): Promise<ApiDepartment[]> => {
 
   const json = await response.json();
   return departmentListSchema.parse(json);
+};
+
+const fetchRoleActions = async (): Promise<RoleActionSummary[]> => {
+  const response = await fetch('/api/roles/actions', {
+    method: 'GET',
+    credentials: 'include',
+    cache: 'no-store'
+  });
+
+  if (response.status === 401) {
+    throw new ApiError('Authentification requise', 401);
+  }
+
+  if (!response.ok) {
+    const message = await readErrorMessage(response, 'Impossible de récupérer les actions des rôles.');
+    throw new ApiError(message, response.status);
+  }
+
+  const json = await response.json();
+  return roleActionSummaryListSchema.parse(json);
 };
 
 const actionSchema = z.object({
@@ -193,6 +214,12 @@ export function RaciBuilder() {
     staleTime: 1000 * 60
   });
 
+  const roleActionsQuery = useQuery<RoleActionSummary[], ApiError>({
+    queryKey: ['role-actions'],
+    queryFn: fetchRoleActions,
+    staleTime: 1000 * 60
+  });
+
   const departments = useMemo<LoadedDepartment[]>(
     () =>
       (departmentsQuery.data ?? []).map((department) => ({
@@ -255,6 +282,11 @@ export function RaciBuilder() {
     ? departmentStates[selectedDepartmentId] ?? EMPTY_DEPARTMENT_STATE
     : EMPTY_DEPARTMENT_STATE;
 
+  const roleActionsByRoleId = useMemo(() => {
+    const summaries = roleActionsQuery.data ?? [];
+    return new Map(summaries.map((summary) => [summary.roleId, summary]));
+  }, [roleActionsQuery.data]);
+
   const assignments = useMemo(() => {
     if (!selectedDepartment) {
       return [] as Array<{
@@ -278,6 +310,18 @@ export function RaciBuilder() {
       };
     });
   }, [selectedDepartment, selectedDepartmentState]);
+
+  const selectedDepartmentRoleSummaries = useMemo(
+    () =>
+      selectedDepartment
+        ? selectedDepartment.roles.map((role) => ({
+            id: role.id,
+            name: role.name,
+            actions: roleActionsByRoleId.get(role.id)?.actions ?? []
+          }))
+        : [],
+    [roleActionsByRoleId, selectedDepartment]
+  );
 
   const actionForm = useForm<ActionFormValues>({
     resolver: zodResolver(actionSchema),
@@ -457,6 +501,59 @@ export function RaciBuilder() {
                     Ajouter l’action
                   </Button>
                 </form>
+              </div>
+            ) : null}
+
+            {selectedDepartment ? (
+              <div className="space-y-4 border-t border-slate-200 pt-6">
+                <div className="space-y-1">
+                  <h3 className="text-base font-semibold text-slate-900">Actions assignées aux rôles</h3>
+                  <p className="text-sm text-slate-600">
+                    Visualisez les actions issues de vos process où chaque rôle intervient.
+                  </p>
+                </div>
+
+                {roleActionsQuery.isLoading ? (
+                  <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-500">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Analyse des actions en cours…
+                  </div>
+                ) : roleActionsQuery.isError ? (
+                  <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">
+                    {roleActionsQuery.error instanceof ApiError && roleActionsQuery.error.status === 401
+                      ? 'Connectez-vous pour consulter les actions assignées à vos rôles.'
+                      : roleActionsQuery.error.message}
+                  </div>
+                ) : selectedDepartment.roles.length === 0 ? (
+                  <p className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-500">
+                    Ajoutez des rôles à ce département pour consulter leurs actions assignées.
+                  </p>
+                ) : (
+                  <ul className="flex flex-col gap-3">
+                    {selectedDepartmentRoleSummaries.map((summary) => (
+                      <li key={summary.id} className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                        <p className="text-sm font-semibold text-slate-900">{summary.name}</p>
+                        {summary.actions.length > 0 ? (
+                          <ul className="mt-2 space-y-1 text-xs text-slate-600">
+                            {summary.actions.map((action) => (
+                              <li
+                                key={`${action.processId}-${action.stepId}`}
+                                className="rounded-md border border-slate-200 bg-white/60 px-2 py-1 text-left shadow-sm"
+                              >
+                                <span className="block font-medium text-slate-800">{action.processTitle}</span>
+                                <span className="block text-slate-600">{action.stepLabel}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <p className="mt-2 text-xs text-slate-500">
+                            Aucune action n’est assignée à ce rôle dans vos process.
+                          </p>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
             ) : null}
           </div>
