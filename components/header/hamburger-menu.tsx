@@ -33,10 +33,10 @@ export function HamburgerMenu() {
       </button>
 
       {open ? (
-        <div className="fixed inset-0 z-50">
+        <div className="fixed inset-0 z-50 flex bg-white">
           <nav
             id="global-navigation"
-            className="absolute inset-0 flex h-full w-full flex-col bg-white shadow-xl"
+            className="flex h-full w-full max-w-xs flex-col border-r border-slate-200 bg-white shadow-xl"
             aria-label="Navigation principale"
           >
             <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
