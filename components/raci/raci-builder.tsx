@@ -1,17 +1,12 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
 import { useQuery } from '@tanstack/react-query';
 import { Loader2 } from 'lucide-react';
 
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils/cn';
 import { departmentListSchema, type Department as ApiDepartment } from '@/lib/validation/department';
+import { roleActionSummaryListSchema, type RoleActionSummary } from '@/lib/validation/role-action';
 
 class ApiError extends Error {
   readonly status: number;
@@ -56,9 +51,25 @@ const fetchDepartments = async (): Promise<ApiDepartment[]> => {
   return departmentListSchema.parse(json);
 };
 
-const actionSchema = z.object({
-  actionName: z.string().min(2, "L'action doit comporter au moins 2 caractères.")
-});
+const fetchRoleActions = async (): Promise<RoleActionSummary[]> => {
+  const response = await fetch('/api/roles/actions', {
+    method: 'GET',
+    credentials: 'include',
+    cache: 'no-store'
+  });
+
+  if (response.status === 401) {
+    throw new ApiError('Authentification requise', 401);
+  }
+
+  if (!response.ok) {
+    const message = await readErrorMessage(response, 'Impossible de récupérer les actions des rôles.');
+    throw new ApiError(message, response.status);
+  }
+
+  const json = await response.json();
+  return roleActionSummaryListSchema.parse(json);
+};
 
 const filledRaciValues = ['R', 'A', 'C', 'I'] as const;
 
@@ -89,8 +100,6 @@ const raciOptions: ReadonlyArray<{ value: RaciValue; label: string }> = [
   }))
 ];
 
-type ActionFormValues = z.infer<typeof actionSchema>;
-
 type FilledRaciValue = (typeof filledRaciValues)[number];
 type RaciValue = FilledRaciValue | '';
 
@@ -104,6 +113,13 @@ type LoadedDepartment = {
 type DepartmentMatrixState = {
   actions: Array<{ id: string; name: string }>;
   matrix: Record<string, Record<string, RaciValue>>;
+};
+
+type AggregatedRoleActionRow = {
+  id: string;
+  label: string;
+  processTitle: string;
+  assignedRoleIds: Set<string>;
 };
 
 const EMPTY_DEPARTMENT_STATE: DepartmentMatrixState = {
@@ -193,6 +209,12 @@ export function RaciBuilder() {
     staleTime: 1000 * 60
   });
 
+  const roleActionsQuery = useQuery<RoleActionSummary[], ApiError>({
+    queryKey: ['role-actions'],
+    queryFn: fetchRoleActions,
+    staleTime: 1000 * 60
+  });
+
   const departments = useMemo<LoadedDepartment[]>(
     () =>
       (departmentsQuery.data ?? []).map((department) => ({
@@ -255,6 +277,11 @@ export function RaciBuilder() {
     ? departmentStates[selectedDepartmentId] ?? EMPTY_DEPARTMENT_STATE
     : EMPTY_DEPARTMENT_STATE;
 
+  const roleActionsByRoleId = useMemo(() => {
+    const summaries = roleActionsQuery.data ?? [];
+    return new Map(summaries.map((summary) => [summary.roleId, summary]));
+  }, [roleActionsQuery.data]);
+
   const assignments = useMemo(() => {
     if (!selectedDepartment) {
       return [] as Array<{
@@ -279,39 +306,57 @@ export function RaciBuilder() {
     });
   }, [selectedDepartment, selectedDepartmentState]);
 
-  const actionForm = useForm<ActionFormValues>({
-    resolver: zodResolver(actionSchema),
-    defaultValues: { actionName: '' }
-  });
+  const departmentAggregatedActions = useMemo<AggregatedRoleActionRow[]>(() => {
+    if (!selectedDepartment) {
+      return [];
+    }
 
-  const handleAddAction = actionForm.handleSubmit((values) => {
-    if (!selectedDepartment) return;
+    const actionsByKey = new Map<string, AggregatedRoleActionRow>();
 
-    const trimmedName = values.actionName.trim();
-    if (!trimmedName) return;
+    for (const role of selectedDepartment.roles) {
+      const summary = roleActionsByRoleId.get(role.id);
+      if (!summary) {
+        continue;
+      }
 
-    setDepartmentStates((previous) => {
-      const current = previous[selectedDepartment.id] ?? EMPTY_DEPARTMENT_STATE;
-      const newAction = { id: crypto.randomUUID(), name: trimmedName };
-      const nextActions = [...current.actions, newAction];
-      const nextMatrix = {
-        ...current.matrix,
-        [newAction.id]: Object.fromEntries(
-          selectedDepartment.roles.map((role) => [role.id, '' as RaciValue])
-        )
-      };
+      for (const action of summary.actions) {
+        const key = `${action.processId}:${action.stepId}`;
+        let aggregated = actionsByKey.get(key);
 
-      return {
-        ...previous,
-        [selectedDepartment.id]: {
-          actions: nextActions,
-          matrix: nextMatrix
+        if (!aggregated) {
+          aggregated = {
+            id: key,
+            label: action.stepLabel,
+            processTitle: action.processTitle,
+            assignedRoleIds: new Set<string>()
+          };
+          actionsByKey.set(key, aggregated);
         }
-      };
-    });
 
-    actionForm.reset();
-  });
+        aggregated.assignedRoleIds.add(role.id);
+      }
+    }
+
+    return Array.from(actionsByKey.values()).sort((left, right) => {
+      const processComparison = left.processTitle.localeCompare(right.processTitle, 'fr', {
+        sensitivity: 'base'
+      });
+
+      if (processComparison !== 0) {
+        return processComparison;
+      }
+
+      return left.label.localeCompare(right.label, 'fr', { sensitivity: 'base' });
+    });
+  }, [roleActionsByRoleId, selectedDepartment]);
+
+  const hasAggregatedActions = departmentAggregatedActions.length > 0;
+  const hasManualActions = selectedDepartmentState.actions.length > 0;
+  const showEmptyMatrixState =
+    !roleActionsQuery.isLoading &&
+    !roleActionsQuery.isError &&
+    !hasAggregatedActions &&
+    !hasManualActions;
 
   const updateMatrix = (departmentId: string, actionId: string, roleId: string, value: RaciValue) => {
     setDepartmentStates((previous) => {
@@ -437,28 +482,6 @@ export function RaciBuilder() {
               )}
             </div>
 
-            {selectedDepartment ? (
-              <div className="space-y-6 border-t border-slate-200 pt-6">
-                <form onSubmit={handleAddAction} className="space-y-3">
-                  <div className="space-y-2">
-                    <Label htmlFor="new-action">Ajouter une action</Label>
-                    <Input
-                      id="new-action"
-                      placeholder="Ex : Validation budget"
-                      {...actionForm.register('actionName')}
-                      aria-invalid={actionForm.formState.errors.actionName ? 'true' : 'false'}
-                      disabled={!selectedDepartment}
-                    />
-                    {actionForm.formState.errors.actionName ? (
-                      <p className="text-xs text-red-600">{actionForm.formState.errors.actionName.message}</p>
-                    ) : null}
-                  </div>
-                  <Button type="submit" variant="secondary" className="w-full" disabled={!selectedDepartment}>
-                    Ajouter l’action
-                  </Button>
-                </form>
-              </div>
-            ) : null}
           </div>
 
           <div className="flex flex-col gap-6">
@@ -488,46 +511,97 @@ export function RaciBuilder() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-200">
-                      {selectedDepartmentState.actions.length === 0 ? (
+                      {roleActionsQuery.isLoading ? (
+                        <tr>
+                          <td
+                            colSpan={selectedDepartment.roles.length + 1}
+                            className="px-6 py-4 text-sm text-slate-500"
+                          >
+                            <span className="flex items-center justify-center gap-2">
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                              Analyse des actions en cours…
+                            </span>
+                          </td>
+                        </tr>
+                      ) : roleActionsQuery.isError ? (
+                        <tr>
+                          <td
+                            colSpan={selectedDepartment.roles.length + 1}
+                            className="px-6 py-4 text-sm text-red-600"
+                          >
+                            {roleActionsQuery.error instanceof ApiError && roleActionsQuery.error.status === 401
+                              ? 'Connectez-vous pour consulter les actions assignées à vos rôles.'
+                              : roleActionsQuery.error.message}
+                          </td>
+                        </tr>
+                      ) : null}
+
+                      {!roleActionsQuery.isLoading &&
+                      !roleActionsQuery.isError &&
+                      hasAggregatedActions
+                        ? departmentAggregatedActions.map((action) => (
+                            <tr key={`aggregated-${action.id}`} className="bg-white">
+                              <th scope="row" className="px-6 py-4 text-left text-sm font-medium text-slate-900">
+                                <span className="block text-sm font-semibold text-slate-900">{action.label}</span>
+                                <span className="mt-1 block text-xs text-slate-500">{action.processTitle}</span>
+                              </th>
+                              {selectedDepartment.roles.map((role) => (
+                                <td key={role.id} className="px-4 py-3 text-sm">
+                                  {action.assignedRoleIds.has(role.id) ? (
+                                    <span className="inline-flex h-8 w-8 items-center justify-center rounded-md bg-slate-900 text-xs font-semibold uppercase tracking-wide text-white">
+                                      R
+                                    </span>
+                                  ) : (
+                                    <span className="inline-flex h-8 w-8 items-center justify-center text-xs text-slate-300">—</span>
+                                  )}
+                                </td>
+                              ))}
+                            </tr>
+                          ))
+                        : null}
+
+                      {hasManualActions
+                        ? selectedDepartmentState.actions.map((action) => (
+                            <tr key={action.id} className="bg-white hover:bg-slate-50/60">
+                              <th scope="row" className="px-6 py-4 text-left text-sm font-medium text-slate-900">
+                                {action.name}
+                              </th>
+                              {selectedDepartment.roles.map((role) => (
+                                <td key={role.id} className="px-4 py-3 text-sm">
+                                  <select
+                                    value={selectedDepartmentState.matrix[action.id]?.[role.id] ?? ''}
+                                    onChange={(event) =>
+                                      updateMatrix(
+                                        selectedDepartment.id,
+                                        action.id,
+                                        role.id,
+                                        event.target.value as RaciValue
+                                      )
+                                    }
+                                    className="w-full rounded-md border border-slate-300 bg-white px-2 py-2 text-sm text-slate-900 shadow-sm focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-500"
+                                  >
+                                    {raciOptions.map((option) => (
+                                      <option key={option.value} value={option.value}>
+                                        {option.label}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </td>
+                              ))}
+                            </tr>
+                          ))
+                        : null}
+
+                      {showEmptyMatrixState ? (
                         <tr>
                           <td
                             colSpan={selectedDepartment.roles.length + 1}
                             className="px-6 py-6 text-center text-sm text-slate-500"
                           >
-                            Ajoutez des actions pour commencer à construire votre matrice.
+                            Aucune action n’est disponible pour ce département pour le moment.
                           </td>
                         </tr>
-                      ) : (
-                        selectedDepartmentState.actions.map((action) => (
-                          <tr key={action.id} className="bg-white hover:bg-slate-50/60">
-                            <th scope="row" className="px-6 py-4 text-left text-sm font-medium text-slate-900">
-                              {action.name}
-                            </th>
-                            {selectedDepartment.roles.map((role) => (
-                              <td key={role.id} className="px-4 py-3 text-sm">
-                                <select
-                                  value={selectedDepartmentState.matrix[action.id]?.[role.id] ?? ''}
-                                  onChange={(event) =>
-                                    updateMatrix(
-                                      selectedDepartment.id,
-                                      action.id,
-                                      role.id,
-                                      event.target.value as RaciValue
-                                    )
-                                  }
-                                  className="w-full rounded-md border border-slate-300 bg-white px-2 py-2 text-sm text-slate-900 shadow-sm focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-500"
-                                >
-                                  {raciOptions.map((option) => (
-                                    <option key={option.value} value={option.value}>
-                                      {option.label}
-                                    </option>
-                                  ))}
-                                </select>
-                              </td>
-                            ))}
-                          </tr>
-                        ))
-                      )}
+                      ) : null}
                     </tbody>
                   </table>
                 </div>
