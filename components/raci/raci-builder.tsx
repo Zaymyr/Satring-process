@@ -229,7 +229,7 @@ export function RaciBuilder() {
 
   return (
     <div className="h-full overflow-y-auto bg-slate-100">
-      <div className="mx-auto flex w-full max-w-6xl flex-col gap-10 px-6 py-10">
+      <div className="flex w-full flex-col gap-10 px-6 py-10">
         <header className="space-y-3">
           <span className="rounded-full bg-slate-900 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-white">
             Matrices RACI
