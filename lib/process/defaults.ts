@@ -8,6 +8,7 @@ export const DEFAULT_PROCESS_STEPS: readonly ProcessStep[] = [
     label: 'Commencer',
     type: 'start',
     departmentId: null,
+    roleId: null,
     yesTargetId: null,
     noTargetId: null
   },
@@ -16,6 +17,7 @@ export const DEFAULT_PROCESS_STEPS: readonly ProcessStep[] = [
     label: 'Terminer',
     type: 'finish',
     departmentId: null,
+    roleId: null,
     yesTargetId: null,
     noTargetId: null
   }

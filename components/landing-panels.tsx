@@ -78,6 +78,7 @@ const highlightIcons = {
 const DEFAULT_DEPARTMENT_NAME = 'Nouveau département';
 const DEFAULT_ROLE_NAME = 'Nouveau rôle';
 
+const ROLE_ID_REGEX = /^[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}$/i;
 const HEX_COLOR_REGEX = /^#[0-9A-F]{6}$/;
 const CLUSTER_STYLE_TEXT_COLOR = '#0f172a';
 const CLUSTER_FILL_OPACITY = 0.18;
@@ -122,6 +123,12 @@ type Highlight = {
 };
 
 type Step = ProcessStep;
+
+type RoleLookupEntry = {
+  role: Role;
+  departmentId: string;
+  departmentName: string;
+};
 
 type DiagramDragState = {
   pointerId: number;
@@ -253,9 +260,24 @@ const normalizeDepartmentId = (value: string | null | undefined) => {
   return trimmed.length > 0 ? trimmed : null;
 };
 
+const normalizeRoleId = (value: string | null | undefined) => {
+  if (typeof value !== 'string') {
+    return null;
+  }
+
+  const trimmed = value.trim();
+
+  if (trimmed.length === 0) {
+    return null;
+  }
+
+  return ROLE_ID_REGEX.test(trimmed) ? trimmed : null;
+};
+
 const normalizeStep = (step: ProcessStep): ProcessStep => ({
   ...step,
   departmentId: normalizeDepartmentId(step.departmentId),
+  roleId: normalizeRoleId(step.roleId),
   yesTargetId: normalizeBranchTarget(step.yesTargetId),
   noTargetId: normalizeBranchTarget(step.noTargetId)
 });
@@ -333,6 +355,7 @@ const areStepsEqual = (a: readonly ProcessStep[], b: readonly ProcessStep[]) => 
       normalized.label === normalizedOther.label &&
       normalized.type === normalizedOther.type &&
       normalized.departmentId === normalizedOther.departmentId &&
+      normalized.roleId === normalizedOther.roleId &&
       normalized.yesTargetId === normalizedOther.yesTargetId &&
       normalized.noTargetId === normalizedOther.noTargetId
     );
@@ -936,6 +959,32 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
     [departmentsQuery.data, shouldUseDepartmentDemo]
   );
 
+  const roleLookup = useMemo(() => {
+    const byId = new Map<string, RoleLookupEntry>();
+    const byDepartment = new Map<string, RoleLookupEntry[]>();
+    const all: RoleLookupEntry[] = [];
+
+    for (const department of departments) {
+      const entries: RoleLookupEntry[] = [];
+
+      for (const role of department.roles) {
+        const entry: RoleLookupEntry = {
+          role,
+          departmentId: department.id,
+          departmentName: department.name
+        };
+
+        byId.set(role.id, entry);
+        entries.push(entry);
+        all.push(entry);
+      }
+
+      byDepartment.set(department.id, entries);
+    }
+
+    return { byId, byDepartment, all };
+  }, [departments]);
+
   useEffect(() => {
     if (!hasAppliedInviteTabRef.current && shouldUseDepartmentDemo) {
       setActiveSecondaryTab('departments');
@@ -943,6 +992,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
     }
   }, [shouldUseDepartmentDemo]);
   const hasDepartments = departments.length > 0;
+  const hasRoles = roleLookup.all.length > 0;
   const isProcessesTabActive = activeSecondaryTab === 'processes';
   const isDepartmentsTabActive = activeSecondaryTab === 'departments';
   const isDepartmentActionsDisabled = shouldUseDepartmentDemo;
@@ -1470,13 +1520,14 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
       return;
     }
 
-    const payloadSteps = steps.map((step) => ({
-      ...step,
-      label: step.label.trim(),
-      departmentId: normalizeDepartmentId(step.departmentId),
-      yesTargetId: normalizeBranchTarget(step.yesTargetId),
-      noTargetId: normalizeBranchTarget(step.noTargetId)
-    }));
+      const payloadSteps = steps.map((step) => ({
+        ...step,
+        label: step.label.trim(),
+        departmentId: normalizeDepartmentId(step.departmentId),
+        roleId: normalizeRoleId(step.roleId),
+        yesTargetId: normalizeBranchTarget(step.yesTargetId),
+        noTargetId: normalizeBranchTarget(step.noTargetId)
+      }));
     const payload: ProcessPayload = {
       id: currentProcessId,
       title: normalizeProcessTitle(processTitle),
@@ -2091,6 +2142,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
       label,
       type,
       departmentId: null,
+      roleId: null,
       yesTargetId: null,
       noTargetId: null
     };
@@ -2126,9 +2178,52 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
 
   const updateStepDepartment = (id: string, departmentId: string | null) => {
     setSteps((prev) =>
-      prev.map((step) =>
-        step.id === id ? { ...step, departmentId: normalizeDepartmentId(departmentId) } : step
-      )
+      prev.map((step) => {
+        if (step.id !== id) {
+          return step;
+        }
+
+        const normalizedDepartmentId = normalizeDepartmentId(departmentId);
+        const currentRole = step.roleId ? roleLookup.byId.get(step.roleId) : undefined;
+        const nextRoleId =
+          normalizedDepartmentId && currentRole?.departmentId === normalizedDepartmentId
+            ? currentRole.role.id
+            : null;
+
+        return normalizeStep({
+          ...step,
+          departmentId: normalizedDepartmentId,
+          roleId: nextRoleId
+        });
+      })
+    );
+  };
+
+  const updateStepRole = (id: string, roleId: string | null) => {
+    setSteps((prev) =>
+      prev.map((step) => {
+        if (step.id !== id) {
+          return step;
+        }
+
+        const normalizedRoleId = normalizeRoleId(roleId);
+
+        if (!normalizedRoleId) {
+          return normalizeStep({ ...step, roleId: null });
+        }
+
+        const entry = roleLookup.byId.get(normalizedRoleId);
+
+        if (!entry) {
+          return normalizeStep({ ...step, roleId: null });
+        }
+
+        return normalizeStep({
+          ...step,
+          roleId: entry.role.id,
+          departmentId: entry.departmentId
+        });
+      })
     );
   };
 
@@ -2522,6 +2617,25 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                     const canReorderStep = !isFixedStep;
                     const isSelectedStep = selectedStepId === step.id;
                     const displayLabel = getStepDisplayLabel(step);
+                    const availableRoleEntries =
+                      step.departmentId !== null
+                        ? roleLookup.byDepartment.get(step.departmentId) ?? []
+                        : roleLookup.all;
+                    const roleHelperText = (() => {
+                      if (!hasRoles) {
+                        return 'Ajoutez un rôle pour l’associer à cette étape.';
+                      }
+
+                      if (step.departmentId && availableRoleEntries.length === 0) {
+                        return 'Aucun rôle disponible pour ce département.';
+                      }
+
+                      if (!step.departmentId && hasRoles) {
+                        return 'Choisissez un rôle pour remplir automatiquement le département.';
+                      }
+
+                      return null;
+                    })();
 
                     return (
                       <Card
@@ -2597,32 +2711,62 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                                 placeholder="Intitulé de l’étape"
                                 className="h-8 w-full border-slate-200 bg-white text-sm text-slate-900 placeholder:text-slate-400 focus-visible:ring-slate-900/20 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-50"
                               />
-                              <label className="flex flex-col gap-1 text-[0.6rem] font-semibold uppercase tracking-[0.18em] text-slate-500">
-                                <span>Département</span>
-                                <select
-                                  value={step.departmentId ?? ''}
-                                  onChange={(event) =>
-                                    updateStepDepartment(
-                                      step.id,
-                                      event.target.value.length > 0 ? event.target.value : null
-                                    )
-                                  }
-                                  className="h-8 rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-900 transition focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10 disabled:cursor-not-allowed"
-                                  disabled={!hasDepartments}
-                                >
-                                  <option value="">Aucun département</option>
-                                  {departments.map((department) => (
-                                    <option key={department.id} value={department.id}>
-                                      {department.name}
-                                    </option>
-                                  ))}
-                                </select>
-                                {!hasDepartments ? (
-                                  <span className="text-[0.6rem] font-normal normal-case tracking-normal text-slate-500">
-                                    Ajoutez un département pour l’associer à cette étape.
-                                  </span>
-                                ) : null}
-                              </label>
+                              <div className="grid gap-2 sm:grid-cols-2">
+                                <label className="flex flex-col gap-1 text-[0.6rem] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                                  <span>Département</span>
+                                  <select
+                                    value={step.departmentId ?? ''}
+                                    onChange={(event) =>
+                                      updateStepDepartment(
+                                        step.id,
+                                        event.target.value.length > 0 ? event.target.value : null
+                                      )
+                                    }
+                                    className="h-8 rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-900 transition focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10 disabled:cursor-not-allowed"
+                                    disabled={!hasDepartments}
+                                  >
+                                    <option value="">Aucun département</option>
+                                    {departments.map((department) => (
+                                      <option key={department.id} value={department.id}>
+                                        {department.name}
+                                      </option>
+                                    ))}
+                                  </select>
+                                  {!hasDepartments ? (
+                                    <span className="text-[0.6rem] font-normal normal-case tracking-normal text-slate-500">
+                                      Ajoutez un département pour l’associer à cette étape.
+                                    </span>
+                                  ) : null}
+                                </label>
+                                <label className="flex flex-col gap-1 text-[0.6rem] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                                  <span>Rôle</span>
+                                  <select
+                                    value={step.roleId ?? ''}
+                                    onChange={(event) =>
+                                      updateStepRole(
+                                        step.id,
+                                        event.target.value.length > 0 ? event.target.value : null
+                                      )
+                                    }
+                                    className="h-8 rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-900 transition focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10 disabled:cursor-not-allowed"
+                                    disabled={!hasRoles}
+                                  >
+                                    <option value="">Aucun rôle</option>
+                                    {availableRoleEntries.map((entry) => (
+                                      <option key={entry.role.id} value={entry.role.id}>
+                                        {step.departmentId
+                                          ? entry.role.name
+                                          : `${entry.role.name} — ${entry.departmentName}`}
+                                      </option>
+                                    ))}
+                                  </select>
+                                  {roleHelperText ? (
+                                    <span className="text-[0.6rem] font-normal normal-case tracking-normal text-slate-500">
+                                      {roleHelperText}
+                                    </span>
+                                  ) : null}
+                                </label>
+                              </div>
                               {step.type === 'decision' ? (
                                 <div className="mt-2 grid gap-2 sm:grid-cols-2">
                                   <label className="flex flex-col gap-1 text-[0.6rem] font-semibold uppercase tracking-[0.18em] text-slate-500">
