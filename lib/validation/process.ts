@@ -22,11 +22,24 @@ const branchTargetSchema = z
     return trimmed.length > 0 ? trimmed : null;
   });
 
+const roleIdSchema = z.preprocess(
+  (value) => {
+    if (typeof value !== 'string') {
+      return null;
+    }
+
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : null;
+  },
+  z.string().uuid('Identifiant de rôle invalide.').nullable()
+);
+
 export const stepSchema = z.object({
   id: z.string().min(1),
   label: z.string(),
   type: z.enum(stepTypeValues),
   departmentId: departmentIdSchema,
+  roleId: roleIdSchema,
   yesTargetId: branchTargetSchema.default(null),
   noTargetId: branchTargetSchema.default(null)
 });
