@@ -58,3 +58,16 @@ export const roles = pgTable(
 
 export type Role = typeof roles.$inferSelect;
 export type NewRole = typeof roles.$inferInsert;
+
+export const userOnboardingStates = pgTable(
+  'user_onboarding_states',
+  {
+    ownerId: uuid('owner_id').primaryKey(),
+    sampleSeededAt: timestamp('sample_seeded_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull()
+  }
+);
+
+export type UserOnboardingState = typeof userOnboardingStates.$inferSelect;
+export type NewUserOnboardingState = typeof userOnboardingStates.$inferInsert;

@@ -1,249 +1,3 @@
-set search_path = public;
-
-create table if not exists public.process_snapshots (
-    id uuid primary key default gen_random_uuid(),
-    owner_id uuid not null references auth.users(id) on delete cascade,
-    title text not null default 'Étapes du processus',
-    steps jsonb not null,
-    created_at timestamptz not null default timezone('utc', now()),
-    updated_at timestamptz not null default timezone('utc', now())
-);
-
-create index if not exists process_snapshots_owner_id_idx on public.process_snapshots(owner_id);
-create index if not exists process_snapshots_updated_at_idx on public.process_snapshots(updated_at);
-
-create table if not exists public.departments (
-    id uuid primary key default gen_random_uuid(),
-    owner_id uuid not null references auth.users(id) on delete cascade,
-    name text not null,
-    color text not null default '#C7D2FE',
-    created_at timestamptz not null default timezone('utc', now()),
-    updated_at timestamptz not null default timezone('utc', now()),
-    constraint departments_color_check check (color ~ '^#[0-9A-F]{6}$')
-);
-
-create index if not exists departments_owner_id_idx on public.departments(owner_id);
-create index if not exists departments_updated_at_idx on public.departments(updated_at);
-
-create or replace function public.set_process_snapshots_updated_at()
-returns trigger
-language plpgsql
-as $$
-begin
-    new.updated_at = timezone('utc', now());
-    return new;
-end;
-$$;
-
-create trigger process_snapshots_updated_at
-before update on public.process_snapshots
-for each row
-execute function public.set_process_snapshots_updated_at();
-
-alter table if exists public.process_snapshots enable row level security;
-
-create policy process_snapshots_select on public.process_snapshots
-for select
-using (auth.uid() = owner_id);
-
-create policy process_snapshots_insert on public.process_snapshots
-for insert
-with check (auth.uid() = owner_id);
-
-create policy process_snapshots_update on public.process_snapshots
-for update
-using (auth.uid() = owner_id)
-with check (auth.uid() = owner_id);
-
-create policy process_snapshots_delete on public.process_snapshots
-for delete
-using (auth.uid() = owner_id);
-
-create or replace function public.create_process_snapshot(payload jsonb)
-returns public.process_snapshots
-language plpgsql
-security definer
-set search_path = public
-as $$
-declare
-    v_owner uuid := auth.uid();
-    v_steps jsonb := coalesce(payload -> 'steps', '[]'::jsonb);
-    v_title text := coalesce(nullif(trim(payload ->> 'title'), ''), 'Étapes du processus');
-    v_result public.process_snapshots;
-begin
-    if v_owner is null then
-        raise exception 'Authentification requise' using errcode = '28000';
-    end if;
-
-    if jsonb_typeof(v_steps) <> 'array' then
-        raise exception 'Le format des étapes est invalide' using errcode = '22P02';
-    end if;
-
-    if jsonb_array_length(v_steps) < 2 then
-        raise exception 'Au moins deux étapes sont nécessaires' using errcode = '22023';
-    end if;
-
-    insert into public.process_snapshots (owner_id, steps, title)
-    values (v_owner, v_steps, v_title)
-    returning * into v_result;
-
-    return v_result;
-end;
-$$;
-
-grant execute on function public.create_process_snapshot(jsonb) to authenticated;
-
-create or replace function public.save_process_snapshot(payload jsonb)
-returns public.process_snapshots
-language plpgsql
-security definer
-set search_path = public
-as $$
-declare
-    v_owner uuid := auth.uid();
-    v_steps jsonb := coalesce(payload -> 'steps', '[]'::jsonb);
-    v_title text := coalesce(nullif(trim(payload ->> 'title'), ''), 'Étapes du processus');
-    v_id uuid := nullif(trim(payload ->> 'id'), '')::uuid;
-    v_result public.process_snapshots;
-begin
-    if v_owner is null then
-        raise exception 'Authentification requise' using errcode = '28000';
-    end if;
-
-    if jsonb_typeof(v_steps) <> 'array' then
-        raise exception 'Le format des étapes est invalide' using errcode = '22P02';
-    end if;
-
-    if jsonb_array_length(v_steps) < 2 then
-        raise exception 'Au moins deux étapes sont nécessaires' using errcode = '22023';
-    end if;
-
-    if v_id is null then
-        raise exception 'Identifiant de process requis' using errcode = '23502';
-    end if;
-
-    update public.process_snapshots as ps
-    set
-        steps = v_steps,
-        title = v_title,
-        updated_at = timezone('utc', now())
-    where ps.id = v_id
-      and ps.owner_id = v_owner
-    returning ps.* into v_result;
-
-    if not found then
-        raise exception 'Process introuvable' using errcode = 'P0002';
-    end if;
-
-    return v_result;
-end;
-$$;
-
-grant execute on function public.save_process_snapshot(jsonb) to authenticated;
-
-create or replace function public.set_departments_updated_at()
-returns trigger
-language plpgsql
-as $$
-begin
-    new.updated_at = timezone('utc', now());
-    return new;
-end;
-$$;
-
-create trigger departments_updated_at
-before update on public.departments
-for each row
-execute function public.set_departments_updated_at();
-
-alter table if exists public.departments enable row level security;
-
-create policy departments_select on public.departments
-for select
-using (auth.uid() = owner_id);
-
-create policy departments_insert on public.departments
-for insert
-with check (auth.uid() = owner_id);
-
-create policy departments_update on public.departments
-for update
-using (auth.uid() = owner_id)
-with check (auth.uid() = owner_id);
-
-create policy departments_delete on public.departments
-for delete
-using (auth.uid() = owner_id);
-
-create table if not exists public.roles (
-    id uuid primary key default gen_random_uuid(),
-    owner_id uuid not null references auth.users(id) on delete cascade,
-    department_id uuid not null references public.departments(id) on delete cascade,
-    name text not null,
-    created_at timestamptz not null default timezone('utc', now()),
-    updated_at timestamptz not null default timezone('utc', now())
-);
-
-create index if not exists roles_owner_id_idx on public.roles(owner_id);
-create index if not exists roles_department_id_idx on public.roles(department_id);
-create index if not exists roles_updated_at_idx on public.roles(updated_at);
-
-create unique index if not exists roles_owner_department_name_idx
-  on public.roles (owner_id, department_id, lower(name));
-
-alter table if exists public.roles
-  alter column owner_id set default auth.uid();
-
-create or replace function public.set_roles_updated_at()
-returns trigger
-language plpgsql
-as $$
-begin
-    new.updated_at = timezone('utc', now());
-    return new;
-end;
-$$;
-
-create trigger roles_updated_at
-before update on public.roles
-for each row
-execute function public.set_roles_updated_at();
-
-alter table if exists public.roles enable row level security;
-
-create policy roles_select on public.roles
-for select
-using (auth.uid() = owner_id);
-
-create policy roles_insert on public.roles
-for insert
-with check (
-    auth.uid() = owner_id
-    and exists (
-        select 1
-        from public.departments d
-        where d.id = department_id
-          and d.owner_id = auth.uid()
-    )
-);
-
-create policy roles_update on public.roles
-for update
-using (auth.uid() = owner_id)
-with check (
-    auth.uid() = owner_id
-    and exists (
-        select 1
-        from public.departments d
-        where d.id = department_id
-          and d.owner_id = auth.uid()
-    )
-);
-
-create policy roles_delete on public.roles
-for delete
-using (auth.uid() = owner_id);
-
 create table if not exists public.user_onboarding_states (
     owner_id uuid primary key references auth.users(id) on delete cascade,
     sample_seeded_at timestamptz,
@@ -261,22 +15,32 @@ begin
 end;
 $$;
 
-create trigger user_onboarding_states_updated_at
-before update on public.user_onboarding_states
-for each row
-execute function public.set_user_onboarding_states_updated_at();
+do $$
+begin
+    if not exists (
+        select 1
+        from pg_trigger
+        where tgname = 'user_onboarding_states_updated_at'
+    ) then
+        create trigger user_onboarding_states_updated_at
+        before update on public.user_onboarding_states
+        for each row
+        execute function public.set_user_onboarding_states_updated_at();
+    end if;
+end;
+$$;
 
 alter table if exists public.user_onboarding_states enable row level security;
 
-create policy user_onboarding_states_select on public.user_onboarding_states
+create policy if not exists user_onboarding_states_select on public.user_onboarding_states
 for select
 using (auth.uid() = owner_id);
 
-create policy user_onboarding_states_insert on public.user_onboarding_states
+create policy if not exists user_onboarding_states_insert on public.user_onboarding_states
 for insert
 with check (auth.uid() = owner_id);
 
-create policy user_onboarding_states_update on public.user_onboarding_states
+create policy if not exists user_onboarding_states_update on public.user_onboarding_states
 for update
 using (auth.uid() = owner_id)
 with check (auth.uid() = owner_id);

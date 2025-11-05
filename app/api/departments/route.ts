@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 
-import { createServerClient } from '@/lib/supabase/server';
 import { getInviteDemoDepartments } from '@/lib/department/demo';
+import { ensureSampleDataSeeded } from '@/lib/onboarding/sample-seed';
+import { createServerClient } from '@/lib/supabase/server';
 import { departmentInputSchema, departmentListSchema, departmentSchema } from '@/lib/validation/department';
 
 import {
@@ -35,6 +36,12 @@ export async function GET() {
     }
 
     return NextResponse.json(parsedDemo.data, { headers: NO_STORE_HEADERS });
+  }
+
+  try {
+    await ensureSampleDataSeeded(supabase);
+  } catch (seedError) {
+    console.error('Erreur lors de la préparation des données de démonstration (departments)', seedError);
   }
 
   const { data, error } = await supabase

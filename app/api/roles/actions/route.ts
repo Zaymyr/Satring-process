@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
-import { createServerClient } from '@/lib/supabase/server';
 import { DEFAULT_PROCESS_TITLE } from '@/lib/process/defaults';
+import { ensureSampleDataSeeded } from '@/lib/onboarding/sample-seed';
+import { createServerClient } from '@/lib/supabase/server';
 import { stepSchema } from '@/lib/validation/process';
 import { roleActionSummaryListSchema, type RoleActionItem } from '@/lib/validation/role-action';
 
@@ -49,6 +50,12 @@ export async function GET() {
 
   if (authError || !user) {
     return NextResponse.json({ error: 'Authentification requise.' }, { status: 401, headers: NO_STORE_HEADERS });
+  }
+
+  try {
+    await ensureSampleDataSeeded(supabase);
+  } catch (seedError) {
+    console.error('Erreur lors de la préparation des données de démonstration (role actions)', seedError);
   }
 
   const [{ data: rawRoles, error: rolesError }, { data: rawProcesses, error: processesError }] = await Promise.all([
