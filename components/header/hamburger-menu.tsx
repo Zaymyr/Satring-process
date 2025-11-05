@@ -9,7 +9,8 @@ import { cn } from '@/lib/utils/cn';
 
 const NAV_LINKS = [
   { href: '/', label: 'Accueil' },
-  { href: '/raci', label: 'Matrices RACI' }
+  { href: '/raci', label: 'Matrices RACI' },
+  { href: '/job-descriptions', label: 'Fiches de poste' }
 ] satisfies Array<{ href: Route; label: string }>;
 
 export function HamburgerMenu() {
