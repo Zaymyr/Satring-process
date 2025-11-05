@@ -200,96 +200,97 @@ export function JobDescriptionExplorer() {
 
   return (
     <div className="grid h-full min-h-0 grid-cols-1 bg-slate-50 lg:grid-cols-[320px,1fr]">
-      <aside className="border-b border-slate-200 bg-white lg:border-b-0 lg:border-r">
-        <div className="flex h-full max-h-full flex-col">
-          <div className="border-b border-slate-200 px-5 py-4">
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">Départements & rôles</h2>
-            <p className="mt-1 text-sm text-slate-500">
-              Sélectionnez un rôle pour afficher sa fiche de poste générée automatiquement.
+      <aside className="flex min-h-0 flex-col border-b border-slate-200 bg-white lg:border-b-0 lg:border-r">
+        <div className="border-b border-slate-200 px-5 py-4">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">Départements & rôles</h2>
+          <p className="mt-1 text-sm text-slate-500">
+            Sélectionnez un rôle pour afficher sa fiche de poste générée automatiquement.
+          </p>
+        </div>
+        <div className="flex-1 overflow-y-auto px-3 py-4">
+          {isLoading ? (
+            <div className="flex items-center justify-center py-12 text-slate-500">
+              <Loader2 className="h-5 w-5 animate-spin" aria-hidden="true" />
+              <span className="ml-2 text-sm font-medium">Chargement des rôles…</span>
+            </div>
+          ) : hasError ? (
+            <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">
+              {getErrorMessage(
+                departmentQuery.error ?? roleActionQuery.error,
+                'Une erreur est survenue lors du chargement.'
+              )}
             </p>
-          </div>
-          <div className="flex-1 overflow-y-auto px-3 py-4">
-            {isLoading ? (
-              <div className="flex items-center justify-center py-12 text-slate-500">
-                <Loader2 className="h-5 w-5 animate-spin" aria-hidden="true" />
-                <span className="ml-2 text-sm font-medium">Chargement des rôles…</span>
-              </div>
-            ) : hasError ? (
-              <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">
-                {getErrorMessage(departmentQuery.error ?? roleActionQuery.error, 'Une erreur est survenue lors du chargement.')}
-              </p>
-            ) : departments.length === 0 ? (
-              <p className="rounded-md border border-slate-200 bg-slate-100 px-3 py-2 text-sm text-slate-600">
-                Aucun département n’a encore été créé.
-              </p>
-            ) : (
-              <div className="space-y-4">
-                {departments.map((department) => {
-                  const departmentRoles = department.roles ?? [];
-                  return (
-                    <details
-                      key={department.id}
-                      open
-                      className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm"
-                    >
-                      <summary className="flex cursor-pointer items-center justify-between gap-2 bg-slate-50 px-4 py-3 text-left text-sm font-semibold text-slate-700">
-                        <span className="flex items-center gap-2">
-                          <span
-                            aria-hidden="true"
-                            className="inline-block h-2.5 w-2.5 rounded-full"
-                            style={{ backgroundColor: department.color }}
-                          />
-                          {department.name}
-                        </span>
-                        <span className="text-xs font-medium uppercase tracking-wide text-slate-400">
-                          {formatActionsCount(
-                            departmentRoles.reduce((total, role) => {
-                              const summary = roleSummaryById.get(role.id);
-                              return total + (summary?.actions.length ?? 0);
-                            }, 0)
-                          )}
-                        </span>
-                      </summary>
-                      <div className="space-y-2 bg-white px-4 py-3">
-                        {departmentRoles.length === 0 ? (
-                          <p className="text-sm text-slate-500">Aucun rôle défini pour ce département.</p>
-                        ) : (
-                          departmentRoles.map((role) => {
+          ) : departments.length === 0 ? (
+            <p className="rounded-md border border-slate-200 bg-slate-100 px-3 py-2 text-sm text-slate-600">
+              Aucun département n’a encore été créé.
+            </p>
+          ) : (
+            <div className="space-y-4">
+              {departments.map((department) => {
+                const departmentRoles = department.roles ?? [];
+                return (
+                  <details
+                    key={department.id}
+                    open
+                    className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm"
+                  >
+                    <summary className="flex cursor-pointer items-center justify-between gap-2 bg-slate-50 px-4 py-3 text-left text-sm font-semibold text-slate-700">
+                      <span className="flex items-center gap-2">
+                        <span
+                          aria-hidden="true"
+                          className="inline-block h-2.5 w-2.5 rounded-full"
+                          style={{ backgroundColor: department.color }}
+                        />
+                        {department.name}
+                      </span>
+                      <span className="text-xs font-medium uppercase tracking-wide text-slate-400">
+                        {formatActionsCount(
+                          departmentRoles.reduce((total, role) => {
                             const summary = roleSummaryById.get(role.id);
-                            const actionCount = summary?.actions.length ?? 0;
-                            const isActive = selectedRoleId === role.id;
-                            return (
-                              <button
-                                key={role.id}
-                                type="button"
-                                onClick={() => setSelectedRoleId(role.id)}
+                            return total + (summary?.actions.length ?? 0);
+                          }, 0)
+                        )}
+                      </span>
+                    </summary>
+                    <div className="space-y-2 bg-white px-4 py-3">
+                      {departmentRoles.length === 0 ? (
+                        <p className="text-sm text-slate-500">Aucun rôle défini pour ce département.</p>
+                      ) : (
+                        departmentRoles.map((role) => {
+                          const summary = roleSummaryById.get(role.id);
+                          const actionCount = summary?.actions.length ?? 0;
+                          const isActive = selectedRoleId === role.id;
+                          return (
+                            <button
+                              key={role.id}
+                              type="button"
+                              onClick={() => setSelectedRoleId(role.id)}
+                              className={cn(
+                                'flex w-full items-center justify-between rounded-md border px-3 py-2 text-left text-sm font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-500',
+                                isActive
+                                  ? 'border-slate-900 bg-slate-900 text-white shadow-sm'
+                                  : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                              )}
+                            >
+                              <span className="truncate">{role.name}</span>
+                              <span
                                 className={cn(
-                                  'flex w-full items-center justify-between rounded-md border px-3 py-2 text-left text-sm font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-500',
-                                  isActive
-                                    ? 'border-slate-900 bg-slate-900 text-white shadow-sm'
-                                    : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                                  'ml-3 shrink-0 text-xs font-semibold uppercase tracking-wide',
+                                  isActive ? 'text-white/80' : 'text-slate-400'
                                 )}
                               >
-                                <span className="truncate">{role.name}</span>
-                                <span
-                                  className={cn(
-                                    'ml-3 shrink-0 text-xs font-semibold uppercase tracking-wide',
-                                    isActive ? 'text-white/80' : 'text-slate-400'
-                                  )}
-                                >
-                                  {formatActionsCount(actionCount)}
-                                </span>
-                              </button>
-                            );
-                          })
-                        )}
-                      </div>
-                    </details>
-                  );
-                })}
-              </div>
-            )}
-          </div>
+                                {formatActionsCount(actionCount)}
+                              </span>
+                            </button>
+                          );
+                        })
+                      )}
+                    </div>
+                  </details>
+                );
+              })}
+            </div>
+          )}
         </div>
       </aside>
       <section className="flex min-h-0 flex-col overflow-y-auto">
