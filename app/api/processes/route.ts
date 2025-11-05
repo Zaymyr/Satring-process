@@ -3,6 +3,7 @@ import { z } from 'zod';
 
 import { createServerClient } from '@/lib/supabase/server';
 import { createDefaultProcessPayload, DEFAULT_PROCESS_TITLE } from '@/lib/process/defaults';
+import { ensureSampleDataSeeded } from '@/lib/onboarding/sample-seed';
 import { processResponseSchema, processSummarySchema, type ProcessResponse } from '@/lib/validation/process';
 
 const NO_STORE_HEADERS = { 'Cache-Control': 'no-store, max-age=0, must-revalidate' };
@@ -120,6 +121,12 @@ export async function GET() {
 
   if (authError || !user) {
     return NextResponse.json({ error: 'Authentification requise.' }, { status: 401, headers: NO_STORE_HEADERS });
+  }
+
+  try {
+    await ensureSampleDataSeeded(supabase);
+  } catch (seedError) {
+    console.error('Erreur lors de la préparation des données de démonstration (processes)', seedError);
   }
 
   const { data, error } = await supabase
