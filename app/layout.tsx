@@ -6,6 +6,8 @@ import './globals.css';
 import { QueryProvider } from '@/components/providers/query-provider';
 import { HamburgerMenu } from '@/components/header/hamburger-menu';
 import { createServerClient } from '@/lib/supabase/server';
+import { Analytics } from "@vercel/analytics/react";
+
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-sans' });
 
@@ -25,7 +27,7 @@ export default async function RootLayout({
     data: { user }
   } = await supabase.auth.getUser();
 
-  return (
+    return (
     <html lang="fr" className={inter.variable}>
       <body className="font-sans antialiased">
         <QueryProvider>
@@ -79,7 +81,11 @@ export default async function RootLayout({
             <main className="flex-1 overflow-hidden">{children}</main>
           </div>
         </QueryProvider>
+
+        {/* Vercel Analytics */}
+        <Analytics />
       </body>
     </html>
   );
 }
+
