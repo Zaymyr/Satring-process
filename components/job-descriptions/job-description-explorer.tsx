@@ -111,6 +111,7 @@ export function JobDescriptionExplorer() {
   });
 
   const [selectedRoleId, setSelectedRoleId] = useState<string | null>(null);
+  const [expandedDepartments, setExpandedDepartments] = useState<Record<string, boolean>>({});
 
   const departments = departmentQuery.data ?? EMPTY_DEPARTMENTS;
   const roleSummaries = roleActionQuery.data ?? EMPTY_ROLE_SUMMARIES;
@@ -141,23 +142,42 @@ export function JobDescriptionExplorer() {
   }, [departments]);
 
   useEffect(() => {
-    if (selectedRoleId) {
-      return;
+    if (selectedRoleId && !roleById.has(selectedRoleId)) {
+      setSelectedRoleId(null);
     }
+  }, [roleById, selectedRoleId]);
 
-    if (roleSummaries.length > 0) {
-      setSelectedRoleId(roleSummaries[0].roleId);
-      return;
-    }
-
-    for (const department of departments) {
-      const firstRole = department.roles?.[0];
-      if (firstRole) {
-        setSelectedRoleId(firstRole.id);
-        return;
+  useEffect(() => {
+    setExpandedDepartments((previous) => {
+      const next: Record<string, boolean> = {};
+      for (const department of departments) {
+        next[department.id] = previous[department.id] ?? false;
       }
+      return next;
+    });
+  }, [departments]);
+
+  useEffect(() => {
+    if (!selectedRoleId) {
+      return;
     }
-  }, [departments, roleSummaries, selectedRoleId]);
+
+    const department = departmentByRoleId.get(selectedRoleId);
+    if (!department) {
+      return;
+    }
+
+    setExpandedDepartments((previous) => {
+      if (previous[department.id]) {
+        return previous;
+      }
+
+      return {
+        ...previous,
+        [department.id]: true
+      };
+    });
+  }, [departmentByRoleId, selectedRoleId]);
 
   const selectedSummary = selectedRoleId ? roleSummaryById.get(selectedRoleId) : undefined;
   const selectedRole = selectedRoleId ? roleById.get(selectedRoleId) : undefined;
@@ -231,7 +251,14 @@ export function JobDescriptionExplorer() {
                 return (
                   <details
                     key={department.id}
-                    open
+                    open={expandedDepartments[department.id] ?? false}
+                    onToggle={(event) => {
+                      const isOpen = event.currentTarget.open;
+                      setExpandedDepartments((previous) => ({
+                        ...previous,
+                        [department.id]: isOpen
+                      }));
+                    }}
                     className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm"
                   >
                     <summary className="flex cursor-pointer items-center justify-between gap-2 bg-slate-50 px-4 py-3 text-left text-sm font-semibold text-slate-700">
