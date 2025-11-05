@@ -32,18 +32,56 @@ $$;
 
 alter table if exists public.user_onboarding_states enable row level security;
 
-create policy if not exists user_onboarding_states_select on public.user_onboarding_states
-for select
-using (auth.uid() = owner_id);
+do $$
+begin
+    if not exists (
+        select 1
+        from pg_policies
+        where schemaname = 'public'
+          and tablename = 'user_onboarding_states'
+          and policyname = 'user_onboarding_states_select'
+    ) then
+        create policy user_onboarding_states_select
+        on public.user_onboarding_states
+        for select
+        using (auth.uid() = owner_id);
+    end if;
 
-create policy if not exists user_onboarding_states_insert on public.user_onboarding_states
-for insert
-with check (auth.uid() = owner_id);
+    if not exists (
+        select 1
+        from pg_policies
+        where schemaname = 'public'
+          and tablename = 'user_onboarding_states'
+          and policyname = 'user_onboarding_states_insert'
+    ) then
+        create policy user_onboarding_states_insert
+        on public.user_onboarding_states
+        for insert
+        with check (auth.uid() = owner_id);
+    end if;
 
-create policy if not exists user_onboarding_states_update on public.user_onboarding_states
-for update
-using (auth.uid() = owner_id)
-with check (auth.uid() = owner_id);
+    if not exists (
+        select 1
+        from pg_policies
+        where schemaname = 'public'
+          and tablename = 'user_onboarding_states'
+          and policyname = 'user_onboarding_states_update'
+    ) then
+        create policy user_onboarding_states_update
+        on public.user_onboarding_states
+        for update
+        using (auth.uid() = owner_id)
+        with check (auth.uid() = owner_id);
+    end if;
+end;
+$$;
+
+create or replace function public.seed_sample_data()
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
 
 create or replace function public.seed_sample_data()
 returns jsonb
