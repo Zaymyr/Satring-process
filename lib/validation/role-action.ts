@@ -1,10 +1,13 @@
 import { z } from 'zod';
 
+export const roleActionResponsibilityValues = ['R', 'A'] as const;
+
 export const roleActionItemSchema = z.object({
   processId: z.string().uuid('Identifiant de process invalide.'),
   processTitle: z.string().min(1, 'Le titre du process est requis.'),
   stepId: z.string().min(1, "L'identifiant de l'étape est requis."),
-  stepLabel: z.string().min(1, "Le libellé de l'étape est requis.")
+  stepLabel: z.string().min(1, "Le libellé de l'étape est requis."),
+  responsibility: z.enum(roleActionResponsibilityValues)
 });
 
 export const roleActionSummarySchema = z.object({

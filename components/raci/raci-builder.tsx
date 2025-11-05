@@ -119,6 +119,7 @@ type AggregatedRoleActionRow = {
   id: string;
   label: string;
   processTitle: string;
+  responsibility: FilledRaciValue;
   assignedRoleIds: Set<string>;
 };
 
@@ -328,6 +329,7 @@ export function RaciBuilder() {
             id: key,
             label: action.stepLabel,
             processTitle: action.processTitle,
+            responsibility: action.responsibility,
             assignedRoleIds: new Set<string>()
           };
           actionsByKey.set(key, aggregated);
@@ -549,7 +551,7 @@ export function RaciBuilder() {
                                 <td key={role.id} className="px-4 py-3 text-sm">
                                   {action.assignedRoleIds.has(role.id) ? (
                                     <span className="inline-flex h-8 w-8 items-center justify-center rounded-md bg-slate-900 text-xs font-semibold uppercase tracking-wide text-white">
-                                      R
+                                      {action.responsibility}
                                     </span>
                                   ) : (
                                     <span className="inline-flex h-8 w-8 items-center justify-center text-xs text-slate-300">—</span>

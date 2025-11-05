@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { createServerClient } from '@/lib/supabase/server';
 import { DEFAULT_PROCESS_TITLE } from '@/lib/process/defaults';
 import { stepSchema } from '@/lib/validation/process';
-import { roleActionSummaryListSchema } from '@/lib/validation/role-action';
+import { roleActionSummaryListSchema, type RoleActionItem } from '@/lib/validation/role-action';
 
 import { NO_STORE_HEADERS } from '../../departments/helpers';
 
@@ -168,7 +168,7 @@ export async function GET() {
     roleName: role.name,
     departmentId: role.departmentId,
     departmentName: role.departmentName,
-    actions: [] as Array<{ processId: string; processTitle: string; stepId: string; stepLabel: string }>
+    actions: [] as RoleActionItem[]
   }));
 
   const summaryMap = new Map<string, (typeof summaries)[number]>();
@@ -178,7 +178,7 @@ export async function GET() {
 
   for (const process of parsedProcesses.data) {
     for (const step of process.steps) {
-      if (step.type !== 'action' || !step.roleId) {
+      if ((step.type !== 'action' && step.type !== 'decision') || !step.roleId) {
         continue;
       }
 
@@ -191,7 +191,8 @@ export async function GET() {
         processId: process.id,
         processTitle: process.title,
         stepId: step.id,
-        stepLabel: step.label
+        stepLabel: step.label,
+        responsibility: step.type === 'decision' ? 'A' : 'R'
       });
     }
   }
