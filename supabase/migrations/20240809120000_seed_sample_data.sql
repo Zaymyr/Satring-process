@@ -82,13 +82,6 @@ language plpgsql
 security definer
 set search_path = public
 as $$
-
-create or replace function public.seed_sample_data()
-returns jsonb
-language plpgsql
-security definer
-set search_path = public
-as $$
 declare
     v_owner uuid := auth.uid();
     v_state public.user_onboarding_states;
