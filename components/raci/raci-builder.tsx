@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Loader2 } from 'lucide-react';
+import { ChevronDown, Loader2 } from 'lucide-react';
 
 import { cn } from '@/lib/utils/cn';
 import { departmentListSchema, type Department as ApiDepartment } from '@/lib/validation/department';
@@ -128,6 +128,12 @@ type AggregatedRoleActionRow = {
   processTitle: string;
   responsibility: FilledRaciValue;
   assignedRoleIds: Set<string>;
+};
+
+type AggregatedProcessGroup = {
+  id: string;
+  title: string;
+  steps: AggregatedRoleActionRow[];
 };
 
 const EMPTY_DEPARTMENT_STATE: DepartmentMatrixState = {
@@ -314,12 +320,19 @@ export function RaciBuilder() {
     });
   }, [selectedDepartment, selectedDepartmentState]);
 
-  const departmentAggregatedActions = useMemo<AggregatedRoleActionRow[]>(() => {
+  const departmentAggregatedProcesses = useMemo<AggregatedProcessGroup[]>(() => {
     if (!selectedDepartment) {
       return [];
     }
 
-    const actionsByKey = new Map<string, AggregatedRoleActionRow>();
+    const processes = new Map<
+      string,
+      {
+        id: string;
+        title: string;
+        steps: Map<string, AggregatedRoleActionRow>;
+      }
+    >();
 
     for (const role of selectedDepartment.roles) {
       const summary = roleActionsByRoleId.get(role.id);
@@ -328,38 +341,113 @@ export function RaciBuilder() {
       }
 
       for (const action of summary.actions) {
-        const key = `${action.processId}:${action.stepId}`;
-        let aggregated = actionsByKey.get(key);
+        let process = processes.get(action.processId);
+
+        if (!process) {
+          process = {
+            id: action.processId,
+            title: action.processTitle,
+            steps: new Map<string, AggregatedRoleActionRow>()
+          };
+          processes.set(action.processId, process);
+        }
+
+        let aggregated = process.steps.get(action.stepId);
 
         if (!aggregated) {
           aggregated = {
-            id: key,
+            id: action.stepId,
             label: action.stepLabel,
             processTitle: action.processTitle,
             responsibility: action.responsibility,
             assignedRoleIds: new Set<string>()
           };
-          actionsByKey.set(key, aggregated);
+          process.steps.set(action.stepId, aggregated);
         }
 
         aggregated.assignedRoleIds.add(role.id);
       }
     }
 
-    return Array.from(actionsByKey.values()).sort((left, right) => {
-      const processComparison = left.processTitle.localeCompare(right.processTitle, 'fr', {
-        sensitivity: 'base'
-      });
-
-      if (processComparison !== 0) {
-        return processComparison;
-      }
-
-      return left.label.localeCompare(right.label, 'fr', { sensitivity: 'base' });
-    });
+    return Array.from(processes.values())
+      .map((process) => ({
+        id: process.id,
+        title: process.title,
+        steps: Array.from(process.steps.values()).sort((left, right) =>
+          left.label.localeCompare(right.label, 'fr', { sensitivity: 'base' })
+        )
+      }))
+      .sort((left, right) => left.title.localeCompare(right.title, 'fr', { sensitivity: 'base' }));
   }, [roleActionsByRoleId, selectedDepartment]);
 
-  const hasAggregatedActions = departmentAggregatedActions.length > 0;
+  const [collapsedProcesses, setCollapsedProcesses] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    setCollapsedProcesses((previous) => {
+      if (departmentAggregatedProcesses.length === 0) {
+        return Object.keys(previous).length === 0 ? previous : {};
+      }
+
+      const next: Record<string, boolean> = {};
+      let hasChanged = departmentAggregatedProcesses.length !== Object.keys(previous).length;
+
+      for (const process of departmentAggregatedProcesses) {
+        const previousValue = previous[process.id] ?? false;
+        next[process.id] = previousValue;
+        if (!hasChanged && previousValue !== previous[process.id]) {
+          hasChanged = true;
+        }
+      }
+
+      if (!hasChanged) {
+        for (const key of Object.keys(previous)) {
+          if (!(key in next)) {
+            hasChanged = true;
+            break;
+          }
+        }
+      }
+
+      return hasChanged ? next : previous;
+    });
+  }, [departmentAggregatedProcesses]);
+
+  const hasAggregatedActions = departmentAggregatedProcesses.length > 0;
+
+  const toggleProcessVisibility = (processId: string) => {
+    setCollapsedProcesses((previous) => ({
+      ...previous,
+      [processId]: !(previous[processId] ?? false)
+    }));
+  };
+
+  const expandAllProcesses = () => {
+    if (!hasAggregatedActions) {
+      return;
+    }
+
+    setCollapsedProcesses(() => {
+      const next: Record<string, boolean> = {};
+      for (const process of departmentAggregatedProcesses) {
+        next[process.id] = false;
+      }
+      return next;
+    });
+  };
+
+  const collapseAllProcesses = () => {
+    if (!hasAggregatedActions) {
+      return;
+    }
+
+    setCollapsedProcesses(() => {
+      const next: Record<string, boolean> = {};
+      for (const process of departmentAggregatedProcesses) {
+        next[process.id] = true;
+      }
+      return next;
+    });
+  };
   const hasManualActions = selectedDepartmentState.actions.length > 0;
   const showEmptyMatrixState =
     !roleActionsQuery.isLoading &&
@@ -501,6 +589,24 @@ export function RaciBuilder() {
                   <p className="text-sm text-slate-600">
                     Assignez un rôle pour chaque action en sélectionnant la responsabilité appropriée.
                   </p>
+                  {hasAggregatedActions ? (
+                    <div className="mt-4 flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={expandAllProcesses}
+                        className="inline-flex items-center rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 shadow-sm transition hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
+                      >
+                        Tout développer
+                      </button>
+                      <button
+                        type="button"
+                        onClick={collapseAllProcesses}
+                        className="inline-flex items-center rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 shadow-sm transition hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
+                      >
+                        Tout réduire
+                      </button>
+                    </div>
+                  ) : null}
                 </div>
                 <div className="overflow-x-auto">
                   <table className="min-w-full divide-y divide-slate-200">
@@ -548,30 +654,72 @@ export function RaciBuilder() {
                       {!roleActionsQuery.isLoading &&
                       !roleActionsQuery.isError &&
                       hasAggregatedActions
-                        ? departmentAggregatedActions.map((action) => (
-                            <tr key={`aggregated-${action.id}`} className="bg-white">
-                              <th scope="row" className="px-6 py-4 text-left text-sm font-medium text-slate-900">
-                                <span className="block text-sm font-semibold text-slate-900">{action.label}</span>
-                                <span className="mt-1 block text-xs text-slate-500">{action.processTitle}</span>
-                              </th>
-                              {selectedDepartment.roles.map((role) => (
-                                <td key={role.id} className="px-4 py-3 text-sm">
-                                  {action.assignedRoleIds.has(role.id) ? (
-                                    <span
-                                      className={cn(
-                                        'inline-flex h-8 w-8 items-center justify-center rounded-md text-xs font-semibold uppercase tracking-wide',
-                                        raciBadgeStyles[action.responsibility]
-                                      )}
+                        ? departmentAggregatedProcesses.map((process) => {
+                            const isCollapsed = collapsedProcesses[process.id] ?? false;
+                            const actionCount = process.steps.length;
+                            const actionCountLabel = `${actionCount} action${actionCount > 1 ? 's' : ''}`;
+
+                            return (
+                              <Fragment key={`process-${process.id}`}>
+                                <tr className="bg-slate-100">
+                                  <th
+                                    colSpan={selectedDepartment.roles.length + 1}
+                                    className="px-6 py-3 text-left text-xs font-semibold tracking-wide text-slate-600"
+                                  >
+                                    <button
+                                      type="button"
+                                      onClick={() => toggleProcessVisibility(process.id)}
+                                      className="flex w-full items-center justify-between gap-3 rounded-md px-1 py-1 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
+                                      aria-expanded={!isCollapsed}
                                     >
-                                      {action.responsibility}
-                                    </span>
-                                  ) : (
-                                    <span className="inline-flex h-8 w-8 items-center justify-center text-xs text-slate-300">—</span>
-                                  )}
-                                </td>
-                              ))}
-                            </tr>
-                          ))
+                                      <div className="flex flex-1 items-center justify-between gap-3">
+                                        <span className="truncate text-sm font-semibold text-slate-700">{process.title}</span>
+                                        <span className="inline-flex items-center rounded-full bg-slate-200 px-2 py-0.5 text-[11px] font-medium text-slate-700">
+                                          {actionCountLabel}
+                                        </span>
+                                      </div>
+                                      <ChevronDown
+                                        aria-hidden="true"
+                                        className={cn(
+                                          'h-4 w-4 shrink-0 text-slate-500 transition-transform',
+                                          isCollapsed ? '-rotate-90' : 'rotate-0'
+                                        )}
+                                      />
+                                    </button>
+                                  </th>
+                                </tr>
+
+                                {!isCollapsed
+                                  ? process.steps.map((action) => (
+                                      <tr key={`aggregated-${process.id}-${action.id}`} className="bg-white">
+                                        <th
+                                          scope="row"
+                                          className="px-6 py-4 pl-10 text-left text-sm font-medium text-slate-900"
+                                        >
+                                          {action.label}
+                                        </th>
+                                        {selectedDepartment.roles.map((role) => (
+                                          <td key={role.id} className="px-4 py-3 text-sm">
+                                            {action.assignedRoleIds.has(role.id) ? (
+                                              <span
+                                                className={cn(
+                                                  'inline-flex h-8 w-8 items-center justify-center rounded-md text-xs font-semibold uppercase tracking-wide',
+                                                  raciBadgeStyles[action.responsibility]
+                                                )}
+                                              >
+                                                {action.responsibility}
+                                              </span>
+                                            ) : (
+                                              <span className="inline-flex h-8 w-8 items-center justify-center text-xs text-slate-300">—</span>
+                                            )}
+                                          </td>
+                                        ))}
+                                      </tr>
+                                    ))
+                                  : null}
+                              </Fragment>
+                            );
+                          })
                         : null}
 
                       {hasManualActions
