@@ -92,6 +92,13 @@ const raciDefinitions: Record<(typeof filledRaciValues)[number], { short: string
   }
 } as const;
 
+const raciBadgeStyles: Record<FilledRaciValue, string> = {
+  R: 'bg-emerald-100 text-emerald-700 ring-1 ring-inset ring-emerald-200',
+  A: 'bg-indigo-100 text-indigo-700 ring-1 ring-inset ring-indigo-200',
+  C: 'bg-amber-100 text-amber-700 ring-1 ring-inset ring-amber-200',
+  I: 'bg-slate-100 text-slate-700 ring-1 ring-inset ring-slate-200'
+} as const;
+
 const raciOptions: ReadonlyArray<{ value: RaciValue; label: string }> = [
   { value: '', label: '—' },
   ...filledRaciValues.map((value) => ({
@@ -119,6 +126,7 @@ type AggregatedRoleActionRow = {
   id: string;
   label: string;
   processTitle: string;
+  responsibility: FilledRaciValue;
   assignedRoleIds: Set<string>;
 };
 
@@ -328,6 +336,7 @@ export function RaciBuilder() {
             id: key,
             label: action.stepLabel,
             processTitle: action.processTitle,
+            responsibility: action.responsibility,
             assignedRoleIds: new Set<string>()
           };
           actionsByKey.set(key, aggregated);
@@ -548,8 +557,13 @@ export function RaciBuilder() {
                               {selectedDepartment.roles.map((role) => (
                                 <td key={role.id} className="px-4 py-3 text-sm">
                                   {action.assignedRoleIds.has(role.id) ? (
-                                    <span className="inline-flex h-8 w-8 items-center justify-center rounded-md bg-slate-900 text-xs font-semibold uppercase tracking-wide text-white">
-                                      R
+                                    <span
+                                      className={cn(
+                                        'inline-flex h-8 w-8 items-center justify-center rounded-md text-xs font-semibold uppercase tracking-wide',
+                                        raciBadgeStyles[action.responsibility]
+                                      )}
+                                    >
+                                      {action.responsibility}
                                     </span>
                                   ) : (
                                     <span className="inline-flex h-8 w-8 items-center justify-center text-xs text-slate-300">—</span>
@@ -615,8 +629,16 @@ export function RaciBuilder() {
                           <ul className="mt-3 space-y-2 text-xs text-slate-600">
                             {responsibilities.map(({ value, roles }) => (
                               <li key={value} className="flex items-start justify-between gap-3">
-                                <span className="font-medium text-slate-800">
-                                  {value} — {raciDefinitions[value].short}
+                                <span className="flex items-center gap-2 font-medium text-slate-800">
+                                  <span
+                                    className={cn(
+                                      'inline-flex h-6 w-6 items-center justify-center rounded-md text-xs font-semibold uppercase tracking-wide',
+                                      raciBadgeStyles[value]
+                                    )}
+                                  >
+                                    {value}
+                                  </span>
+                                  <span>{raciDefinitions[value].short}</span>
                                 </span>
                                 <span className="text-right text-slate-600">
                                   {roles.length > 0 ? roles.join(', ') : 'Non attribué'}
@@ -641,8 +663,16 @@ export function RaciBuilder() {
               <dl className="mt-4 grid gap-4 sm:grid-cols-2">
                 {filledRaciValues.map((value) => (
                   <div key={value} className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-                    <dt className="text-sm font-semibold text-slate-900">
-                      {value} — {raciDefinitions[value].short}
+                    <dt className="flex items-center gap-2 text-sm font-semibold text-slate-900">
+                      <span
+                        className={cn(
+                          'inline-flex h-6 w-6 items-center justify-center rounded-md text-xs font-semibold uppercase tracking-wide',
+                          raciBadgeStyles[value]
+                        )}
+                      >
+                        {value}
+                      </span>
+                      <span>{raciDefinitions[value].short}</span>
                     </dt>
                     <dd className="mt-1 text-xs text-slate-600">{raciDefinitions[value].description}</dd>
                   </div>
