@@ -2,6 +2,10 @@ import { NextResponse } from 'next/server';
 
 import { createServerClient } from '@/lib/supabase/server';
 import { departmentInputSchema, departmentSchema } from '@/lib/validation/department';
+import {
+  fetchUserOrganizations,
+  getAccessibleOrganizationIds
+} from '@/lib/organization/memberships';
 
 import {
   departmentIdParamSchema,
@@ -52,12 +56,30 @@ export async function PATCH(request: Request, context: RouteContext) {
 
   const departmentId = parsedParams.data.departmentId;
 
+  let memberships;
+
+  try {
+    memberships = await fetchUserOrganizations(supabase);
+  } catch (membershipError) {
+    console.error('Erreur lors de la récupération des organisations pour mettre à jour le département', membershipError);
+    return NextResponse.json(
+      { error: 'Impossible de mettre à jour le département.' },
+      { status: 500, headers: NO_STORE_HEADERS }
+    );
+  }
+
+  const accessibleOrganizationIds = getAccessibleOrganizationIds(memberships);
+
+  if (accessibleOrganizationIds.length === 0) {
+    return NextResponse.json({ error: 'Département introuvable.' }, { status: 404, headers: NO_STORE_HEADERS });
+  }
+
   const { data, error } = await supabase
     .from('departments')
     .update({ name: parsedBody.data.name, color: parsedBody.data.color })
     .eq('id', departmentId)
-    .eq('owner_id', user.id)
-    .select('id, name, color, created_at, updated_at, roles:roles(id, name, color, department_id, created_at, updated_at)')
+    .in('organization_id', accessibleOrganizationIds)
+    .select('id, name, color, created_at, updated_at, organization_id, roles:roles(id, name, color, department_id, created_at, updated_at)')
     .order('updated_at', { foreignTable: 'roles', ascending: false })
     .maybeSingle();
 
@@ -110,11 +132,29 @@ export async function DELETE(_request: Request, context: RouteContext) {
 
   const departmentId = parsedParams.data.departmentId;
 
+  let memberships;
+
+  try {
+    memberships = await fetchUserOrganizations(supabase);
+  } catch (membershipError) {
+    console.error('Erreur lors de la récupération des organisations pour supprimer le département', membershipError);
+    return NextResponse.json(
+      { error: 'Impossible de supprimer le département.' },
+      { status: 500, headers: NO_STORE_HEADERS }
+    );
+  }
+
+  const accessibleOrganizationIds = getAccessibleOrganizationIds(memberships);
+
+  if (accessibleOrganizationIds.length === 0) {
+    return NextResponse.json({ error: 'Département introuvable.' }, { status: 404, headers: NO_STORE_HEADERS });
+  }
+
   const { data, error } = await supabase
     .from('departments')
     .delete()
     .eq('id', departmentId)
-    .eq('owner_id', user.id)
+    .in('organization_id', accessibleOrganizationIds)
     .select('id')
     .maybeSingle();
 

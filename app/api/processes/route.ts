@@ -5,6 +5,11 @@ import { createServerClient } from '@/lib/supabase/server';
 import { createDefaultProcessPayload, DEFAULT_PROCESS_TITLE } from '@/lib/process/defaults';
 import { ensureSampleDataSeeded } from '@/lib/onboarding/sample-seed';
 import { processResponseSchema, processSummarySchema, type ProcessResponse } from '@/lib/validation/process';
+import {
+  fetchUserOrganizations,
+  getAccessibleOrganizationIds,
+  selectDefaultOrganization
+} from '@/lib/organization/memberships';
 
 const NO_STORE_HEADERS = { 'Cache-Control': 'no-store, max-age=0, must-revalidate' };
 
@@ -102,6 +107,13 @@ const mapCreateProcessError = (error: {
     } as const;
   }
 
+  if (code === '23503') {
+    return {
+      status: 404,
+      body: { error: 'Organisation introuvable pour la création du process.' }
+    } as const;
+  }
+
   if (isRlsDeniedError(error)) {
     return {
       status: 403,
@@ -123,6 +135,24 @@ export async function GET() {
     return NextResponse.json({ error: 'Authentification requise.' }, { status: 401, headers: NO_STORE_HEADERS });
   }
 
+  let memberships;
+
+  try {
+    memberships = await fetchUserOrganizations(supabase);
+  } catch (membershipError) {
+    console.error('Erreur lors de la récupération des organisations de l’utilisateur', membershipError);
+    return NextResponse.json(
+      { error: 'Impossible de récupérer la liste des process.' },
+      { status: 500, headers: NO_STORE_HEADERS }
+    );
+  }
+
+  const accessibleOrganizationIds = getAccessibleOrganizationIds(memberships);
+
+  if (accessibleOrganizationIds.length === 0) {
+    return NextResponse.json([], { headers: NO_STORE_HEADERS });
+  }
+
   try {
     await ensureSampleDataSeeded(supabase);
   } catch (seedError) {
@@ -131,8 +161,8 @@ export async function GET() {
 
   const { data, error } = await supabase
     .from('process_snapshots')
-    .select('id, title, updated_at')
-    .eq('owner_id', user.id)
+    .select('id, title, updated_at, organization_id')
+    .in('organization_id', accessibleOrganizationIds)
     .order('updated_at', { ascending: false });
 
   if (error) {
@@ -191,8 +221,33 @@ export async function POST(request: Request) {
   const desiredTitle = parsedBody.data.title?.trim() ?? DEFAULT_PROCESS_TITLE;
   const payload = createDefaultProcessPayload(desiredTitle);
 
+  let memberships;
+
+  try {
+    memberships = await fetchUserOrganizations(supabase);
+  } catch (membershipError) {
+    console.error('Erreur lors de la récupération des organisations pour la création de process', membershipError);
+    return NextResponse.json(
+      { error: 'Impossible de déterminer l’organisation de destination.' },
+      { status: 500, headers: NO_STORE_HEADERS }
+    );
+  }
+
+  const targetOrganization = selectDefaultOrganization(memberships);
+
+  if (!targetOrganization) {
+    return NextResponse.json(
+      { error: 'Aucune organisation disponible pour créer un process.' },
+      { status: 403, headers: NO_STORE_HEADERS }
+    );
+  }
+
   const { data, error } = await supabase.rpc('create_process_snapshot', {
-    payload: { title: payload.title, steps: payload.steps }
+    payload: {
+      title: payload.title,
+      steps: payload.steps,
+      organization_id: targetOrganization.organizationId
+    }
   });
 
   if (error) {

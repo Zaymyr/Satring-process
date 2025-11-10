@@ -2,6 +2,10 @@ import { NextResponse } from 'next/server';
 
 import { createServerClient } from '@/lib/supabase/server';
 import { roleInputSchema, roleSchema } from '@/lib/validation/role';
+import {
+  fetchUserOrganizations,
+  getAccessibleOrganizationIds
+} from '@/lib/organization/memberships';
 
 import {
   mapRoleWriteError,
@@ -52,12 +56,30 @@ export async function PATCH(request: Request, context: RouteContext) {
 
   const roleId = parsedParams.data.roleId;
 
+  let memberships;
+
+  try {
+    memberships = await fetchUserOrganizations(supabase);
+  } catch (membershipError) {
+    console.error('Erreur lors de la récupération des organisations pour mettre à jour le rôle', membershipError);
+    return NextResponse.json(
+      { error: 'Impossible de mettre à jour le rôle.' },
+      { status: 500, headers: NO_STORE_HEADERS }
+    );
+  }
+
+  const accessibleOrganizationIds = getAccessibleOrganizationIds(memberships);
+
+  if (accessibleOrganizationIds.length === 0) {
+    return NextResponse.json({ error: 'Rôle introuvable.' }, { status: 404, headers: NO_STORE_HEADERS });
+  }
+
   const { data, error } = await supabase
     .from('roles')
     .update({ name: parsedBody.data.name, color: parsedBody.data.color })
     .eq('id', roleId)
-    .eq('owner_id', user.id)
-    .select('id, name, color, department_id, created_at, updated_at')
+    .in('organization_id', accessibleOrganizationIds)
+    .select('id, name, color, department_id, created_at, updated_at, organization_id')
     .maybeSingle();
 
   if (error) {
@@ -109,11 +131,29 @@ export async function DELETE(_request: Request, context: RouteContext) {
 
   const roleId = parsedParams.data.roleId;
 
+  let memberships;
+
+  try {
+    memberships = await fetchUserOrganizations(supabase);
+  } catch (membershipError) {
+    console.error('Erreur lors de la récupération des organisations pour supprimer le rôle', membershipError);
+    return NextResponse.json(
+      { error: 'Impossible de supprimer le rôle.' },
+      { status: 500, headers: NO_STORE_HEADERS }
+    );
+  }
+
+  const accessibleOrganizationIds = getAccessibleOrganizationIds(memberships);
+
+  if (accessibleOrganizationIds.length === 0) {
+    return NextResponse.json({ error: 'Rôle introuvable.' }, { status: 404, headers: NO_STORE_HEADERS });
+  }
+
   const { data, error } = await supabase
     .from('roles')
     .delete()
     .eq('id', roleId)
-    .eq('owner_id', user.id)
+    .in('organization_id', accessibleOrganizationIds)
     .select('id')
     .maybeSingle();
 

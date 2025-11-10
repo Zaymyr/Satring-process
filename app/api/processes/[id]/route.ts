@@ -4,6 +4,10 @@ import { z } from 'zod';
 import { createServerClient } from '@/lib/supabase/server';
 import { DEFAULT_PROCESS_TITLE } from '@/lib/process/defaults';
 import { processSummarySchema, type ProcessSummary } from '@/lib/validation/process';
+import {
+  fetchUserOrganizations,
+  getAccessibleOrganizationIds
+} from '@/lib/organization/memberships';
 
 const NO_STORE_HEADERS = { 'Cache-Control': 'no-store, max-age=0, must-revalidate' };
 
@@ -115,12 +119,30 @@ export async function PATCH(request: Request, context: { params: { id: string } 
 
   const title = parsedBody.data.title.trim();
 
+  let memberships;
+
+  try {
+    memberships = await fetchUserOrganizations(supabase);
+  } catch (membershipError) {
+    console.error('Erreur lors de la récupération des organisations pour renommer le process', membershipError);
+    return NextResponse.json(
+      { error: 'Impossible de renommer le process.' },
+      { status: 500, headers: NO_STORE_HEADERS }
+    );
+  }
+
+  const accessibleOrganizationIds = getAccessibleOrganizationIds(memberships);
+
+  if (accessibleOrganizationIds.length === 0) {
+    return NextResponse.json({ error: 'Process introuvable.' }, { status: 404, headers: NO_STORE_HEADERS });
+  }
+
   const { data, error } = await supabase
     .from('process_snapshots')
     .update({ title })
     .eq('id', params.data.id)
-    .eq('owner_id', user.id)
-    .select('id, title, updated_at')
+    .in('organization_id', accessibleOrganizationIds)
+    .select('id, title, updated_at, organization_id')
     .maybeSingle();
 
   if (error) {
@@ -172,11 +194,29 @@ export async function DELETE(_request: Request, context: { params: { id: string 
     return NextResponse.json({ error: 'Authentification requise.' }, { status: 401, headers: NO_STORE_HEADERS });
   }
 
+  let memberships;
+
+  try {
+    memberships = await fetchUserOrganizations(supabase);
+  } catch (membershipError) {
+    console.error('Erreur lors de la récupération des organisations pour supprimer le process', membershipError);
+    return NextResponse.json(
+      { error: 'Impossible de supprimer le process.' },
+      { status: 500, headers: NO_STORE_HEADERS }
+    );
+  }
+
+  const accessibleOrganizationIds = getAccessibleOrganizationIds(memberships);
+
+  if (accessibleOrganizationIds.length === 0) {
+    return NextResponse.json({ error: 'Process introuvable.' }, { status: 404, headers: NO_STORE_HEADERS });
+  }
+
   const { data, error } = await supabase
     .from('process_snapshots')
     .delete()
     .eq('id', params.data.id)
-    .eq('owner_id', user.id)
+    .in('organization_id', accessibleOrganizationIds)
     .select('id')
     .maybeSingle();
 

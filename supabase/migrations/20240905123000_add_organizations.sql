@@ -1,5 +1,4 @@
-set search_path = public;
-
+-- Create organizations table
 create table if not exists public.organizations (
     id uuid primary key default gen_random_uuid(),
     name text not null,
@@ -27,6 +26,7 @@ before update on public.organizations
 for each row
 execute function public.set_organizations_updated_at();
 
+-- Create organization members table
 create table if not exists public.organization_members (
     organization_id uuid not null references public.organizations(id) on delete cascade,
     user_id uuid not null references auth.users(id) on delete cascade,
@@ -55,6 +55,7 @@ before update on public.organization_members
 for each row
 execute function public.set_organization_members_updated_at();
 
+-- Ensure a creator automatically becomes owner of the organization
 create or replace function public.ensure_organization_owner()
 returns trigger
 language plpgsql
@@ -76,9 +77,10 @@ after insert on public.organizations
 for each row
 execute function public.ensure_organization_owner();
 
+-- Enable RLS and policies for organizations
 alter table if exists public.organizations enable row level security;
 
-create policy organizations_select on public.organizations
+create policy if not exists organizations_select on public.organizations
 for select
 using (
     exists (
@@ -89,11 +91,11 @@ using (
     )
 );
 
-create policy organizations_insert on public.organizations
+create policy if not exists organizations_insert on public.organizations
 for insert
 with check (auth.uid() = created_by);
 
-create policy organizations_update on public.organizations
+create policy if not exists organizations_update on public.organizations
 for update
 using (
     exists (
@@ -114,7 +116,7 @@ with check (
     )
 );
 
-create policy organizations_delete on public.organizations
+create policy if not exists organizations_delete on public.organizations
 for delete
 using (
     exists (
@@ -126,9 +128,10 @@ using (
     )
 );
 
+-- Enable RLS and policies for organization members
 alter table if exists public.organization_members enable row level security;
 
-create policy organization_members_select on public.organization_members
+create policy if not exists organization_members_select on public.organization_members
 for select
 using (
     user_id = auth.uid()
@@ -141,7 +144,7 @@ using (
     )
 );
 
-create policy organization_members_insert on public.organization_members
+create policy if not exists organization_members_insert on public.organization_members
 for insert
 with check (
     exists (
@@ -153,7 +156,7 @@ with check (
     )
 );
 
-create policy organization_members_update on public.organization_members
+create policy if not exists organization_members_update on public.organization_members
 for update
 using (
     exists (
@@ -174,7 +177,7 @@ with check (
     )
 );
 
-create policy organization_members_delete on public.organization_members
+create policy if not exists organization_members_delete on public.organization_members
 for delete
 using (
     exists (
@@ -186,52 +189,111 @@ using (
     )
 );
 
-create table if not exists public.process_snapshots (
-    id uuid primary key default gen_random_uuid(),
-    owner_id uuid not null references auth.users(id) on delete cascade,
-    organization_id uuid not null references public.organizations(id) on delete cascade,
-    title text not null default 'Étapes du processus',
-    steps jsonb not null,
-    created_at timestamptz not null default timezone('utc', now()),
-    updated_at timestamptz not null default timezone('utc', now())
-);
+-- Seed organizations for existing owners
+with distinct_owners as (
+    select owner_id
+    from public.process_snapshots
+    union
+    select owner_id
+    from public.departments
+    union
+    select owner_id
+    from public.roles
+    union
+    select owner_id
+    from public.user_onboarding_states
+)
+insert into public.organizations (id, name, created_by)
+select owner_id, coalesce('Espace personnel', 'Espace personnel'), owner_id
+from distinct_owners
+where owner_id is not null
+on conflict (id) do nothing;
 
-create index if not exists process_snapshots_owner_id_idx on public.process_snapshots(owner_id);
+insert into public.organization_members (organization_id, user_id, role)
+select owner_id, owner_id, 'owner'
+from distinct_owners
+where owner_id is not null
+on conflict (organization_id, user_id) do nothing;
+
+-- Add organization_id columns to domain tables
+alter table if exists public.process_snapshots
+    add column if not exists organization_id uuid;
+
+update public.process_snapshots
+set organization_id = coalesce(organization_id, owner_id)
+where organization_id is null;
+
+alter table if exists public.process_snapshots
+    alter column organization_id set not null;
+
+alter table if exists public.process_snapshots
+    add constraint if not exists process_snapshots_organization_id_fkey
+        foreign key (organization_id) references public.organizations(id) on delete cascade;
+
 create index if not exists process_snapshots_organization_id_idx on public.process_snapshots(organization_id);
-create index if not exists process_snapshots_updated_at_idx on public.process_snapshots(updated_at);
 
-create table if not exists public.departments (
-    id uuid primary key default gen_random_uuid(),
-    owner_id uuid not null references auth.users(id) on delete cascade,
-    organization_id uuid not null references public.organizations(id) on delete cascade,
-    name text not null,
-    color text not null default '#C7D2FE',
-    created_at timestamptz not null default timezone('utc', now()),
-    updated_at timestamptz not null default timezone('utc', now()),
-    constraint departments_color_check check (color ~ '^#[0-9A-F]{6}$')
-);
+alter table if exists public.departments
+    add column if not exists organization_id uuid;
 
-create index if not exists departments_owner_id_idx on public.departments(owner_id);
+update public.departments
+set organization_id = coalesce(organization_id, owner_id)
+where organization_id is null;
+
+alter table if exists public.departments
+    alter column organization_id set not null;
+
+alter table if exists public.departments
+    add constraint if not exists departments_organization_id_fkey
+        foreign key (organization_id) references public.organizations(id) on delete cascade;
+
 create index if not exists departments_organization_id_idx on public.departments(organization_id);
-create index if not exists departments_updated_at_idx on public.departments(updated_at);
 
-create or replace function public.set_process_snapshots_updated_at()
-returns trigger
-language plpgsql
-as $$
-begin
-    new.updated_at = timezone('utc', now());
-    return new;
-end;
-$$;
+alter table if exists public.roles
+    add column if not exists organization_id uuid;
 
-create trigger process_snapshots_updated_at
-before update on public.process_snapshots
-for each row
-execute function public.set_process_snapshots_updated_at();
+update public.roles
+set organization_id = coalesce(organization_id, owner_id)
+where organization_id is null;
 
-alter table if exists public.process_snapshots enable row level security;
+alter table if exists public.roles
+    alter column organization_id set not null;
 
+alter table if exists public.roles
+    add constraint if not exists roles_organization_id_fkey
+        foreign key (organization_id) references public.organizations(id) on delete cascade;
+
+create index if not exists roles_organization_id_idx on public.roles(organization_id);
+
+drop index if exists roles_owner_department_name_idx;
+create unique index if not exists roles_org_department_name_idx
+    on public.roles (organization_id, department_id, lower(name));
+
+-- Adjust user onboarding states to track organization
+alter table if exists public.user_onboarding_states
+    add column if not exists organization_id uuid;
+
+update public.user_onboarding_states
+set organization_id = coalesce(organization_id, owner_id)
+where organization_id is null;
+
+alter table if exists public.user_onboarding_states
+    alter column organization_id set not null;
+
+alter table if exists public.user_onboarding_states
+    add constraint if not exists user_onboarding_states_organization_id_fkey
+        foreign key (organization_id) references public.organizations(id) on delete cascade;
+
+-- Replace primary key with organization_id
+alter table if exists public.user_onboarding_states
+    drop constraint if exists user_onboarding_states_pkey;
+
+alter table if exists public.user_onboarding_states
+    add constraint user_onboarding_states_pkey primary key (organization_id);
+
+create index if not exists user_onboarding_states_owner_id_idx on public.user_onboarding_states(owner_id);
+
+-- Update RLS policies to leverage organization membership
+drop policy if exists process_snapshots_select on public.process_snapshots;
 create policy process_snapshots_select on public.process_snapshots
 for select
 using (
@@ -243,6 +305,7 @@ using (
     )
 );
 
+drop policy if exists process_snapshots_insert on public.process_snapshots;
 create policy process_snapshots_insert on public.process_snapshots
 for insert
 with check (
@@ -254,6 +317,7 @@ with check (
     )
 );
 
+drop policy if exists process_snapshots_update on public.process_snapshots;
 create policy process_snapshots_update on public.process_snapshots
 for update
 using (
@@ -273,6 +337,7 @@ with check (
     )
 );
 
+drop policy if exists process_snapshots_delete on public.process_snapshots;
 create policy process_snapshots_delete on public.process_snapshots
 for delete
 using (
@@ -284,6 +349,210 @@ using (
     )
 );
 
+drop policy if exists departments_select on public.departments;
+create policy departments_select on public.departments
+for select
+using (
+    exists (
+        select 1
+        from public.organization_members om
+        where om.organization_id = organization_id
+          and om.user_id = auth.uid()
+    )
+);
+
+drop policy if exists departments_insert on public.departments;
+create policy departments_insert on public.departments
+for insert
+with check (
+    exists (
+        select 1
+        from public.organization_members om
+        where om.organization_id = organization_id
+          and om.user_id = auth.uid()
+    )
+);
+
+drop policy if exists departments_update on public.departments;
+create policy departments_update on public.departments
+for update
+using (
+    exists (
+        select 1
+        from public.organization_members om
+        where om.organization_id = organization_id
+          and om.user_id = auth.uid()
+    )
+)
+with check (
+    exists (
+        select 1
+        from public.organization_members om
+        where om.organization_id = organization_id
+          and om.user_id = auth.uid()
+    )
+);
+
+drop policy if exists departments_delete on public.departments;
+create policy departments_delete on public.departments
+for delete
+using (
+    exists (
+        select 1
+        from public.organization_members om
+        where om.organization_id = organization_id
+          and om.user_id = auth.uid()
+    )
+);
+
+drop policy if exists roles_select on public.roles;
+create policy roles_select on public.roles
+for select
+using (
+    exists (
+        select 1
+        from public.organization_members om
+        where om.organization_id = organization_id
+          and om.user_id = auth.uid()
+    )
+);
+
+drop policy if exists roles_insert on public.roles;
+create policy roles_insert on public.roles
+for insert
+with check (
+    exists (
+        select 1
+        from public.organization_members om
+        where om.organization_id = organization_id
+          and om.user_id = auth.uid()
+    )
+    and exists (
+        select 1
+        from public.departments d
+        where d.id = department_id
+          and d.organization_id = organization_id
+    )
+);
+
+drop policy if exists roles_update on public.roles;
+create policy roles_update on public.roles
+for update
+using (
+    exists (
+        select 1
+        from public.organization_members om
+        where om.organization_id = organization_id
+          and om.user_id = auth.uid()
+    )
+)
+with check (
+    exists (
+        select 1
+        from public.organization_members om
+        where om.organization_id = organization_id
+          and om.user_id = auth.uid()
+    )
+    and exists (
+        select 1
+        from public.departments d
+        where d.id = department_id
+          and d.organization_id = organization_id
+    )
+);
+
+drop policy if exists roles_delete on public.roles;
+create policy roles_delete on public.roles
+for delete
+using (
+    exists (
+        select 1
+        from public.organization_members om
+        where om.organization_id = organization_id
+          and om.user_id = auth.uid()
+    )
+);
+
+drop policy if exists user_onboarding_states_select on public.user_onboarding_states;
+create policy user_onboarding_states_select on public.user_onboarding_states
+for select
+using (
+    exists (
+        select 1
+        from public.organization_members om
+        where om.organization_id = organization_id
+          and om.user_id = auth.uid()
+    )
+);
+
+drop policy if exists user_onboarding_states_insert on public.user_onboarding_states;
+create policy user_onboarding_states_insert on public.user_onboarding_states
+for insert
+with check (
+    exists (
+        select 1
+        from public.organization_members om
+        where om.organization_id = organization_id
+          and om.user_id = auth.uid()
+    )
+);
+
+drop policy if exists user_onboarding_states_update on public.user_onboarding_states;
+create policy user_onboarding_states_update on public.user_onboarding_states
+for update
+using (
+    exists (
+        select 1
+        from public.organization_members om
+        where om.organization_id = organization_id
+          and om.user_id = auth.uid()
+    )
+)
+with check (
+    exists (
+        select 1
+        from public.organization_members om
+        where om.organization_id = organization_id
+          and om.user_id = auth.uid()
+    )
+);
+
+-- Utility function returning organizations for the current user
+create or replace function public.get_user_organizations()
+returns table(id uuid, name text, role text)
+language sql
+security definer
+set search_path = public
+stable
+as $$
+    select o.id, o.name, om.role
+    from public.organization_members om
+    join public.organizations o on o.id = om.organization_id
+    where om.user_id = auth.uid()
+    order by
+        case om.role when 'owner' then 0 when 'admin' then 1 else 2 end,
+        o.created_at;
+$$;
+
+grant execute on function public.get_user_organizations() to authenticated;
+
+-- Helper to resolve default organization for current user
+create or replace function public.get_default_organization_id()
+returns uuid
+language sql
+security definer
+set search_path = public
+stable
+as $$
+    select id
+    from public.get_user_organizations()
+    limit 1;
+$$;
+
+grant execute on function public.get_default_organization_id() to authenticated;
+
+
+-- Update process management functions to support organizations
 create or replace function public.create_process_snapshot(payload jsonb)
 returns public.process_snapshots
 language plpgsql
@@ -396,245 +665,6 @@ end;
 $$;
 
 grant execute on function public.save_process_snapshot(jsonb) to authenticated;
-
-create or replace function public.set_departments_updated_at()
-returns trigger
-language plpgsql
-as $$
-begin
-    new.updated_at = timezone('utc', now());
-    return new;
-end;
-$$;
-
-create trigger departments_updated_at
-before update on public.departments
-for each row
-execute function public.set_departments_updated_at();
-
-alter table if exists public.departments enable row level security;
-
-create policy departments_select on public.departments
-for select
-using (
-    exists (
-        select 1
-        from public.organization_members om
-        where om.organization_id = organization_id
-          and om.user_id = auth.uid()
-    )
-);
-
-create policy departments_insert on public.departments
-for insert
-with check (
-    exists (
-        select 1
-        from public.organization_members om
-        where om.organization_id = organization_id
-          and om.user_id = auth.uid()
-    )
-);
-
-create policy departments_update on public.departments
-for update
-using (
-    exists (
-        select 1
-        from public.organization_members om
-        where om.organization_id = organization_id
-          and om.user_id = auth.uid()
-    )
-)
-with check (
-    exists (
-        select 1
-        from public.organization_members om
-        where om.organization_id = organization_id
-          and om.user_id = auth.uid()
-    )
-);
-
-create policy departments_delete on public.departments
-for delete
-using (
-    exists (
-        select 1
-        from public.organization_members om
-        where om.organization_id = organization_id
-          and om.user_id = auth.uid()
-    )
-);
-
-create table if not exists public.roles (
-    id uuid primary key default gen_random_uuid(),
-    owner_id uuid not null references auth.users(id) on delete cascade,
-    organization_id uuid not null references public.organizations(id) on delete cascade,
-    department_id uuid not null references public.departments(id) on delete cascade,
-    name text not null,
-    color text not null default '#C7D2FE',
-    created_at timestamptz not null default timezone('utc', now()),
-    updated_at timestamptz not null default timezone('utc', now()),
-    constraint roles_color_check check (color ~ '^#[0-9A-F]{6}$')
-);
-
-create index if not exists roles_owner_id_idx on public.roles(owner_id);
-create index if not exists roles_organization_id_idx on public.roles(organization_id);
-create index if not exists roles_department_id_idx on public.roles(department_id);
-create index if not exists roles_updated_at_idx on public.roles(updated_at);
-
-create unique index if not exists roles_org_department_name_idx
-  on public.roles (organization_id, department_id, lower(name));
-
-alter table if exists public.roles
-  alter column owner_id set default auth.uid();
-
-create or replace function public.set_roles_updated_at()
-returns trigger
-language plpgsql
-as $$
-begin
-    new.updated_at = timezone('utc', now());
-    return new;
-end;
-$$;
-
-create trigger roles_updated_at
-before update on public.roles
-for each row
-execute function public.set_roles_updated_at();
-
-alter table if exists public.roles enable row level security;
-
-create policy roles_select on public.roles
-for select
-using (
-    exists (
-        select 1
-        from public.organization_members om
-        where om.organization_id = organization_id
-          and om.user_id = auth.uid()
-    )
-);
-
-create policy roles_insert on public.roles
-for insert
-with check (
-    exists (
-        select 1
-        from public.organization_members om
-        where om.organization_id = organization_id
-          and om.user_id = auth.uid()
-    )
-    and exists (
-        select 1
-        from public.departments d
-        where d.id = department_id
-          and d.organization_id = organization_id
-    )
-);
-
-create policy roles_update on public.roles
-for update
-using (
-    exists (
-        select 1
-        from public.organization_members om
-        where om.organization_id = organization_id
-          and om.user_id = auth.uid()
-    )
-)
-with check (
-    exists (
-        select 1
-        from public.organization_members om
-        where om.organization_id = organization_id
-          and om.user_id = auth.uid()
-    )
-    and exists (
-        select 1
-        from public.departments d
-        where d.id = department_id
-          and d.organization_id = organization_id
-    )
-);
-
-create policy roles_delete on public.roles
-for delete
-using (
-    exists (
-        select 1
-        from public.organization_members om
-        where om.organization_id = organization_id
-          and om.user_id = auth.uid()
-    )
-);
-
-create table if not exists public.user_onboarding_states (
-    organization_id uuid primary key references public.organizations(id) on delete cascade,
-    owner_id uuid not null references auth.users(id) on delete cascade,
-    sample_seeded_at timestamptz,
-    created_at timestamptz not null default timezone('utc', now()),
-    updated_at timestamptz not null default timezone('utc', now())
-);
-
-create or replace function public.set_user_onboarding_states_updated_at()
-returns trigger
-language plpgsql
-as $$
-begin
-    new.updated_at = timezone('utc', now());
-    return new;
-end;
-$$;
-
-create trigger user_onboarding_states_updated_at
-before update on public.user_onboarding_states
-for each row
-execute function public.set_user_onboarding_states_updated_at();
-
-alter table if exists public.user_onboarding_states enable row level security;
-
-create policy user_onboarding_states_select on public.user_onboarding_states
-for select
-using (
-    exists (
-        select 1
-        from public.organization_members om
-        where om.organization_id = organization_id
-          and om.user_id = auth.uid()
-    )
-);
-
-create policy user_onboarding_states_insert on public.user_onboarding_states
-for insert
-with check (
-    exists (
-        select 1
-        from public.organization_members om
-        where om.organization_id = organization_id
-          and om.user_id = auth.uid()
-    )
-);
-
-create policy user_onboarding_states_update on public.user_onboarding_states
-for update
-using (
-    exists (
-        select 1
-        from public.organization_members om
-        where om.organization_id = organization_id
-          and om.user_id = auth.uid()
-    )
-)
-with check (
-    exists (
-        select 1
-        from public.organization_members om
-        where om.organization_id = organization_id
-          and om.user_id = auth.uid()
-    )
-);
 
 create or replace function public.seed_sample_data()
 returns jsonb
@@ -761,14 +791,11 @@ begin
                 jsonb_build_object('id', 'start', 'label', 'Collecte des retours clients', 'type', 'start', 'departmentId', null, 'roleId', null, 'yesTargetId', 'collect-feedback', 'noTargetId', null),
                 jsonb_build_object('id', 'collect-feedback', 'label', 'Centraliser les retours', 'type', 'action', 'departmentId', v_support_department_id::text, 'roleId', v_support_agent_role_id::text, 'yesTargetId', 'analyze-trends', 'noTargetId', null),
                 jsonb_build_object('id', 'analyze-trends', 'label', 'Analyser les tendances', 'type', 'action', 'departmentId', v_support_department_id::text, 'roleId', v_support_analyst_role_id::text, 'yesTargetId', 'prioritize-actions', 'noTargetId', null),
-                jsonb_build_object('id', 'prioritize-actions', 'label', 'Prioriser les actions', 'type', 'decision', 'departmentId', v_support_department_id::text, 'roleId', v_support_manager_role_id::text, 'yesTargetId', 'design-solution', 'noTargetId', 'finish'),
-                jsonb_build_object('id', 'design-solution', 'label', 'Concevoir une amélioration', 'type', 'action', 'departmentId', v_operations_department_id::text, 'roleId', v_operations_project_lead_role_id::text, 'yesTargetId', 'budget-review', 'noTargetId', null),
-                jsonb_build_object('id', 'budget-review', 'label', 'Réviser le budget', 'type', 'decision', 'departmentId', v_finance_department_id::text, 'roleId', v_finance_controller_role_id::text, 'yesTargetId', 'validate-investment', 'noTargetId', 'revise-scope'),
-                jsonb_build_object('id', 'revise-scope', 'label', 'Réajuster le périmètre', 'type', 'action', 'departmentId', v_operations_department_id::text, 'roleId', v_operations_manager_role_id::text, 'yesTargetId', 'budget-review', 'noTargetId', null),
-                jsonb_build_object('id', 'validate-investment', 'label', 'Valider l''investissement', 'type', 'action', 'departmentId', v_finance_department_id::text, 'roleId', v_finance_director_role_id::text, 'yesTargetId', 'deploy-improvements', 'noTargetId', null),
-                jsonb_build_object('id', 'deploy-improvements', 'label', 'Déployer les améliorations', 'type', 'action', 'departmentId', v_operations_department_id::text, 'roleId', v_operations_coordinator_role_id::text, 'yesTargetId', 'communicate-updates', 'noTargetId', null),
-                jsonb_build_object('id', 'communicate-updates', 'label', 'Informer les clients', 'type', 'action', 'departmentId', v_support_department_id::text, 'roleId', v_support_manager_role_id::text, 'yesTargetId', 'finish', 'noTargetId', null),
-                jsonb_build_object('id', 'finish', 'label', 'Cycle d''amélioration clôturé', 'type', 'finish', 'departmentId', null, 'roleId', null, 'yesTargetId', null, 'noTargetId', null)
+                jsonb_build_object('id', 'prioritize-actions', 'label', 'Prioriser les actions', 'type', 'decision', 'departmentId', v_support_department_id::text, 'roleId', v_support_manager_role_id::text, 'yesTargetId', 'implement-improvements', 'noTargetId', 'collect-feedback'),
+                jsonb_build_object('id', 'implement-improvements', 'label', 'Mettre en œuvre les améliorations', 'type', 'action', 'departmentId', v_operations_department_id::text, 'roleId', v_operations_project_lead_role_id::text, 'yesTargetId', 'measure-impact', 'noTargetId', null),
+                jsonb_build_object('id', 'measure-impact', 'label', 'Mesurer l''impact', 'type', 'decision', 'departmentId', v_support_department_id::text, 'roleId', v_support_analyst_role_id::text, 'yesTargetId', 'communicate-results', 'noTargetId', 'prioritize-actions'),
+                jsonb_build_object('id', 'communicate-results', 'label', 'Partager les résultats', 'type', 'action', 'departmentId', v_support_department_id::text, 'roleId', v_support_manager_role_id::text, 'yesTargetId', 'finish', 'noTargetId', null),
+                jsonb_build_object('id', 'finish', 'label', 'Boucle d''amélioration complétée', 'type', 'finish', 'departmentId', null, 'roleId', null, 'yesTargetId', null, 'noTargetId', null)
             ),
             v_now,
             v_now
@@ -784,35 +811,3 @@ end;
 $$;
 
 grant execute on function public.seed_sample_data() to authenticated;
-
-create or replace function public.get_user_organizations()
-returns table(id uuid, name text, role text)
-language sql
-security definer
-set search_path = public
-stable
-as $$
-    select o.id, o.name, om.role
-    from public.organization_members om
-    join public.organizations o on o.id = om.organization_id
-    where om.user_id = auth.uid()
-    order by
-        case om.role when 'owner' then 0 when 'admin' then 1 else 2 end,
-        o.created_at;
-$$;
-
-grant execute on function public.get_user_organizations() to authenticated;
-
-create or replace function public.get_default_organization_id()
-returns uuid
-language sql
-security definer
-set search_path = public
-stable
-as $$
-    select id
-    from public.get_user_organizations()
-    limit 1;
-$$;
-
-grant execute on function public.get_default_organization_id() to authenticated;

@@ -4,6 +4,10 @@ import { z } from 'zod';
 import { createServerClient } from '@/lib/supabase/server';
 import { DEFAULT_PROCESS_TITLE } from '@/lib/process/defaults';
 import { processPayloadSchema, processResponseSchema, type ProcessPayload } from '@/lib/validation/process';
+import {
+  fetchUserOrganizations,
+  getAccessibleOrganizationIds
+} from '@/lib/organization/memberships';
 
 const NO_STORE_HEADERS = { 'Cache-Control': 'no-store, max-age=0, must-revalidate' };
 
@@ -137,11 +141,29 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'Authentification requise.' }, { status: 401, headers: NO_STORE_HEADERS });
   }
 
+  let memberships;
+
+  try {
+    memberships = await fetchUserOrganizations(supabase);
+  } catch (membershipError) {
+    console.error('Erreur lors de la récupération des organisations pour le process', membershipError);
+    return NextResponse.json(
+      { error: 'Impossible de récupérer le process.' },
+      { status: 500, headers: NO_STORE_HEADERS }
+    );
+  }
+
+  const accessibleOrganizationIds = getAccessibleOrganizationIds(memberships);
+
+  if (accessibleOrganizationIds.length === 0) {
+    return NextResponse.json({ error: 'Process introuvable.' }, { status: 404, headers: NO_STORE_HEADERS });
+  }
+
   const { data, error } = await supabase
     .from('process_snapshots')
-    .select('id, title, steps, updated_at')
-    .eq('owner_id', user.id)
+    .select('id, title, steps, updated_at, organization_id')
     .eq('id', processId.data)
+    .in('organization_id', accessibleOrganizationIds)
     .maybeSingle();
 
   if (error) {
