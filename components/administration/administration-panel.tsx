@@ -5,6 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 
+import { OrganizationCard } from '@/components/administration/organization-card';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -211,12 +212,11 @@ export function AdministrationPanel({ initialProfile }: AdministrationPanelProps
                 ) : (
                   <ul className="space-y-3">
                     {profile.organizations.map((organization) => (
-                      <li key={organization.organizationId} className="rounded-lg border border-slate-200 px-4 py-3">
-                        <p className="text-sm font-semibold text-slate-900">{organization.organizationName}</p>
-                        <p className="text-xs uppercase tracking-wide text-slate-500">
-                          {ROLE_LABELS[organization.role]}
-                        </p>
-                      </li>
+                      <OrganizationCard
+                        key={organization.organizationId}
+                        organization={organization}
+                        roleLabel={ROLE_LABELS[organization.role]}
+                      />
                     ))}
                   </ul>
                 )}
