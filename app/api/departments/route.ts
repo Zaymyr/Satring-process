@@ -4,6 +4,11 @@ import { getInviteDemoDepartments } from '@/lib/department/demo';
 import { ensureSampleDataSeeded } from '@/lib/onboarding/sample-seed';
 import { createServerClient } from '@/lib/supabase/server';
 import { departmentInputSchema, departmentListSchema, departmentSchema } from '@/lib/validation/department';
+import {
+  fetchUserOrganizations,
+  getAccessibleOrganizationIds,
+  selectDefaultOrganization
+} from '@/lib/organization/memberships';
 
 import {
   mapDepartmentWriteError,
@@ -38,6 +43,24 @@ export async function GET() {
     return NextResponse.json(parsedDemo.data, { headers: NO_STORE_HEADERS });
   }
 
+  let memberships;
+
+  try {
+    memberships = await fetchUserOrganizations(supabase);
+  } catch (membershipError) {
+    console.error('Erreur lors de la récupération des organisations pour les départements', membershipError);
+    return NextResponse.json(
+      { error: 'Impossible de récupérer la liste des départements.' },
+      { status: 500, headers: NO_STORE_HEADERS }
+    );
+  }
+
+  const accessibleOrganizationIds = getAccessibleOrganizationIds(memberships);
+
+  if (accessibleOrganizationIds.length === 0) {
+    return NextResponse.json([], { headers: NO_STORE_HEADERS });
+  }
+
   try {
     await ensureSampleDataSeeded(supabase);
   } catch (seedError) {
@@ -46,8 +69,8 @@ export async function GET() {
 
   const { data, error } = await supabase
     .from('departments')
-    .select('id, name, color, created_at, updated_at, roles:roles(id, name, color, department_id, created_at, updated_at)')
-    .eq('owner_id', user.id)
+    .select('id, name, color, created_at, updated_at, organization_id, roles:roles(id, name, color, department_id, created_at, updated_at)')
+    .in('organization_id', accessibleOrganizationIds)
     .order('updated_at', { ascending: false })
     .order('updated_at', { foreignTable: 'roles', ascending: false });
 
@@ -100,10 +123,35 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Authentification requise.' }, { status: 401, headers: NO_STORE_HEADERS });
   }
 
+  let memberships;
+
+  try {
+    memberships = await fetchUserOrganizations(supabase);
+  } catch (membershipError) {
+    console.error('Erreur lors de la récupération des organisations pour la création de département', membershipError);
+    return NextResponse.json(
+      { error: 'Impossible de déterminer l’organisation cible.' },
+      { status: 500, headers: NO_STORE_HEADERS }
+    );
+  }
+
+  const targetOrganization = selectDefaultOrganization(memberships);
+
+  if (!targetOrganization) {
+    return NextResponse.json(
+      { error: 'Aucune organisation disponible pour créer un département.' },
+      { status: 403, headers: NO_STORE_HEADERS }
+    );
+  }
+
   const { data, error } = await supabase
     .from('departments')
-    .insert({ name: parsedBody.data.name, color: parsedBody.data.color })
-    .select('id, name, color, created_at, updated_at, roles:roles(id, name, color, department_id, created_at, updated_at)')
+    .insert({
+      name: parsedBody.data.name,
+      color: parsedBody.data.color,
+      organization_id: targetOrganization.organizationId
+    })
+    .select('id, name, color, created_at, updated_at, organization_id, roles:roles(id, name, color, department_id, created_at, updated_at)')
     .single();
 
   if (error) {

@@ -7,6 +7,10 @@ import { createServerClient } from '@/lib/supabase/server';
 import { stepSchema } from '@/lib/validation/process';
 import { roleActionSummaryListSchema, type RoleActionItem } from '@/lib/validation/role-action';
 import { DEFAULT_ROLE_COLOR, roleColorSchema } from '@/lib/validation/role';
+import {
+  fetchUserOrganizations,
+  getAccessibleOrganizationIds
+} from '@/lib/organization/memberships';
 
 import { NO_STORE_HEADERS } from '../../departments/helpers';
 
@@ -54,6 +58,24 @@ export async function GET() {
     return NextResponse.json({ error: 'Authentification requise.' }, { status: 401, headers: NO_STORE_HEADERS });
   }
 
+  let memberships;
+
+  try {
+    memberships = await fetchUserOrganizations(supabase);
+  } catch (membershipError) {
+    console.error('Erreur lors de la récupération des organisations pour les actions de rôle', membershipError);
+    return NextResponse.json(
+      { error: 'Impossible de récupérer les rôles.' },
+      { status: 500, headers: NO_STORE_HEADERS }
+    );
+  }
+
+  const accessibleOrganizationIds = getAccessibleOrganizationIds(memberships);
+
+  if (accessibleOrganizationIds.length === 0) {
+    return NextResponse.json([], { headers: NO_STORE_HEADERS });
+  }
+
   try {
     await ensureSampleDataSeeded(supabase);
   } catch (seedError) {
@@ -63,12 +85,12 @@ export async function GET() {
   const [{ data: rawRoles, error: rolesError }, { data: rawProcesses, error: processesError }] = await Promise.all([
     supabase
       .from('roles')
-      .select('id, name, color, department_id, department:departments(id, name)')
-      .eq('owner_id', user.id),
+      .select('id, name, color, department_id, organization_id, department:departments(id, name)')
+      .in('organization_id', accessibleOrganizationIds),
     supabase
       .from('process_snapshots')
-      .select('id, title, steps')
-      .eq('owner_id', user.id)
+      .select('id, title, steps, organization_id')
+      .in('organization_id', accessibleOrganizationIds)
   ]);
 
   if (rolesError) {
