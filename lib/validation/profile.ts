@@ -13,8 +13,7 @@ export const usernameSchema = z
   .trim()
   .min(3, "Le nom d'utilisateur doit contenir au moins 3 caractères.")
   .max(30, "Le nom d'utilisateur ne peut pas dépasser 30 caractères.")
-  .regex(/^[a-z0-9_]+$/i, "Utilisez uniquement des lettres, chiffres ou underscores.")
-  .transform((value) => value.toLowerCase());
+  .regex(/^[a-z0-9_]+$/i, "Utilisez uniquement des lettres, chiffres ou underscores.");
 
 export const updateProfileInputSchema = z.object({
   username: usernameSchema

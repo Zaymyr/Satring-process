@@ -43,11 +43,11 @@ export default async function RootLayout({
     displayName = profileData?.username ?? user.email ?? null;
   }
 
-    return (
+  return (
     <html lang="fr" className={inter.variable}>
       <body className="font-sans antialiased">
         <QueryProvider>
-          <div className="flex h-screen flex-col overflow-hidden">
+          <div className="flex min-h-screen flex-col">
             <header className="relative z-50 w-full shrink-0 border-b border-slate-200 bg-white/90 backdrop-blur">
               <div className="mx-auto flex w-full max-w-6xl flex-col gap-3 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-center gap-4">
@@ -57,7 +57,7 @@ export default async function RootLayout({
                       {user ? 'Connecté :' : 'Non connecté'}
                     </span>
                     {user ? (
-                      <span className="max-w-[220px] truncate rounded-full bg-slate-900 px-3 py-1 text-sm font-semibold text-white">
+                      <span className="max-w-[220px] truncate rounded-full bg-slate-100 px-3 py-1 text-sm font-semibold text-slate-900">
                         {displayName ?? 'Profil'}
                       </span>
                     ) : (
@@ -94,7 +94,7 @@ export default async function RootLayout({
                 </div>
               </div>
             </header>
-            <main className="flex-1 overflow-hidden">{children}</main>
+            <main className="flex-1 overflow-y-auto">{children}</main>
           </div>
         </QueryProvider>
 
