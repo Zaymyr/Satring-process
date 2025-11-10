@@ -133,12 +133,15 @@ export function JobDescriptionExplorer() {
   }, [departments]);
 
   const roleById = useMemo(() => {
-    return departments.reduce<Map<string, { id: string; name: string }>>((accumulator, department) => {
-      for (const role of department.roles ?? []) {
-        accumulator.set(role.id, { id: role.id, name: role.name });
-      }
-      return accumulator;
-    }, new Map());
+    return departments.reduce<Map<string, { id: string; name: string; color: string }>>(
+      (accumulator, department) => {
+        for (const role of department.roles ?? []) {
+          accumulator.set(role.id, { id: role.id, name: role.name, color: role.color });
+        }
+        return accumulator;
+      },
+      new Map()
+    );
   }, [departments]);
 
   useEffect(() => {
@@ -287,19 +290,26 @@ export function JobDescriptionExplorer() {
                           const summary = roleSummaryById.get(role.id);
                           const actionCount = summary?.actions.length ?? 0;
                           const isActive = selectedRoleId === role.id;
-                          return (
-                            <button
-                              key={role.id}
-                              type="button"
-                              onClick={() => setSelectedRoleId(role.id)}
+                            return (
+                              <button
+                                key={role.id}
+                                type="button"
+                                onClick={() => setSelectedRoleId(role.id)}
                               className={cn(
                                 'flex w-full items-center justify-between rounded-md border px-3 py-2 text-left text-sm font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-500',
                                 isActive
                                   ? 'border-slate-900 bg-slate-900 text-white shadow-sm'
                                   : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
                               )}
-                            >
-                              <span className="truncate">{role.name}</span>
+                              >
+                              <span className="flex items-center gap-2 truncate">
+                                <span
+                                  aria-hidden="true"
+                                  className="inline-block h-2.5 w-2.5 rounded-full"
+                                  style={{ backgroundColor: role.color }}
+                                />
+                                <span className="truncate">{role.name}</span>
+                              </span>
                               <span
                                 className={cn(
                                   'ml-3 shrink-0 text-xs font-semibold uppercase tracking-wide',
@@ -342,7 +352,16 @@ export function JobDescriptionExplorer() {
             <>
               <header className="rounded-xl border border-slate-200 bg-white px-6 py-6 shadow-sm">
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Fiche de poste</p>
-                <h1 className="mt-2 text-2xl font-bold text-slate-900">{selectedRole?.name ?? 'Rôle non nommé'}</h1>
+                <div className="mt-2 flex items-center gap-2">
+                  {selectedRole ? (
+                    <span
+                      aria-hidden="true"
+                      className="inline-block h-3 w-3 rounded-full"
+                      style={{ backgroundColor: selectedRole.color }}
+                    />
+                  ) : null}
+                  <h1 className="text-2xl font-bold text-slate-900">{selectedRole?.name ?? 'Rôle non nommé'}</h1>
+                </div>
                 <p className="mt-2 text-sm leading-relaxed text-slate-600">
                   {selectedDepartment ? (
                     <>

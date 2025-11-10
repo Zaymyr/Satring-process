@@ -64,6 +64,7 @@ import {
   type DepartmentInput
 } from '@/lib/validation/department';
 import {
+  DEFAULT_ROLE_COLOR,
   roleSchema,
   type Role,
   type RoleCreateInput,
@@ -578,7 +579,7 @@ const createRoleRequest = async (input: RoleCreateInput): Promise<Role> => {
     method: 'POST',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name: input.name })
+    body: JSON.stringify({ name: input.name, color: input.color })
   });
 
   if (response.status === 401) {
@@ -599,7 +600,7 @@ const updateRoleRequest = async (input: RoleUpdateInput): Promise<Role> => {
     method: 'PATCH',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name: input.name })
+    body: JSON.stringify({ name: input.name, color: input.color })
   });
 
   if (response.status === 401) {
@@ -759,7 +760,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
       });
       setEditingDepartmentId(department.id);
       editingDepartmentBaselineRef.current = department;
-      const mappedRoles = department.roles.map((role) => ({ roleId: role.id, name: role.name }));
+      const mappedRoles = department.roles.map((role) => ({ roleId: role.id, name: role.name, color: role.color }));
       departmentEditForm.reset({ name: department.name, color: department.color, roles: mappedRoles });
       departmentRoleFields.replace(mappedRoles);
       createDepartmentRoleMutation.reset();
@@ -768,8 +769,11 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
   });
 
   const createDepartmentRoleMutation = useMutation<Role, ApiError, { departmentId: string }>({
-    mutationFn: ({ departmentId }) =>
-      createRoleRequest({ departmentId, name: DEFAULT_ROLE_NAME }),
+    mutationFn: ({ departmentId }) => {
+      const department = departments.find((item) => item.id === departmentId);
+      const fallbackColor = department?.color ?? DEFAULT_ROLE_COLOR;
+      return createRoleRequest({ departmentId, name: DEFAULT_ROLE_NAME, color: fallbackColor });
+    },
     onSuccess: (role) => {
       queryClient.setQueryData(['departments'], (previous?: Department[]) => {
         if (!previous) {
@@ -798,10 +802,11 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
       }
 
       const newIndex = departmentEditForm.getValues('roles').length;
-      departmentRoleFields.append({ roleId: role.id, name: role.name });
+      departmentRoleFields.append({ roleId: role.id, name: role.name, color: role.color });
 
       const roleIdField = `roles.${newIndex}.roleId` as const;
       const roleNameField = `roles.${newIndex}.name` as const;
+      const roleColorField = `roles.${newIndex}.color` as const;
 
       departmentEditForm.setValue(roleIdField, role.id, {
         shouldDirty: true,
@@ -811,7 +816,12 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
         shouldDirty: true,
         shouldTouch: true
       });
+      departmentEditForm.setValue(roleColorField, role.color, {
+        shouldDirty: true,
+        shouldTouch: true
+      });
       departmentEditForm.clearErrors(roleNameField);
+      departmentEditForm.clearErrors(roleColorField);
 
       setTimeout(() => {
         departmentEditForm.setFocus(roleNameField);
@@ -847,14 +857,18 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
           seenRoleIds.add(roleInput.roleId);
           const originalRole = baselineRoles.get(roleInput.roleId);
 
-          if (!originalRole || originalRole.name !== roleInput.name) {
-            await updateRoleRequest({ id: roleInput.roleId, name: roleInput.name });
+          if (
+            !originalRole ||
+            originalRole.name !== roleInput.name ||
+            originalRole.color !== roleInput.color
+          ) {
+            await updateRoleRequest({ id: roleInput.roleId, name: roleInput.name, color: roleInput.color });
           }
 
           continue;
         }
 
-        await createRoleRequest({ departmentId, name: roleInput.name });
+        await createRoleRequest({ departmentId, name: roleInput.name, color: roleInput.color });
       }
 
       for (const [roleId] of baselineRoles) {
@@ -1083,7 +1097,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
 
       setEditingDepartmentId(department.id);
       editingDepartmentBaselineRef.current = department;
-      const mappedRoles = department.roles.map((role) => ({ roleId: role.id, name: role.name }));
+      const mappedRoles = department.roles.map((role) => ({ roleId: role.id, name: role.name, color: role.color }));
       departmentEditForm.reset({ name: department.name, color: department.color, roles: mappedRoles });
       departmentRoleFields.replace(mappedRoles);
     },
@@ -1858,6 +1872,13 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
 
     const stepById = new Map(steps.map((step) => [step.id, step] as const));
     const departmentById = new Map(departments.map((department) => [department.id, department] as const));
+    const roleById = new Map<string, { role: Role; department: Department }>();
+
+    for (const department of departments) {
+      for (const role of department.roles) {
+        roleById.set(role.id, { role, department });
+      }
+    }
 
     const nodes = steps.reduce<
       Array<{
@@ -1868,19 +1889,33 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
         width: number;
         height: number;
         department: Department | undefined;
+        roleColor: string | null;
       }>
     >((acc, step) => {
       const baseLabel = getStepDisplayLabel(step);
       const labelLines = wrapStepLabel(baseLabel);
       const displayLines = [...labelLines];
-      const department = step.departmentId ? departmentById.get(step.departmentId) : undefined;
+      const roleEntry = step.roleId ? roleById.get(step.roleId) : undefined;
+      const departmentFromStep = step.departmentId ? departmentById.get(step.departmentId) : undefined;
+      const department = roleEntry?.department ?? departmentFromStep;
+      const role = roleEntry?.role;
       const stepIndex = acc.length;
       const defaultNextStep = steps[stepIndex + 1];
       const fallbackLabel = defaultNextStep ? getStepDisplayLabel(defaultNextStep) : '—';
 
+      const metadataLines: string[] = [];
+
+      if (role) {
+        metadataLines.push(`Rôle : ${role.name}`);
+      }
+
       if (department) {
+        metadataLines.push(`Département : ${department.name}`);
+      }
+
+      if (metadataLines.length > 0) {
         displayLines.push('');
-        displayLines.push(`Département : ${department.name}`);
+        displayLines.push(...metadataLines);
       }
 
       if (step.type === 'decision') {
@@ -1931,7 +1966,16 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
         ? previous.centerY + previous.halfHeight + stackSpacing + halfHeight
         : verticalPadding + halfHeight;
 
-      acc.push({ step, centerY, halfHeight, lines: displayLines, width, height, department });
+      acc.push({
+        step,
+        centerY,
+        halfHeight,
+        lines: displayLines,
+        width,
+        height,
+        department,
+        roleColor: role?.color ?? null
+      });
       return acc;
     }, []);
 
@@ -1987,16 +2031,15 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
           );
         })}
         {nodes.map((node) => {
-          const { step, centerY, lines, width, height, department } = node;
+          const { step, centerY, lines, width, height, department, roleColor } = node;
           const isTerminal = step.type === 'start' || step.type === 'finish';
           const isDecision = step.type === 'decision';
           const isAction = step.type === 'action';
           const baseFill = isTerminal ? '#f8fafc' : '#ffffff';
           const strokeDefault = '#0f172a';
-          const fillColor = department
-            ? toRgba(department.color, FALLBACK_STEP_FILL_ALPHA, baseFill)
-            : baseFill;
-          const strokeColor = department ? department.color : strokeDefault;
+          const colorSource = roleColor ?? department?.color ?? null;
+          const fillColor = colorSource ? toRgba(colorSource, FALLBACK_STEP_FILL_ALPHA, baseFill) : baseFill;
+          const strokeColor = colorSource ?? strokeDefault;
           const blockOffset = ((lines.length - 1) * 24) / 2;
 
           return (
@@ -3235,9 +3278,13 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                                           <div className="flex flex-col gap-2">
                                             {departmentRoleFields.fields.length > 0 ? (
                                               departmentRoleFields.fields.map((field, index) => {
-                                                const roleError = departmentEditForm.formState.errors.roles?.[index]?.name;
+                                                const roleFieldErrors = departmentEditForm.formState.errors.roles?.[index];
+                                                const roleNameError = roleFieldErrors?.name;
+                                                const roleColorError = roleFieldErrors?.color;
                                                 const roleNameField = `roles.${index}.name` as const;
                                                 const roleIdField = `roles.${index}.roleId` as const;
+                                                const roleColorField = `roles.${index}.color` as const;
+                                                const roleColorInputId = `department-role-color-${field.id}`;
                                                 return (
                                                   <div key={field.id} className="space-y-1">
                                                     <Controller
@@ -3254,6 +3301,29 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                                                     />
                                                     <div className="flex flex-wrap items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2.5 shadow-sm">
                                                       <div className="flex min-w-0 flex-1 items-center gap-2">
+                                                        <Controller
+                                                          control={departmentEditForm.control}
+                                                          name={roleColorField}
+                                                          defaultValue={field.color ?? DEFAULT_ROLE_COLOR}
+                                                          render={({ field: roleColorControl }) => (
+                                                            <input
+                                                              id={roleColorInputId}
+                                                              name={roleColorControl.name}
+                                                              type="color"
+                                                              value={roleColorControl.value ?? DEFAULT_ROLE_COLOR}
+                                                              onChange={(event) =>
+                                                                roleColorControl.onChange(event.target.value.toUpperCase())
+                                                              }
+                                                              onBlur={roleColorControl.onBlur}
+                                                              ref={roleColorControl.ref}
+                                                              disabled={isSavingDepartment}
+                                                              className="h-8 w-8 cursor-pointer rounded-md border border-slate-300 bg-white p-1 shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
+                                                              aria-describedby={
+                                                                roleColorError ? `${roleColorInputId}-error` : undefined
+                                                              }
+                                                            />
+                                                          )}
+                                                        />
                                                         <UserRound className="h-4 w-4 text-slate-500" />
                                                         <Controller
                                                           control={departmentEditForm.control}
@@ -3285,9 +3355,14 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                                                         <Trash2 aria-hidden="true" className="h-4 w-4" />
                                                         <span className="sr-only">Retirer le rôle</span>
                                                       </Button>
-                                                    </div>
-                                                    {roleError ? (
-                                                      <p className="text-xs text-red-600">{roleError.message}</p>
+                                                      </div>
+                                                    {roleNameError ? (
+                                                      <p className="text-xs text-red-600">{roleNameError.message}</p>
+                                                    ) : null}
+                                                    {roleColorError ? (
+                                                      <p id={`${roleColorInputId}-error`} className="text-xs text-red-600">
+                                                        {roleColorError.message}
+                                                      </p>
                                                     ) : null}
                                                   </div>
                                                 );

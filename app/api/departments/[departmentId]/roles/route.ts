@@ -54,8 +54,12 @@ export async function POST(request: Request, context: RouteContext) {
 
   const { data, error } = await supabase
     .from('roles')
-    .insert({ department_id: departmentId, name: parsedBody.data.name })
-    .select('id, name, department_id, created_at, updated_at')
+    .insert({
+      department_id: departmentId,
+      name: parsedBody.data.name,
+      color: parsedBody.data.color
+    })
+    .select('id, name, color, department_id, created_at, updated_at')
     .single();
 
   if (error) {

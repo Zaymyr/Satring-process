@@ -46,6 +46,7 @@ export const roles = pgTable(
     ownerId: uuid('owner_id').notNull(),
     departmentId: uuid('department_id').notNull(),
     name: text('name').notNull(),
+    color: text('color').notNull().default('#C7D2FE'),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull()
   },
