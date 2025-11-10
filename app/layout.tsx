@@ -27,6 +27,22 @@ export default async function RootLayout({
     data: { user }
   } = await supabase.auth.getUser();
 
+  let displayName: string | null = null;
+
+  if (user) {
+    const { data: profileData, error: profileError } = await supabase
+      .from('user_profiles')
+      .select('username')
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    if (profileError) {
+      console.error('Erreur lors de la récupération du profil utilisateur', profileError);
+    }
+
+    displayName = profileData?.username ?? user.email ?? null;
+  }
+
     return (
     <html lang="fr" className={inter.variable}>
       <body className="font-sans antialiased">
@@ -42,7 +58,7 @@ export default async function RootLayout({
                     </span>
                     {user ? (
                       <span className="max-w-[220px] truncate rounded-full bg-slate-900 px-3 py-1 text-sm font-semibold text-white">
-                        {user.email}
+                        {displayName ?? 'Profil'}
                       </span>
                     ) : (
                       <span className="text-sm text-slate-600">Invité</span>

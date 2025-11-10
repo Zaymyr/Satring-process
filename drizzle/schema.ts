@@ -40,6 +40,16 @@ export const organizationMembers = pgTable(
 export type OrganizationMember = typeof organizationMembers.$inferSelect;
 export type NewOrganizationMember = typeof organizationMembers.$inferInsert;
 
+export const userProfiles = pgTable('user_profiles', {
+  userId: uuid('user_id').primaryKey(),
+  username: text('username').unique(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull()
+});
+
+export type UserProfile = typeof userProfiles.$inferSelect;
+export type NewUserProfile = typeof userProfiles.$inferInsert;
+
 export const processSnapshots = pgTable(
   'process_snapshots',
   {

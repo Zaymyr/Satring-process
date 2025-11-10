@@ -1,7 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { z } from 'zod';
-
-const organizationRoleSchema = z.enum(['owner', 'admin', 'member']);
+import { organizationRoleSchema } from '@/lib/validation/profile';
 
 const rawMembershipSchema = z.object({
   id: z.string().uuid('Identifiant d\'organisation invalide.'),

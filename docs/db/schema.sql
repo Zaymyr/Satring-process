@@ -36,6 +36,43 @@ create table if not exists public.organization_members (
     constraint organization_members_pkey primary key (organization_id, user_id)
 );
 
+create table if not exists public.user_profiles (
+    user_id uuid primary key references auth.users(id) on delete cascade,
+    username text unique,
+    created_at timestamptz not null default timezone('utc', now()),
+    updated_at timestamptz not null default timezone('utc', now())
+);
+
+create or replace function public.set_user_profiles_updated_at()
+returns trigger
+language plpgsql
+as $$
+begin
+    new.updated_at = timezone('utc', now());
+    return new;
+end;
+$$;
+
+create trigger user_profiles_updated_at
+before update on public.user_profiles
+for each row
+execute function public.set_user_profiles_updated_at();
+
+alter table if exists public.user_profiles enable row level security;
+
+create policy user_profiles_select on public.user_profiles
+for select
+using (auth.uid() = user_id);
+
+create policy user_profiles_insert on public.user_profiles
+for insert
+with check (auth.uid() = user_id);
+
+create policy user_profiles_update on public.user_profiles
+for update
+using (auth.uid() = user_id)
+with check (auth.uid() = user_id);
+
 create index if not exists organization_members_user_idx on public.organization_members(user_id);
 create index if not exists organization_members_role_idx on public.organization_members(role);
 create index if not exists organization_members_updated_at_idx on public.organization_members(updated_at);
