@@ -610,7 +610,7 @@ export function RaciBuilder() {
                 </div>
                 <div className="overflow-x-auto">
                   <table className="min-w-full divide-y divide-slate-200">
-                    <thead className="bg-white">
+                    <thead className="sticky top-0 z-20 bg-white shadow-sm">
                       <tr>
                         <th className="w-56 px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
                           Actions
