@@ -92,6 +92,7 @@ export async function GET() {
       z.object({
         id: z.unknown(),
         name: z.unknown(),
+        color: z.unknown(),
         department_id: z.unknown(),
         department: z
           .object({ id: z.unknown(), name: z.unknown() })

@@ -83,34 +83,6 @@ const ROLE_ID_REGEX = /^[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]
 const HEX_COLOR_REGEX = /^#[0-9A-F]{6}$/;
 const CLUSTER_STYLE_TEXT_COLOR = '#0f172a';
 const CLUSTER_FILL_OPACITY = 0.18;
-const FALLBACK_STEP_FILL_ALPHA = 0.22;
-
-const parseHexColor = (color: string): [number, number, number] | null => {
-  if (!HEX_COLOR_REGEX.test(color)) {
-    return null;
-  }
-
-  const red = Number.parseInt(color.slice(1, 3), 16);
-  const green = Number.parseInt(color.slice(3, 5), 16);
-  const blue = Number.parseInt(color.slice(5, 7), 16);
-
-  if ([red, green, blue].some((component) => Number.isNaN(component))) {
-    return null;
-  }
-
-  return [red, green, blue];
-};
-
-const toRgba = (color: string, alpha: number, fallback: string) => {
-  const rgb = parseHexColor(color);
-
-  if (!rgb) {
-    return fallback;
-  }
-
-  const normalizedAlpha = Math.min(Math.max(alpha, 0), 1);
-  return `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, ${normalizedAlpha})`;
-};
 
 const getClusterStyleDeclaration = (clusterId: string, color: string) => {
   const normalized = HEX_COLOR_REGEX.test(color) ? color : DEFAULT_DEPARTMENT_COLOR;
@@ -1702,7 +1674,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
       return flowchartDeclaration;
     }
 
-    const classAssignments: string[] = [];
+    const nodeStyles: string[] = [];
     const stepIndexMap = new Map(steps.map((step, index) => [step.id, index] as const));
     const departmentLookup = new Map(
       departments.map((department, index) => [
@@ -1710,6 +1682,13 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
         { department, clusterId: `cluster_${index}` }
       ])
     );
+    const roleLookup = new Map<string, Role>();
+
+    for (const department of departments) {
+      for (const role of department.roles) {
+        roleLookup.set(role.id, role);
+      }
+    }
     const clusterNodes = new Map<string, { label: string; nodes: string[]; color: string }>();
     const ungroupedNodes: string[] = [];
 
@@ -1719,22 +1698,31 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
       const lines = wrapStepLabel(baseLabel);
       const label = lines.map((line) => escapeHtml(line)).join('<br/>');
       const departmentId = normalizeDepartmentId(step.departmentId);
+      const clusterEntry = departmentId ? departmentLookup.get(departmentId) : undefined;
+      const roleColor = step.roleId ? roleLookup.get(step.roleId)?.color ?? null : null;
+      const departmentColor = clusterEntry?.department.color ?? null;
+      const isTerminal = step.type === 'start' || step.type === 'finish';
+      const baseFill = isTerminal ? '#f8fafc' : '#ffffff';
+      const strokeDefault = '#0f172a';
+      const colorSource = roleColor ?? departmentColor ?? null;
+      const strokeColor = colorSource ?? strokeDefault;
 
       let declaration: string;
 
       if (step.type === 'action') {
-        classAssignments.push(`class ${nodeId} action;`);
         declaration = `${nodeId}["${label}"]`;
       } else if (step.type === 'decision') {
-        classAssignments.push(`class ${nodeId} decision;`);
         declaration = `${nodeId}{"${label}"}`;
       } else {
-        classAssignments.push(`class ${nodeId} terminal;`);
         declaration = `${nodeId}(("${label}"))`;
       }
 
-      if (departmentId) {
-        const lookup = departmentLookup.get(departmentId);
+      nodeStyles.push(
+        `style ${nodeId} fill:${baseFill},stroke:${strokeColor},color:#0f172a,stroke-width:2px;`
+      );
+
+      if (clusterEntry) {
+        const lookup = clusterEntry;
         if (lookup) {
           const existing = clusterNodes.get(lookup.clusterId);
           if (existing) {
@@ -1811,12 +1799,6 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
       }
     });
 
-    const classDefinitions = [
-      'classDef terminal fill:#f8fafc,stroke:#0f172a,color:#0f172a,stroke-width:2px;',
-      'classDef action fill:#ffffff,stroke:#0f172a,color:#0f172a,stroke-width:2px;',
-      'classDef decision fill:#ffffff,stroke:#0f172a,color:#0f172a,stroke-width:2px;'
-    ];
-
     const clusterDirection = diagramDirection === 'TD' ? 'TB' : diagramDirection;
     const clusterDeclarations: string[] = [];
 
@@ -1836,11 +1818,10 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
 
     return [
       flowchartDeclaration,
-      ...classDefinitions,
       ...ungroupedNodes,
       ...clusterDeclarations,
       ...connections,
-      ...classAssignments
+      ...nodeStyles
     ].join('\n');
   }, [departments, diagramDirection, steps]);
 
