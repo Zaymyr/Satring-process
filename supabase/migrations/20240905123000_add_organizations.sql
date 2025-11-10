@@ -80,7 +80,8 @@ execute function public.ensure_organization_owner();
 -- Enable RLS and policies for organizations
 alter table if exists public.organizations enable row level security;
 
-create policy if not exists organizations_select on public.organizations
+drop policy if exists organizations_select on public.organizations;
+create policy organizations_select on public.organizations
 for select
 using (
     exists (
@@ -91,11 +92,13 @@ using (
     )
 );
 
-create policy if not exists organizations_insert on public.organizations
+drop policy if exists organizations_insert on public.organizations;
+create policy organizations_insert on public.organizations
 for insert
 with check (auth.uid() = created_by);
 
-create policy if not exists organizations_update on public.organizations
+drop policy if exists organizations_update on public.organizations;
+create policy organizations_update on public.organizations
 for update
 using (
     exists (
@@ -116,7 +119,8 @@ with check (
     )
 );
 
-create policy if not exists organizations_delete on public.organizations
+drop policy if exists organizations_delete on public.organizations;
+create policy organizations_delete on public.organizations
 for delete
 using (
     exists (
@@ -131,7 +135,8 @@ using (
 -- Enable RLS and policies for organization members
 alter table if exists public.organization_members enable row level security;
 
-create policy if not exists organization_members_select on public.organization_members
+drop policy if exists organization_members_select on public.organization_members;
+create policy organization_members_select on public.organization_members
 for select
 using (
     user_id = auth.uid()
@@ -144,7 +149,8 @@ using (
     )
 );
 
-create policy if not exists organization_members_insert on public.organization_members
+drop policy if exists organization_members_insert on public.organization_members;
+create policy organization_members_insert on public.organization_members
 for insert
 with check (
     exists (
@@ -156,7 +162,8 @@ with check (
     )
 );
 
-create policy if not exists organization_members_update on public.organization_members
+drop policy if exists organization_members_update on public.organization_members;
+create policy organization_members_update on public.organization_members
 for update
 using (
     exists (
@@ -177,7 +184,8 @@ with check (
     )
 );
 
-create policy if not exists organization_members_delete on public.organization_members
+drop policy if exists organization_members_delete on public.organization_members;
+create policy organization_members_delete on public.organization_members
 for delete
 using (
     exists (
@@ -227,7 +235,10 @@ alter table if exists public.process_snapshots
     alter column organization_id set not null;
 
 alter table if exists public.process_snapshots
-    add constraint if not exists process_snapshots_organization_id_fkey
+    drop constraint if exists process_snapshots_organization_id_fkey;
+
+alter table if exists public.process_snapshots
+    add constraint process_snapshots_organization_id_fkey
         foreign key (organization_id) references public.organizations(id) on delete cascade;
 
 create index if not exists process_snapshots_organization_id_idx on public.process_snapshots(organization_id);
@@ -243,7 +254,10 @@ alter table if exists public.departments
     alter column organization_id set not null;
 
 alter table if exists public.departments
-    add constraint if not exists departments_organization_id_fkey
+    drop constraint if exists departments_organization_id_fkey;
+
+alter table if exists public.departments
+    add constraint departments_organization_id_fkey
         foreign key (organization_id) references public.organizations(id) on delete cascade;
 
 create index if not exists departments_organization_id_idx on public.departments(organization_id);
@@ -259,7 +273,10 @@ alter table if exists public.roles
     alter column organization_id set not null;
 
 alter table if exists public.roles
-    add constraint if not exists roles_organization_id_fkey
+    drop constraint if exists roles_organization_id_fkey;
+
+alter table if exists public.roles
+    add constraint roles_organization_id_fkey
         foreign key (organization_id) references public.organizations(id) on delete cascade;
 
 create index if not exists roles_organization_id_idx on public.roles(organization_id);
@@ -280,7 +297,10 @@ alter table if exists public.user_onboarding_states
     alter column organization_id set not null;
 
 alter table if exists public.user_onboarding_states
-    add constraint if not exists user_onboarding_states_organization_id_fkey
+    drop constraint if exists user_onboarding_states_organization_id_fkey;
+
+alter table if exists public.user_onboarding_states
+    add constraint user_onboarding_states_organization_id_fkey
         foreign key (organization_id) references public.organizations(id) on delete cascade;
 
 -- Replace primary key with organization_id
@@ -550,7 +570,6 @@ as $$
 $$;
 
 grant execute on function public.get_default_organization_id() to authenticated;
-
 
 -- Update process management functions to support organizations
 create or replace function public.create_process_snapshot(payload jsonb)
