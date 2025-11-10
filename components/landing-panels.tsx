@@ -21,6 +21,8 @@ import {
   ChevronLeft,
   ChevronRight,
   ChevronUp,
+  Eye,
+  EyeOff,
   Flag,
   FolderTree,
   GitBranch,
@@ -679,6 +681,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
   const [isPrimaryCollapsed, setIsPrimaryCollapsed] = useState(false);
   const [isSecondaryCollapsed, setIsSecondaryCollapsed] = useState(false);
   const [isBottomCollapsed, setIsBottomCollapsed] = useState(false);
+  const [areDepartmentsVisible, setAreDepartmentsVisible] = useState(true);
   const [diagramDirection, setDiagramDirection] = useState<'TD' | 'LR'>('TD');
   const [selectedProcessId, setSelectedProcessId] = useState<string | null>(null);
   const [processTitle, setProcessTitle] = useState(DEFAULT_PROCESS_TITLE);
@@ -1733,9 +1736,12 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
       const lines = wrapStepLabel(baseLabel);
       const label = lines.map((line) => escapeHtml(line)).join('<br/>');
       const departmentId = normalizeDepartmentId(step.departmentId);
-      const clusterEntry = departmentId ? departmentLookup.get(departmentId) : undefined;
+      const clusterEntry =
+        areDepartmentsVisible && departmentId ? departmentLookup.get(departmentId) : undefined;
       const roleColor = step.roleId ? roleLookup.get(step.roleId)?.color ?? null : null;
-      const departmentColor = clusterEntry?.department.color ?? null;
+      const departmentColor = areDepartmentsVisible
+        ? (clusterEntry?.department.color ?? null)
+        : null;
       const isTerminal = step.type === 'start' || step.type === 'finish';
       const baseFill = isTerminal ? '#f8fafc' : '#ffffff';
       const strokeDefault = '#0f172a';
@@ -1837,18 +1843,20 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
     const clusterDirection = diagramDirection === 'TD' ? 'TB' : diagramDirection;
     const clusterDeclarations: string[] = [];
 
-    for (const [clusterId, { label, nodes, color }] of clusterNodes.entries()) {
-      if (nodes.length === 0) {
-        continue;
-      }
+    if (areDepartmentsVisible) {
+      for (const [clusterId, { label, nodes, color }] of clusterNodes.entries()) {
+        if (nodes.length === 0) {
+          continue;
+        }
 
-      clusterDeclarations.push(`subgraph ${clusterId}["${formatDepartmentClusterLabel(label)}"]`);
-      clusterDeclarations.push(`  direction ${clusterDirection}`);
-      nodes.forEach((node) => {
-        clusterDeclarations.push(`  ${node}`);
-      });
-      clusterDeclarations.push('end');
-      clusterDeclarations.push(getClusterStyleDeclaration(clusterId, color));
+        clusterDeclarations.push(`subgraph ${clusterId}["${formatDepartmentClusterLabel(label)}"]`);
+        clusterDeclarations.push(`  direction ${clusterDirection}`);
+        nodes.forEach((node) => {
+          clusterDeclarations.push(`  ${node}`);
+        });
+        clusterDeclarations.push('end');
+        clusterDeclarations.push(getClusterStyleDeclaration(clusterId, color));
+      }
     }
 
     return [
@@ -1858,7 +1866,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
       ...connections,
       ...nodeStyles
     ].join('\n');
-  }, [departments, diagramDirection, steps]);
+  }, [areDepartmentsVisible, departments, diagramDirection, steps]);
 
   useEffect(() => {
     setDiagramUserOffset((previous) =>
@@ -1913,7 +1921,9 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
       const displayLines = [...labelLines];
       const roleEntry = step.roleId ? roleById.get(step.roleId) : undefined;
       const departmentFromStep = step.departmentId ? departmentById.get(step.departmentId) : undefined;
-      const department = roleEntry?.department ?? departmentFromStep;
+      const department = areDepartmentsVisible
+        ? roleEntry?.department ?? departmentFromStep
+        : undefined;
       const role = roleEntry?.role;
       const stepIndex = acc.length;
       const defaultNextStep = steps[stepIndex + 1];
@@ -1925,7 +1935,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
         metadataLines.push(`Rôle : ${role.name}`);
       }
 
-      if (department) {
+      if (areDepartmentsVisible && department) {
         metadataLines.push(`Département : ${department.name}`);
       }
 
@@ -2053,7 +2063,8 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
           const isAction = step.type === 'action';
           const baseFill = isTerminal ? '#f8fafc' : '#ffffff';
           const strokeDefault = '#0f172a';
-          const colorSource = roleColor ?? department?.color ?? null;
+          const departmentColor = areDepartmentsVisible ? department?.color ?? null : null;
+          const colorSource = roleColor ?? departmentColor;
           const fillColor = colorSource ? toRgba(colorSource, FALLBACK_STEP_FILL_ALPHA, baseFill) : baseFill;
           const strokeColor = colorSource ?? strokeDefault;
           const blockOffset = ((lines.length - 1) * 24) / 2;
@@ -2115,7 +2126,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
         })}
       </svg>
     );
-  }, [departments, steps]);
+  }, [areDepartmentsVisible, departments, steps]);
 
   useEffect(() => {
     let isActive = true;
@@ -3614,6 +3625,22 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                     Gauche-droite
                   </button>
                 </div>
+                <button
+                  type="button"
+                  onClick={() => setAreDepartmentsVisible((previous) => !previous)}
+                  aria-pressed={areDepartmentsVisible}
+                  className={cn(
+                    'inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white/70 px-3 py-1.5 text-xs font-medium text-slate-600 shadow-inner transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400 hover:bg-slate-100',
+                    isBottomCollapsed && 'hidden'
+                  )}
+                >
+                  {areDepartmentsVisible ? (
+                    <EyeOff className="h-3.5 w-3.5" aria-hidden="true" />
+                  ) : (
+                    <Eye className="h-3.5 w-3.5" aria-hidden="true" />
+                  )}
+                  {areDepartmentsVisible ? 'Masquer les départements' : 'Afficher les départements'}
+                </button>
                 <button
                   type="button"
                   onClick={() => setIsBottomCollapsed((previous) => !previous)}
