@@ -57,7 +57,7 @@ export async function PATCH(request: Request, context: RouteContext) {
     .update({ name: parsedBody.data.name, color: parsedBody.data.color })
     .eq('id', departmentId)
     .eq('owner_id', user.id)
-    .select('id, name, color, created_at, updated_at, roles:roles(id, name, department_id, created_at, updated_at)')
+    .select('id, name, color, created_at, updated_at, roles:roles(id, name, color, department_id, created_at, updated_at)')
     .order('updated_at', { foreignTable: 'roles', ascending: false })
     .maybeSingle();
 

@@ -114,7 +114,7 @@ type LoadedDepartment = {
   id: string;
   name: string;
   color: string;
-  roles: Array<{ id: string; name: string }>;
+  roles: Array<{ id: string; name: string; color: string }>;
 };
 
 type DepartmentMatrixState = {
@@ -235,7 +235,7 @@ export function RaciBuilder() {
         id: department.id,
         name: department.name,
         color: department.color,
-        roles: (department.roles ?? []).map((role) => ({ id: role.id, name: role.name }))
+        roles: (department.roles ?? []).map((role) => ({ id: role.id, name: role.name, color: role.color }))
       })),
     [departmentsQuery.data]
   );
@@ -620,7 +620,14 @@ export function RaciBuilder() {
                             key={role.id}
                             className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500"
                           >
-                            {role.name}
+                            <span className="flex items-center gap-2">
+                              <span
+                                aria-hidden="true"
+                                className="inline-block h-2.5 w-2.5 rounded-full"
+                                style={{ backgroundColor: role.color }}
+                              />
+                              <span className="truncate">{role.name}</span>
+                            </span>
                           </th>
                         ))}
                       </tr>

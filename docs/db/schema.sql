@@ -180,8 +180,10 @@ create table if not exists public.roles (
     owner_id uuid not null references auth.users(id) on delete cascade,
     department_id uuid not null references public.departments(id) on delete cascade,
     name text not null,
+    color text not null default '#C7D2FE',
     created_at timestamptz not null default timezone('utc', now()),
-    updated_at timestamptz not null default timezone('utc', now())
+    updated_at timestamptz not null default timezone('utc', now()),
+    constraint roles_color_check check (color ~ '^#[0-9A-F]{6}$')
 );
 
 create index if not exists roles_owner_id_idx on public.roles(owner_id);
@@ -343,18 +345,18 @@ begin
         (v_operations_department_id, v_owner, 'Opérations', '#34D399', v_now, v_now),
         (v_finance_department_id, v_owner, 'Finance', '#FACC15', v_now, v_now);
 
-    insert into public.roles (id, owner_id, department_id, name, created_at, updated_at)
+    insert into public.roles (id, owner_id, department_id, name, color, created_at, updated_at)
     values
-        (v_support_manager_role_id, v_owner, v_support_department_id, 'Responsable support', v_now, v_now),
-        (v_support_agent_role_id, v_owner, v_support_department_id, 'Agent service client', v_now, v_now),
-        (v_support_analyst_role_id, v_owner, v_support_department_id, 'Analyste qualité', v_now, v_now),
-        (v_operations_manager_role_id, v_owner, v_operations_department_id, 'Responsable opérations', v_now, v_now),
-        (v_operations_coordinator_role_id, v_owner, v_operations_department_id, 'Coordinateur terrain', v_now, v_now),
-        (v_operations_technician_role_id, v_owner, v_operations_department_id, 'Technicien support', v_now, v_now),
-        (v_operations_project_lead_role_id, v_owner, v_operations_department_id, 'Chef de projet', v_now, v_now),
-        (v_finance_director_role_id, v_owner, v_finance_department_id, 'Directeur financier', v_now, v_now),
-        (v_finance_accountant_role_id, v_owner, v_finance_department_id, 'Comptable fournisseurs', v_now, v_now),
-        (v_finance_controller_role_id, v_owner, v_finance_department_id, 'Contrôleur de gestion', v_now, v_now);
+        (v_support_manager_role_id, v_owner, v_support_department_id, 'Responsable support', '#2563EB', v_now, v_now),
+        (v_support_agent_role_id, v_owner, v_support_department_id, 'Agent service client', '#38BDF8', v_now, v_now),
+        (v_support_analyst_role_id, v_owner, v_support_department_id, 'Analyste qualité', '#0EA5E9', v_now, v_now),
+        (v_operations_manager_role_id, v_owner, v_operations_department_id, 'Responsable opérations', '#16A34A', v_now, v_now),
+        (v_operations_coordinator_role_id, v_owner, v_operations_department_id, 'Coordinateur terrain', '#22C55E', v_now, v_now),
+        (v_operations_technician_role_id, v_owner, v_operations_department_id, 'Technicien support', '#059669', v_now, v_now),
+        (v_operations_project_lead_role_id, v_owner, v_operations_department_id, 'Chef de projet', '#10B981', v_now, v_now),
+        (v_finance_director_role_id, v_owner, v_finance_department_id, 'Directeur financier', '#F97316', v_now, v_now),
+        (v_finance_accountant_role_id, v_owner, v_finance_department_id, 'Comptable fournisseurs', '#F59E0B', v_now, v_now),
+        (v_finance_controller_role_id, v_owner, v_finance_department_id, 'Contrôleur de gestion', '#D97706', v_now, v_now);
 
     insert into public.process_snapshots (owner_id, title, steps, created_at, updated_at)
     values

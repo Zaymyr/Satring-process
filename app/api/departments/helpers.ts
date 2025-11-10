@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 import { DEFAULT_DEPARTMENT_COLOR } from '@/lib/validation/department';
+import { DEFAULT_ROLE_COLOR } from '@/lib/validation/role';
 
 export const NO_STORE_HEADERS = { 'Cache-Control': 'no-store, max-age=0, must-revalidate' } as const;
 
@@ -33,8 +34,21 @@ type RawRoleRecord = {
   id: unknown;
   department_id: unknown;
   name: unknown;
+  color: unknown;
   created_at: unknown;
   updated_at: unknown;
+};
+
+const normalizeRoleColor = (value: unknown) => {
+  if (typeof value === 'string') {
+    const trimmed = value.trim().toUpperCase();
+    if (HEX_COLOR_REGEX.test(trimmed)) {
+      return trimmed;
+    }
+  }
+
+  console.error('Couleur de rôle invalide', value);
+  return DEFAULT_ROLE_COLOR;
 };
 
 export const normalizeRoleRecord = (item: RawRoleRecord) => ({
@@ -44,6 +58,7 @@ export const normalizeRoleRecord = (item: RawRoleRecord) => ({
     typeof item.name === 'string' && item.name.trim().length > 0
       ? item.name.trim()
       : 'Rôle',
+  color: normalizeRoleColor(item.color),
   createdAt: normalizeTimestamp(item.created_at),
   updatedAt: normalizeTimestamp(item.updated_at)
 });

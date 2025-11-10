@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { roleColorSchema } from './role';
+
 export const roleActionResponsibilityValues = ['R', 'A'] as const;
 
 export const roleActionItemSchema = z.object({
@@ -15,6 +17,7 @@ export const roleActionSummarySchema = z.object({
   roleName: z.string().min(1, 'Le nom du rôle est requis.'),
   departmentId: z.string().uuid('Identifiant de département invalide.'),
   departmentName: z.string().min(1, 'Le nom du département est requis.'),
+  roleColor: roleColorSchema,
   actions: z.array(roleActionItemSchema)
 });
 
