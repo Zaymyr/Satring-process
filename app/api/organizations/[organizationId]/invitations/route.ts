@@ -4,7 +4,7 @@ import { and, eq } from 'drizzle-orm';
 import { organizationMembers } from '@/drizzle/schema';
 import { fetchUserOrganizations } from '@/lib/organization/memberships';
 import { db } from '@/lib/db';
-import { createAdminClient } from '@/lib/supabase/admin';
+import { createAdminClient, findAdminUserByEmail } from '@/lib/supabase/admin';
 import { createServerClient } from '@/lib/supabase/server';
 import {
   inviteMemberInputSchema,
@@ -110,20 +110,17 @@ export async function POST(request: Request, context: RouteContext) {
   const normalizedEmail = email.trim().toLowerCase();
   const mappedRole = ROLE_MAPPING[role];
 
-  const { data: existingUsersResult, error: existingUsersError } = await adminClient.auth.admin.listUsers({
-    email: normalizedEmail,
-    perPage: 1
-  });
+  let existingUser = null;
 
-  if (existingUsersError) {
+  try {
+    existingUser = await findAdminUserByEmail(adminClient, normalizedEmail);
+  } catch (existingUsersError) {
     console.error("Erreur lors de la recherche d'un utilisateur avant invitation", existingUsersError);
     return NextResponse.json(
       { error: "Impossible de vérifier l'état du compte à inviter." },
       { status: 500, headers: NO_STORE_HEADERS }
     );
   }
-
-  const existingUser = existingUsersResult?.users?.[0];
 
   let targetUserId = existingUser?.id ?? null;
   let invitationStatus: InviteMemberResponse['status'] = 'added';
