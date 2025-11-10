@@ -6,6 +6,7 @@ import { ensureSampleDataSeeded } from '@/lib/onboarding/sample-seed';
 import { createServerClient } from '@/lib/supabase/server';
 import { stepSchema } from '@/lib/validation/process';
 import { roleActionSummaryListSchema, type RoleActionItem } from '@/lib/validation/role-action';
+import { DEFAULT_ROLE_COLOR, roleColorSchema } from '@/lib/validation/role';
 
 import { NO_STORE_HEADERS } from '../../departments/helpers';
 
@@ -38,7 +39,8 @@ const normalizedRoleSchema = z.object({
   id: z.string().uuid('Identifiant de rôle invalide.'),
   name: z.string().min(1, 'Le nom du rôle est requis.'),
   departmentId: z.string().uuid('Identifiant de département invalide.'),
-  departmentName: z.string().min(1, 'Le nom du département est requis.')
+  departmentName: z.string().min(1, 'Le nom du département est requis.'),
+  color: roleColorSchema
 });
 
 export async function GET() {
@@ -61,7 +63,7 @@ export async function GET() {
   const [{ data: rawRoles, error: rolesError }, { data: rawProcesses, error: processesError }] = await Promise.all([
     supabase
       .from('roles')
-      .select('id, name, department_id, department:departments(id, name)')
+      .select('id, name, color, department_id, department:departments(id, name)')
       .eq('owner_id', user.id),
     supabase
       .from('process_snapshots')
@@ -90,6 +92,7 @@ export async function GET() {
       z.object({
         id: z.unknown(),
         name: z.unknown(),
+        color: z.unknown(),
         department_id: z.unknown(),
         department: z
           .object({ id: z.unknown(), name: z.unknown() })
@@ -107,21 +110,26 @@ export async function GET() {
     );
   }
 
-  const normalizedRoles = normalizedRolesResult.data.map((role) => ({
-    id: typeof role.id === 'string' ? role.id : String(role.id ?? ''),
-    name:
-      typeof role.name === 'string' && role.name.trim().length > 0
-        ? role.name.trim()
-        : 'Rôle',
-    departmentId:
-      typeof role.department_id === 'string'
-        ? role.department_id
-        : String(role.department_id ?? ''),
-    departmentName:
-      role.department && typeof role.department.name === 'string' && role.department.name.trim().length > 0
-        ? role.department.name.trim()
-        : 'Département'
-  }));
+  const normalizedRoles = normalizedRolesResult.data.map((role) => {
+    const colorResult = roleColorSchema.safeParse(role.color);
+
+    return {
+      id: typeof role.id === 'string' ? role.id : String(role.id ?? ''),
+      name:
+        typeof role.name === 'string' && role.name.trim().length > 0
+          ? role.name.trim()
+          : 'Rôle',
+      departmentId:
+        typeof role.department_id === 'string'
+          ? role.department_id
+          : String(role.department_id ?? ''),
+      departmentName:
+        role.department && typeof role.department.name === 'string' && role.department.name.trim().length > 0
+          ? role.department.name.trim()
+          : 'Département',
+      color: colorResult.success ? colorResult.data : DEFAULT_ROLE_COLOR
+    };
+  });
 
   const parsedRoles = z.array(normalizedRoleSchema).safeParse(normalizedRoles);
 
@@ -175,6 +183,7 @@ export async function GET() {
     roleName: role.name,
     departmentId: role.departmentId,
     departmentName: role.departmentName,
+    roleColor: role.color,
     actions: [] as RoleActionItem[]
   }));
 

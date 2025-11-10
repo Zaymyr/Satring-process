@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { roleListSchema, roleNameSchema, type Role } from './role';
+import { DEFAULT_ROLE_COLOR, roleColorSchema, roleListSchema, roleNameSchema, type Role } from './role';
 
 export const DEFAULT_DEPARTMENT_COLOR = '#C7D2FE';
 
@@ -63,7 +63,8 @@ export const departmentCascadeFormSchema = departmentInputSchema.extend({
         roleId: z
           .preprocess(normalizeRoleId, z.string().uuid('Identifiant de rôle invalide.'))
           .optional(),
-        name: roleNameSchema
+        name: roleNameSchema,
+        color: roleColorSchema.default(DEFAULT_ROLE_COLOR)
       })
     )
     .default([])
