@@ -381,6 +381,41 @@ export function RaciBuilder() {
   }, [roleActionsByRoleId, selectedDepartment]);
 
   const [collapsedProcesses, setCollapsedProcesses] = useState<Record<string, boolean>>({});
+  const [stickyHeaderOffset, setStickyHeaderOffset] = useState(0);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    const mainHeader = document.querySelector<HTMLElement>('header[data-app-header]');
+
+    if (!mainHeader) {
+      setStickyHeaderOffset(0);
+      return;
+    }
+
+    const updateOffset = () => {
+      const { height } = mainHeader.getBoundingClientRect();
+      setStickyHeaderOffset((previous) => (Math.abs(previous - height) < 0.5 ? previous : height));
+    };
+
+    updateOffset();
+
+    let resizeObserver: ResizeObserver | undefined;
+
+    if (typeof ResizeObserver !== 'undefined') {
+      resizeObserver = new ResizeObserver(updateOffset);
+      resizeObserver.observe(mainHeader);
+    }
+
+    window.addEventListener('resize', updateOffset);
+
+    return () => {
+      window.removeEventListener('resize', updateOffset);
+      resizeObserver?.disconnect();
+    };
+  }, []);
 
   useEffect(() => {
     setCollapsedProcesses((previous) => {
@@ -610,7 +645,7 @@ export function RaciBuilder() {
                 </div>
                 <div className="overflow-x-auto">
                   <table className="min-w-full divide-y divide-slate-200">
-                    <thead className="sticky top-0 z-20 bg-white shadow-sm">
+                    <thead className="sticky z-20 bg-white shadow-sm" style={{ top: stickyHeaderOffset }}>
                       <tr>
                         <th className="w-56 px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
                           Actions
