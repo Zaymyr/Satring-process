@@ -83,34 +83,6 @@ const ROLE_ID_REGEX = /^[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]
 const HEX_COLOR_REGEX = /^#[0-9A-F]{6}$/;
 const CLUSTER_STYLE_TEXT_COLOR = '#0f172a';
 const CLUSTER_FILL_OPACITY = 0.18;
-const FALLBACK_STEP_FILL_ALPHA = 0.22;
-
-const parseHexColor = (color: string): [number, number, number] | null => {
-  if (!HEX_COLOR_REGEX.test(color)) {
-    return null;
-  }
-
-  const red = Number.parseInt(color.slice(1, 3), 16);
-  const green = Number.parseInt(color.slice(3, 5), 16);
-  const blue = Number.parseInt(color.slice(5, 7), 16);
-
-  if ([red, green, blue].some((component) => Number.isNaN(component))) {
-    return null;
-  }
-
-  return [red, green, blue];
-};
-
-const toRgba = (color: string, alpha: number, fallback: string) => {
-  const rgb = parseHexColor(color);
-
-  if (!rgb) {
-    return fallback;
-  }
-
-  const normalizedAlpha = Math.min(Math.max(alpha, 0), 1);
-  return `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, ${normalizedAlpha})`;
-};
 
 const getClusterStyleDeclaration = (clusterId: string, color: string) => {
   const normalized = HEX_COLOR_REGEX.test(color) ? color : DEFAULT_DEPARTMENT_COLOR;
@@ -1734,7 +1706,6 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
       const baseFill = isTerminal ? '#f8fafc' : '#ffffff';
       const strokeDefault = '#0f172a';
       const colorSource = roleColor ?? departmentColor ?? null;
-      const fillColor = colorSource ? toRgba(colorSource, FALLBACK_STEP_FILL_ALPHA, baseFill) : baseFill;
       const strokeColor = colorSource ?? strokeDefault;
 
       let declaration: string;
@@ -1751,7 +1722,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
       }
 
       nodeStyles.push(
-        `style ${nodeId} fill:${fillColor},stroke:${strokeColor},color:#0f172a,stroke-width:2px;`
+        `style ${nodeId} fill:${baseFill},stroke:${strokeColor},color:#0f172a,stroke-width:2px;`
       );
 
       if (clusterEntry) {
@@ -2060,8 +2031,8 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
           const baseFill = isTerminal ? '#f8fafc' : '#ffffff';
           const strokeDefault = '#0f172a';
           const colorSource = roleColor ?? department?.color ?? null;
-          const fillColor = colorSource ? toRgba(colorSource, FALLBACK_STEP_FILL_ALPHA, baseFill) : baseFill;
           const strokeColor = colorSource ?? strokeDefault;
+          const fillColor = baseFill;
           const blockOffset = ((lines.length - 1) * 24) / 2;
 
           return (
