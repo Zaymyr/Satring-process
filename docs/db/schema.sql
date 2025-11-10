@@ -55,6 +55,26 @@ before update on public.organization_members
 for each row
 execute function public.set_organization_members_updated_at();
 
+create or replace function public.is_organization_member(target_org_id uuid, allowed_roles text[] default null)
+returns boolean
+language sql
+security definer
+set search_path = public
+as $$
+    select exists (
+        select 1
+        from public.organization_members om
+        where om.organization_id = target_org_id
+          and om.user_id = auth.uid()
+          and (
+              allowed_roles is null
+              or om.role = any(allowed_roles)
+          )
+    );
+$$;
+
+alter function public.is_organization_member(uuid, text[]) owner to postgres;
+
 create or replace function public.ensure_organization_owner()
 returns trigger
 language plpgsql
@@ -81,12 +101,7 @@ alter table if exists public.organizations enable row level security;
 create policy organizations_select on public.organizations
 for select
 using (
-    exists (
-        select 1
-        from public.organization_members om
-        where om.organization_id = id
-          and om.user_id = auth.uid()
-    )
+    public.is_organization_member(id)
 );
 
 create policy organizations_insert on public.organizations
@@ -96,34 +111,16 @@ with check (auth.uid() = created_by);
 create policy organizations_update on public.organizations
 for update
 using (
-    exists (
-        select 1
-        from public.organization_members om
-        where om.organization_id = id
-          and om.user_id = auth.uid()
-          and om.role in ('owner', 'admin')
-    )
+    public.is_organization_member(id, array['owner', 'admin']::text[])
 )
 with check (
-    exists (
-        select 1
-        from public.organization_members om
-        where om.organization_id = id
-          and om.user_id = auth.uid()
-          and om.role in ('owner', 'admin')
-    )
+    public.is_organization_member(id, array['owner', 'admin']::text[])
 );
 
 create policy organizations_delete on public.organizations
 for delete
 using (
-    exists (
-        select 1
-        from public.organization_members om
-        where om.organization_id = id
-          and om.user_id = auth.uid()
-          and om.role = 'owner'
-    )
+    public.is_organization_member(id, array['owner', 'admin']::text[])
 );
 
 alter table if exists public.organization_members enable row level security;
@@ -131,59 +128,29 @@ alter table if exists public.organization_members enable row level security;
 create policy organization_members_select on public.organization_members
 for select
 using (
-    user_id = auth.uid()
-    or exists (
-        select 1
-        from public.organization_members om
-        where om.organization_id = organization_members.organization_id
-          and om.user_id = auth.uid()
-          and om.role in ('owner', 'admin')
-    )
+    organization_members.user_id = auth.uid()
+    or public.is_organization_member(organization_members.organization_id, array['owner', 'admin']::text[])
 );
 
 create policy organization_members_insert on public.organization_members
 for insert
 with check (
-    exists (
-        select 1
-        from public.organization_members om
-        where om.organization_id = organization_members.organization_id
-          and om.user_id = auth.uid()
-          and om.role in ('owner', 'admin')
-    )
+    public.is_organization_member(organization_members.organization_id, array['owner', 'admin']::text[])
 );
 
 create policy organization_members_update on public.organization_members
 for update
 using (
-    exists (
-        select 1
-        from public.organization_members om
-        where om.organization_id = organization_members.organization_id
-          and om.user_id = auth.uid()
-          and om.role in ('owner', 'admin')
-    )
+    public.is_organization_member(organization_members.organization_id, array['owner', 'admin']::text[])
 )
 with check (
-    exists (
-        select 1
-        from public.organization_members om
-        where om.organization_id = organization_members.organization_id
-          and om.user_id = auth.uid()
-          and om.role in ('owner', 'admin')
-    )
+    public.is_organization_member(organization_members.organization_id, array['owner', 'admin']::text[])
 );
 
 create policy organization_members_delete on public.organization_members
 for delete
 using (
-    exists (
-        select 1
-        from public.organization_members om
-        where om.organization_id = organization_members.organization_id
-          and om.user_id = auth.uid()
-          and om.role in ('owner', 'admin')
-    )
+    public.is_organization_member(organization_members.organization_id, array['owner', 'admin']::text[])
 );
 
 create table if not exists public.process_snapshots (
