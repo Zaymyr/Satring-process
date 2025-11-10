@@ -3138,7 +3138,11 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                                         </div>
                                       ) : (
                                         <>
-                                          <p className="truncate text-sm font-medium text-slate-900">{summary.title}</p>
+                                          <p
+                                            className="text-sm font-medium text-slate-900 leading-snug break-words overflow-hidden [display:-webkit-box] [-webkit-line-clamp:2] [-webkit-box-orient:vertical]"
+                                          >
+                                            {summary.title}
+                                          </p>
                                           {updatedLabel ? (
                                             <p className="text-xs text-slate-500">Mis à jour {updatedLabel}</p>
                                           ) : null}
