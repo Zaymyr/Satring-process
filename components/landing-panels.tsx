@@ -1703,6 +1703,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
     }
 
     const classAssignments: string[] = [];
+    const nodeStyles: string[] = [];
     const stepIndexMap = new Map(steps.map((step, index) => [step.id, index] as const));
     const departmentLookup = new Map(
       departments.map((department, index) => [
@@ -1710,6 +1711,13 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
         { department, clusterId: `cluster_${index}` }
       ])
     );
+    const roleLookup = new Map<string, Role>();
+
+    for (const department of departments) {
+      for (const role of department.roles) {
+        roleLookup.set(role.id, role);
+      }
+    }
     const clusterNodes = new Map<string, { label: string; nodes: string[]; color: string }>();
     const ungroupedNodes: string[] = [];
 
@@ -1719,6 +1727,15 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
       const lines = wrapStepLabel(baseLabel);
       const label = lines.map((line) => escapeHtml(line)).join('<br/>');
       const departmentId = normalizeDepartmentId(step.departmentId);
+      const clusterEntry = departmentId ? departmentLookup.get(departmentId) : undefined;
+      const roleColor = step.roleId ? roleLookup.get(step.roleId)?.color ?? null : null;
+      const departmentColor = clusterEntry?.department.color ?? null;
+      const isTerminal = step.type === 'start' || step.type === 'finish';
+      const baseFill = isTerminal ? '#f8fafc' : '#ffffff';
+      const strokeDefault = '#0f172a';
+      const colorSource = roleColor ?? departmentColor ?? null;
+      const fillColor = colorSource ? toRgba(colorSource, FALLBACK_STEP_FILL_ALPHA, baseFill) : baseFill;
+      const strokeColor = colorSource ?? strokeDefault;
 
       let declaration: string;
 
@@ -1733,8 +1750,12 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
         declaration = `${nodeId}(("${label}"))`;
       }
 
-      if (departmentId) {
-        const lookup = departmentLookup.get(departmentId);
+      nodeStyles.push(
+        `style ${nodeId} fill:${fillColor},stroke:${strokeColor},color:#0f172a,stroke-width:2px;`
+      );
+
+      if (clusterEntry) {
+        const lookup = clusterEntry;
         if (lookup) {
           const existing = clusterNodes.get(lookup.clusterId);
           if (existing) {
@@ -1840,7 +1861,8 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
       ...ungroupedNodes,
       ...clusterDeclarations,
       ...connections,
-      ...classAssignments
+      ...classAssignments,
+      ...nodeStyles
     ].join('\n');
   }, [departments, diagramDirection, steps]);
 
