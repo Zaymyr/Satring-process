@@ -212,11 +212,24 @@ with distinct_owners as (
     from public.user_onboarding_states
 )
 insert into public.organizations (id, name, created_by)
-select owner_id, coalesce('Espace personnel', 'Espace personnel'), owner_id
+select owner_id, 'Espace personnel', owner_id
 from distinct_owners
 where owner_id is not null
 on conflict (id) do nothing;
 
+with distinct_owners as (
+    select owner_id
+    from public.process_snapshots
+    union
+    select owner_id
+    from public.departments
+    union
+    select owner_id
+    from public.roles
+    union
+    select owner_id
+    from public.user_onboarding_states
+)
 insert into public.organization_members (organization_id, user_id, role)
 select owner_id, owner_id, 'owner'
 from distinct_owners
