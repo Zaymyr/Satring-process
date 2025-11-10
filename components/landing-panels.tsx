@@ -1674,7 +1674,6 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
       return flowchartDeclaration;
     }
 
-    const classAssignments: string[] = [];
     const nodeStyles: string[] = [];
     const stepIndexMap = new Map(steps.map((step, index) => [step.id, index] as const));
     const departmentLookup = new Map(
@@ -1711,13 +1710,10 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
       let declaration: string;
 
       if (step.type === 'action') {
-        classAssignments.push(`class ${nodeId} action;`);
         declaration = `${nodeId}["${label}"]`;
       } else if (step.type === 'decision') {
-        classAssignments.push(`class ${nodeId} decision;`);
         declaration = `${nodeId}{"${label}"}`;
       } else {
-        classAssignments.push(`class ${nodeId} terminal;`);
         declaration = `${nodeId}(("${label}"))`;
       }
 
@@ -1803,12 +1799,6 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
       }
     });
 
-    const classDefinitions = [
-      'classDef terminal fill:#f8fafc,stroke:#0f172a,color:#0f172a,stroke-width:2px;',
-      'classDef action fill:#ffffff,stroke:#0f172a,color:#0f172a,stroke-width:2px;',
-      'classDef decision fill:#ffffff,stroke:#0f172a,color:#0f172a,stroke-width:2px;'
-    ];
-
     const clusterDirection = diagramDirection === 'TD' ? 'TB' : diagramDirection;
     const clusterDeclarations: string[] = [];
 
@@ -1828,11 +1818,9 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
 
     return [
       flowchartDeclaration,
-      ...classDefinitions,
       ...ungroupedNodes,
       ...clusterDeclarations,
       ...connections,
-      ...classAssignments,
       ...nodeStyles
     ].join('\n');
   }, [departments, diagramDirection, steps]);
