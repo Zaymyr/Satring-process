@@ -110,17 +110,22 @@ export async function POST(request: Request, context: RouteContext) {
   const normalizedEmail = email.trim().toLowerCase();
   const mappedRole = ROLE_MAPPING[role];
 
-  const { data: existingUserResult, error: existingUserError } = await adminClient.auth.admin.getUserByEmail(normalizedEmail);
+  const { data: existingUsersResult, error: existingUsersError } = await adminClient.auth.admin.listUsers({
+    email: normalizedEmail,
+    perPage: 1
+  });
 
-  if (existingUserError) {
-    console.error("Erreur lors de la recherche d'un utilisateur avant invitation", existingUserError);
+  if (existingUsersError) {
+    console.error("Erreur lors de la recherche d'un utilisateur avant invitation", existingUsersError);
     return NextResponse.json(
       { error: "Impossible de vérifier l'état du compte à inviter." },
       { status: 500, headers: NO_STORE_HEADERS }
     );
   }
 
-  let targetUserId = existingUserResult?.user?.id ?? null;
+  const existingUser = existingUsersResult?.users?.[0];
+
+  let targetUserId = existingUser?.id ?? null;
   let invitationStatus: InviteMemberResponse['status'] = 'added';
 
   if (!targetUserId) {
