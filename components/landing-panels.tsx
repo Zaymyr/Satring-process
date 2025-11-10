@@ -2019,8 +2019,8 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
           const baseFill = isTerminal ? '#f8fafc' : '#ffffff';
           const strokeDefault = '#0f172a';
           const colorSource = roleColor ?? department?.color ?? null;
+          const fillColor = colorSource ? toRgba(colorSource, FALLBACK_STEP_FILL_ALPHA, baseFill) : baseFill;
           const strokeColor = colorSource ?? strokeDefault;
-          const fillColor = baseFill;
           const blockOffset = ((lines.length - 1) * 24) / 2;
 
           return (
