@@ -53,5 +53,9 @@ export default async function AdministrationPage() {
     notFound();
   }
 
-  return <AdministrationPanel initialProfile={parsed.data} />;
+  return (
+    <div className="flex h-full flex-col overflow-y-auto">
+      <AdministrationPanel initialProfile={parsed.data} />
+    </div>
+  );
 }

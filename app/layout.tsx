@@ -43,7 +43,7 @@ export default async function RootLayout({
     displayName = profileData?.username ?? user.email ?? null;
   }
 
-    return (
+  return (
     <html lang="fr" className={inter.variable}>
       <body className="font-sans antialiased">
         <QueryProvider>
@@ -57,7 +57,7 @@ export default async function RootLayout({
                       {user ? 'Connecté :' : 'Non connecté'}
                     </span>
                     {user ? (
-                      <span className="max-w-[220px] truncate rounded-full bg-slate-900 px-3 py-1 text-sm font-semibold text-white">
+                      <span className="max-w-[220px] truncate rounded-full bg-slate-100 px-3 py-1 text-sm font-semibold text-slate-900">
                         {displayName ?? 'Profil'}
                       </span>
                     ) : (
