@@ -1,4 +1,4 @@
-import { index, jsonb, pgTable, primaryKey, text, timestamp, uuid } from 'drizzle-orm/pg-core';
+import { index, jsonb, pgTable, primaryKey, text, timestamp, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
 import type { ProcessStep } from '@/lib/validation/process';
 
 export const organizations = pgTable(
@@ -39,6 +39,38 @@ export const organizationMembers = pgTable(
 
 export type OrganizationMember = typeof organizationMembers.$inferSelect;
 export type NewOrganizationMember = typeof organizationMembers.$inferInsert;
+
+export const organizationInvitations = pgTable(
+  'organization_invitations',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    organizationId: uuid('organization_id').notNull(),
+    invitedUserId: uuid('invited_user_id').notNull(),
+    inviterId: uuid('inviter_id'),
+    email: text('email').notNull(),
+    role: text('role').notNull(),
+    status: text('status').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+    respondedAt: timestamp('responded_at', { withTimezone: true }),
+    revokedAt: timestamp('revoked_at', { withTimezone: true })
+  },
+  (table) => ({
+    organizationUserIndex: uniqueIndex('organization_invitations_org_user_idx').on(
+      table.organizationId,
+      table.invitedUserId
+    ),
+    organizationEmailIndex: uniqueIndex('organization_invitations_org_email_idx').on(
+      table.organizationId,
+      table.email
+    ),
+    statusIndex: index('organization_invitations_status_idx').on(table.status),
+    createdAtIndex: index('organization_invitations_created_at_idx').on(table.createdAt)
+  })
+);
+
+export type OrganizationInvitation = typeof organizationInvitations.$inferSelect;
+export type NewOrganizationInvitation = typeof organizationInvitations.$inferInsert;
 
 export const userProfiles = pgTable('user_profiles', {
   userId: uuid('user_id').primaryKey(),

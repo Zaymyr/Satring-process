@@ -2,7 +2,7 @@
 
 import { useId, useState } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 
 import { Button } from '@/components/ui/button';
@@ -17,7 +17,10 @@ import {
 import {
   inviteMemberInputSchema,
   inviteMemberResponseSchema,
-  type InviteMemberInput
+  organizationInvitationListResponseSchema,
+  revokeInvitationResponseSchema,
+  type InviteMemberInput,
+  type OrganizationInvitation
 } from '@/lib/validation/invitation';
 
 type ProfileOrganization = ProfileResponse['organizations'][number];
@@ -27,12 +30,21 @@ type OrganizationCardProps = {
   roleLabel: string;
 };
 
+const INVITATION_ROLE_LABELS: Record<OrganizationInvitation['role'], string> = {
+  owner: 'Propriétaire',
+  admin: 'Administrateur',
+  member: 'Membre'
+};
+
 export function OrganizationCard({ organization, roleLabel }: OrganizationCardProps) {
   const queryClient = useQueryClient();
   const [serverError, setServerError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [inviteServerError, setInviteServerError] = useState<string | null>(null);
   const [inviteSuccessMessage, setInviteSuccessMessage] = useState<string | null>(null);
+  const [revokeServerError, setRevokeServerError] = useState<string | null>(null);
+  const [revokeSuccessMessage, setRevokeSuccessMessage] = useState<string | null>(null);
+  const [revokingInvitationId, setRevokingInvitationId] = useState<string | null>(null);
   const formId = useId();
   const inviteEmailId = useId();
   const inviteRoleId = useId();
@@ -87,6 +99,9 @@ export function OrganizationCard({ organization, roleLabel }: OrganizationCardPr
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['profile', 'self'] });
+      queryClient.invalidateQueries({
+        queryKey: ['organization', organization.organizationId, 'invitations']
+      });
     }
   });
 
@@ -119,8 +134,108 @@ export function OrganizationCard({ organization, roleLabel }: OrganizationCardPr
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['profile', 'self'] });
+      queryClient.invalidateQueries({
+        queryKey: ['organization', organization.organizationId, 'invitations']
+      });
     }
   });
+
+  const invitationsQuery = useQuery({
+    queryKey: ['organization', organization.organizationId, 'invitations'],
+    queryFn: async () => {
+      const response = await fetch(`/api/organizations/${organization.organizationId}/invitations`, {
+        method: 'GET',
+        headers: { Accept: 'application/json' },
+        cache: 'no-store'
+      });
+      const json = await response.json().catch(() => null);
+
+      if (!response.ok || !json) {
+        const message = (json && typeof json.error === 'string')
+          ? json.error
+          : "Impossible de charger les invitations de l'organisation.";
+        throw new Error(message);
+      }
+
+      const parsed = organizationInvitationListResponseSchema.safeParse(json);
+
+      if (!parsed.success) {
+        throw new Error("Réponse invalide lors de la récupération des invitations.");
+      }
+
+      return parsed.data.invitations;
+    },
+    enabled: organization.role === 'owner'
+  });
+
+  const revokeMutation = useMutation({
+    mutationFn: async (invitationId: string) => {
+      const response = await fetch(
+        `/api/organizations/${organization.organizationId}/invitations/${invitationId}`,
+        {
+          method: 'DELETE',
+          headers: { Accept: 'application/json' }
+        }
+      );
+      const json = await response.json().catch(() => null);
+
+      if (!response.ok || !json) {
+        const message = (json && typeof json.error === 'string')
+          ? json.error
+          : "Impossible de révoquer cette invitation.";
+        throw new Error(message);
+      }
+
+      const parsed = revokeInvitationResponseSchema.safeParse(json);
+
+      if (!parsed.success) {
+        throw new Error("Réponse invalide après la révocation de l'invitation.");
+      }
+
+      return parsed.data.invitation;
+    },
+    onMutate: (invitationId) => {
+      setRevokeServerError(null);
+      setRevokeSuccessMessage(null);
+      setRevokingInvitationId(invitationId);
+    },
+    onError: (error: unknown) => {
+      setRevokeSuccessMessage(null);
+      setRevokeServerError(
+        error instanceof Error ? error.message : 'Une erreur inattendue est survenue.'
+      );
+    },
+    onSuccess: () => {
+      setRevokeServerError(null);
+      setRevokeSuccessMessage('Invitation révoquée.');
+    },
+    onSettled: () => {
+      setRevokingInvitationId(null);
+      queryClient.invalidateQueries({
+        queryKey: ['organization', organization.organizationId, 'invitations']
+      });
+      queryClient.invalidateQueries({ queryKey: ['profile', 'self'] });
+    }
+  });
+
+  const invitations = (invitationsQuery.data ?? []) as OrganizationInvitation[];
+  const visibleInvitations = invitations.filter((invitation) => invitation.status !== 'revoked');
+  const pendingInvitations = visibleInvitations.filter((invitation) => invitation.status === 'pending');
+  const acceptedInvitations = visibleInvitations.filter((invitation) => invitation.status === 'accepted');
+
+  const formatDate = (value: string) => {
+    const date = new Date(value);
+
+    if (Number.isNaN(date.getTime())) {
+      return 'Date inconnue';
+    }
+
+    return date.toLocaleDateString('fr-FR', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+  };
 
   const isOwner = organization.role === 'owner';
 
@@ -222,6 +337,115 @@ export function OrganizationCard({ organization, roleLabel }: OrganizationCardPr
                 {inviteServerError ? <p className="text-sm text-red-600">{inviteServerError}</p> : null}
               </div>
             </form>
+
+            <div className="space-y-4">
+              <div className="space-y-1">
+                <h3 className="text-sm font-semibold text-slate-900">Invitations envoyées</h3>
+                <p className="text-sm text-slate-500">
+                  Consultez les invitations en attente ou déjà acceptées. Révoquez l’accès si nécessaire.
+                </p>
+              </div>
+
+              {invitationsQuery.isLoading ? (
+                <p className="text-sm text-slate-500">Chargement des invitations…</p>
+              ) : null}
+
+              {invitationsQuery.isError ? (
+                <p className="text-sm text-red-600" role="alert">
+                  {invitationsQuery.error instanceof Error
+                    ? invitationsQuery.error.message
+                    : "Impossible de charger les invitations pour le moment."}
+                </p>
+              ) : null}
+
+              {revokeSuccessMessage ? (
+                <p className="text-sm text-emerald-600">{revokeSuccessMessage}</p>
+              ) : null}
+              {revokeServerError ? (
+                <p className="text-sm text-red-600">{revokeServerError}</p>
+              ) : null}
+
+              {!invitationsQuery.isLoading && pendingInvitations.length === 0 && acceptedInvitations.length === 0 ? (
+                <p className="text-sm text-slate-500">
+                  Aucune invitation n’a encore été envoyée pour cette organisation.
+                </p>
+              ) : null}
+
+              <div className="space-y-4">
+                {pendingInvitations.length > 0 ? (
+                  <div className="space-y-2">
+                    <h4 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                      En attente
+                    </h4>
+                    <ul className="space-y-2">
+                      {pendingInvitations.map((invitation) => {
+                        const isRevoking = revokeMutation.isPending && revokingInvitationId === invitation.id;
+
+                        return (
+                          <li
+                            key={invitation.id}
+                            className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-200 px-3 py-3"
+                          >
+                            <div className="min-w-0">
+                              <p className="truncate text-sm font-medium text-slate-900">{invitation.email}</p>
+                              <p className="text-xs text-slate-500">
+                                {INVITATION_ROLE_LABELS[invitation.role] ?? invitation.role} • Envoyée le {formatDate(invitation.createdAt)}
+                              </p>
+                            </div>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              className="shrink-0"
+                              onClick={() => revokeMutation.mutate(invitation.id)}
+                              disabled={isRevoking}
+                            >
+                              {isRevoking ? 'Révocation…' : 'Révoquer'}
+                            </Button>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
+                ) : null}
+
+                {acceptedInvitations.length > 0 ? (
+                  <div className="space-y-2">
+                    <h4 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                      Acceptées
+                    </h4>
+                    <ul className="space-y-2">
+                      {acceptedInvitations.map((invitation) => {
+                        const isRevoking = revokeMutation.isPending && revokingInvitationId === invitation.id;
+                        const acceptedAt = invitation.respondedAt ?? invitation.updatedAt ?? invitation.createdAt;
+
+                        return (
+                          <li
+                            key={invitation.id}
+                            className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-200 px-3 py-3"
+                          >
+                            <div className="min-w-0">
+                              <p className="truncate text-sm font-medium text-slate-900">{invitation.email}</p>
+                              <p className="text-xs text-slate-500">
+                                {INVITATION_ROLE_LABELS[invitation.role] ?? invitation.role} • Acceptée le {formatDate(acceptedAt)}
+                              </p>
+                            </div>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              className="shrink-0"
+                              onClick={() => revokeMutation.mutate(invitation.id)}
+                              disabled={isRevoking}
+                            >
+                              {isRevoking ? 'Révocation…' : 'Révoquer'}
+                            </Button>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
+                ) : null}
+              </div>
+            </div>
           </div>
         ) : null}
       </div>
