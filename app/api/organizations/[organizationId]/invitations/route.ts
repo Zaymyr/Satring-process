@@ -56,7 +56,7 @@ const fetchMembershipViaSupabase = async (
   userId: string
 ): Promise<OrganizationMember | null> => {
   const { data, error } = await client
-    .from<OrganizationMember>('organization_members')
+    .from('organization_members')
     .select('organization_id, user_id, role')
     .eq('organization_id', organizationId)
     .eq('user_id', userId)
@@ -66,7 +66,7 @@ const fetchMembershipViaSupabase = async (
     throw error;
   }
 
-  return data ?? null;
+  return (data as OrganizationMember | null) ?? null;
 };
 
 const updateMembershipRole = async (
