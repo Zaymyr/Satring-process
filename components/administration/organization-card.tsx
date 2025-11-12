@@ -30,6 +30,12 @@ type OrganizationCardProps = {
   roleLabel: string;
 };
 
+const INVITATION_ROLE_LABELS: Record<OrganizationInvitation['role'], string> = {
+  owner: 'Propriétaire',
+  admin: 'Administrateur',
+  member: 'Membre'
+};
+
 export function OrganizationCard({ organization, roleLabel }: OrganizationCardProps) {
   const queryClient = useQueryClient();
   const [serverError, setServerError] = useState<string | null>(null);
@@ -383,7 +389,7 @@ export function OrganizationCard({ organization, roleLabel }: OrganizationCardPr
                             <div className="min-w-0">
                               <p className="truncate text-sm font-medium text-slate-900">{invitation.email}</p>
                               <p className="text-xs text-slate-500">
-                                {ROLE_LABELS[invitation.role] ?? invitation.role} • Envoyée le {formatDate(invitation.createdAt)}
+                                {INVITATION_ROLE_LABELS[invitation.role] ?? invitation.role} • Envoyée le {formatDate(invitation.createdAt)}
                               </p>
                             </div>
                             <Button
@@ -420,7 +426,7 @@ export function OrganizationCard({ organization, roleLabel }: OrganizationCardPr
                             <div className="min-w-0">
                               <p className="truncate text-sm font-medium text-slate-900">{invitation.email}</p>
                               <p className="text-xs text-slate-500">
-                                {ROLE_LABELS[invitation.role] ?? invitation.role} • Acceptée le {formatDate(acceptedAt)}
+                                {INVITATION_ROLE_LABELS[invitation.role] ?? invitation.role} • Acceptée le {formatDate(acceptedAt)}
                               </p>
                             </div>
                             <Button
