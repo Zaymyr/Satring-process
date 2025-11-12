@@ -167,6 +167,11 @@ export async function POST(request: Request, context: RouteContext) {
   const { email, role } = parsedBody.data;
   const organizationId = paramsResult.data.organizationId;
 
+  const requestUrl = new URL(request.url);
+  const origin = request.headers.get('origin') ?? `${requestUrl.protocol}//${requestUrl.host}`;
+  const invitationRedirect = new URL('/auth/callback', origin);
+  invitationRedirect.searchParams.set('next', '/reset-password');
+
   const supabase = createServerClient();
   const {
     data: { user },
@@ -232,7 +237,10 @@ export async function POST(request: Request, context: RouteContext) {
   let invitationStatus: InviteMemberResponse['status'] = 'added';
 
   if (!targetUserId) {
-    const { data: invitation, error: invitationError } = await adminClient.auth.admin.inviteUserByEmail(normalizedEmail);
+    const { data: invitation, error: invitationError } = await adminClient.auth.admin.inviteUserByEmail(
+      normalizedEmail,
+      { redirectTo: invitationRedirect.toString() }
+    );
 
     if (invitationError) {
       console.error("Erreur lors de la création de l'invitation", invitationError);
