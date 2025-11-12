@@ -11,6 +11,16 @@ export async function GET(request: Request) {
     await supabase.auth.exchangeCodeForSession(code);
   }
 
-  const next = requestUrl.searchParams.get('next') ?? '/';
-  return NextResponse.redirect(new URL(next, requestUrl.origin));
+  const rawNext = requestUrl.searchParams.get('next');
+  const type = requestUrl.searchParams.get('type');
+
+  let nextPath = '/';
+
+  if (rawNext && rawNext.startsWith('/')) {
+    nextPath = rawNext;
+  } else if (!rawNext && (type === 'invite' || type === 'signup' || type === 'recovery')) {
+    nextPath = '/reset-password';
+  }
+
+  return NextResponse.redirect(new URL(nextPath, requestUrl.origin));
 }
