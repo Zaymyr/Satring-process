@@ -101,10 +101,13 @@ export async function POST(request: Request, context: RouteContext) {
     adminClient = createAdminClient();
   } catch (error) {
     console.error('Client administrateur Supabase indisponible', error);
-    return NextResponse.json(
-      { error: "Impossible d'envoyer une invitation pour le moment." },
-      { status: 500, headers: NO_STORE_HEADERS }
-    );
+    const message =
+      error instanceof Error && error.message.includes('SUPABASE_SERVICE_ROLE_KEY')
+        ?
+          "Les invitations sont désactivées car la clé de service Supabase n'est pas configurée."
+        : "Impossible d'envoyer une invitation pour le moment.";
+
+    return NextResponse.json({ error: message }, { status: 500, headers: NO_STORE_HEADERS });
   }
 
   const normalizedEmail = email.trim().toLowerCase();

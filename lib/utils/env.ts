@@ -7,6 +7,8 @@ const publicEnvSchema = z.object({
 
 const serverEnvSchema = z.object({
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1).optional(),
+  SUPABASE_SERVICE_ROLE: z.string().min(1).optional(),
+  SUPABASE_SERVICE_KEY: z.string().min(1).optional(),
   SUPABASE_DB_URL: z.string().url()
 });
 
@@ -27,6 +29,8 @@ const loadServerEnv = (): ServerEnv => {
 
   const result = serverEnvSchema.safeParse({
     SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
+    SUPABASE_SERVICE_ROLE: process.env.SUPABASE_SERVICE_ROLE,
+    SUPABASE_SERVICE_KEY: process.env.SUPABASE_SERVICE_KEY,
     SUPABASE_DB_URL: process.env.SUPABASE_DB_URL
   });
 
@@ -50,14 +54,23 @@ const loadServerEnv = (): ServerEnv => {
 };
 
 type Env = PublicEnv & {
-  readonly SUPABASE_SERVICE_ROLE_KEY: ServerEnv['SUPABASE_SERVICE_ROLE_KEY'];
+  readonly SUPABASE_SERVICE_ROLE_KEY:
+    | ServerEnv['SUPABASE_SERVICE_ROLE_KEY']
+    | ServerEnv['SUPABASE_SERVICE_ROLE']
+    | ServerEnv['SUPABASE_SERVICE_KEY'];
   readonly SUPABASE_DB_URL: ServerEnv['SUPABASE_DB_URL'];
 };
 
 export const env: Env = {
   ...publicEnv,
   get SUPABASE_SERVICE_ROLE_KEY() {
-    return loadServerEnv().SUPABASE_SERVICE_ROLE_KEY;
+    const {
+      SUPABASE_SERVICE_ROLE_KEY: primary,
+      SUPABASE_SERVICE_ROLE: legacy,
+      SUPABASE_SERVICE_KEY: fallback
+    } = loadServerEnv();
+
+    return primary ?? legacy ?? fallback;
   },
   get SUPABASE_DB_URL() {
     return loadServerEnv().SUPABASE_DB_URL;
