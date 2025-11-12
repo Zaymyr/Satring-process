@@ -256,10 +256,12 @@ export async function POST(request: Request, context: RouteContext) {
   let existingMembership: OrganizationMember | null = null;
 
   try {
-    existingMembership = await db.query.organizationMembers.findFirst({
+    const membershipRecord = await db.query.organizationMembers.findFirst({
       where: (fields, { and: andFn, eq: eqFn }) =>
         andFn(eqFn(fields.organizationId, organizationId), eqFn(fields.userId, targetUserId))
     });
+
+    existingMembership = membershipRecord ?? null;
   } catch (membershipLookupError) {
     if (!isConnectionError(membershipLookupError)) {
       console.error(
