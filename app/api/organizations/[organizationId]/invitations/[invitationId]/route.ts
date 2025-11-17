@@ -8,6 +8,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { createServerClient } from '@/lib/supabase/server';
 import {
   organizationInvitationSchema,
+  resendInvitationResponseSchema,
   revokeInvitationParamsSchema,
   revokeInvitationResponseSchema,
   type OrganizationInvitation
@@ -365,6 +366,258 @@ export async function DELETE(_: Request, context: RouteContext) {
   }
 
   const payload = revokeInvitationResponseSchema.parse({ invitation: serialized });
+
+  return NextResponse.json(payload, { headers: NO_STORE_HEADERS });
+}
+
+export async function POST(request: Request, context: RouteContext) {
+  const paramsResult = revokeInvitationParamsSchema.safeParse({
+    organizationId: context.params.organizationId,
+    invitationId: context.params.invitationId
+  });
+
+  if (!paramsResult.success) {
+    const message = paramsResult.error.issues[0]?.message ?? 'Requête invalide.';
+    return NextResponse.json({ error: message }, { status: 400, headers: NO_STORE_HEADERS });
+  }
+
+  const { organizationId, invitationId } = paramsResult.data;
+
+  const supabase = createServerClient();
+  const {
+    data: { user },
+    error: authError
+  } = await supabase.auth.getUser();
+
+  if (authError || !user) {
+    return AUTH_ERROR_RESPONSE;
+  }
+
+  let memberships: ProfileResponse['organizations'];
+
+  try {
+    memberships = await fetchUserOrganizations(supabase);
+  } catch (membershipError) {
+    console.error('Erreur lors de la récupération des organisations pour renvoi', membershipError);
+    return NextResponse.json(
+      { error: "Impossible de vérifier vos autorisations d'organisation." },
+      { status: 500, headers: NO_STORE_HEADERS }
+    );
+  }
+
+  const membership = memberships.find((item) => item.organizationId === organizationId);
+
+  if (!membership || membership.role !== 'owner') {
+    return NextResponse.json(
+      { error: "Vous n'avez pas l'autorisation de renvoyer des invitations pour cette organisation." },
+      { status: 403, headers: NO_STORE_HEADERS }
+    );
+  }
+
+  const requestUrl = new URL(request.url);
+  const origin = request.headers.get('origin') ?? `${requestUrl.protocol}//${requestUrl.host}`;
+  const invitationRedirect = new URL('/auth/callback', origin);
+  invitationRedirect.searchParams.set('next', '/reset-password');
+
+  let adminClient: ReturnType<typeof createAdminClient> | null = null;
+
+  const ensureAdminClient = () => {
+    if (!adminClient) {
+      adminClient = getAdminClientOrThrow();
+    }
+
+    return adminClient;
+  };
+
+  let invitationRecord: RawInvitationRecord | null = null;
+
+  try {
+    const record = await db.query.organizationInvitations.findFirst({
+      where: (fields, { and: andFn, eq: eqFn }) =>
+        andFn(eqFn(fields.organizationId, organizationId), eqFn(fields.id, invitationId))
+    });
+
+    if (record) {
+      invitationRecord = {
+        id: record.id,
+        organizationId: record.organizationId,
+        invitedUserId: record.invitedUserId,
+        inviterId: record.inviterId ?? null,
+        email: record.email,
+        role: record.role,
+        status: record.status,
+        createdAt: record.createdAt,
+        updatedAt: record.updatedAt,
+        respondedAt: record.respondedAt,
+        revokedAt: record.revokedAt
+      };
+    }
+  } catch (error) {
+    if (!isConnectionError(error)) {
+      throw error;
+    }
+
+    try {
+      const client = ensureAdminClient();
+      const { data, error: supabaseError } = await client
+        .from('organization_invitations')
+        .select(
+          'id, organization_id, invited_user_id, inviter_id, email, role, status, created_at, updated_at, responded_at, revoked_at'
+        )
+        .eq('organization_id', organizationId)
+        .eq('id', invitationId)
+        .maybeSingle();
+
+      if (supabaseError) {
+        throw supabaseError;
+      }
+
+      if (data) {
+        invitationRecord = {
+          id: data.id as string,
+          organizationId: data.organization_id as string,
+          invitedUserId: data.invited_user_id as string,
+          inviterId: (data.inviter_id as string | null) ?? null,
+          email: data.email as string,
+          role: data.role as string,
+          status: data.status as string,
+          createdAt: data.created_at as string | null,
+          updatedAt: data.updated_at as string | null,
+          respondedAt: data.responded_at as string | null,
+          revokedAt: data.revoked_at as string | null
+        };
+      }
+    } catch (fallbackError) {
+      console.error('Erreur lors de la récupération de linvitation pour renvoi', fallbackError);
+      return NextResponse.json(
+        { error: "Impossible de récupérer l'invitation à renvoyer." },
+        { status: 500, headers: NO_STORE_HEADERS }
+      );
+    }
+  }
+
+  if (!invitationRecord) {
+    return NextResponse.json(
+      { error: "Invitation introuvable pour cette organisation." },
+      { status: 404, headers: NO_STORE_HEADERS }
+    );
+  }
+
+  if (invitationRecord.status !== 'pending') {
+    return NextResponse.json(
+      { error: "Seules les invitations en attente peuvent être renvoyées." },
+      { status: 400, headers: NO_STORE_HEADERS }
+    );
+  }
+
+  try {
+    const client = ensureAdminClient();
+    const { error: inviteError } = await client.auth.admin.inviteUserByEmail(invitationRecord.email, {
+      redirectTo: invitationRedirect.toString()
+    });
+
+    if (inviteError) {
+      throw inviteError;
+    }
+  } catch (error) {
+    console.error('Erreur lors du renvoi de linvitation', error);
+    return NextResponse.json(
+      { error: "Impossible de renvoyer cette invitation pour le moment." },
+      { status: 500, headers: NO_STORE_HEADERS }
+    );
+  }
+
+  const now = new Date();
+  let updatedRecord: RawInvitationRecord | null = null;
+
+  try {
+    const [record] = await db
+      .update(organizationInvitations)
+      .set({ status: 'pending', respondedAt: null, revokedAt: null, updatedAt: now })
+      .where(and(eq(organizationInvitations.organizationId, organizationId), eq(organizationInvitations.id, invitationId)))
+      .returning();
+
+    if (record) {
+      updatedRecord = {
+        id: record.id,
+        organizationId: record.organizationId,
+        invitedUserId: record.invitedUserId,
+        inviterId: record.inviterId ?? null,
+        email: record.email,
+        role: record.role,
+        status: record.status,
+        createdAt: record.createdAt,
+        updatedAt: record.updatedAt,
+        respondedAt: record.respondedAt,
+        revokedAt: record.revokedAt
+      };
+    }
+  } catch (updateError) {
+    if (!isConnectionError(updateError)) {
+      console.error('Erreur lors de la mise à jour du statut du renvoi', updateError);
+      return NextResponse.json(
+        { error: "Impossible de mettre à jour le suivi de l'invitation." },
+        { status: 500, headers: NO_STORE_HEADERS }
+      );
+    }
+
+    try {
+      const client = ensureAdminClient();
+      const { data, error: supabaseError } = await client
+        .from('organization_invitations')
+        .update({ status: 'pending', responded_at: null, revoked_at: null, updated_at: now.toISOString() })
+        .eq('organization_id', organizationId)
+        .eq('id', invitationId)
+        .select(
+          'id, organization_id, invited_user_id, inviter_id, email, role, status, created_at, updated_at, responded_at, revoked_at'
+        )
+        .maybeSingle();
+
+      if (supabaseError) {
+        throw supabaseError;
+      }
+
+      if (data) {
+        updatedRecord = {
+          id: data.id as string,
+          organizationId: data.organization_id as string,
+          invitedUserId: data.invited_user_id as string,
+          inviterId: (data.inviter_id as string | null) ?? null,
+          email: data.email as string,
+          role: data.role as string,
+          status: data.status as string,
+          createdAt: data.created_at as string | null,
+          updatedAt: data.updated_at as string | null,
+          respondedAt: data.responded_at as string | null,
+          revokedAt: data.revoked_at as string | null
+        };
+      }
+    } catch (fallbackUpdateError) {
+      console.error('Erreur Supabase lors de la mise à jour du renvoi', fallbackUpdateError);
+      return NextResponse.json(
+        { error: "Impossible de mettre à jour le suivi de l'invitation." },
+        { status: 500, headers: NO_STORE_HEADERS }
+      );
+    }
+  }
+
+  const recordToSerialize = updatedRecord ?? invitationRecord;
+  let serialized: OrganizationInvitation;
+
+  try {
+    serialized = mapInvitationRecord(recordToSerialize);
+  } catch (serializationError) {
+    console.error('Invitation renvoyée invalide', serializationError);
+    return NextResponse.json(
+      { error: "L'invitation a été renvoyée, mais les données retournées sont invalides." },
+      { status: 500, headers: NO_STORE_HEADERS }
+    );
+  }
+
+  const payload = resendInvitationResponseSchema.parse({
+    invitation: serialized,
+    message: 'Invitation renvoyée avec succès.'
+  });
 
   return NextResponse.json(payload, { headers: NO_STORE_HEADERS });
 }

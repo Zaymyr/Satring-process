@@ -39,6 +39,11 @@ export const revokeInvitationResponseSchema = z.object({
   invitation: organizationInvitationSchema
 });
 
+export const resendInvitationResponseSchema = z.object({
+  invitation: organizationInvitationSchema,
+  message: z.string().min(1)
+});
+
 export const revokeInvitationParamsSchema = z.object({
   invitationId: z.string().uuid("Identifiant d'invitation invalide."),
   organizationId: z.string().uuid("Identifiant d'organisation invalide.")
