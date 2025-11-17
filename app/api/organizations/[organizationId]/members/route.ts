@@ -67,18 +67,32 @@ export async function GET(_: Request, context: RouteContext) {
     role: organizationRoleSchema
   });
 
+  const parseJoinedAt = (value: RawMember['joined_at']): string => {
+    const raw = value instanceof Date ? value : new Date(String(value));
+
+    if (!Number.isNaN(raw.getTime())) {
+      return raw.toISOString();
+    }
+
+    if (typeof value === 'string') {
+      const normalized = value.replace(' ', 'T');
+      const retry = new Date(normalized);
+
+      if (!Number.isNaN(retry.getTime())) {
+        return retry.toISOString();
+      }
+    }
+
+    throw new Error('Invalid joined_at value');
+  };
+
   let members: OrganizationMember[] = [];
 
   try {
     const rawMembers = rawMemberSchema.array().parse((data ?? []) as RawMember[]);
 
     members = rawMembers.map((item) => {
-      const joinedAtDate = new Date(item.joined_at);
-
-      if (Number.isNaN(joinedAtDate.getTime())) {
-        throw new Error('Invalid joined_at value');
-      }
-
+      const joinedAt = parseJoinedAt(item.joined_at);
       const parsedUsername = item.username ? usernameSchema.safeParse(item.username.trim()) : null;
 
       return {
@@ -86,7 +100,7 @@ export async function GET(_: Request, context: RouteContext) {
         email: String(item.email),
         username: parsedUsername?.success ? parsedUsername.data : null,
         role: String(item.role) as OrganizationMember['role'],
-        joinedAt: joinedAtDate.toISOString()
+        joinedAt
       } satisfies OrganizationMember;
     });
   } catch (parseError) {
