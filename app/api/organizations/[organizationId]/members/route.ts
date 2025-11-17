@@ -1,11 +1,14 @@
 import { NextResponse } from 'next/server';
+import { z } from 'zod';
 
 import { createServerClient } from '@/lib/supabase/server';
 import {
   organizationMemberListResponseSchema,
+  userIdSchema,
   type OrganizationMember
 } from '@/lib/validation/organization-member';
 import { organizationIdSchema } from '@/lib/validation/organization';
+import { organizationRoleSchema, usernameSchema } from '@/lib/validation/profile';
 
 const NO_STORE_HEADERS = { 'Cache-Control': 'no-store, max-age=0, must-revalidate' } as const;
 
@@ -49,30 +52,39 @@ export async function GET(_: Request, context: RouteContext) {
   }
 
   type RawMember = {
-    joined_at: string;
+    joined_at: string | Date;
     user_id: string;
     email: string;
     username: string | null;
     role: string;
   };
 
+  const rawMemberSchema = z.object({
+    joined_at: z.union([z.string(), z.date()]),
+    user_id: userIdSchema,
+    email: z.string().email(),
+    username: z.string().nullable(),
+    role: organizationRoleSchema
+  });
+
   let members: OrganizationMember[] = [];
 
   try {
-    const rawMembers = (data ?? []) as RawMember[];
+    const rawMembers = rawMemberSchema.array().parse((data ?? []) as RawMember[]);
 
     members = rawMembers.map((item) => {
-      const joinedAtRaw = String(item.joined_at);
-      const joinedAtDate = new Date(joinedAtRaw);
+      const joinedAtDate = new Date(item.joined_at);
 
       if (Number.isNaN(joinedAtDate.getTime())) {
         throw new Error('Invalid joined_at value');
       }
 
+      const parsedUsername = item.username ? usernameSchema.safeParse(item.username.trim()) : null;
+
       return {
         userId: String(item.user_id),
         email: String(item.email),
-        username: item.username ?? null,
+        username: parsedUsername?.success ? parsedUsername.data : null,
         role: String(item.role) as OrganizationMember['role'],
         joinedAt: joinedAtDate.toISOString()
       } satisfies OrganizationMember;
