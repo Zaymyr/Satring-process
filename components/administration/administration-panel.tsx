@@ -6,6 +6,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 
 import { OrganizationCard } from '@/components/administration/organization-card';
+import { OrganizationInvitations } from '@/components/administration/organization-invitations';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -28,7 +29,7 @@ export function AdministrationPanel({ initialProfile }: AdministrationPanelProps
   const queryClient = useQueryClient();
   const [serverError, setServerError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [activeSection, setActiveSection] = useState<'profile' | 'organization'>('profile');
+  const [activeSection, setActiveSection] = useState<'profile' | 'organization' | 'invitations'>('profile');
 
   const profileQuery = useQuery({
     queryKey: ['profile', 'self'],
@@ -93,6 +94,7 @@ export function AdministrationPanel({ initialProfile }: AdministrationPanelProps
   });
 
   const profile = profileQuery.data;
+  const ownerOrganizations = profile.organizations.filter((organization) => organization.role === 'owner');
 
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-6 py-10">
@@ -141,6 +143,23 @@ export function AdministrationPanel({ initialProfile }: AdministrationPanelProps
               <span>Organisation</span>
               <span className="text-xs font-semibold">
                 {profile.organizations.length}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              className={cn(
+                'flex w-full items-center justify-between rounded-lg px-4 py-3 text-left text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2 focus-visible:ring-offset-white',
+                activeSection === 'invitations'
+                  ? 'bg-slate-900 text-white shadow'
+                  : 'text-slate-600 hover:bg-slate-100'
+              )}
+              onClick={() => setActiveSection('invitations')}
+              aria-current={activeSection === 'invitations' ? 'page' : undefined}
+            >
+              <span>Invitations</span>
+              <span className="text-xs font-semibold">
+                {ownerOrganizations.length}
               </span>
             </button>
           </nav>
@@ -196,7 +215,7 @@ export function AdministrationPanel({ initialProfile }: AdministrationPanelProps
                 </form>
               </CardContent>
             </Card>
-          ) : (
+          ) : activeSection === 'organization' ? (
             <Card className="border-slate-200 bg-white text-slate-900">
               <CardHeader>
                 <CardTitle>Organisation</CardTitle>
@@ -219,6 +238,28 @@ export function AdministrationPanel({ initialProfile }: AdministrationPanelProps
                       />
                     ))}
                   </ul>
+                )}
+              </CardContent>
+            </Card>
+          ) : (
+            <Card className="border-slate-200 bg-white text-slate-900">
+              <CardHeader>
+                <CardTitle>Invitations</CardTitle>
+                <CardDescription className="text-slate-500">
+                  Invitez de nouveaux membres et suivez les invitations en attente ou acceptées.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {ownerOrganizations.length === 0 ? (
+                  <p className="text-sm text-slate-600">
+                    Vous devez être propriétaire d’une organisation pour envoyer des invitations.
+                  </p>
+                ) : (
+                  <div className="space-y-4">
+                    {ownerOrganizations.map((organization) => (
+                      <OrganizationInvitations key={organization.organizationId} organization={organization} />
+                    ))}
+                  </div>
                 )}
               </CardContent>
             </Card>
