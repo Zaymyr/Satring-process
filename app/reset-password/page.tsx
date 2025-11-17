@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 
 import { ResetPasswordForm } from '@/components/reset-password-form';
+import { ResetPasswordTokenHandler } from '@/components/reset-password-token-handler';
 import { createServerClient } from '@/lib/supabase/server';
 
 export const metadata: Metadata = {
@@ -18,6 +19,7 @@ export default async function ResetPasswordPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-slate-100 px-4 py-12">
       <div className="w-full max-w-md space-y-6 rounded-2xl border border-slate-200 bg-white/95 p-8 shadow-xl">
+        <ResetPasswordTokenHandler />
         <div className="space-y-2 text-center">
           <h1 className="text-xl font-semibold text-slate-900">Réinitialiser le mot de passe</h1>
           <p className="text-sm text-slate-600">
