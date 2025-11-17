@@ -8,6 +8,7 @@ import { useForm } from 'react-hook-form';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { OrganizationMembers } from '@/components/administration/organization-members';
 import type { ProfileResponse } from '@/lib/validation/profile';
 import { profileOrganizationSchema } from '@/lib/validation/profile';
 import {
@@ -80,7 +81,7 @@ export function OrganizationCard({ organization, roleLabel }: OrganizationCardPr
 
   return (
     <li className="rounded-lg border border-slate-200 px-4 py-4">
-      <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-6">
         <div className="flex flex-col gap-1">
           <p className="text-xs uppercase tracking-wide text-slate-500">{roleLabel}</p>
           {!isOwner ? (
@@ -120,6 +121,12 @@ export function OrganizationCard({ organization, roleLabel }: OrganizationCardPr
             </div>
           </form>
         ) : null}
+
+        <OrganizationMembers
+          organizationId={organization.organizationId}
+          organizationName={organization.organizationName}
+          canManage={organization.role === 'owner' || organization.role === 'admin'}
+        />
       </div>
     </li>
   );
