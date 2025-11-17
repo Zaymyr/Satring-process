@@ -48,21 +48,11 @@ export async function GET(_: Request, context: RouteContext) {
     );
   }
 
-  type RpcMemberRow = {
-    user_id: string;
-    email: string;
-    username: string | null;
-    role: string;
-    joined_at: string;
-  };
-
   let members: OrganizationMember[] = [];
 
   try {
-    const rawMembers = (data ?? []) as RpcMemberRow[];
-
-    members = rawMembers.map((item: RpcMemberRow) => {
-      const joinedAtRaw = String(item.joined_at);
+    members = (data ?? []).map((item) => {
+      const joinedAtRaw = String((item as { joined_at: string }).joined_at);
       const joinedAtDate = new Date(joinedAtRaw);
 
       if (Number.isNaN(joinedAtDate.getTime())) {
@@ -70,10 +60,10 @@ export async function GET(_: Request, context: RouteContext) {
       }
 
       return {
-        userId: String(item.user_id),
-        email: String(item.email),
-        username: item.username ?? null,
-        role: String(item.role) as OrganizationMember['role'],
+        userId: String((item as { user_id: string }).user_id),
+        email: String((item as { email: string }).email),
+        username: (item as { username: string | null }).username ?? null,
+        role: String((item as { role: string }).role) as OrganizationMember['role'],
         joinedAt: joinedAtDate.toISOString()
       } satisfies OrganizationMember;
     });
