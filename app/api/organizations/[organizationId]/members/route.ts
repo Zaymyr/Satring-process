@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import type { PostgrestError } from '@supabase/supabase-js';
 import { z } from 'zod';
 
 import { createServerClient } from '@/lib/supabase/server';
@@ -11,6 +12,14 @@ import { organizationIdSchema } from '@/lib/validation/organization';
 import { organizationRoleSchema, usernameSchema } from '@/lib/validation/profile';
 
 const NO_STORE_HEADERS = { 'Cache-Control': 'no-store, max-age=0, must-revalidate' } as const;
+
+const isBadRequestError = (error: PostgrestError): boolean => {
+  return (
+    ['22P02', '23502', 'PGRST116', 'PGRST301'].includes(error.code) ||
+    error.message.toLowerCase().includes('invalid input') ||
+    error.hint?.toLowerCase().includes('invalid') === true
+  );
+};
 
 type RouteContext = {
   params: { organizationId: string };
@@ -41,13 +50,19 @@ export async function GET(_: Request, context: RouteContext) {
   const { data, error } = await supabase.rpc('get_organization_members', { target_org_id: organizationId });
 
   if (error) {
-    const message = error.code === '42501'
-      ? "Vous n'avez pas l'autorisation de consulter les membres de cette organisation."
-      : "Impossible de récupérer les membres de l'organisation.";
+    console.error('Failed to fetch organization members', { error });
+
+    const status = error.code === '42501' ? 403 : isBadRequestError(error) ? 400 : 500;
+    const message =
+      status === 403
+        ? "Vous n'avez pas l'autorisation de consulter les membres de cette organisation."
+        : status === 400
+          ? 'Requête invalide pour récupérer les membres de cette organisation.'
+          : "Impossible de récupérer les membres de l'organisation.";
 
     return NextResponse.json(
       { error: message },
-      { status: error.code === '42501' ? 403 : 500, headers: NO_STORE_HEADERS }
+      { status, headers: NO_STORE_HEADERS }
     );
   }
 
