@@ -1,4 +1,4 @@
-import { index, jsonb, pgTable, primaryKey, text, timestamp, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
+import { index, integer, jsonb, pgTable, primaryKey, text, timestamp, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
 import type { ProcessStep } from '@/lib/validation/process';
 
 export const organizations = pgTable(
@@ -39,6 +39,49 @@ export const organizationMembers = pgTable(
 
 export type OrganizationMember = typeof organizationMembers.$inferSelect;
 export type NewOrganizationMember = typeof organizationMembers.$inferInsert;
+
+export const subscriptionPlans = pgTable(
+  'subscription_plans',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    slug: text('slug').notNull(),
+    name: text('name').notNull(),
+    description: text('description'),
+    maxOwners: integer('max_owners').notNull(),
+    maxAdmins: integer('max_admins').notNull(),
+    maxMembers: integer('max_members').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull()
+  },
+  (table) => ({
+    slugIndex: uniqueIndex('subscription_plans_slug_key').on(table.slug),
+    createdAtIndex: index('subscription_plans_created_at_idx').on(table.createdAt),
+    updatedAtIndex: index('subscription_plans_updated_at_idx').on(table.updatedAt)
+  })
+);
+
+export type SubscriptionPlan = typeof subscriptionPlans.$inferSelect;
+export type NewSubscriptionPlan = typeof subscriptionPlans.$inferInsert;
+
+export const organizationPlanSubscriptions = pgTable(
+  'organization_plan_subscriptions',
+  {
+    organizationId: uuid('organization_id').primaryKey(),
+    planId: uuid('plan_id').notNull(),
+    subscribedAt: timestamp('subscribed_at', { withTimezone: true }).defaultNow().notNull(),
+    renewsAt: timestamp('renews_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull()
+  },
+  (table) => ({
+    planIndex: index('organization_plan_subscriptions_plan_idx').on(table.planId),
+    renewsAtIndex: index('organization_plan_subscriptions_renews_at_idx').on(table.renewsAt),
+    updatedAtIndex: index('organization_plan_subscriptions_updated_at_idx').on(table.updatedAt)
+  })
+);
+
+export type OrganizationPlanSubscription = typeof organizationPlanSubscriptions.$inferSelect;
+export type NewOrganizationPlanSubscription = typeof organizationPlanSubscriptions.$inferInsert;
 
 export const organizationInvitations = pgTable(
   'organization_invitations',
