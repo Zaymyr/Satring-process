@@ -126,6 +126,8 @@ export function OrganizationCard({ organization, roleLabel }: OrganizationCardPr
           organizationId={organization.organizationId}
           organizationName={organization.organizationName}
           canManage={organization.role === 'owner'}
+          planName={organization.planName}
+          roleLimits={organization.roleLimits}
         />
       </div>
     </li>

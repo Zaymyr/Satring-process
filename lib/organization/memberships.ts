@@ -3,9 +3,14 @@ import { z } from 'zod';
 import { organizationRoleSchema } from '@/lib/validation/profile';
 
 const rawMembershipSchema = z.object({
-  id: z.string().uuid('Identifiant d\'organisation invalide.'),
+  id: z.string().uuid("Identifiant d'organisation invalide."),
   name: z.string().min(1, "Le nom de l'organisation est requis."),
-  role: organizationRoleSchema
+  role: organizationRoleSchema,
+  plan_slug: z.string().min(1).nullable().optional(),
+  plan_name: z.string().min(1).nullable().optional(),
+  max_owners: z.number().int().min(0).nullable().optional(),
+  max_admins: z.number().int().min(0).nullable().optional(),
+  max_members: z.number().int().min(0).nullable().optional()
 });
 
 const membershipListSchema = rawMembershipSchema.array();
@@ -16,6 +21,13 @@ export type OrganizationMembership = {
   organizationId: string;
   organizationName: string;
   role: OrganizationRole;
+  planSlug: string | null;
+  planName: string | null;
+  roleLimits: {
+    owner: number | null;
+    admin: number | null;
+    member: number | null;
+  };
 };
 
 export async function fetchUserOrganizations(
@@ -36,7 +48,14 @@ export async function fetchUserOrganizations(
   return parsed.data.map((item) => ({
     organizationId: item.id,
     organizationName: item.name,
-    role: item.role
+    role: item.role,
+    planSlug: item.plan_slug ?? null,
+    planName: item.plan_name ?? null,
+    roleLimits: {
+      owner: typeof item.max_owners === 'number' ? item.max_owners : null,
+      admin: typeof item.max_admins === 'number' ? item.max_admins : null,
+      member: typeof item.max_members === 'number' ? item.max_members : null
+    }
   }));
 }
 
