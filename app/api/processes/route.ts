@@ -8,6 +8,7 @@ import { processResponseSchema, processSummarySchema, type ProcessResponse } fro
 import {
   fetchUserOrganizations,
   getAccessibleOrganizationIds,
+  getManageableMemberships,
   selectDefaultOrganization
 } from '@/lib/organization/memberships';
 
@@ -233,11 +234,12 @@ export async function POST(request: Request) {
     );
   }
 
-  const targetOrganization = selectDefaultOrganization(memberships);
+  const manageableMemberships = getManageableMemberships(memberships);
+  const targetOrganization = selectDefaultOrganization(manageableMemberships);
 
   if (!targetOrganization) {
     return NextResponse.json(
-      { error: 'Aucune organisation disponible pour créer un process.' },
+      { error: "Vous devez être propriétaire ou administrateur pour créer un process." },
       { status: 403, headers: NO_STORE_HEADERS }
     );
   }

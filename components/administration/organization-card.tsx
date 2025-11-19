@@ -125,7 +125,7 @@ export function OrganizationCard({ organization, roleLabel }: OrganizationCardPr
         <OrganizationMembers
           organizationId={organization.organizationId}
           organizationName={organization.organizationName}
-          canManage={organization.role === 'owner' || organization.role === 'admin'}
+          canManage={organization.role === 'owner'}
         />
       </div>
     </li>

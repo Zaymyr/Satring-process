@@ -4,10 +4,7 @@ import { z } from 'zod';
 import { createServerClient } from '@/lib/supabase/server';
 import { DEFAULT_PROCESS_TITLE } from '@/lib/process/defaults';
 import { processSummarySchema, type ProcessSummary } from '@/lib/validation/process';
-import {
-  fetchUserOrganizations,
-  getAccessibleOrganizationIds
-} from '@/lib/organization/memberships';
+import { fetchUserOrganizations, getManageableOrganizationIds } from '@/lib/organization/memberships';
 
 const NO_STORE_HEADERS = { 'Cache-Control': 'no-store, max-age=0, must-revalidate' };
 
@@ -131,17 +128,20 @@ export async function PATCH(request: Request, context: { params: { id: string } 
     );
   }
 
-  const accessibleOrganizationIds = getAccessibleOrganizationIds(memberships);
+  const manageableOrganizationIds = getManageableOrganizationIds(memberships);
 
-  if (accessibleOrganizationIds.length === 0) {
-    return NextResponse.json({ error: 'Process introuvable.' }, { status: 404, headers: NO_STORE_HEADERS });
+  if (manageableOrganizationIds.length === 0) {
+    return NextResponse.json(
+      { error: "Vous n'avez pas l'autorisation de modifier ce process." },
+      { status: 403, headers: NO_STORE_HEADERS }
+    );
   }
 
   const { data, error } = await supabase
     .from('process_snapshots')
     .update({ title })
     .eq('id', params.data.id)
-    .in('organization_id', accessibleOrganizationIds)
+    .in('organization_id', manageableOrganizationIds)
     .select('id, title, updated_at, organization_id')
     .maybeSingle();
 
@@ -206,17 +206,20 @@ export async function DELETE(_request: Request, context: { params: { id: string 
     );
   }
 
-  const accessibleOrganizationIds = getAccessibleOrganizationIds(memberships);
+  const manageableOrganizationIds = getManageableOrganizationIds(memberships);
 
-  if (accessibleOrganizationIds.length === 0) {
-    return NextResponse.json({ error: 'Process introuvable.' }, { status: 404, headers: NO_STORE_HEADERS });
+  if (manageableOrganizationIds.length === 0) {
+    return NextResponse.json(
+      { error: "Vous n'avez pas l'autorisation de supprimer ce process." },
+      { status: 403, headers: NO_STORE_HEADERS }
+    );
   }
 
   const { data, error } = await supabase
     .from('process_snapshots')
     .delete()
     .eq('id', params.data.id)
-    .in('organization_id', accessibleOrganizationIds)
+    .in('organization_id', manageableOrganizationIds)
     .select('id')
     .maybeSingle();
 

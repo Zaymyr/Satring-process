@@ -48,7 +48,7 @@ export async function DELETE(_: Request, context: RouteContext) {
     );
   }
 
-  if (!callerMembership || (callerMembership.role !== 'owner' && callerMembership.role !== 'admin')) {
+  if (!callerMembership || callerMembership.role !== 'owner') {
     return NextResponse.json(
       { error: "Vous n'avez pas l'autorisation de retirer des membres de cette organisation." },
       { status: 403, headers: NO_STORE_HEADERS }

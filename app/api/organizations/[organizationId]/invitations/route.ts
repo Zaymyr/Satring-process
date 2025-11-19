@@ -556,6 +556,29 @@ export async function POST(request: Request, context: RouteContext) {
       finalStatus = 'already-member';
       responseMessage = 'Cet utilisateur fait déjà partie de cette organisation avec ce rôle.';
     } else {
+      if (existingMembership.role === 'owner' && mappedRole !== 'owner') {
+        const { data: ownerRows, error: ownerCountError } = await supabase
+          .from('organization_members')
+          .select('user_id')
+          .eq('organization_id', organizationId)
+          .eq('role', 'owner');
+
+        if (ownerCountError) {
+          console.error('Erreur lors du comptage des propriétaires avant changement de rôle', ownerCountError);
+          return NextResponse.json(
+            { error: "Impossible de vérifier les propriétaires de l'organisation." },
+            { status: 500, headers: NO_STORE_HEADERS }
+          );
+        }
+
+        if ((ownerRows?.length ?? 0) <= 1) {
+          return NextResponse.json(
+            { error: "Vous ne pouvez pas retirer le dernier propriétaire de l'organisation." },
+            { status: 400, headers: NO_STORE_HEADERS }
+          );
+        }
+      }
+
       try {
         await updateMembershipRole(adminClient, organizationId, targetUserId, mappedRole);
       } catch (updateMembershipError) {

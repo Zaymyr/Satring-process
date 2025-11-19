@@ -6,7 +6,8 @@ import { DEFAULT_PROCESS_TITLE } from '@/lib/process/defaults';
 import { processPayloadSchema, processResponseSchema, type ProcessPayload } from '@/lib/validation/process';
 import {
   fetchUserOrganizations,
-  getAccessibleOrganizationIds
+  getAccessibleOrganizationIds,
+  getManageableOrganizationIds
 } from '@/lib/organization/memberships';
 
 const NO_STORE_HEADERS = { 'Cache-Control': 'no-store, max-age=0, must-revalidate' };
@@ -239,7 +240,50 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Authentification requise.' }, { status: 401, headers: NO_STORE_HEADERS });
   }
 
+  let memberships;
+
+  try {
+    memberships = await fetchUserOrganizations(supabase);
+  } catch (membershipError) {
+    console.error('Erreur lors de la récupération des organisations pour sauvegarder le process', membershipError);
+    return NextResponse.json(
+      { error: 'Impossible de vérifier vos autorisations pour ce process.' },
+      { status: 500, headers: NO_STORE_HEADERS }
+    );
+  }
+
   const body: ProcessPayload = parsedPayload.data;
+
+  const manageableOrganizationIds = getManageableOrganizationIds(memberships);
+
+  if (manageableOrganizationIds.length === 0) {
+    return NextResponse.json(
+      { error: "Vous n'avez pas l'autorisation de modifier ce process." },
+      { status: 403, headers: NO_STORE_HEADERS }
+    );
+  }
+
+  const { data: processRecord, error: processLookupError } = await supabase
+    .from('process_snapshots')
+    .select('id')
+    .eq('id', body.id)
+    .in('organization_id', manageableOrganizationIds)
+    .maybeSingle();
+
+  if (processLookupError) {
+    console.error('Erreur lors de la vérification des autorisations pour le process', processLookupError);
+    return NextResponse.json(
+      { error: 'Impossible de vérifier vos autorisations sur ce process.' },
+      { status: 500, headers: NO_STORE_HEADERS }
+    );
+  }
+
+  if (!processRecord) {
+    return NextResponse.json(
+      { error: "Vous n'avez pas l'autorisation de modifier ce process." },
+      { status: 403, headers: NO_STORE_HEADERS }
+    );
+  }
 
   const { data, error } = await supabase.rpc('save_process_snapshot', {
     payload: { id: body.id, title: body.title, steps: body.steps }
