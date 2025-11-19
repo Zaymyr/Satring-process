@@ -20,9 +20,15 @@ type OrganizationMembersProps = {
   organizationId: string;
   organizationName: string;
   canManage: boolean;
+  roleLimits?: Partial<Record<OrganizationMember['role'], number>>;
 };
 
-export function OrganizationMembers({ organizationId, organizationName, canManage }: OrganizationMembersProps) {
+export function OrganizationMembers({
+  organizationId,
+  organizationName,
+  canManage,
+  roleLimits = {}
+}: OrganizationMembersProps) {
   const queryClient = useQueryClient();
   const [serverError, setServerError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -102,8 +108,59 @@ export function OrganizationMembers({ organizationId, organizationName, canManag
 
   const members = (membersQuery.data ?? []) as OrganizationMember[];
 
+  const roleSummaries = (['owner', 'admin', 'member'] satisfies OrganizationMember['role'][]).map((role) => {
+    const count = members.filter((member) => member.role === role).length;
+    const limit = roleLimits[role];
+    const isAtOrAboveLimit = typeof limit === 'number' ? count >= limit : false;
+    const remaining = typeof limit === 'number' ? Math.max(limit - count, 0) : null;
+    const remainingLabel =
+      typeof remaining === 'number'
+        ? `${remaining} place${remaining > 1 ? 's' : ''} restante${remaining > 1 ? 's' : ''}`
+        : null;
+
+    return {
+      role,
+      label: ROLE_LABELS[role],
+      count,
+      limit: typeof limit === 'number' ? limit : null,
+      isAtOrAboveLimit,
+      remaining,
+      remainingLabel
+    };
+  });
+
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
+      <div className="grid gap-3 sm:grid-cols-3">
+        {roleSummaries.map((summary) => (
+          <div
+            key={summary.role}
+            className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 shadow-sm"
+          >
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{summary.label}</p>
+              {summary.limit !== null ? (
+                <span
+                  className={`text-xs font-semibold ${summary.isAtOrAboveLimit ? 'text-amber-600' : 'text-slate-500'}`}
+                >
+                  {summary.count}/{summary.limit}
+                </span>
+              ) : (
+                <span className="text-xs font-semibold text-slate-400">—</span>
+              )}
+            </div>
+            <p className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">{summary.count}</p>
+            <p className="text-xs text-slate-500">
+              {summary.limit !== null
+                ? summary.isAtOrAboveLimit
+                  ? 'Limite atteinte'
+                  : summary.remainingLabel ?? ''
+                : 'Aucune limite configurée'}
+            </p>
+          </div>
+        ))}
+      </div>
+
       <div className="space-y-1">
         <h3 className="text-sm font-semibold text-slate-900">Membres de l’organisation</h3>
         <p className="text-sm text-slate-500">
