@@ -1,4 +1,11 @@
-create or replace function public.get_user_organizations()
+-- 1) Supprimer d'abord la fonction qui dépend de get_user_organizations
+drop function if exists public.get_default_organization_id();
+
+-- 2) Supprimer l'ancienne version de get_user_organizations (sans changer le nom ni les paramètres)
+drop function if exists public.get_user_organizations();
+
+-- 3) Recréer get_user_organizations avec la nouvelle signature étendue
+create function public.get_user_organizations()
 returns table(
     id uuid,
     name text,
@@ -34,3 +41,18 @@ as $$
 $$;
 
 grant execute on function public.get_user_organizations() to authenticated;
+
+-- 4) Recréer la fonction utilitaire qui l'utilise
+create function public.get_default_organization_id()
+returns uuid
+language sql
+security definer
+set search_path = public
+stable
+as $$
+    select id
+    from public.get_user_organizations()
+    limit 1;
+$$;
+
+grant execute on function public.get_default_organization_id() to authenticated;
