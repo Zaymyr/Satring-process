@@ -9,6 +9,7 @@ import {
   removeOrganizationMemberResponseSchema,
   type OrganizationMember
 } from '@/lib/validation/organization-member';
+import type { ProfileResponse } from '@/lib/validation/profile';
 
 const ROLE_LABELS: Record<OrganizationMember['role'], string> = {
   owner: 'Propriétaire',
@@ -16,18 +17,26 @@ const ROLE_LABELS: Record<OrganizationMember['role'], string> = {
   member: 'Membre'
 };
 
+const EMPTY_ROLE_LIMITS: ProfileResponse['organizations'][number]['roleLimits'] = {
+  owner: null,
+  admin: null,
+  member: null
+};
+
 type OrganizationMembersProps = {
   organizationId: string;
   organizationName: string;
   canManage: boolean;
-  roleLimits?: Partial<Record<OrganizationMember['role'], number>>;
+  planName?: string | null;
+  roleLimits?: ProfileResponse['organizations'][number]['roleLimits'];
 };
 
 export function OrganizationMembers({
   organizationId,
   organizationName,
   canManage,
-  roleLimits = {}
+  planName,
+  roleLimits
 }: OrganizationMembersProps) {
   const queryClient = useQueryClient();
   const [serverError, setServerError] = useState<string | null>(null);
@@ -108,9 +117,11 @@ export function OrganizationMembers({
 
   const members = (membersQuery.data ?? []) as OrganizationMember[];
 
+  const normalizedRoleLimits = roleLimits ?? EMPTY_ROLE_LIMITS;
+
   const roleSummaries = (['owner', 'admin', 'member'] satisfies OrganizationMember['role'][]).map((role) => {
     const count = members.filter((member) => member.role === role).length;
-    const limit = roleLimits[role];
+    const limit = normalizedRoleLimits[role];
     const isAtOrAboveLimit = typeof limit === 'number' ? count >= limit : false;
     const remaining = typeof limit === 'number' ? Math.max(limit - count, 0) : null;
     const remainingLabel =
@@ -129,8 +140,38 @@ export function OrganizationMembers({
     };
   });
 
+  const planLimitSummaries = (
+    [
+      { role: 'owner', label: 'Propriétaires' },
+      { role: 'admin', label: 'Administrateurs' },
+      { role: 'member', label: 'Membres' }
+    ] as const
+  ).map((entry) => ({
+    ...entry,
+    limit: normalizedRoleLimits[entry.role]
+  }));
+
   return (
     <div className="space-y-4">
+      <div className="rounded-xl border border-slate-200 bg-white px-4 py-4 text-slate-900 shadow-sm">
+        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Plan actuel</p>
+        <p className="mt-1 text-lg font-semibold text-slate-900">{planName ?? 'Plan non attribué'}</p>
+        <dl className="mt-3 grid gap-3 text-sm text-slate-600 sm:grid-cols-3">
+          {planLimitSummaries.map((entry) => (
+            <div key={entry.role} className="rounded-lg bg-slate-50 px-3 py-2">
+              <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                {entry.label}
+              </dt>
+              <dd className="mt-1 text-sm font-semibold text-slate-900">
+                {typeof entry.limit === 'number'
+                  ? `${entry.limit} place${entry.limit > 1 ? 's' : ''} max`
+                  : 'Aucune limite'}
+              </dd>
+            </div>
+          ))}
+        </dl>
+      </div>
+
       <div className="grid gap-3 sm:grid-cols-3">
         {roleSummaries.map((summary) => (
           <div
