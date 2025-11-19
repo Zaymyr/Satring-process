@@ -370,7 +370,7 @@ export function OrganizationInvitations({ organization }: OrganizationInvitation
                         <Button
                           type="button"
                           variant="outline"
-                          className="shrink-0"
+                          className="shrink-0 text-slate-900 hover:text-white"
                           onClick={() => revokeMutation.mutate(invitation.id)}
                           disabled={isRevoking}
                         >
