@@ -73,6 +73,20 @@ export function selectDefaultOrganization(
   return ordered[0] ?? null;
 }
 
+const MANAGER_ROLES: ReadonlySet<OrganizationRole> = new Set(['owner', 'admin']);
+
+const isManageableRole = (role: OrganizationRole) => MANAGER_ROLES.has(role);
+
+export function getManageableMemberships(
+  memberships: OrganizationMembership[]
+): OrganizationMembership[] {
+  return memberships.filter((membership) => isManageableRole(membership.role));
+}
+
+export function getManageableOrganizationIds(memberships: OrganizationMembership[]): string[] {
+  return getManageableMemberships(memberships).map((membership) => membership.organizationId);
+}
+
 export function getAccessibleOrganizationIds(memberships: OrganizationMembership[]): string[] {
   return memberships.map((membership) => membership.organizationId);
 }

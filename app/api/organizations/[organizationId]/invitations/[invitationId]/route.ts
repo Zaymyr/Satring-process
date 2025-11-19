@@ -238,6 +238,50 @@ export async function DELETE(_: Request, context: RouteContext) {
 
   const targetUserId = invitationRecord.invitedUserId;
 
+  let targetMembershipRole: ProfileResponse['organizations'][number]['role'] | null = null;
+
+  const { data: membershipRow, error: membershipLookupError } = await supabase
+    .from('organization_members')
+    .select('role')
+    .eq('organization_id', organizationId)
+    .eq('user_id', targetUserId)
+    .maybeSingle();
+
+  if (membershipLookupError) {
+    console.error('Erreur lors de la vérification du rôle du membre avant révocation', membershipLookupError);
+    return NextResponse.json(
+      { error: "Impossible de vérifier le rôle du membre à révoquer." },
+      { status: 500, headers: NO_STORE_HEADERS }
+    );
+  }
+
+  if (membershipRow) {
+    targetMembershipRole = membershipRow.role as ProfileResponse['organizations'][number]['role'];
+  }
+
+  if (targetMembershipRole === 'owner') {
+    const { data: ownerRows, error: ownerCountError } = await supabase
+      .from('organization_members')
+      .select('user_id')
+      .eq('organization_id', organizationId)
+      .eq('role', 'owner');
+
+    if (ownerCountError) {
+      console.error('Erreur lors du comptage des propriétaires avant révocation', ownerCountError);
+      return NextResponse.json(
+        { error: "Impossible de vérifier les propriétaires de l'organisation." },
+        { status: 500, headers: NO_STORE_HEADERS }
+      );
+    }
+
+    if ((ownerRows?.length ?? 0) <= 1) {
+      return NextResponse.json(
+        { error: "Vous ne pouvez pas supprimer le dernier propriétaire de l'organisation." },
+        { status: 400, headers: NO_STORE_HEADERS }
+      );
+    }
+  }
+
   try {
     await db
       .delete(organizationMembers)
