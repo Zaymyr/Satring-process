@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { ChevronDown, ChevronUp } from 'lucide-react';
+import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { Button } from '@/components/ui/button';
@@ -11,10 +12,18 @@ import {
 } from '@/lib/validation/organization-member';
 import type { ProfileResponse } from '@/lib/validation/profile';
 
+const ROLE_ORDER = ['owner', 'admin', 'member'] as const satisfies OrganizationMember['role'][];
+
 const ROLE_LABELS: Record<OrganizationMember['role'], string> = {
   owner: 'Propriétaire',
   admin: 'Administrateur',
   member: 'Membre'
+};
+
+const ROLE_LIMIT_LABELS: Record<OrganizationMember['role'], string> = {
+  owner: 'Propriétaires',
+  admin: 'Administrateurs',
+  member: 'Membres'
 };
 
 const EMPTY_ROLE_LIMITS: ProfileResponse['organizations'][number]['roleLimits'] = {
@@ -42,6 +51,15 @@ export function OrganizationMembers({
   const [serverError, setServerError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [removalTarget, setRemovalTarget] = useState<string | null>(null);
+  const [openRoles, setOpenRoles] = useState<Record<OrganizationMember['role'], boolean>>(() =>
+    ROLE_ORDER.reduce(
+      (acc, role) => {
+        acc[role] = true;
+        return acc;
+      },
+      {} as Record<OrganizationMember['role'], boolean>
+    )
+  );
 
   const membersQuery = useQuery({
     queryKey: ['organization', organizationId, 'members'],
@@ -115,11 +133,38 @@ export function OrganizationMembers({
     }
   });
 
-  const members = (membersQuery.data ?? []) as OrganizationMember[];
+  const members = useMemo(
+    () => (membersQuery.data ?? []) as OrganizationMember[],
+    [membersQuery.data]
+  );
 
   const normalizedRoleLimits = roleLimits ?? EMPTY_ROLE_LIMITS;
 
-  const roleSummaries = (['owner', 'admin', 'member'] satisfies OrganizationMember['role'][]).map((role) => {
+  const membersByRole = useMemo(() => {
+    const grouped = ROLE_ORDER.reduce(
+      (acc, role) => {
+        acc[role] = [] as OrganizationMember[];
+        return acc;
+      },
+      {} as Record<OrganizationMember['role'], OrganizationMember[]>
+    );
+
+    for (const member of members) {
+      grouped[member.role]?.push(member);
+    }
+
+    ROLE_ORDER.forEach((role) => {
+      grouped[role].sort((a, b) => {
+        const left = a.username ?? a.email;
+        const right = b.username ?? b.email;
+        return left.localeCompare(right, 'fr', { sensitivity: 'base' });
+      });
+    });
+
+    return grouped;
+  }, [members]);
+
+  const roleSummaries = ROLE_ORDER.map((role) => {
     const count = members.filter((member) => member.role === role).length;
     const limit = normalizedRoleLimits[role];
     const isAtOrAboveLimit = typeof limit === 'number' ? count >= limit : false;
@@ -140,16 +185,26 @@ export function OrganizationMembers({
     };
   });
 
-  const planLimitSummaries = (
-    [
-      { role: 'owner', label: 'Propriétaires' },
-      { role: 'admin', label: 'Administrateurs' },
-      { role: 'member', label: 'Membres' }
-    ] as const
-  ).map((entry) => ({
-    ...entry,
-    limit: normalizedRoleLimits[entry.role]
+  const roleSummaryMap = roleSummaries.reduce(
+    (acc, summary) => {
+      acc[summary.role] = summary;
+      return acc;
+    },
+    {} as Record<OrganizationMember['role'], (typeof roleSummaries)[number]>
+  );
+
+  const planLimitSummaries = ROLE_ORDER.map((role) => ({
+    role,
+    label: ROLE_LIMIT_LABELS[role],
+    limit: normalizedRoleLimits[role]
   }));
+
+  const toggleRoleSection = (role: OrganizationMember['role']) => {
+    setOpenRoles((prev) => ({
+      ...prev,
+      [role]: !prev[role]
+    }));
+  };
 
   return (
     <div className="space-y-4">
@@ -229,33 +284,74 @@ export function OrganizationMembers({
       ) : null}
 
       {members.length > 0 ? (
-        <ul className="space-y-2">
-          {members.map((member) => {
-            const isRemoving = removeMutation.isPending && removalTarget === member.userId;
+        <ul className="space-y-3">
+          {ROLE_ORDER.map((role) => {
+            const roleMembers = membersByRole[role];
+            const isOpen = openRoles[role];
+            const panelId = `${organizationId}-${role}-members-panel`;
+            const summary = roleSummaryMap[role];
 
             return (
-              <li
-                key={member.userId}
-                className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-200 px-3 py-3"
-              >
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-medium text-slate-900">
-                    {member.username ?? member.email}
-                  </p>
-                  <p className="text-xs text-slate-500">
-                    {ROLE_LABELS[member.role]} • {member.email}
-                  </p>
-                </div>
-                {canManage ? (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="shrink-0 text-slate-900 hover:text-white"
-                    onClick={() => removeMutation.mutate(member.userId)}
-                    disabled={isRemoving}
-                  >
-                    {isRemoving ? 'Suppression…' : 'Retirer'}
-                  </Button>
+              <li key={role} className="rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
+                <button
+                  type="button"
+                  className="flex w-full items-center justify-between text-left"
+                  onClick={() => toggleRoleSection(role)}
+                  aria-expanded={isOpen}
+                  aria-controls={panelId}
+                >
+                  <div>
+                    <p className="text-sm font-semibold text-slate-900">{ROLE_LABELS[role]}</p>
+                    <p className="text-xs text-slate-500">
+                      {summary.limit !== null
+                        ? `${summary.count}/${summary.limit} membre${summary.count > 1 ? 's' : ''}`
+                        : `${summary.count} membre${summary.count > 1 ? 's' : ''}`}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm font-medium text-slate-500">
+                    {summary.remainingLabel && !summary.isAtOrAboveLimit ? (
+                      <span>{summary.remainingLabel}</span>
+                    ) : summary.isAtOrAboveLimit ? (
+                      <span className="text-amber-600">Limite atteinte</span>
+                    ) : null}
+                    {isOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                  </div>
+                </button>
+                {isOpen ? (
+                  <div id={panelId} className="mt-3 space-y-2">
+                    {roleMembers.length > 0 ? (
+                      roleMembers.map((member) => {
+                        const isRemoving = removeMutation.isPending && removalTarget === member.userId;
+
+                        return (
+                          <div
+                            key={member.userId}
+                            className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-100 px-3 py-3"
+                          >
+                            <div className="min-w-0">
+                              <p className="truncate text-sm font-medium text-slate-900">
+                                {member.username ?? member.email}
+                              </p>
+                              <p className="text-xs text-slate-500">{member.email}</p>
+                            </div>
+                            {canManage ? (
+                              <Button
+                                type="button"
+                                variant="outline"
+                                className="shrink-0 text-slate-900 hover:text-white"
+                                onClick={() => removeMutation.mutate(member.userId)}
+                                disabled={isRemoving}
+                              >
+                                {isRemoving ? 'Suppression…' : 'Retirer'}
+                              </Button>
+                            ) : null}
+                          </div>
+                        );
+                      })
+                    ) : (
+                      <p className="text-sm text-slate-500">Aucun membre assigné à ce rôle.</p>
+                    )}
+                  </div>
                 ) : null}
               </li>
             );
