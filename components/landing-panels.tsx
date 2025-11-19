@@ -56,6 +56,7 @@ import {
   type ProcessSummary,
   type StepType
 } from '@/lib/validation/process';
+import { profileResponseSchema, type ProfileResponse } from '@/lib/validation/profile';
 import {
   DEFAULT_DEPARTMENT_COLOR,
   departmentCascadeFormSchema,
@@ -756,6 +757,38 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
     }
   });
 
+  const profileQuery = useQuery<ProfileResponse, ApiError>({
+    queryKey: ['profile', 'self'],
+    queryFn: async () => {
+      const response = await fetch('/api/profile', {
+        method: 'GET',
+        credentials: 'include',
+        headers: { Accept: 'application/json' },
+        cache: 'no-store'
+      });
+      const json = await response.json().catch(() => null);
+
+      if (response.status === 401) {
+        throw new ApiError('Authentification requise', 401);
+      }
+
+      if (!response.ok || !json) {
+        const message = json && typeof json.error === 'string'
+          ? json.error
+          : 'Impossible de charger votre profil.';
+        throw new ApiError(message, response.status);
+      }
+
+      return profileResponseSchema.parse(json);
+    },
+    retry: (failureCount, error) => {
+      if (error instanceof ApiError && error.status === 401) {
+        return false;
+      }
+      return failureCount < 2;
+    }
+  });
+
   const createDepartmentMutation = useMutation<Department, ApiError, void>({
     mutationFn: () =>
       createDepartmentRequest({ name: DEFAULT_DEPARTMENT_NAME, color: DEFAULT_DEPARTMENT_COLOR }),
@@ -955,6 +988,12 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
     }
   }, [createDepartmentRoleMutation, editingDepartmentId]);
 
+  const manageableMembershipCount =
+    profileQuery.data?.organizations.filter(
+      (organization) => organization.role === 'owner' || organization.role === 'admin'
+    ).length ?? 0;
+  const isProcessManagementRestricted = profileQuery.isSuccess && manageableMembershipCount === 0;
+
   const isProcessListUnauthorized =
     processSummariesQuery.isError &&
     processSummariesQuery.error instanceof ApiError &&
@@ -964,6 +1003,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
     processQuery.isError && processQuery.error instanceof ApiError && processQuery.error.status === 401;
 
   const isUnauthorized = isProcessListUnauthorized || isProcessQueryUnauthorized;
+  const isProcessEditorReadOnly = isUnauthorized || isProcessManagementRestricted;
   const processSummaries = useMemo(
     () => processSummariesQuery.data ?? [],
     [processSummariesQuery.data]
@@ -1470,6 +1510,10 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
       );
     }
 
+    if (isProcessManagementRestricted) {
+      return 'Votre rôle Lecteur vous permet uniquement de consulter les process sauvegardés.';
+    }
+
     if (!currentProcessId) {
       if (isCreating) {
         return 'Création du process en cours…';
@@ -1499,6 +1543,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
     formattedSavedAt,
     isCreating,
     isDirty,
+    isProcessManagementRestricted,
     isUnauthorized,
     processQuery.isLoading,
     saveMutation.error,
@@ -1509,7 +1554,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
     if (saveMutation.isError) {
       return 'text-red-600';
     }
-    if (isUnauthorized) {
+    if (isProcessEditorReadOnly) {
       return 'text-slate-500';
     }
     if (!currentProcessId) {
@@ -1519,11 +1564,14 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
       return 'text-emerald-600';
     }
     return 'text-slate-500';
-  }, [currentProcessId, formattedSavedAt, isDirty, isUnauthorized, saveMutation.isError]);
+  }, [currentProcessId, formattedSavedAt, isDirty, isProcessEditorReadOnly, saveMutation.isError]);
 
   const saveButtonLabel = useMemo(() => {
     if (isUnauthorized) {
       return 'Connexion requise';
+    }
+    if (isProcessManagementRestricted) {
+      return 'Lecture seule';
     }
     if (!currentProcessId) {
       return isCreating ? 'Création…' : 'Créer un process';
@@ -1535,9 +1583,9 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
       return 'Sauvegarder le process';
     }
     return 'Process à jour';
-  }, [currentProcessId, isCreating, isDirty, isSaving, isUnauthorized]);
+  }, [currentProcessId, isCreating, isDirty, isProcessManagementRestricted, isSaving, isUnauthorized]);
 
-  const isSaveDisabled = isUnauthorized || isSaving || !isDirty || !currentProcessId;
+  const isSaveDisabled = isProcessEditorReadOnly || isSaving || !isDirty || !currentProcessId;
 
   const handleSave = () => {
     if (isSaveDisabled || !currentProcessId) {
@@ -1567,10 +1615,14 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
 
   const startEditingProcess = useCallback(
     (process: ProcessSummary) => {
+      if (isProcessEditorReadOnly) {
+        return;
+      }
+
       setEditingProcessId(process.id);
       setRenameDraft(normalizeProcessTitle(process.title));
     },
-    []
+    [isProcessEditorReadOnly]
   );
 
   const cancelEditingProcess = useCallback(() => {
@@ -1580,7 +1632,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
 
   const confirmRenameProcess = useCallback(
     (processId: string) => {
-      if (isRenaming) {
+      if (isRenaming || isProcessEditorReadOnly) {
         return;
       }
 
@@ -1599,16 +1651,34 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
 
       renameProcessMutation.mutate({ id: processId, title: normalized });
     },
-    [cancelEditingProcess, isRenaming, processSummaries, renameDraft, renameProcessMutation]
+    [
+      cancelEditingProcess,
+      isProcessEditorReadOnly,
+      isRenaming,
+      processSummaries,
+      renameDraft,
+      renameProcessMutation
+    ]
   );
 
   const handleCreateProcess = useCallback(() => {
-    if (isUnauthorized || isCreating) {
+    if (isProcessEditorReadOnly || isCreating) {
       return;
     }
 
     createProcessMutation.mutate(undefined);
-  }, [createProcessMutation, isCreating, isUnauthorized]);
+  }, [createProcessMutation, isCreating, isProcessEditorReadOnly]);
+
+  const handleDeleteProcess = useCallback(
+    (processId: string) => {
+      if (isProcessEditorReadOnly) {
+        return;
+      }
+
+      deleteProcessMutation.mutate(processId);
+    },
+    [deleteProcessMutation, isProcessEditorReadOnly]
+  );
 
   const clearDragState = useCallback(() => {
     draggedStepIdRef.current = null;
@@ -1617,6 +1687,11 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
 
   const handleStepDragStart = useCallback(
     (event: React.DragEvent<HTMLButtonElement>, stepId: string) => {
+      if (isProcessEditorReadOnly) {
+        event.preventDefault();
+        return;
+      }
+
       event.stopPropagation();
       event.dataTransfer.effectAllowed = 'move';
       event.dataTransfer.setData('text/plain', stepId);
@@ -1624,7 +1699,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
       setDraggedStepId(stepId);
       setSelectedStepId(stepId);
     },
-    [setSelectedStepId]
+    [isProcessEditorReadOnly, setSelectedStepId]
   );
 
   const handleStepDragEnd = useCallback(() => {
@@ -1634,76 +1709,98 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
   const handleStepDrop = useCallback(
     (event: React.DragEvent<HTMLElement>) => {
       event.preventDefault();
+
+      if (isProcessEditorReadOnly) {
+        clearDragState();
+        return;
+      }
+
       clearDragState();
     },
-    [clearDragState]
+    [clearDragState, isProcessEditorReadOnly]
   );
 
-  const handleStepDragOver = useCallback((event: React.DragEvent<HTMLElement>, overStepId: string) => {
-    event.preventDefault();
-    event.dataTransfer.dropEffect = 'move';
-    const draggedId = draggedStepIdRef.current;
+  const handleStepDragOver = useCallback(
+    (event: React.DragEvent<HTMLElement>, overStepId: string) => {
+      event.preventDefault();
 
-    if (!draggedId || draggedId === overStepId) {
-      return;
-    }
-
-    setSteps((previous) => {
-      const fromIndex = previous.findIndex((item) => item.id === draggedId);
-      const toIndex = previous.findIndex((item) => item.id === overStepId);
-      const lastDraggableIndex = previous.length - 2;
-
-      if (
-        fromIndex <= 0 ||
-        fromIndex >= previous.length - 1 ||
-        lastDraggableIndex < 1 ||
-        toIndex === -1
-      ) {
-        return previous;
+      if (isProcessEditorReadOnly) {
+        return;
       }
 
-      const clampedTargetIndex = Math.min(Math.max(toIndex, 1), lastDraggableIndex);
+      event.dataTransfer.dropEffect = 'move';
+      const draggedId = draggedStepIdRef.current;
 
-      if (fromIndex === clampedTargetIndex) {
-        return previous;
+      if (!draggedId || draggedId === overStepId) {
+        return;
       }
 
-      const updated = [...previous];
-      const [moved] = updated.splice(fromIndex, 1);
-      updated.splice(clampedTargetIndex, 0, moved);
-      return updated;
-    });
-  }, []);
+      setSteps((previous) => {
+        const fromIndex = previous.findIndex((item) => item.id === draggedId);
+        const toIndex = previous.findIndex((item) => item.id === overStepId);
+        const lastDraggableIndex = previous.length - 2;
 
-  const handleStepListDragOverEnd = useCallback((event: React.DragEvent<HTMLDivElement>) => {
-    event.preventDefault();
-    event.dataTransfer.dropEffect = 'move';
-    const draggedId = draggedStepIdRef.current;
+        if (
+          fromIndex <= 0 ||
+          fromIndex >= previous.length - 1 ||
+          lastDraggableIndex < 1 ||
+          toIndex === -1
+        ) {
+          return previous;
+        }
 
-    if (!draggedId) {
-      return;
-    }
+        const clampedTargetIndex = Math.min(Math.max(toIndex, 1), lastDraggableIndex);
 
-    setSteps((previous) => {
-      const fromIndex = previous.findIndex((item) => item.id === draggedId);
-      const finishIndex = previous.length - 1;
-      const lastDraggableIndex = finishIndex - 1;
+        if (fromIndex === clampedTargetIndex) {
+          return previous;
+        }
 
-      if (
-        fromIndex <= 0 ||
-        fromIndex >= finishIndex ||
-        lastDraggableIndex < 1 ||
-        fromIndex === lastDraggableIndex
-      ) {
-        return previous;
+        const updated = [...previous];
+        const [moved] = updated.splice(fromIndex, 1);
+        updated.splice(clampedTargetIndex, 0, moved);
+        return updated;
+      });
+    },
+    [isProcessEditorReadOnly]
+  );
+
+  const handleStepListDragOverEnd = useCallback(
+    (event: React.DragEvent<HTMLDivElement>) => {
+      event.preventDefault();
+
+      if (isProcessEditorReadOnly) {
+        return;
       }
 
-      const updated = [...previous];
-      const [moved] = updated.splice(fromIndex, 1);
-      updated.splice(lastDraggableIndex, 0, moved);
-      return updated;
-    });
-  }, []);
+      event.dataTransfer.dropEffect = 'move';
+      const draggedId = draggedStepIdRef.current;
+
+      if (!draggedId) {
+        return;
+      }
+
+      setSteps((previous) => {
+        const fromIndex = previous.findIndex((item) => item.id === draggedId);
+        const finishIndex = previous.length - 1;
+        const lastDraggableIndex = finishIndex - 1;
+
+        if (
+          fromIndex <= 0 ||
+          fromIndex >= finishIndex ||
+          lastDraggableIndex < 1 ||
+          fromIndex === lastDraggableIndex
+        ) {
+          return previous;
+        }
+
+        const updated = [...previous];
+        const [moved] = updated.splice(fromIndex, 1);
+        updated.splice(lastDraggableIndex, 0, moved);
+        return updated;
+      });
+    },
+    [isProcessEditorReadOnly]
+  );
 
   const diagramDefinition = useMemo(() => {
     const flowchartDeclaration = `flowchart ${diagramDirection}`;
@@ -2205,6 +2302,10 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
   }, [diagramDefinition, diagramElementId, isMermaidReady]);
 
   const addStep = (type: Extract<StepType, 'action' | 'decision'>) => {
+    if (isProcessEditorReadOnly) {
+      return;
+    }
+
     const label = type === 'action' ? 'Nouvelle action' : 'Nouvelle décision';
     const newStepId = generateStepId();
     const nextStep: Step = {
@@ -2243,10 +2344,18 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
   };
 
   const updateStepLabel = (id: string, label: string) => {
+    if (isProcessEditorReadOnly) {
+      return;
+    }
+
     setSteps((prev) => prev.map((step) => (step.id === id ? { ...step, label } : step)));
   };
 
   const updateStepDepartment = (id: string, departmentId: string | null) => {
+    if (isProcessEditorReadOnly) {
+      return;
+    }
+
     setSteps((prev) =>
       prev.map((step) => {
         if (step.id !== id) {
@@ -2270,6 +2379,10 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
   };
 
   const updateStepRole = (id: string, roleId: string | null) => {
+    if (isProcessEditorReadOnly) {
+      return;
+    }
+
     setSteps((prev) =>
       prev.map((step) => {
         if (step.id !== id) {
@@ -2298,6 +2411,10 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
   };
 
   const updateDecisionBranch = (id: string, branch: 'yes' | 'no', targetId: string | null) => {
+    if (isProcessEditorReadOnly) {
+      return;
+    }
+
     setSteps((prev) =>
       prev.map((step) => {
         if (step.id !== id || step.type !== 'decision') {
@@ -2316,6 +2433,10 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
   };
 
   const removeStep = (id: string) => {
+    if (isProcessEditorReadOnly) {
+      return;
+    }
+
     let nextSelectedId: string | null = selectedStepId;
     setSteps((prev) => {
       const filtered = prev
@@ -2659,11 +2780,22 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
           >
             <h1 className="text-base font-semibold text-slate-900">{processTitle}</h1>
             <div className="flex flex-wrap gap-2.5">
-              <Button type="button" onClick={() => addStep('action')} className="h-9 rounded-md bg-slate-900 px-3 text-sm text-white hover:bg-slate-800">
+              <Button
+                type="button"
+                onClick={() => addStep('action')}
+                disabled={isProcessEditorReadOnly}
+                className="h-9 rounded-md bg-slate-900 px-3 text-sm text-white hover:bg-slate-800"
+              >
                 <Plus className="mr-2 h-3.5 w-3.5" />
                 Ajouter une action
               </Button>
-              <Button type="button" variant="outline" onClick={() => addStep('decision')} className="h-9 rounded-md border-slate-300 bg-white px-3 text-sm text-slate-900 hover:bg-slate-50">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => addStep('decision')}
+                disabled={isProcessEditorReadOnly}
+                className="h-9 rounded-md border-slate-300 bg-white px-3 text-sm text-slate-900 hover:bg-slate-50"
+              >
                 <GitBranch className="mr-2 h-3.5 w-3.5" />
                 Ajouter une décision
               </Button>
@@ -2684,7 +2816,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                     const availableTargets = steps.filter((candidate) => candidate.id !== step.id);
                     const isDragging = draggedStepId === step.id;
                     const isFixedStep = step.type === 'start' || step.type === 'finish';
-                    const canReorderStep = !isFixedStep;
+                    const canReorderStep = !isFixedStep && !isProcessEditorReadOnly;
                     const isSelectedStep = selectedStepId === step.id;
                     const displayLabel = getStepDisplayLabel(step);
                     const availableRoleEntries =
@@ -2779,6 +2911,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                                 value={step.label}
                                 onChange={(event) => updateStepLabel(step.id, event.target.value)}
                                 placeholder="Intitulé de l’étape"
+                                disabled={isProcessEditorReadOnly}
                                 className="h-8 w-full border-slate-200 bg-white text-sm text-slate-900 placeholder:text-slate-400 focus-visible:ring-slate-900/20 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-50"
                               />
                               <div className="grid gap-2 sm:grid-cols-2">
@@ -2792,8 +2925,8 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                                         event.target.value.length > 0 ? event.target.value : null
                                       )
                                     }
-                                    className="h-8 rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-900 transition focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10 disabled:cursor-not-allowed"
-                                    disabled={!hasDepartments}
+                                    className="h-8 rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-900 transition focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
+                                    disabled={isProcessEditorReadOnly || !hasDepartments}
                                   >
                                     <option value="">Aucun département</option>
                                     {departments.map((department) => (
@@ -2818,8 +2951,8 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                                         event.target.value.length > 0 ? event.target.value : null
                                       )
                                     }
-                                    className="h-8 rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-900 transition focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10 disabled:cursor-not-allowed"
-                                    disabled={!hasRoles}
+                                    className="h-8 rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-900 transition focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
+                                    disabled={isProcessEditorReadOnly || !hasRoles}
                                   >
                                     <option value="">Aucun rôle</option>
                                     {availableRoleEntries.map((entry) => (
@@ -2841,13 +2974,14 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                                 <div className="mt-2 grid gap-2 sm:grid-cols-2">
                                   <label className="flex flex-col gap-1 text-[0.6rem] font-semibold uppercase tracking-[0.18em] text-slate-500">
                                     <span>Branche Oui</span>
-                                    <select
-                                      value={step.yesTargetId ?? ''}
-                                      onChange={(event) =>
-                                        updateDecisionBranch(step.id, 'yes', event.target.value || null)
-                                      }
-                                      className="h-8 rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-900 transition focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10"
-                                    >
+                                  <select
+                                    value={step.yesTargetId ?? ''}
+                                    onChange={(event) =>
+                                      updateDecisionBranch(step.id, 'yes', event.target.value || null)
+                                    }
+                                    disabled={isProcessEditorReadOnly}
+                                    className="h-8 rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-900 transition focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
+                                  >
                                       <option value="">Étape suivante (défaut)</option>
                                       {availableTargets.map((candidate) => {
                                         const position = stepPositions.get(candidate.id);
@@ -2865,13 +2999,14 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                                   </label>
                                   <label className="flex flex-col gap-1 text-[0.6rem] font-semibold uppercase tracking-[0.18em] text-slate-500">
                                     <span>Branche Non</span>
-                                    <select
-                                      value={step.noTargetId ?? ''}
-                                      onChange={(event) =>
-                                        updateDecisionBranch(step.id, 'no', event.target.value || null)
-                                      }
-                                      className="h-8 rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-900 transition focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10"
-                                    >
+                                  <select
+                                    value={step.noTargetId ?? ''}
+                                    onChange={(event) =>
+                                      updateDecisionBranch(step.id, 'no', event.target.value || null)
+                                    }
+                                    disabled={isProcessEditorReadOnly}
+                                    className="h-8 rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-900 transition focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
+                                  >
                                       <option value="">Étape suivante (défaut)</option>
                                       {availableTargets.map((candidate) => {
                                         const position = stepPositions.get(candidate.id);
@@ -2903,6 +3038,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                               variant="ghost"
                               size="icon"
                               onClick={() => removeStep(step.id)}
+                              disabled={isProcessEditorReadOnly}
                               className="h-7 w-7 shrink-0 text-slate-400 hover:text-slate-900"
                               aria-label="Supprimer l’étape"
                             >
@@ -2975,14 +3111,14 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                   <h2 className="text-lg font-semibold text-slate-900">{secondaryPanelTitle}</h2>
                   <p className="text-xs text-slate-600">{secondaryPanelDescription}</p>
                 </div>
-                {isProcessesTabActive ? (
-                  <Button
-                    type="button"
-                    size="sm"
-                    onClick={handleCreateProcess}
-                    disabled={isUnauthorized || isCreating}
-                    className="inline-flex h-8 items-center gap-1 rounded-md bg-slate-900 px-3 text-xs font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600"
-                  >
+                  {isProcessesTabActive ? (
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={handleCreateProcess}
+                      disabled={isProcessEditorReadOnly || isCreating}
+                      className="inline-flex h-8 items-center gap-1 rounded-md bg-slate-900 px-3 text-xs font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600"
+                    >
                     {isCreating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
                     Nouveau
                   </Button>
@@ -3001,9 +3137,14 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                     )}
                     Nouveau
                   </Button>
+                  ) : null}
+                </div>
+                {isProcessesTabActive && isProcessManagementRestricted ? (
+                  <p className="text-xs text-slate-500">
+                    Votre rôle Lecteur vous permet uniquement de consulter les process existants.
+                  </p>
                 ) : null}
-              </div>
-              <div className="flex items-center gap-2" role="tablist" aria-label="Navigation des listes">
+                <div className="flex items-center gap-2" role="tablist" aria-label="Navigation des listes">
                 <button
                   type="button"
                   id="processes-tab"
@@ -3084,7 +3225,11 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                                         setSelectedProcessId(summary.id);
                                       }
                                 }
-                                onDoubleClick={isEditing ? undefined : () => startEditingProcess(summary)}
+                                onDoubleClick={
+                                  isEditing || isProcessEditorReadOnly
+                                    ? undefined
+                                    : () => startEditingProcess(summary)
+                                }
                                 onKeyDown={
                                   isEditing
                                     ? undefined
@@ -3155,16 +3300,27 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                                       <button
                                         type="button"
                                         onClick={() => startEditingProcess(summary)}
-                                        className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-transparent text-slate-500 transition hover:border-slate-300 hover:bg-slate-100 hover:text-slate-900"
+                                        disabled={isProcessEditorReadOnly}
+                                        className={cn(
+                                          'inline-flex h-8 w-8 items-center justify-center rounded-md border border-transparent text-slate-500 transition hover:border-slate-300 hover:bg-slate-100 hover:text-slate-900',
+                                          isProcessEditorReadOnly && 'cursor-not-allowed opacity-40 hover:border-transparent hover:bg-transparent'
+                                        )}
                                       >
                                         <Pencil className="h-4 w-4" />
                                         <span className="sr-only">Renommer le process</span>
                                       </button>
                                       <button
                                         type="button"
-                                        onClick={() => deleteProcessMutation.mutate(summary.id)}
-                                        disabled={deleteProcessMutation.isPending && deleteProcessMutation.variables === summary.id}
-                                        className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-transparent text-red-500 transition hover:border-red-200 hover:bg-red-50 hover:text-red-600 disabled:opacity-60"
+                                        onClick={() => handleDeleteProcess(summary.id)}
+                                        disabled={
+                                          isProcessEditorReadOnly ||
+                                          (deleteProcessMutation.isPending &&
+                                            deleteProcessMutation.variables === summary.id)
+                                        }
+                                        className={cn(
+                                          'inline-flex h-8 w-8 items-center justify-center rounded-md border border-transparent text-red-500 transition hover:border-red-200 hover:bg-red-50 hover:text-red-600 disabled:opacity-60',
+                                          isProcessEditorReadOnly && 'cursor-not-allowed opacity-40 hover:border-transparent hover:bg-transparent hover:text-red-500'
+                                        )}
                                       >
                                         {deleteProcessMutation.isPending && deleteProcessMutation.variables === summary.id ? (
                                           <Loader2 className="h-4 w-4 animate-spin" />
@@ -3182,7 +3338,11 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                         })}
                       </ul>
                     ) : (
-                      <p className="text-sm text-slate-600">Créez votre premier process pour le retrouver facilement ici.</p>
+                      <p className="text-sm text-slate-600">
+                        {isProcessManagementRestricted
+                          ? 'Votre rôle Lecteur vous permet uniquement de consulter les process existants.'
+                          : 'Créez votre premier process pour le retrouver facilement ici.'}
+                      </p>
                     )}
                   </div>
                   <div
