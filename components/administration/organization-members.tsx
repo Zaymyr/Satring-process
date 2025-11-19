@@ -152,7 +152,7 @@ export function OrganizationMembers({ organizationId, organizationName, canManag
                   <Button
                     type="button"
                     variant="outline"
-                    className="shrink-0"
+                    className="shrink-0 text-slate-900 hover:text-slate-900"
                     onClick={() => removeMutation.mutate(member.userId)}
                     disabled={isRemoving}
                   >
