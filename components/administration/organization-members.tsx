@@ -167,21 +167,31 @@ export function OrganizationMembers({
   const roleSummaries = ROLE_ORDER.map((role) => {
     const count = members.filter((member) => member.role === role).length;
     const limit = normalizedRoleLimits[role];
-    const isAtOrAboveLimit = typeof limit === 'number' ? count >= limit : false;
-    const remaining = typeof limit === 'number' ? Math.max(limit - count, 0) : null;
+    const normalizedLimit = typeof limit === 'number' ? limit : null;
+    const isAtOrAboveLimit = normalizedLimit !== null ? count >= normalizedLimit : false;
+    const isOverLimit = normalizedLimit !== null ? count > normalizedLimit : false;
+    const remaining = normalizedLimit !== null ? Math.max(normalizedLimit - count, 0) : null;
     const remainingLabel =
       typeof remaining === 'number'
         ? `${remaining} place${remaining > 1 ? 's' : ''} restante${remaining > 1 ? 's' : ''}`
+        : null;
+    const overBy = isOverLimit && normalizedLimit !== null ? count - normalizedLimit : null;
+    const overLimitLabel =
+      overBy !== null
+        ? `Limite dépassée de ${overBy} place${overBy > 1 ? 's' : ''}`
         : null;
 
     return {
       role,
       label: ROLE_LABELS[role],
       count,
-      limit: typeof limit === 'number' ? limit : null,
+      limit: normalizedLimit,
       isAtOrAboveLimit,
+      isOverLimit,
       remaining,
-      remainingLabel
+      remainingLabel,
+      overBy,
+      overLimitLabel
     };
   });
 
@@ -198,6 +208,9 @@ export function OrganizationMembers({
     label: ROLE_LIMIT_LABELS[role],
     limit: normalizedRoleLimits[role]
   }));
+
+  const exceededRoles = roleSummaries.filter((summary) => summary.isOverLimit);
+  const hasExceededRoles = exceededRoles.length > 0;
 
   const toggleRoleSection = (role: OrganizationMember['role']) => {
     setOpenRoles((prev) => ({
@@ -225,6 +238,14 @@ export function OrganizationMembers({
             </div>
           ))}
         </dl>
+        {hasExceededRoles ? (
+          <div
+            role="alert"
+            className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900"
+          >
+            Certaines limites sont dépassées. Pensez à mettre à jour votre plan pour ajouter plus de places.
+          </div>
+        ) : null}
       </div>
 
       <div className="grid gap-3 sm:grid-cols-3">
@@ -248,9 +269,11 @@ export function OrganizationMembers({
             <p className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">{summary.count}</p>
             <p className="text-xs text-slate-500">
               {summary.limit !== null
-                ? summary.isAtOrAboveLimit
-                  ? 'Limite atteinte'
-                  : summary.remainingLabel ?? ''
+                ? summary.isOverLimit
+                  ? summary.overLimitLabel
+                  : summary.isAtOrAboveLimit
+                    ? 'Limite atteinte'
+                    : summary.remainingLabel ?? ''
                 : 'Aucune limite configurée'}
             </p>
           </div>
@@ -278,6 +301,19 @@ export function OrganizationMembers({
 
       {successMessage ? <p className="text-sm text-emerald-600">{successMessage}</p> : null}
       {serverError ? <p className="text-sm text-red-600">{serverError}</p> : null}
+
+      {hasExceededRoles ? (
+        <div
+          role="alert"
+          className="rounded-lg border border-rose-100 bg-rose-50 px-3 py-2 text-sm text-rose-900"
+        >
+          La limite est dépassée pour :{' '}
+          {exceededRoles
+            .map((summary) => `${summary.label.toLowerCase()} (${summary.count}/${summary.limit})`)
+            .join(', ')}
+          . Les invitations restent possibles mais nécessitent une mise à niveau rapide du plan.
+        </div>
+      ) : null}
 
       {!membersQuery.isLoading && members.length === 0 ? (
         <p className="text-sm text-slate-500">Aucun membre trouvé pour cette organisation.</p>
@@ -309,7 +345,9 @@ export function OrganizationMembers({
                     </p>
                   </div>
                   <div className="flex items-center gap-2 text-sm font-medium text-slate-500">
-                    {summary.remainingLabel && !summary.isAtOrAboveLimit ? (
+                    {summary.overLimitLabel ? (
+                      <span className="text-rose-600">{summary.overLimitLabel}</span>
+                    ) : summary.remainingLabel && !summary.isAtOrAboveLimit ? (
                       <span>{summary.remainingLabel}</span>
                     ) : summary.isAtOrAboveLimit ? (
                       <span className="text-amber-600">Limite atteinte</span>
