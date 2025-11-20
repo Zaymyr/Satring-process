@@ -1,11 +1,12 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { Loader2 } from 'lucide-react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Loader2, RotateCw } from 'lucide-react';
 
 import { cn } from '@/lib/utils/cn';
 import { departmentListSchema, type Department as ApiDepartment } from '@/lib/validation/department';
+import { jobDescriptionResponseSchema, type JobDescription } from '@/lib/validation/job-description';
 import { roleActionSummaryListSchema, type RoleActionSummary } from '@/lib/validation/role-action';
 
 class ApiError extends Error {
@@ -71,6 +72,56 @@ const fetchRoleActions = async (): Promise<RoleActionSummary[]> => {
   return roleActionSummaryListSchema.parse(json);
 };
 
+const fetchJobDescription = async (roleId: string): Promise<JobDescription | null> => {
+  const response = await fetch(`/api/job-descriptions/${roleId}`, {
+    method: 'GET',
+    credentials: 'include',
+    cache: 'no-store'
+  });
+
+  if (response.status === 404) {
+    return null;
+  }
+
+  if (response.status === 401) {
+    throw new ApiError('Authentification requise', 401);
+  }
+
+  if (!response.ok) {
+    const message = await readErrorMessage(response, 'Impossible de récupérer la fiche de poste.');
+    throw new ApiError(message, response.status);
+  }
+
+  const json = await response.json();
+  const parsed = jobDescriptionResponseSchema.parse(json);
+  return parsed.jobDescription;
+};
+
+const refreshJobDescription = async (roleId: string): Promise<JobDescription> => {
+  const response = await fetch(`/api/job-descriptions/${roleId}`, {
+    method: 'POST',
+    credentials: 'include'
+  });
+
+  if (response.status === 401) {
+    throw new ApiError('Authentification requise', 401);
+  }
+
+  if (!response.ok) {
+    const message = await readErrorMessage(response, 'Impossible de générer la fiche de poste.');
+    throw new ApiError(message, response.status);
+  }
+
+  const json = await response.json();
+  const parsed = jobDescriptionResponseSchema.parse(json);
+
+  if (!parsed.jobDescription) {
+    throw new ApiError('Aucune fiche de poste renvoyée par le serveur.', 500);
+  }
+
+  return parsed.jobDescription;
+};
+
 const EMPTY_DEPARTMENTS: ApiDepartment[] = [];
 const EMPTY_ROLE_SUMMARIES: RoleActionSummary[] = [];
 
@@ -98,7 +149,18 @@ const formatActionsCount = (count: number) => {
   return `${count} actions`;
 };
 
+const formatUpdatedAt = (value: string) => {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return 'Date inconnue';
+  }
+
+  return date.toLocaleString('fr-FR');
+};
+
 export function JobDescriptionExplorer() {
+  const queryClient = useQueryClient();
   const departmentQuery = useQuery({
     queryKey: ['departments'],
     queryFn: fetchDepartments,
@@ -112,6 +174,20 @@ export function JobDescriptionExplorer() {
 
   const [selectedRoleId, setSelectedRoleId] = useState<string | null>(null);
   const [expandedDepartments, setExpandedDepartments] = useState<Record<string, boolean>>({});
+
+  const jobDescriptionQuery = useQuery({
+    queryKey: ['job-description', selectedRoleId],
+    queryFn: () => fetchJobDescription(selectedRoleId as string),
+    enabled: Boolean(selectedRoleId),
+    staleTime: 30_000
+  });
+
+  const refreshDescriptionMutation = useMutation({
+    mutationFn: (roleId: string) => refreshJobDescription(roleId),
+    onSuccess: (data) => {
+      queryClient.setQueryData(['job-description', data.roleId], data);
+    }
+  });
 
   const departments = departmentQuery.data ?? EMPTY_DEPARTMENTS;
   const roleSummaries = roleActionQuery.data ?? EMPTY_ROLE_SUMMARIES;
@@ -190,6 +266,9 @@ export function JobDescriptionExplorer() {
         ? { id: selectedSummary.departmentId, name: selectedSummary.departmentName, color: '#E2E8F0', roles: [] }
         : undefined)
     : undefined;
+
+  const jobDescription = jobDescriptionQuery.data ?? null;
+  const jobDescriptionError = jobDescriptionQuery.error ?? refreshDescriptionMutation.error;
 
   const groupedActions = useMemo(() => {
     if (!selectedSummary) {
@@ -373,6 +452,59 @@ export function JobDescriptionExplorer() {
                   )}
                 </p>
               </header>
+
+              <section className="rounded-xl border border-slate-200 bg-white px-6 py-6 shadow-sm">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div>
+                    <h2 className="text-lg font-semibold text-slate-900">Fiche générée</h2>
+                    <p className="mt-1 text-sm text-slate-600">
+                      Générée à partir des actions du rôle et conservée pour consultation ultérieure.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    className={cn(
+                      'inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm font-semibold shadow-sm transition focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-500',
+                      refreshDescriptionMutation.isPending
+                        ? 'border-slate-200 bg-slate-100 text-slate-500'
+                        : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                    )}
+                    onClick={() => selectedRoleId && refreshDescriptionMutation.mutate(selectedRoleId)}
+                    disabled={!selectedRoleId || refreshDescriptionMutation.isPending}
+                  >
+                    {refreshDescriptionMutation.isPending ? (
+                      <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                    ) : (
+                      <RotateCw className="h-4 w-4" aria-hidden="true" />
+                    )}
+                    <span>Rafraîchir la fiche</span>
+                  </button>
+                </div>
+
+                {jobDescriptionError ? (
+                  <p className="mt-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">
+                    {getErrorMessage(jobDescriptionError, 'Impossible de charger la fiche de poste.')}
+                  </p>
+                ) : jobDescriptionQuery.isLoading ? (
+                  <div className="mt-4 flex items-center gap-2 text-sm text-slate-600">
+                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                    <span>Chargement de la fiche de poste…</span>
+                  </div>
+                ) : jobDescription ? (
+                  <>
+                    <p className="mt-4 whitespace-pre-line text-sm leading-relaxed text-slate-700">
+                      {jobDescription.content}
+                    </p>
+                    <p className="mt-3 text-xs text-slate-500">
+                      Dernière mise à jour : {formatUpdatedAt(jobDescription.updatedAt)}
+                    </p>
+                  </>
+                ) : (
+                  <div className="mt-4 rounded-md border border-dashed border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600">
+                    Aucune fiche de poste générée. Cliquez sur « Rafraîchir la fiche » pour créer une première version.
+                  </div>
+                )}
+              </section>
 
               <div className="space-y-6">
                 <section className="rounded-xl border border-slate-200 bg-white px-6 py-6 shadow-sm">

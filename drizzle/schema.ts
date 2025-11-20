@@ -190,6 +190,26 @@ export const roles = pgTable(
 export type Role = typeof roles.$inferSelect;
 export type NewRole = typeof roles.$inferInsert;
 
+export const jobDescriptions = pgTable(
+  'job_descriptions',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    roleId: uuid('role_id').notNull(),
+    organizationId: uuid('organization_id').notNull(),
+    content: text('content').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull()
+  },
+  (table) => ({
+    roleIndex: uniqueIndex('job_descriptions_role_id_idx').on(table.roleId),
+    organizationIndex: index('job_descriptions_org_idx').on(table.organizationId),
+    updatedAtIndex: index('job_descriptions_updated_at_idx').on(table.updatedAt)
+  })
+);
+
+export type JobDescription = typeof jobDescriptions.$inferSelect;
+export type NewJobDescription = typeof jobDescriptions.$inferInsert;
+
 export const userOnboardingStates = pgTable(
   'user_onboarding_states',
   {
