@@ -252,13 +252,21 @@ export function OrganizationMembers({
         {roleSummaries.map((summary) => (
           <div
             key={summary.role}
-            className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 shadow-sm"
+            className={`rounded-xl border px-4 py-3 text-slate-900 shadow-sm ${summary.isOverLimit
+              ? 'border-rose-200 bg-rose-50'
+              : summary.isAtOrAboveLimit
+                ? 'border-amber-200 bg-amber-50'
+                : 'border-slate-200 bg-slate-50'}`}
           >
             <div className="flex items-center justify-between">
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{summary.label}</p>
               {summary.limit !== null ? (
                 <span
-                  className={`text-xs font-semibold ${summary.isAtOrAboveLimit ? 'text-amber-600' : 'text-slate-500'}`}
+                  className={`text-xs font-semibold ${summary.isOverLimit
+                    ? 'text-rose-700'
+                    : summary.isAtOrAboveLimit
+                      ? 'text-amber-600'
+                      : 'text-slate-500'}`}
                 >
                   {summary.count}/{summary.limit}
                 </span>
@@ -267,7 +275,13 @@ export function OrganizationMembers({
               )}
             </div>
             <p className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">{summary.count}</p>
-            <p className="text-xs text-slate-500">
+            <p
+              className={`text-xs ${summary.isOverLimit
+                ? 'text-rose-700'
+                : summary.isAtOrAboveLimit
+                  ? 'text-amber-700'
+                  : 'text-slate-500'}`}
+            >
               {summary.limit !== null
                 ? summary.isOverLimit
                   ? summary.overLimitLabel
