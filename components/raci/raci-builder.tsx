@@ -948,7 +948,7 @@ export function RaciBuilder() {
 
   let visibleRowIndex = 0;
 
-  const getRowBackground = () => (visibleRowIndex++ % 2 === 0 ? 'bg-white' : 'bg-slate-50');
+  const getRowBackground = () => (visibleRowIndex++ % 2 === 0 ? 'bg-white' : 'bg-slate-100');
 
   return (
     <div className="h-full overflow-y-auto bg-slate-50">
@@ -1278,7 +1278,7 @@ export function RaciBuilder() {
                             onMouseEnter={() => setHoveredRoleId(role.id)}
                             className={cn(
                               'border-b border-slate-200 bg-white px-4 py-3 text-center text-xs font-semibold uppercase tracking-wide text-slate-500 transition-colors',
-                              hoveredRoleId === role.id && 'bg-slate-50'
+                              hoveredRoleId === role.id && 'bg-sky-50'
                             )}
                           >
                             <span className="flex items-center justify-center gap-2 text-center">
@@ -1289,7 +1289,7 @@ export function RaciBuilder() {
                               />
                               <span className="truncate">{role.name}</span>
                             </span>
-                            <div className="mt-1 flex flex-wrap gap-1 text-[11px] font-mono font-normal text-slate-500">
+                            <div className="mt-1 flex flex-wrap justify-center gap-1 text-[11px] font-mono font-normal text-slate-500">
                               {filledRaciValues.map((value) => (
                                 <span
                                   key={`${role.id}-${value}`}
@@ -1389,10 +1389,10 @@ export function RaciBuilder() {
                                           key={`aggregated-${process.id}-${action.id}`}
                                           onMouseEnter={() => setHoveredActionId(action.id)}
                                           onMouseLeave={() => setHoveredActionId(null)}
-                                          className={cn(
+                                      className={cn(
                                             rowBackground,
-                                            'group transition-colors hover:bg-slate-50/80',
-                                            hoveredActionId === action.id && 'bg-slate-50/80'
+                                            'group transition-colors hover:bg-sky-50',
+                                            hoveredActionId === action.id && 'bg-sky-50'
                                           )}
                                         >
                                           <th
@@ -1400,8 +1400,8 @@ export function RaciBuilder() {
                                             className={cn(
                                               'sticky left-0 z-20 px-6 py-4 pl-10 text-left align-top border-r border-slate-200',
                                               rowBackground,
-                                              'text-sm font-semibold text-slate-900 group-hover:bg-slate-50/80',
-                                              hoveredActionId === action.id && 'bg-slate-50/80'
+                                              'text-sm font-semibold text-slate-900 group-hover:bg-sky-50',
+                                              hoveredActionId === action.id && 'bg-sky-50'
                                             )}
                                           >
                                             <div className="space-y-1">
@@ -1422,9 +1422,9 @@ export function RaciBuilder() {
                                               className={cn(
                                                 'relative px-4 py-3 text-center text-sm align-middle transition-colors',
                                                 rowBackground,
-                                                hoveredRoleId === role.id && 'bg-slate-50/80',
-                                                hoveredActionId === action.id && 'bg-slate-50/80',
-                                                'group-hover:bg-slate-50/80'
+                                                hoveredRoleId === role.id && 'bg-sky-50',
+                                                hoveredActionId === action.id && 'bg-sky-50',
+                                                'group-hover:bg-sky-50'
                                               )}
                                             >
                                               <div className="group/cell relative inline-flex">
@@ -1468,7 +1468,7 @@ export function RaciBuilder() {
                                                 'px-4 py-3 text-left text-xs font-mono transition-colors',
                                                 summaryMeta.hasIssue ? 'text-red-500' : 'text-slate-500'
                                                 ,
-                                                hoveredActionId === action.id && 'bg-slate-50/80'
+                                                hoveredActionId === action.id && 'bg-sky-50'
                                               )}
                                             >
                                                 <span className="inline-flex items-center gap-2">
@@ -1498,10 +1498,10 @@ export function RaciBuilder() {
                                 key={action.id}
                                 onMouseEnter={() => setHoveredActionId(action.id)}
                                 onMouseLeave={() => setHoveredActionId(null)}
-                                className={cn(
+                            className={cn(
                                   rowBackground,
-                                  'group transition-colors hover:bg-slate-50/80',
-                                  hoveredActionId === action.id && 'bg-slate-50/80'
+                                  'group transition-colors hover:bg-sky-50',
+                                  hoveredActionId === action.id && 'bg-sky-50'
                                 )}
                               >
                                 <th
@@ -1509,8 +1509,8 @@ export function RaciBuilder() {
                                   className={cn(
                                     'sticky left-0 z-20 px-6 py-4 text-left align-top border-r border-slate-200',
                                     rowBackground,
-                                    'text-sm font-semibold text-slate-900 group-hover:bg-slate-50/80',
-                                    hoveredActionId === action.id && 'bg-slate-50/80'
+                                    'text-sm font-semibold text-slate-900 group-hover:bg-sky-50',
+                                    hoveredActionId === action.id && 'bg-sky-50'
                                   )}
                                 >
                                   <div className="space-y-1">
@@ -1532,9 +1532,9 @@ export function RaciBuilder() {
                                       className={cn(
                                         'relative px-4 py-3 text-sm align-middle transition-colors',
                                         rowBackground,
-                                        hoveredRoleId === role.id && 'bg-slate-50/80',
-                                        hoveredActionId === action.id && 'bg-slate-50/80',
-                                        'group-hover:bg-slate-50/80'
+                                        hoveredRoleId === role.id && 'bg-sky-50',
+                                        hoveredActionId === action.id && 'bg-sky-50',
+                                        'group-hover:bg-sky-50'
                                       )}
                                     >
                                       <div className="flex flex-col items-center gap-3">
@@ -1586,7 +1586,7 @@ export function RaciBuilder() {
                                     rowBackground,
                                     'px-4 py-3 text-left text-xs font-mono transition-colors',
                                     summaryMeta.hasIssue ? 'text-red-500' : 'text-slate-500',
-                                    hoveredActionId === action.id && 'bg-slate-50/80'
+                                    hoveredActionId === action.id && 'bg-sky-50'
                                   )}
                                 >
                                       <span className="inline-flex items-center gap-2">
