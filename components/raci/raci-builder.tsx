@@ -1389,20 +1389,20 @@ export function RaciBuilder() {
                                           key={`aggregated-${process.id}-${action.id}`}
                                           onMouseEnter={() => setHoveredActionId(action.id)}
                                           onMouseLeave={() => setHoveredActionId(null)}
-                                      className={cn(
+                                          className={cn(
                                             rowBackground,
-                                            'group transition-colors hover:bg-sky-50',
+                                            'odd:bg-white even:bg-slate-100 group transition-colors hover:bg-sky-50',
                                             hoveredActionId === action.id && 'bg-sky-50'
                                           )}
                                         >
                                           <th
                                             scope="row"
-                                            className={cn(
-                                              'sticky left-0 z-20 px-6 py-4 pl-10 text-left align-top border-r border-slate-200',
-                                              rowBackground,
-                                              'text-sm font-semibold text-slate-900 group-hover:bg-sky-50',
-                                              hoveredActionId === action.id && 'bg-sky-50'
-                                            )}
+                                              className={cn(
+                                                'sticky left-0 z-20 px-6 py-4 pl-10 text-left align-top border-r border-slate-200',
+                                                rowBackground,
+                                                'text-sm font-semibold text-slate-900 hover:bg-sky-50 group-hover:bg-sky-50',
+                                                hoveredActionId === action.id && 'bg-sky-50'
+                                              )}
                                           >
                                             <div className="space-y-1">
                                               <p className="text-sm font-semibold text-slate-900">{action.label}</p>
@@ -1424,7 +1424,7 @@ export function RaciBuilder() {
                                                 rowBackground,
                                                 hoveredRoleId === role.id && 'bg-sky-50',
                                                 hoveredActionId === action.id && 'bg-sky-50',
-                                                'group-hover:bg-sky-50'
+                                                'hover:bg-sky-50 group-hover:bg-sky-50'
                                               )}
                                             >
                                               <div className="group/cell relative inline-flex">
@@ -1498,9 +1498,9 @@ export function RaciBuilder() {
                                 key={action.id}
                                 onMouseEnter={() => setHoveredActionId(action.id)}
                                 onMouseLeave={() => setHoveredActionId(null)}
-                            className={cn(
+                                className={cn(
                                   rowBackground,
-                                  'group transition-colors hover:bg-sky-50',
+                                  'odd:bg-white even:bg-slate-100 group transition-colors hover:bg-sky-50',
                                   hoveredActionId === action.id && 'bg-sky-50'
                                 )}
                               >
@@ -1509,7 +1509,7 @@ export function RaciBuilder() {
                                   className={cn(
                                     'sticky left-0 z-20 px-6 py-4 text-left align-top border-r border-slate-200',
                                     rowBackground,
-                                    'text-sm font-semibold text-slate-900 group-hover:bg-sky-50',
+                                    'text-sm font-semibold text-slate-900 hover:bg-sky-50 group-hover:bg-sky-50',
                                     hoveredActionId === action.id && 'bg-sky-50'
                                   )}
                                 >
@@ -1529,14 +1529,14 @@ export function RaciBuilder() {
                                         setHoveredCell({ actionId: action.id, roleId: role.id });
                                       }}
                                       onMouseLeave={() => setHoveredCell(null)}
-                                      className={cn(
-                                        'relative px-4 py-3 text-sm align-middle transition-colors',
-                                        rowBackground,
-                                        hoveredRoleId === role.id && 'bg-sky-50',
-                                        hoveredActionId === action.id && 'bg-sky-50',
-                                        'group-hover:bg-sky-50'
-                                      )}
-                                    >
+                                    className={cn(
+                                      'relative px-4 py-3 text-sm align-middle transition-colors',
+                                      rowBackground,
+                                      hoveredRoleId === role.id && 'bg-sky-50',
+                                      hoveredActionId === action.id && 'bg-sky-50',
+                                      'hover:bg-sky-50 group-hover:bg-sky-50'
+                                    )}
+                                  >
                                       <div className="flex flex-col items-center gap-3">
                                         <div className="group/cell relative">
                                           <span
@@ -1584,7 +1584,7 @@ export function RaciBuilder() {
                                     <td
                                   className={cn(
                                     rowBackground,
-                                    'px-4 py-3 text-left text-xs font-mono transition-colors',
+                                    'px-4 py-3 text-left text-xs font-mono transition-colors hover:bg-sky-50 group-hover:bg-sky-50',
                                     summaryMeta.hasIssue ? 'text-red-500' : 'text-slate-500',
                                     hoveredActionId === action.id && 'bg-sky-50'
                                   )}
