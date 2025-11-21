@@ -1399,7 +1399,7 @@ export function RaciBuilder() {
                                             scope="row"
                                               className={cn(
                                                 'sticky left-0 z-20 px-6 py-4 pl-10 text-left align-top border-r border-slate-200',
-                                                rowBackground,
+                                                'bg-inherit',
                                                 'text-sm font-semibold text-slate-900 hover:bg-sky-50 group-hover:bg-sky-50',
                                                 hoveredActionId === action.id && 'bg-sky-50'
                                               )}
@@ -1421,7 +1421,7 @@ export function RaciBuilder() {
                                               onMouseLeave={() => setHoveredCell(null)}
                                               className={cn(
                                                 'relative px-4 py-3 text-center text-sm align-middle transition-colors',
-                                                rowBackground,
+                                                'bg-inherit',
                                                 hoveredRoleId === role.id && 'bg-sky-50',
                                                 hoveredActionId === action.id && 'bg-sky-50',
                                                 'hover:bg-sky-50 group-hover:bg-sky-50'
@@ -1464,7 +1464,7 @@ export function RaciBuilder() {
                                               ))}
                                               <td
                                               className={cn(
-                                                rowBackground,
+                                                'bg-inherit',
                                                 'px-4 py-3 text-left text-xs font-mono transition-colors',
                                                 summaryMeta.hasIssue ? 'text-red-500' : 'text-slate-500'
                                                 ,
@@ -1508,7 +1508,7 @@ export function RaciBuilder() {
                                   scope="row"
                                   className={cn(
                                     'sticky left-0 z-20 px-6 py-4 text-left align-top border-r border-slate-200',
-                                    rowBackground,
+                                    'bg-inherit',
                                     'text-sm font-semibold text-slate-900 hover:bg-sky-50 group-hover:bg-sky-50',
                                     hoveredActionId === action.id && 'bg-sky-50'
                                   )}
@@ -1528,10 +1528,10 @@ export function RaciBuilder() {
                                         setHoveredRoleId(role.id);
                                         setHoveredCell({ actionId: action.id, roleId: role.id });
                                       }}
-                                      onMouseLeave={() => setHoveredCell(null)}
-                                    className={cn(
+                                    onMouseLeave={() => setHoveredCell(null)}
+                                  className={cn(
                                       'relative px-4 py-3 text-sm align-middle transition-colors',
-                                      rowBackground,
+                                      'bg-inherit',
                                       hoveredRoleId === role.id && 'bg-sky-50',
                                       hoveredActionId === action.id && 'bg-sky-50',
                                       'hover:bg-sky-50 group-hover:bg-sky-50'
@@ -1583,7 +1583,7 @@ export function RaciBuilder() {
                                     })}
                                     <td
                                   className={cn(
-                                    rowBackground,
+                                    'bg-inherit',
                                     'px-4 py-3 text-left text-xs font-mono transition-colors hover:bg-sky-50 group-hover:bg-sky-50',
                                     summaryMeta.hasIssue ? 'text-red-500' : 'text-slate-500',
                                     hoveredActionId === action.id && 'bg-sky-50'
