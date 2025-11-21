@@ -100,9 +100,25 @@ const buildRoleContext = async (
     return null;
   }
 
-  const departmentName = Array.isArray(roleRecord.department)
-    ? roleRecord.department[0]?.name
-    : roleRecord.department?.name;
+  const departmentName = (() => {
+    const rawDepartment = roleRecord.department as
+      | { name?: unknown }
+      | { name?: unknown }[]
+      | null
+      | undefined;
+
+    if (Array.isArray(rawDepartment)) {
+      const firstDepartment = rawDepartment[0];
+      return typeof firstDepartment?.name === 'string' ? firstDepartment.name : undefined;
+    }
+
+    if (rawDepartment && typeof rawDepartment === 'object' && 'name' in rawDepartment) {
+      const singleDepartment = rawDepartment as { name?: unknown };
+      return typeof singleDepartment.name === 'string' ? singleDepartment.name : undefined;
+    }
+
+    return undefined;
+  })();
 
   const roleContextResult = roleContextSchema.safeParse({
     id: typeof roleRecord.id === 'string' ? roleRecord.id : String(roleRecord.id ?? ''),
