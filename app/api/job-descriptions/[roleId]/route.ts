@@ -100,6 +100,26 @@ const buildRoleContext = async (
     return null;
   }
 
+  const departmentName = (() => {
+    const rawDepartment = roleRecord.department as
+      | { name?: unknown }
+      | { name?: unknown }[]
+      | null
+      | undefined;
+
+    if (Array.isArray(rawDepartment)) {
+      const firstDepartment = rawDepartment[0];
+      return typeof firstDepartment?.name === 'string' ? firstDepartment.name : undefined;
+    }
+
+    if (rawDepartment && typeof rawDepartment === 'object' && 'name' in rawDepartment) {
+      const singleDepartment = rawDepartment as { name?: unknown };
+      return typeof singleDepartment.name === 'string' ? singleDepartment.name : undefined;
+    }
+
+    return undefined;
+  })();
+
   const roleContextResult = roleContextSchema.safeParse({
     id: typeof roleRecord.id === 'string' ? roleRecord.id : String(roleRecord.id ?? ''),
     name:
@@ -111,8 +131,8 @@ const buildRoleContext = async (
         ? roleRecord.organization_id
         : String(roleRecord.organization_id ?? ''),
     departmentName:
-      roleRecord.department && typeof roleRecord.department.name === 'string'
-        ? roleRecord.department.name.trim() || 'Département'
+      typeof departmentName === 'string'
+        ? departmentName.trim() || 'Département'
         : 'Département'
   });
 
