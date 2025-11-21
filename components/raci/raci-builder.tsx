@@ -466,7 +466,8 @@ const RaciGrid = ({
     };
 
     const roleColumns: Array<ColDef<RaciGridRow, RaciValue>> = roles.map((role) => ({
-      field: role.id,
+      colId: role.id,
+      field: `values.${role.id}` as `values.${string}`,
       headerName: role.name,
       cellRenderer: RaciCellRenderer,
       headerComponent: RoleHeader,
