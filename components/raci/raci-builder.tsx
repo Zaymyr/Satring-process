@@ -105,12 +105,6 @@ const raciBadgeStyles: Record<FilledRaciValue, string> = {
   C: 'bg-amber-100 text-amber-700 ring-1 ring-inset ring-amber-200',
   I: 'bg-slate-100 text-slate-700 ring-1 ring-inset ring-slate-200'
 } as const;
-const raciDotColors: Record<FilledRaciValue, string> = {
-  R: 'bg-emerald-500',
-  A: 'bg-indigo-500',
-  C: 'bg-amber-500',
-  I: 'bg-slate-500'
-};
 
 const raciOptions: ReadonlyArray<{ value: RaciValue; label: string }> = [
   { value: '', label: '—' },
@@ -136,15 +130,6 @@ const getSummaryMeta = (counts: RaciCounts) => {
     label: formatCountsLabel(counts),
     hasIssue
   };
-};
-const formatCompactCountsLabel = (counts: RaciCounts) =>
-  `R: ${counts.R} · A: ${counts.A} · C: ${counts.C} · I: ${counts.I}`;
-const accumulateCounts = (target: RaciCounts, addition: RaciCounts) => {
-  for (const key of filledRaciValues) {
-    target[key] += addition[key];
-  }
-
-  return target;
 };
 
 const processGlyphs = ['🔁', '⚡️', '📄', '🛠️', '🚀', '📊', '🧭', '✅', '⚙️', '📌'] as const;
@@ -728,25 +713,6 @@ export function RaciBuilder() {
     return summaries;
   }, [departmentAggregatedProcesses, selectedDepartment, selectedDepartmentState]);
 
-  const selectedDepartmentSummary = useMemo(() => {
-    if (!selectedDepartment) {
-      return null;
-    }
-
-    const aggregate = selectedDepartment.roles.reduce<RaciCounts>((accumulator, role) => {
-      const summary = roleSummaries[role.id];
-      if (!summary) {
-        return accumulator;
-      }
-
-      return accumulateCounts(accumulator, summary);
-    }, createEmptyCounts());
-
-    const totalAssignments = filledRaciValues.reduce((total, key) => total + aggregate[key], 0);
-
-    return { counts: aggregate, totalAssignments };
-  }, [roleSummaries, selectedDepartment]);
-
   const smallScreenActions = useMemo(
     () => {
       if (!selectedDepartment) {
@@ -1060,77 +1026,27 @@ export function RaciBuilder() {
                         </button>
                         {isSelected ? (
                           <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
-                            <div className="flex items-start justify-between gap-3">
-                              <div className="space-y-0.5">
-                                <p className="text-xs font-semibold uppercase tracking-wide text-slate-700">
-                                  Vue synthèse
-                                </p>
-                                <p className="text-sm font-medium text-slate-900">Responsabilités du département</p>
-                                <p className="text-xs text-slate-600">
-                                  Charge et répartition des rôles sur les actions suivies.
-                                </p>
-                              </div>
-                              <div className="flex flex-col items-end gap-1 text-right text-[11px] font-semibold text-slate-600">
-                                <span className="inline-flex items-center gap-1 rounded-full bg-white px-2 py-0.5 ring-1 ring-inset ring-slate-200">
-                                  <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: department.color }} aria-hidden />
-                                  {rolesCount} rôle{rolesCount > 1 ? 's' : ''}
-                                </span>
-                                <span className="inline-flex items-center gap-1 rounded-full bg-white px-2 py-0.5 ring-1 ring-inset ring-slate-200">
-                                  <span className="h-1.5 w-1.5 rounded-full bg-slate-400" aria-hidden />
-                                  {totalActionCount} action{totalActionCount > 1 ? 's' : ''}
-                                </span>
-                                {selectedDepartmentSummary ? (
-                                  <span className="inline-flex items-center gap-1 rounded-full bg-white px-2 py-0.5 ring-1 ring-inset ring-slate-200">
-                                    <span className="h-1.5 w-1.5 rounded-full bg-slate-500" aria-hidden />
-                                    {selectedDepartmentSummary.totalAssignments}{' '}
-                                    attribution{selectedDepartmentSummary.totalAssignments > 1 ? 's' : ''}
-                                  </span>
-                                ) : null}
-                              </div>
+                            <div className="space-y-1">
+                              <p className="text-xs font-semibold uppercase tracking-wide text-slate-700">Rôles du département</p>
+                              <p className="text-xs text-slate-600">
+                                Aperçu rapide des rôles disponibles dans ce département.
+                              </p>
                             </div>
-                            {selectedDepartmentSummary ? (
-                              <dl className="mt-3 grid grid-cols-2 gap-2">
-                                {filledRaciValues.map((value) => (
-                                  <div
-                                    key={`dept-${department.id}-${value}`}
-                                    className="flex items-center justify-between rounded-md bg-white px-3 py-2 text-xs font-semibold text-slate-700 ring-1 ring-inset ring-slate-200"
-                                  >
-                                    <div className="flex items-center gap-2">
-                                      <span className={cn('h-2.5 w-2.5 rounded-full', raciDotColors[value])} aria-hidden />
-                                      <span className="truncate">{raciDefinitions[value].short}</span>
-                                    </div>
-                                    <span className="text-slate-900">
-                                      {selectedDepartmentSummary.counts[value]} action
-                                      {selectedDepartmentSummary.counts[value] > 1 ? 's' : ''}
-                                    </span>
-                                  </div>
-                                ))}
-                              </dl>
-                            ) : null}
                             {rolesCount > 0 ? (
                               <ul className="mt-3 space-y-1.5">
-                                {department.roles.map((role) => {
-                                  const counts = roleSummaries[role.id] ?? createEmptyCounts();
-
-                                  return (
-                                    <li
-                                      key={role.id}
-                                      className="flex items-center justify-between gap-3 rounded-md bg-white/60 px-2.5 py-2 text-sm text-slate-700 ring-1 ring-inset ring-slate-200"
-                                    >
-                                      <span className="flex items-center gap-2 truncate">
-                                        <span
-                                          aria-hidden="true"
-                                          className="inline-block h-2.5 w-2.5 rounded-full"
-                                          style={{ backgroundColor: role.color }}
-                                        />
-                                        <span className="truncate font-medium">{role.name}</span>
-                                      </span>
-                                      <span className="shrink-0 text-[11px] font-semibold text-slate-600">
-                                        {formatCompactCountsLabel(counts)}
-                                      </span>
-                                    </li>
-                                  );
-                                })}
+                                {department.roles.map((role) => (
+                                  <li
+                                    key={role.id}
+                                    className="flex items-center gap-3 rounded-md bg-white/60 px-2.5 py-2 text-sm text-slate-700 ring-1 ring-inset ring-slate-200"
+                                  >
+                                    <span
+                                      aria-hidden="true"
+                                      className="inline-block h-2.5 w-2.5 rounded-full"
+                                      style={{ backgroundColor: role.color }}
+                                    />
+                                    <span className="truncate font-medium">{role.name}</span>
+                                  </li>
+                                ))}
                               </ul>
                             ) : (
                               <p className="mt-2 text-sm text-slate-500">Aucun rôle n’est associé à ce département.</p>
