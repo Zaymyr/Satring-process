@@ -463,6 +463,8 @@ export function RaciBuilder() {
     !hasAggregatedActions &&
     !hasManualActions;
 
+  const [hoveredRoleId, setHoveredRoleId] = useState<string | null>(null);
+
   const updateMatrix = (departmentId: string, actionId: string, roleId: string, value: RaciValue) => {
     setDepartmentStates((previous) => {
       const current = previous[departmentId];
@@ -492,6 +494,10 @@ export function RaciBuilder() {
       };
     });
   };
+
+  let visibleRowIndex = 0;
+
+  const getRowBackground = () => (visibleRowIndex++ % 2 === 0 ? 'bg-white' : 'bg-slate-50');
 
   return (
     <div className="h-full overflow-y-auto bg-slate-50">
@@ -630,17 +636,25 @@ export function RaciBuilder() {
                     </div>
                   ) : null}
                 </div>
-                <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-slate-200">
-                    <thead className="bg-white">
+                <div className="overflow-auto" onMouseLeave={() => setHoveredRoleId(null)}>
+                  <table className="min-w-full border-separate border-spacing-0">
+                    <thead className="sticky top-0 z-30 bg-white shadow-sm">
                       <tr>
-                        <th className="w-56 px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+                        <th
+                          className="sticky left-0 top-0 z-30 w-64 border-b border-r border-slate-200 bg-white px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500"
+                          scope="col"
+                        >
                           Actions
                         </th>
                         {selectedDepartment.roles.map((role) => (
                           <th
                             key={role.id}
-                            className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500"
+                            scope="col"
+                            onMouseEnter={() => setHoveredRoleId(role.id)}
+                            className={cn(
+                              'border-b border-slate-200 bg-white px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500 transition-colors',
+                              hoveredRoleId === role.id && 'bg-slate-50'
+                            )}
                           >
                             <span className="flex items-center gap-2">
                               <span
@@ -654,7 +668,7 @@ export function RaciBuilder() {
                         ))}
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-200">
+                    <tbody className="[&_tr:not(:last-child)]:border-b [&_tr:not(:last-child)]:border-slate-200">
                       {roleActionsQuery.isLoading ? (
                         <tr>
                           <td
@@ -719,32 +733,57 @@ export function RaciBuilder() {
                                 </tr>
 
                                 {!isCollapsed
-                                  ? process.steps.map((action) => (
-                                      <tr key={`aggregated-${process.id}-${action.id}`} className="bg-white">
-                                        <th
-                                          scope="row"
-                                          className="px-6 py-4 pl-10 text-left text-sm font-medium text-slate-900"
+                                  ? process.steps.map((action) => {
+                                      const rowBackground = getRowBackground();
+
+                                      return (
+                                        <tr
+                                          key={`aggregated-${process.id}-${action.id}`}
+                                          className={cn(rowBackground, 'group transition-colors hover:bg-slate-50/80')}
                                         >
-                                          {action.label}
-                                        </th>
-                                        {selectedDepartment.roles.map((role) => (
-                                          <td key={role.id} className="px-4 py-3 text-sm">
-                                            {action.assignedRoleIds.has(role.id) ? (
-                                              <span
-                                                className={cn(
-                                                  'inline-flex h-8 w-8 items-center justify-center rounded-md text-xs font-semibold uppercase tracking-wide',
-                                                  raciBadgeStyles[action.responsibility]
-                                                )}
-                                              >
-                                                {action.responsibility}
-                                              </span>
-                                            ) : (
-                                              <span className="inline-flex h-8 w-8 items-center justify-center text-xs text-slate-300">—</span>
+                                          <th
+                                            scope="row"
+                                            className={cn(
+                                              'sticky left-0 z-20 px-6 py-4 pl-10 text-left align-top border-r border-slate-200',
+                                              rowBackground,
+                                              'text-sm font-semibold text-slate-900 group-hover:bg-slate-50/80'
                                             )}
-                                          </td>
-                                        ))}
-                                      </tr>
-                                    ))
+                                          >
+                                            <div className="space-y-1">
+                                              <p className="text-sm font-semibold text-slate-900">{action.label}</p>
+                                              {action.processTitle ? (
+                                                <p className="text-xs font-medium text-slate-500">{action.processTitle}</p>
+                                              ) : null}
+                                            </div>
+                                          </th>
+                                          {selectedDepartment.roles.map((role) => (
+                                            <td
+                                              key={role.id}
+                                              onMouseEnter={() => setHoveredRoleId(role.id)}
+                                              className={cn(
+                                                'px-4 py-3 text-center text-sm align-middle transition-colors',
+                                                rowBackground,
+                                                hoveredRoleId === role.id && 'bg-slate-50/80',
+                                                'group-hover:bg-slate-50/80'
+                                              )}
+                                            >
+                                              {action.assignedRoleIds.has(role.id) ? (
+                                                <span
+                                                  className={cn(
+                                                    'inline-flex h-8 w-8 items-center justify-center rounded-md text-xs font-semibold uppercase tracking-wide',
+                                                    raciBadgeStyles[action.responsibility]
+                                                  )}
+                                                >
+                                                  {action.responsibility}
+                                                </span>
+                                              ) : (
+                                                <span className="inline-flex h-8 w-8 items-center justify-center text-xs text-slate-300">—</span>
+                                              )}
+                                            </td>
+                                          ))}
+                                        </tr>
+                                      );
+                                    })
                                   : null}
                               </Fragment>
                             );
@@ -752,35 +791,55 @@ export function RaciBuilder() {
                         : null}
 
                       {hasManualActions
-                        ? selectedDepartmentState.actions.map((action) => (
-                            <tr key={action.id} className="bg-white hover:bg-slate-50/60">
-                              <th scope="row" className="px-6 py-4 text-left text-sm font-medium text-slate-900">
-                                {action.name}
-                              </th>
-                              {selectedDepartment.roles.map((role) => (
-                                <td key={role.id} className="px-4 py-3 text-sm">
-                                  <select
-                                    value={selectedDepartmentState.matrix[action.id]?.[role.id] ?? ''}
-                                    onChange={(event) =>
-                                      updateMatrix(
-                                        selectedDepartment.id,
-                                        action.id,
-                                        role.id,
-                                        event.target.value as RaciValue
-                                      )
-                                    }
-                                    className="w-full rounded-md border border-slate-300 bg-white px-2 py-2 text-sm text-slate-900 shadow-sm focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-500"
+                        ? selectedDepartmentState.actions.map((action) => {
+                            const rowBackground = getRowBackground();
+
+                            return (
+                              <tr
+                                key={action.id}
+                                className={cn(rowBackground, 'group transition-colors hover:bg-slate-50/80')}
+                              >
+                                <th
+                                  scope="row"
+                                  className={cn(
+                                    'sticky left-0 z-20 px-6 py-4 text-left align-top border-r border-slate-200',
+                                    rowBackground,
+                                    'text-sm font-semibold text-slate-900 group-hover:bg-slate-50/80'
+                                  )}
+                                >
+                                  <div className="space-y-1">
+                                    <p className="text-sm font-semibold text-slate-900">{action.name}</p>
+                                  </div>
+                                </th>
+                                {selectedDepartment.roles.map((role) => (
+                                  <td
+                                    key={role.id}
+                                    onMouseEnter={() => setHoveredRoleId(role.id)}
+                                    className={cn(
+                                      'px-4 py-3 text-sm align-middle transition-colors',
+                                      rowBackground,
+                                      hoveredRoleId === role.id && 'bg-slate-50/80',
+                                      'group-hover:bg-slate-50/80'
+                                    )}
                                   >
-                                    {raciOptions.map((option) => (
-                                      <option key={option.value} value={option.value}>
-                                        {option.label}
-                                      </option>
-                                    ))}
-                                  </select>
-                                </td>
-                              ))}
-                            </tr>
-                          ))
+                                    <select
+                                      value={selectedDepartmentState.matrix[action.id]?.[role.id] ?? ''}
+                                      onChange={(event) =>
+                                        updateMatrix(selectedDepartment.id, action.id, role.id, event.target.value as RaciValue)
+                                      }
+                                      className="w-full rounded-md border border-slate-300 bg-white px-2 py-2 text-sm text-slate-900 shadow-sm focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-500"
+                                    >
+                                      {raciOptions.map((option) => (
+                                        <option key={option.value} value={option.value}>
+                                          {option.label}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  </td>
+                                ))}
+                              </tr>
+                            );
+                          })
                         : null}
 
                       {showEmptyMatrixState ? (
