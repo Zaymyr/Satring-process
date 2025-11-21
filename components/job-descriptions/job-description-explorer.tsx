@@ -571,47 +571,10 @@ export function JobDescriptionExplorer() {
                   </div>
                 ) : jobDescription ? (
                   <>
-                    <article className="mt-4 space-y-4 rounded-lg border border-slate-100 bg-slate-50 px-4 py-4 text-sm leading-relaxed text-slate-800">
-                      <div className="space-y-1">
-                        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Titre de la fiche</p>
-                        <p className="text-base font-semibold text-slate-900">{jobDescription.sections.title}</p>
-                        <p className="text-sm text-slate-700">{jobDescription.sections.generalDescription}</p>
-                      </div>
-
-                      <div className="grid gap-4 md:grid-cols-2">
-                        <section className="rounded-md border border-slate-200 bg-white px-4 py-3">
-                          <h3 className="text-sm font-semibold text-slate-900">Responsabilités clés</h3>
-                          <ul className="mt-2 space-y-1 text-sm text-slate-700">
-                            {jobDescription.sections.responsibilities.map((item) => (
-                              <li key={item} className="list-disc pl-4">
-                                {item}
-                              </li>
-                            ))}
-                          </ul>
-                        </section>
-
-                        <section className="rounded-md border border-slate-200 bg-white px-4 py-3">
-                          <h3 className="text-sm font-semibold text-slate-900">Objectifs & indicateurs</h3>
-                          <ul className="mt-2 space-y-1 text-sm text-slate-700">
-                            {jobDescription.sections.objectives.map((item) => (
-                              <li key={item} className="list-disc pl-4">
-                                {item}
-                              </li>
-                            ))}
-                          </ul>
-                        </section>
-
-                        <section className="rounded-md border border-slate-200 bg-white px-4 py-3 md:col-span-2">
-                          <h3 className="text-sm font-semibold text-slate-900">Collaboration attendue</h3>
-                          <ul className="mt-2 space-y-1 text-sm text-slate-700">
-                            {jobDescription.sections.collaboration.map((item) => (
-                              <li key={item} className="list-disc pl-4">
-                                {item}
-                              </li>
-                            ))}
-                          </ul>
-                        </section>
-                      </div>
+                    <article className="mt-4 space-y-2 rounded-lg border border-slate-100 bg-slate-50 px-4 py-4 text-sm leading-relaxed text-slate-800">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Titre de la fiche</p>
+                      <p className="text-base font-semibold text-slate-900">{jobDescription.sections.title}</p>
+                      <p className="text-sm text-slate-700">{jobDescription.sections.generalDescription}</p>
                     </article>
                     <p className="mt-3 text-xs text-slate-500">
                       Dernière mise à jour : {formatUpdatedAt(jobDescription.updatedAt)}
