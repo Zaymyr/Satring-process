@@ -196,6 +196,11 @@ export const jobDescriptions = pgTable(
     id: uuid('id').defaultRandom().primaryKey(),
     roleId: uuid('role_id').notNull(),
     organizationId: uuid('organization_id').notNull(),
+    title: text('title').notNull().default('Fiche de poste'),
+    generalDescription: text('general_description').notNull().default(''),
+    responsibilities: text('responsibilities').array().notNull().default([]),
+    objectives: text('objectives').array().notNull().default([]),
+    collaboration: text('collaboration').array().notNull().default([]),
     content: text('content').notNull(),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull()

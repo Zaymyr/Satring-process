@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
-import { parseJobDescriptionContent, collapseBlocksToText } from '@/lib/job-descriptions/format';
+import { ensureJobDescriptionSections, stringifySections } from '@/lib/job-descriptions/format';
 import { createServerClient } from '@/lib/supabase/server';
 import { fetchUserOrganizations, getAccessibleOrganizationIds } from '@/lib/organization/memberships';
 import { jobDescriptionSchema } from '@/lib/validation/job-description';
@@ -15,6 +15,24 @@ const normalizeTimestamp = (value: unknown) => {
   }
 
   return date.toISOString();
+};
+
+const normalizeStringArray = (value: unknown): string[] => {
+  if (Array.isArray(value)) {
+    return value
+      .filter((item) => typeof item === 'string')
+      .map((item) => item.trim())
+      .filter((item) => item.length > 0);
+  }
+
+  if (typeof value === 'string') {
+    return value
+      .split(/\r?\n|•|-\s+/)
+      .map((entry) => entry.trim())
+      .filter((entry) => entry.length > 0);
+  }
+
+  return [];
 };
 
 const exportQuerySchema = z.object({
@@ -65,6 +83,11 @@ const normalizeJobDescriptionRecord = (record: {
   role_id?: unknown;
   organization_id?: unknown;
   content?: unknown;
+  title?: unknown;
+  general_description?: unknown;
+  responsibilities?: unknown;
+  objectives?: unknown;
+  collaboration?: unknown;
   updated_at?: unknown;
   created_at?: unknown;
 }) => ({
@@ -74,6 +97,14 @@ const normalizeJobDescriptionRecord = (record: {
       ? record.organization_id
       : String(record.organization_id ?? ''),
   content: typeof record.content === 'string' ? record.content.trim() : '',
+  sections: {
+    title: typeof record.title === 'string' ? record.title.trim() : '',
+    generalDescription:
+      typeof record.general_description === 'string' ? record.general_description.trim() : '',
+    responsibilities: normalizeStringArray(record.responsibilities),
+    objectives: normalizeStringArray(record.objectives),
+    collaboration: normalizeStringArray(record.collaboration)
+  },
   updatedAt: normalizeTimestamp(record.updated_at ?? record.created_at ?? new Date())
 });
 
@@ -153,27 +184,34 @@ const escapeHtml = (value: string) =>
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#039;');
 
+const linesFromSections = (sections: ReturnType<typeof ensureJobDescriptionSections>) => [
+  sections.title,
+  `Mission générale: ${sections.generalDescription}`,
+  '',
+  'Responsabilités:',
+  ...sections.responsibilities.map((item) => `• ${item}`),
+  '',
+  'Objectifs et indicateurs:',
+  ...sections.objectives.map((item) => `• ${item}`),
+  '',
+  'Collaboration attendue:',
+  ...sections.collaboration.map((item) => `• ${item}`)
+];
+
 const buildDocContent = (params: {
   roleName: string;
   departmentName: string;
   updatedAt: string;
-  blocks: ReturnType<typeof parseJobDescriptionContent>;
+  sections: ReturnType<typeof ensureJobDescriptionSections>;
 }) => {
-  const renderedBlocks = params.blocks
-    .map((block) => {
-      if (block.type === 'heading') {
-        return `<h3 style="text-transform: uppercase; font-size: 12px; color: #475569; letter-spacing: 0.05em;">${escapeHtml(block.text)}</h3>`;
-      }
-
-      if (block.type === 'list') {
-        const items = block.items
-          .map((item) => `<li style="margin-bottom: 4px; color: #0f172a;">${escapeHtml(item)}</li>`)
-          .join('');
-        return `<ul style="padding-left: 20px; margin: 0 0 10px 0;">${items}</ul>`;
-      }
-
-      return `<p style="margin: 6px 0; color: #0f172a;">${escapeHtml(block.text)}</p>`;
-    })
+  const responsibilities = params.sections.responsibilities
+    .map((item) => `<li style="margin-bottom: 4px; color: #0f172a;">${escapeHtml(item)}</li>`)
+    .join('');
+  const objectives = params.sections.objectives
+    .map((item) => `<li style="margin-bottom: 4px; color: #0f172a;">${escapeHtml(item)}</li>`)
+    .join('');
+  const collaboration = params.sections.collaboration
+    .map((item) => `<li style="margin-bottom: 4px; color: #0f172a;">${escapeHtml(item)}</li>`)
     .join('');
 
   return `<!DOCTYPE html>
@@ -185,12 +223,20 @@ const buildDocContent = (params: {
       </style>
     </head>
     <body>
-      <h1 style="margin: 0; font-size: 22px; color: #0f172a;">${escapeHtml(params.roleName)}</h1>
-      <p style="margin: 4px 0 12px 0; color: #475569;">${escapeHtml(params.departmentName)}</p>
+      <h1 style="margin: 0; font-size: 22px; color: #0f172a;">${escapeHtml(params.sections.title)}</h1>
+      <p style="margin: 2px 0; font-weight: 600; color: #0f172a;">${escapeHtml(params.roleName)}</p>
+      <p style="margin: 2px 0 12px 0; color: #475569;">${escapeHtml(params.departmentName)}</p>
       <p style="margin: 0 0 12px 0; font-size: 12px; color: #64748b;">Dernière mise à jour : ${escapeHtml(
         new Date(params.updatedAt).toLocaleString('fr-FR')
       )}</p>
-      ${renderedBlocks}
+      <h3 style="text-transform: uppercase; font-size: 12px; color: #475569; letter-spacing: 0.05em;">Mission générale</h3>
+      <p style="margin: 6px 0 12px 0; color: #0f172a;">${escapeHtml(params.sections.generalDescription)}</p>
+      <h3 style="text-transform: uppercase; font-size: 12px; color: #475569; letter-spacing: 0.05em;">Responsabilités clés</h3>
+      <ul style="padding-left: 20px; margin: 0 0 10px 0;">${responsibilities}</ul>
+      <h3 style="text-transform: uppercase; font-size: 12px; color: #475569; letter-spacing: 0.05em;">Objectifs et indicateurs</h3>
+      <ul style="padding-left: 20px; margin: 0 0 10px 0;">${objectives}</ul>
+      <h3 style="text-transform: uppercase; font-size: 12px; color: #475569; letter-spacing: 0.05em;">Collaboration attendue</h3>
+      <ul style="padding-left: 20px; margin: 0 0 10px 0;">${collaboration}</ul>
     </body>
   </html>`;
 };
@@ -238,7 +284,9 @@ export async function GET(request: Request, { params }: { params: { roleId: stri
 
   const { data: record, error: fetchError } = await supabase
     .from('job_descriptions')
-    .select('role_id, organization_id, content, updated_at, created_at, role:roles(name, organization_id, department:departments(name))')
+    .select(
+      'role_id, organization_id, content, updated_at, created_at, title, general_description, responsibilities, objectives, collaboration, role:roles(name, organization_id, department:departments(name))'
+    )
     .eq('role_id', parsedParams.data.roleId)
     .maybeSingle();
 
@@ -261,7 +309,22 @@ export async function GET(request: Request, { params }: { params: { roleId: stri
     return NextResponse.json({ error: 'Fiche de poste inaccessible.' }, { status: 404, headers: NO_STORE_HEADERS });
   }
 
-  const descriptionResult = jobDescriptionSchema.safeParse(normalizedDescription);
+  const sections = ensureJobDescriptionSections({
+    content: normalizedDescription.content,
+    sections: normalizedDescription.sections,
+    fallbackTitle: role.name
+  });
+
+  const content =
+    normalizedDescription.content.trim().length > 0
+      ? normalizedDescription.content
+      : stringifySections(sections);
+
+  const descriptionResult = jobDescriptionSchema.safeParse({
+    ...normalizedDescription,
+    content,
+    sections
+  });
 
   if (!descriptionResult.success) {
     console.error('Fiche de poste invalide pour export', descriptionResult.error);
@@ -271,7 +334,6 @@ export async function GET(request: Request, { params }: { params: { roleId: stri
     );
   }
 
-  const blocks = parseJobDescriptionContent(descriptionResult.data.content);
   const filename = buildSafeFilename(role.name, query.data.format === 'pdf' ? 'pdf' : 'doc');
 
   if (query.data.format === 'doc') {
@@ -279,7 +341,7 @@ export async function GET(request: Request, { params }: { params: { roleId: stri
       roleName: role.name,
       departmentName: role.departmentName,
       updatedAt: descriptionResult.data.updatedAt,
-      blocks
+      sections
     });
 
     return new NextResponse(html, {
@@ -296,7 +358,7 @@ export async function GET(request: Request, { params }: { params: { roleId: stri
     roleName: role.name,
     departmentName: role.departmentName,
     updatedAt: descriptionResult.data.updatedAt,
-    lines: collapseBlocksToText(blocks)
+    lines: linesFromSections(sections)
   });
 
   return new NextResponse(pdfBuffer, {
