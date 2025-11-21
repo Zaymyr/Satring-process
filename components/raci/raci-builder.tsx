@@ -1569,7 +1569,7 @@ export function RaciBuilder() {
                                           onChange={(event) =>
                                             updateMatrix(selectedDepartment.id, action.id, role.id, event.target.value as RaciValue)
                                           }
-                                          className="w-full rounded-md border border-slate-300 bg-white px-2 py-2 text-sm text-slate-900 shadow-sm focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-500"
+                                          className="w-full rounded-md border border-slate-300 bg-inherit px-2 py-2 text-sm text-slate-900 shadow-sm focus:border-slate-500 focus:bg-inherit focus:outline-none focus:ring-2 focus:ring-slate-500"
                                         >
                                           {raciOptions.map((option) => (
                                             <option key={option.value} value={option.value}>
