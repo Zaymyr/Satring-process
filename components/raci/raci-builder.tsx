@@ -278,7 +278,7 @@ const ActionCellRenderer = ({ data, context }: RendererParams<string>) => {
 
 const RaciCellRenderer = (params: RendererParams<RaciValue>) => {
   const { data, context, value, colDef } = params;
-  const roleId = colDef.field;
+  const roleId = colDef?.field ?? '';
 
   if (!data || !context || !roleId || data.rowType === 'process') {
     return null;
