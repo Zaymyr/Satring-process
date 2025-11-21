@@ -1,8 +1,13 @@
 'use client';
 
 import { Fragment, useEffect, useMemo, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { type ColDef, type ICellRendererParams, type IHeaderParams } from 'ag-grid-community';
+import { AgGridReact } from 'ag-grid-react';
+import { useQuery, type UseQueryResult } from '@tanstack/react-query';
 import { ChevronDown, Copy, Download, FileText, Loader2 } from 'lucide-react';
+
+import 'ag-grid-community/styles/ag-grid.css';
+import 'ag-grid-community/styles/ag-theme-quartz.css';
 
 import { cn } from '@/lib/utils/cn';
 import { departmentListSchema, type Department as ApiDepartment } from '@/lib/validation/department';
@@ -166,6 +171,432 @@ type AggregatedProcessGroup = {
   id: string;
   title: string;
   steps: AggregatedRoleActionRow[];
+};
+
+type RaciGridRow = {
+  id: string;
+  rowType: 'process' | 'aggregated' | 'manual';
+  actionId?: string;
+  processId?: string;
+  label: string;
+  processTitle?: string;
+  responsibility?: FilledRaciValue;
+  assignedRoleIds?: Set<string>;
+  values?: Record<string, RaciValue>;
+  summary?: { label: string; hasIssue: boolean };
+  zebra?: 'even' | 'odd';
+  actionCountLabel?: string;
+  isCollapsed?: boolean;
+};
+
+type RaciGridContext = {
+  toggleProcessVisibility: (processId: string) => void;
+  updateMatrix: (departmentId: string, actionId: string, roleId: string, value: RaciValue) => void;
+  departmentId: string;
+};
+
+type RaciGridProps = {
+  aggregatedProcesses: AggregatedProcessGroup[];
+  aggregatedRowSummaries: Map<string, RaciCounts>;
+  collapsedProcesses: Record<string, boolean>;
+  departmentId: string;
+  hasAggregatedActions: boolean;
+  hasManualActions: boolean;
+  manualActions: DepartmentMatrixState['actions'];
+  matrix: DepartmentMatrixState['matrix'];
+  manualRowSummaries: Map<string, RaciCounts>;
+  roleSummaries: Record<string, RaciCounts>;
+  roles: LoadedDepartment['roles'];
+  showEmptyMatrixState: boolean;
+  status: Pick<UseQueryResult<RoleActionSummary[], ApiError>, 'error' | 'isError' | 'isLoading'>;
+  toggleProcessVisibility: (processId: string) => void;
+  updateMatrix: (departmentId: string, actionId: string, roleId: string, value: RaciValue) => void;
+};
+
+type RoleHeaderParams = IHeaderParams & { roleColor: string; summary?: RaciCounts };
+
+const RoleHeader = ({ displayName, roleColor, summary }: RoleHeaderParams) => (
+  <div className="flex flex-col items-center justify-center gap-1 px-2 text-center">
+    <div className="flex items-center justify-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-600">
+      <span aria-hidden="true" className="inline-block h-2.5 w-2.5 rounded-full" style={{ backgroundColor: roleColor }} />
+      <span className="truncate">{displayName}</span>
+    </div>
+    <div className="flex flex-wrap justify-center gap-1 text-[11px] font-mono font-normal text-slate-500">
+      {filledRaciValues.map((value) => (
+        <span key={`${displayName}-${value}`} className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5">
+          {value}: {summary?.[value] ?? 0}
+        </span>
+      ))}
+    </div>
+  </div>
+);
+
+type RendererParams<TValue = unknown> = ICellRendererParams<RaciGridRow, TValue, RaciGridContext>;
+
+const ActionCellRenderer = ({ data, context }: RendererParams<string>) => {
+  if (!data || !context) {
+    return null;
+  }
+
+  if (data.rowType === 'process') {
+    const actionCountLabel = data.actionCountLabel ?? '';
+
+    return (
+      <button
+        type="button"
+        onClick={() => context.toggleProcessVisibility(data.processId ?? '')}
+        className="flex w-full items-center justify-between gap-4 rounded-lg bg-white/70 px-3 py-3 text-left shadow-sm ring-1 ring-inset ring-slate-200 transition hover:bg-white"
+        aria-expanded={!(data.isCollapsed ?? false)}
+      >
+        <div className="flex flex-1 items-center gap-3">
+          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-base">
+            {getProcessGlyph(data.label)}
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-semibold text-slate-800 sm:text-base">{data.label}</p>
+            <p className="mt-0.5 text-xs font-medium text-slate-500">{actionCountLabel}</p>
+          </div>
+        </div>
+        <ChevronDown
+          aria-hidden="true"
+          className={cn(
+            'h-5 w-5 shrink-0 rounded-full bg-slate-100 p-0.5 text-slate-600 transition-transform',
+            data.isCollapsed ? '-rotate-90' : 'rotate-0'
+          )}
+        />
+      </button>
+    );
+  }
+
+  return (
+    <div className="space-y-1 px-2">
+      <p className="text-sm font-semibold text-slate-900">{data.label}</p>
+      {data.processTitle ? <p className="text-xs font-medium text-slate-500">{data.processTitle}</p> : null}
+    </div>
+  );
+};
+
+const RaciCellRenderer = (params: RendererParams<RaciValue>) => {
+  const { data, context, value, colDef } = params;
+  const roleId = colDef.field;
+
+  if (!data || !context || !roleId || data.rowType === 'process') {
+    return null;
+  }
+
+  if (data.rowType === 'aggregated') {
+    const isAssigned = data.assignedRoleIds?.has(roleId) ?? false;
+
+    return (
+      <div className="flex justify-center">
+        <span
+          className={cn(
+            'inline-flex min-w-[2.5rem] items-center justify-center rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide shadow-sm ring-1 ring-inset',
+            isAssigned ? raciBadgeStyles[data.responsibility as FilledRaciValue] : 'bg-white text-transparent ring-slate-100'
+          )}
+          title={
+            isAssigned && data.responsibility
+              ? raciDefinitions[data.responsibility].tooltip
+              : 'Non attribué'
+          }
+        >
+          {isAssigned ? data.responsibility : '—'}
+        </span>
+      </div>
+    );
+  }
+
+  const isFilled = Boolean(value);
+
+  return (
+    <div className="flex flex-col items-center gap-3 px-2 py-1">
+      <span
+        className={cn(
+          'inline-flex min-w-[2.5rem] items-center justify-center rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide shadow-sm ring-1 ring-inset transition',
+          isFilled && value ? raciBadgeStyles[value as FilledRaciValue] : 'bg-white text-transparent ring-slate-100'
+        )}
+        title={isFilled && value ? raciDefinitions[value as FilledRaciValue].tooltip : 'Non attribué'}
+        aria-label={isFilled && value ? raciDefinitions[value as FilledRaciValue].short : 'Non attribué'}
+      >
+        {isFilled ? value : '—'}
+      </span>
+
+      <select
+        value={value ?? ''}
+        onChange={(event) =>
+          context.updateMatrix(
+            context.departmentId,
+            data.actionId ?? '',
+            roleId,
+            event.target.value as RaciValue
+          )
+        }
+        className="w-full rounded-md border border-slate-300 bg-inherit px-2 py-2 text-sm text-slate-900 shadow-sm focus:border-slate-500 focus:bg-inherit focus:outline-none focus:ring-2 focus:ring-slate-500"
+      >
+        {raciOptions.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+};
+
+const SummaryCellRenderer = ({ data }: RendererParams<string>) => {
+  if (!data?.summary) {
+    return null;
+  }
+
+  return (
+    <span className="inline-flex items-center gap-2 text-xs font-mono">
+      {data.summary.hasIssue ? <span className="h-1.5 w-1.5 rounded-full bg-red-400" aria-hidden="true" /> : null}
+      <span className={cn(data.summary.hasIssue ? 'text-red-500' : 'text-slate-600')}>{data.summary.label}</span>
+    </span>
+  );
+};
+
+const RaciGrid = ({
+  aggregatedProcesses,
+  aggregatedRowSummaries,
+  collapsedProcesses,
+  departmentId,
+  hasAggregatedActions,
+  hasManualActions,
+  manualActions,
+  matrix,
+  manualRowSummaries,
+  roleSummaries,
+  roles,
+  showEmptyMatrixState,
+  status,
+  toggleProcessVisibility,
+  updateMatrix
+}: RaciGridProps) => {
+  const rows = useMemo<RaciGridRow[]>(() => {
+    let zebra: 'even' | 'odd' = 'odd';
+    const nextZebra = () => {
+      zebra = zebra === 'even' ? 'odd' : 'even';
+      return zebra;
+    };
+
+    const gridRows: RaciGridRow[] = [];
+
+    if (hasAggregatedActions) {
+      aggregatedProcesses.forEach((process) => {
+        const isCollapsed = collapsedProcesses[process.id] ?? false;
+        const actionCount = process.steps.length;
+        const actionCountLabel = `${actionCount} action${actionCount > 1 ? 's' : ''}`;
+
+        gridRows.push({
+          id: `process-${process.id}`,
+          rowType: 'process',
+          label: process.title,
+          processId: process.id,
+          actionCountLabel,
+          isCollapsed
+        });
+
+        if (!isCollapsed) {
+          process.steps.forEach((step) => {
+            const values: Record<string, RaciValue> = {};
+
+            for (const role of roles) {
+              values[role.id] = step.assignedRoleIds.has(role.id) ? step.responsibility : '';
+            }
+
+            const summaryCounts = aggregatedRowSummaries.get(step.id) ?? createEmptyCounts();
+
+            gridRows.push({
+              id: `aggregated-${process.id}-${step.id}`,
+              actionId: step.id,
+              label: step.label,
+              processId: process.id,
+              processTitle: step.processTitle,
+              responsibility: step.responsibility,
+              assignedRoleIds: step.assignedRoleIds,
+              rowType: 'aggregated',
+              values,
+              zebra: nextZebra(),
+              summary: getSummaryMeta(summaryCounts)
+            });
+          });
+        }
+      });
+    }
+
+    if (hasManualActions) {
+      manualActions.forEach((action) => {
+        const summaryCounts = manualRowSummaries.get(action.id) ?? createEmptyCounts();
+
+        gridRows.push({
+          id: `manual-${action.id}`,
+          actionId: action.id,
+          label: action.name,
+          rowType: 'manual',
+          values: matrix[action.id] ?? {},
+          zebra: nextZebra(),
+          summary: getSummaryMeta(summaryCounts)
+        });
+      });
+    }
+
+    return gridRows;
+  }, [
+    aggregatedProcesses,
+    aggregatedRowSummaries,
+    collapsedProcesses,
+    hasAggregatedActions,
+    hasManualActions,
+    manualActions,
+    manualRowSummaries,
+    matrix,
+    roles
+  ]);
+
+  const columnDefs = useMemo<ColDef[]>(() => {
+    const actionColumn: ColDef<RaciGridRow> = {
+      field: 'action',
+      headerName: 'Actions',
+      pinned: 'left',
+      width: 280,
+      lockPinned: true,
+      cellRenderer: ActionCellRenderer,
+      cellClass: 'align-top'
+    };
+
+    const roleColumns: Array<ColDef<RaciGridRow, RaciValue>> = roles.map((role) => ({
+      field: role.id,
+      headerName: role.name,
+      cellRenderer: RaciCellRenderer,
+      headerComponent: RoleHeader,
+      headerComponentParams: {
+        roleColor: role.color,
+        summary: roleSummaries[role.id]
+      },
+      valueGetter: (params) => params.data?.values?.[role.id] ?? '',
+      minWidth: 180
+    }));
+
+    const summaryColumn: ColDef<RaciGridRow> = {
+      field: 'summary',
+      headerName: 'Synthèse',
+      cellRenderer: SummaryCellRenderer,
+      minWidth: 200,
+      valueGetter: (params) => params.data?.summary?.label ?? ''
+    };
+
+    return [actionColumn, ...roleColumns, summaryColumn];
+  }, [roleSummaries, roles]);
+
+  if (status.isLoading) {
+    return (
+      <div className="flex items-center justify-center px-6 py-4 text-sm text-slate-500">
+        <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Analyse des actions en cours…
+      </div>
+    );
+  }
+
+  if (status.isError) {
+    return (
+      <div className="px-6 py-4 text-sm text-red-600">
+        {status.error instanceof ApiError && status.error.status === 401
+          ? 'Connectez-vous pour consulter les actions assignées à vos rôles.'
+          : status.error instanceof Error
+            ? status.error.message
+            : 'Une erreur est survenue lors du chargement de la matrice.'}
+      </div>
+    );
+  }
+
+  return (
+    <div className="ag-theme-quartz raci-grid min-h-[520px] w-full overflow-hidden rounded-xl border border-slate-200">
+      <AgGridReact<RaciGridRow>
+        ref={gridRef}
+        rowData={rows}
+        columnDefs={columnDefs}
+        defaultColDef={{
+          resizable: true,
+          sortable: false,
+          suppressMenu: true,
+          flex: 1,
+          minWidth: 140,
+          cellClass: 'text-sm text-slate-900',
+          headerClass: 'bg-white'
+        }}
+        rowHoverHighlight
+        columnHoverHighlight
+        tooltipShowDelay={0}
+        animateRows
+        suppressMovableColumns={false}
+        getRowHeight={(params) => {
+          if (params.data?.rowType === 'manual') {
+            return 140;
+          }
+
+          if (params.data?.rowType === 'process') {
+            return 80;
+          }
+
+          return 88;
+        }}
+        getRowStyle={(params) => {
+          if (params.data?.rowType === 'process') {
+            return { backgroundColor: '#f8fafc' };
+          }
+
+          if (params.data?.zebra === 'odd') {
+            return { backgroundColor: '#f1f5f9' };
+          }
+
+          return { backgroundColor: '#ffffff' };
+        }}
+        context={{
+          toggleProcessVisibility,
+          updateMatrix,
+          departmentId
+        }}
+        suppressRowClickSelection
+        enableRangeSelection={false}
+        suppressCellFocus
+        noRowsOverlayComponent={() => (
+          <div className="px-6 py-6 text-center text-sm text-slate-500">
+            {showEmptyMatrixState
+              ? 'Aucune action n’est disponible pour ce département pour le moment.'
+              : 'Aucune donnée à afficher.'}
+          </div>
+        )}
+      />
+
+      <style jsx global>{`
+        .raci-grid .ag-root-wrapper-body.ag-layout-normal {
+          height: auto;
+        }
+
+        .raci-grid .ag-header {
+          position: sticky;
+          top: 0;
+          z-index: 3;
+        }
+
+        .raci-grid .ag-row-hover .ag-cell,
+        .raci-grid .ag-row-hover .ag-pinned-left-cols-container .ag-cell {
+          background-color: #e0f2fe !important;
+        }
+
+        .raci-grid .ag-column-hover,
+        .raci-grid .ag-pinned-left-cols-container .ag-column-hover {
+          background-color: #e0f2fe !important;
+        }
+
+        .raci-grid .ag-cell {
+          display: flex;
+          align-items: stretch;
+          justify-content: center;
+        }
+      `}</style>
+    </div>
+  );
 };
 
 type MatrixExportRow = {
@@ -912,10 +1343,6 @@ export function RaciBuilder() {
     return groups;
   }, [departmentAggregatedProcesses, selectedDepartment, selectedDepartmentState, selectedRole]);
 
-  const [hoveredRoleId, setHoveredRoleId] = useState<string | null>(null);
-  const [hoveredActionId, setHoveredActionId] = useState<string | null>(null);
-  const [hoveredCell, setHoveredCell] = useState<{ actionId: string; roleId: string } | null>(null);
-
   const updateMatrix = (departmentId: string, actionId: string, roleId: string, value: RaciValue) => {
     setDepartmentStates((previous) => {
       const current = previous[departmentId];
@@ -945,10 +1372,6 @@ export function RaciBuilder() {
       };
     });
   };
-
-  let visibleRowIndex = 0;
-
-  const getRowBackground = () => (visibleRowIndex++ % 2 === 0 ? 'bg-white' : 'bg-slate-100');
 
   return (
     <div className="h-full overflow-y-auto bg-slate-50">
@@ -1255,365 +1678,23 @@ export function RaciBuilder() {
                         </div>
                       )}
                     </div>
-                    <div
-                      className="hidden overflow-auto md:block"
-                      onMouseLeave={() => {
-                        setHoveredRoleId(null);
-                        setHoveredActionId(null);
-                      }}
-                    >
-                      <table className="min-w-full border-separate border-spacing-0">
-                    <thead className="sticky top-0 z-30 bg-white shadow-sm">
-                      <tr>
-                        <th
-                          className="sticky left-0 top-0 z-30 w-64 border-b border-r border-slate-200 bg-white px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500"
-                          scope="col"
-                        >
-                          Actions
-                        </th>
-                        {selectedDepartment.roles.map((role) => (
-                          <th
-                            key={role.id}
-                            scope="col"
-                            onMouseEnter={() => setHoveredRoleId(role.id)}
-                            className={cn(
-                              'border-b border-slate-200 bg-white px-4 py-3 text-center text-xs font-semibold uppercase tracking-wide text-slate-500 transition-colors',
-                              hoveredRoleId === role.id && 'bg-sky-50'
-                            )}
-                          >
-                            <span className="flex items-center justify-center gap-2 text-center">
-                              <span
-                                aria-hidden="true"
-                                className="inline-block h-2.5 w-2.5 rounded-full"
-                                style={{ backgroundColor: role.color }}
-                              />
-                              <span className="truncate">{role.name}</span>
-                            </span>
-                            <div className="mt-1 flex flex-wrap justify-center gap-1 text-[11px] font-mono font-normal text-slate-500">
-                              {filledRaciValues.map((value) => (
-                                <span
-                                  key={`${role.id}-${value}`}
-                                  className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5"
-                                >
-                                  {value}: {roleSummaries[role.id]?.[value] ?? 0}
-                                </span>
-                              ))}
-                            </div>
-                          </th>
-                        ))}
-                        <th
-                          scope="col"
-                          className="border-b border-slate-200 bg-white px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500"
-                        >
-                          Synthèse
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="[&_tr:not(:last-child)]:border-b [&_tr:not(:last-child)]:border-slate-100">
-                      {roleActionsQuery.isLoading ? (
-                        <tr>
-                          <td
-                            colSpan={selectedDepartment.roles.length + 2}
-                            className="px-6 py-4 text-sm text-slate-500"
-                          >
-                            <span className="flex items-center justify-center gap-2">
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                              Analyse des actions en cours…
-                            </span>
-                          </td>
-                        </tr>
-                      ) : roleActionsQuery.isError ? (
-                        <tr>
-                          <td
-                            colSpan={selectedDepartment.roles.length + 2}
-                            className="px-6 py-4 text-sm text-red-600"
-                          >
-                            {roleActionsQuery.error instanceof ApiError && roleActionsQuery.error.status === 401
-                              ? 'Connectez-vous pour consulter les actions assignées à vos rôles.'
-                              : roleActionsQuery.error.message}
-                          </td>
-                        </tr>
-                      ) : null}
-
-                      {!roleActionsQuery.isLoading &&
-                      !roleActionsQuery.isError &&
-                      hasAggregatedActions
-                        ? departmentAggregatedProcesses.map((process) => {
-                            const isCollapsed = collapsedProcesses[process.id] ?? false;
-                            const actionCount = process.steps.length;
-                            const actionCountLabel = `${actionCount} action${actionCount > 1 ? 's' : ''}`;
-
-                            return (
-                              <Fragment key={`process-${process.id}`}>
-                                <tr className="border-b border-slate-200 bg-slate-50/80">
-                                  <th
-                                    colSpan={selectedDepartment.roles.length + 2}
-                                    className="px-6 py-3 text-left text-xs font-semibold tracking-wide text-slate-600"
-                                  >
-                                    <button
-                                      type="button"
-                                      onClick={() => toggleProcessVisibility(process.id)}
-                                      className="flex w-full items-center justify-between gap-4 rounded-lg bg-white/40 px-2 py-2 text-left shadow-sm ring-1 ring-inset ring-slate-200 transition hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
-                                      aria-expanded={!isCollapsed}
-                                    >
-                                      <div className="flex flex-1 items-center gap-3">
-                                        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-base">
-                                          {getProcessGlyph(process.title)}
-                                        </span>
-                                        <div className="min-w-0 flex-1">
-                                          <p className="truncate text-sm font-semibold text-slate-800 sm:text-base">
-                                            {process.title}
-                                          </p>
-                                          <p className="mt-0.5 text-xs font-medium text-slate-500">{actionCountLabel}</p>
-                                        </div>
-                                      </div>
-                                      <ChevronDown
-                                        aria-hidden="true"
-                                        className={cn(
-                                          'h-5 w-5 shrink-0 rounded-full bg-slate-100 p-0.5 text-slate-600 transition-transform',
-                                          isCollapsed ? '-rotate-90' : 'rotate-0'
-                                        )}
-                                      />
-                                    </button>
-                                  </th>
-                                </tr>
-
-                                {!isCollapsed
-                                  ? process.steps.map((action) => {
-                                      const rowBackground = getRowBackground();
-                                      const summaryCounts = aggregatedRowSummaries.get(action.id) ?? createEmptyCounts();
-                                      const summaryMeta = getSummaryMeta(summaryCounts);
-
-                                      return (
-                                        <tr
-                                          key={`aggregated-${process.id}-${action.id}`}
-                                          onMouseEnter={() => setHoveredActionId(action.id)}
-                                          onMouseLeave={() => setHoveredActionId(null)}
-                                          className={cn(
-                                            rowBackground,
-                                            'odd:bg-white even:bg-slate-100 group transition-colors hover:bg-sky-50',
-                                            hoveredActionId === action.id && 'bg-sky-50'
-                                          )}
-                                        >
-                                          <th
-                                            scope="row"
-                                              className={cn(
-                                                'sticky left-0 z-20 px-6 py-4 pl-10 text-left align-top border-r border-slate-200',
-                                                'bg-inherit',
-                                                'text-sm font-semibold text-slate-900 hover:bg-sky-50 group-hover:bg-sky-50',
-                                                hoveredActionId === action.id && 'bg-sky-50'
-                                              )}
-                                          >
-                                            <div className="space-y-1">
-                                              <p className="text-sm font-semibold text-slate-900">{action.label}</p>
-                                              {action.processTitle ? (
-                                                <p className="text-xs font-medium text-slate-500">{action.processTitle}</p>
-                                              ) : null}
-                                            </div>
-                                          </th>
-                                          {selectedDepartment.roles.map((role) => (
-                                            <td
-                                              key={role.id}
-                                              onMouseEnter={() => {
-                                                setHoveredRoleId(role.id);
-                                                setHoveredCell({ actionId: action.id, roleId: role.id });
-                                              }}
-                                              onMouseLeave={() => setHoveredCell(null)}
-                                              className={cn(
-                                                'relative px-4 py-3 text-center text-sm align-middle transition-colors',
-                                                'bg-inherit',
-                                                hoveredRoleId === role.id && 'bg-sky-50',
-                                                hoveredActionId === action.id && 'bg-sky-50',
-                                                'hover:bg-sky-50 group-hover:bg-sky-50'
-                                              )}
-                                            >
-                                              <div className="group/cell relative inline-flex">
-                                                {action.assignedRoleIds.has(role.id) ? (
-                                                  <span
-                                                    className={cn(
-                                                      'inline-flex min-w-[2.5rem] items-center justify-center rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide shadow-sm ring-1 ring-inset',
-                                                      raciBadgeStyles[action.responsibility]
-                                                    )}
-                                                    title={raciDefinitions[action.responsibility].tooltip}
-                                                  >
-                                                    {action.responsibility}
-                                                  </span>
-                                                ) : (
-                                                  <span
-                                                    className="inline-flex min-w-[2.5rem] items-center justify-center rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide text-transparent ring-1 ring-inset ring-slate-100 transition group-hover/cell:text-slate-400"
-                                                    aria-label="Non attribué"
-                                                  >
-                                                    —
-                                                  </span>
-                                                )}
-
-                                                {action.assignedRoleIds.has(role.id) &&
-                                                hoveredCell?.actionId === action.id &&
-                                                hoveredCell?.roleId === role.id ? (
-                                                  <div className="pointer-events-none absolute left-1/2 top-full z-30 mt-2 hidden w-64 -translate-x-1/2 rounded-lg border border-slate-200 bg-white p-3 text-left shadow-lg ring-1 ring-slate-200 group-hover/cell:block">
-                                                    <p className="text-xs font-semibold text-slate-900">
-                                                      {raciDefinitions[action.responsibility].short}
-                                                    </p>
-                                                    <p className="mt-1 text-xs text-slate-600">
-                                                      {raciDefinitions[action.responsibility].description}
-                                                    </p>
-                                                  </div>
-                                                ) : null}
-                                              </div>
-                                            </td>
-                                              ))}
-                                              <td
-                                              className={cn(
-                                                'bg-inherit',
-                                                'px-4 py-3 text-left text-xs font-mono transition-colors',
-                                                summaryMeta.hasIssue ? 'text-red-500' : 'text-slate-500'
-                                                ,
-                                                hoveredActionId === action.id && 'bg-sky-50'
-                                              )}
-                                            >
-                                                <span className="inline-flex items-center gap-2">
-                                                  {summaryMeta.hasIssue ? (
-                                                    <span className="h-1.5 w-1.5 rounded-full bg-red-400" aria-hidden="true" />
-                                                  ) : null}
-                                                  <span>{summaryMeta.label}</span>
-                                                </span>
-                                              </td>
-                                            </tr>
-                                          );
-                                        })
-                                  : null}
-                              </Fragment>
-                            );
-                          })
-                        : null}
-
-                      {hasManualActions
-                        ? selectedDepartmentState.actions.map((action) => {
-                            const rowBackground = getRowBackground();
-                            const summaryCounts = manualRowSummaries.get(action.id) ?? createEmptyCounts();
-                            const summaryMeta = getSummaryMeta(summaryCounts);
-
-                            return (
-                              <tr
-                                key={action.id}
-                                onMouseEnter={() => setHoveredActionId(action.id)}
-                                onMouseLeave={() => setHoveredActionId(null)}
-                                className={cn(
-                                  rowBackground,
-                                  'odd:bg-white even:bg-slate-100 group transition-colors hover:bg-sky-50',
-                                  hoveredActionId === action.id && 'bg-sky-50'
-                                )}
-                              >
-                                <th
-                                  scope="row"
-                                  className={cn(
-                                    'sticky left-0 z-20 px-6 py-4 text-left align-top border-r border-slate-200',
-                                    'bg-inherit',
-                                    'text-sm font-semibold text-slate-900 hover:bg-sky-50 group-hover:bg-sky-50',
-                                    hoveredActionId === action.id && 'bg-sky-50'
-                                  )}
-                                >
-                                  <div className="space-y-1">
-                                    <p className="text-sm font-semibold text-slate-900">{action.name}</p>
-                                  </div>
-                                </th>
-                                    {selectedDepartment.roles.map((role) => {
-                                      const currentValue = selectedDepartmentState.matrix[action.id]?.[role.id] ?? '';
-                                      const isFilled = currentValue !== '';
-
-                                  return (
-                                    <td
-                                      key={role.id}
-                                      onMouseEnter={() => {
-                                        setHoveredRoleId(role.id);
-                                        setHoveredCell({ actionId: action.id, roleId: role.id });
-                                      }}
-                                    onMouseLeave={() => setHoveredCell(null)}
-                                  className={cn(
-                                      'relative px-4 py-3 text-sm align-middle transition-colors',
-                                      'bg-inherit',
-                                      hoveredRoleId === role.id && 'bg-sky-50',
-                                      hoveredActionId === action.id && 'bg-sky-50',
-                                      'hover:bg-sky-50 group-hover:bg-sky-50'
-                                    )}
-                                  >
-                                      <div className="flex flex-col items-center gap-3">
-                                        <div className="group/cell relative">
-                                          <span
-                                            className={cn(
-                                              'inline-flex min-w-[2.5rem] items-center justify-center rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide shadow-sm ring-1 ring-inset transition',
-                                              isFilled
-                                                ? raciBadgeStyles[currentValue as FilledRaciValue]
-                                                : 'bg-white text-transparent ring-slate-100 group-hover/cell:text-slate-400'
-                                            )}
-                                            title={isFilled ? raciDefinitions[currentValue as FilledRaciValue].tooltip : undefined}
-                                            aria-label={isFilled ? raciDefinitions[currentValue as FilledRaciValue].short : 'Non attribué'}
-                                          >
-                                            {isFilled ? currentValue : '—'}
-                                          </span>
-
-                                          {isFilled && hoveredCell?.actionId === action.id && hoveredCell?.roleId === role.id ? (
-                                            <div className="pointer-events-none absolute left-1/2 top-full z-30 mt-2 hidden w-64 -translate-x-1/2 rounded-lg border border-slate-200 bg-white p-3 text-left shadow-lg ring-1 ring-slate-200 group-hover/cell:block">
-                                              <p className="text-xs font-semibold text-slate-900">
-                                                {raciDefinitions[currentValue as FilledRaciValue].short}
-                                              </p>
-                                              <p className="mt-1 text-xs text-slate-600">
-                                                {raciDefinitions[currentValue as FilledRaciValue].description}
-                                              </p>
-                                            </div>
-                                          ) : null}
-                                        </div>
-
-                                        <select
-                                          value={currentValue}
-                                          onChange={(event) =>
-                                            updateMatrix(selectedDepartment.id, action.id, role.id, event.target.value as RaciValue)
-                                          }
-                                          className="w-full rounded-md border border-slate-300 bg-inherit px-2 py-2 text-sm text-slate-900 shadow-sm focus:border-slate-500 focus:bg-inherit focus:outline-none focus:ring-2 focus:ring-slate-500"
-                                        >
-                                          {raciOptions.map((option) => (
-                                            <option key={option.value} value={option.value}>
-                                              {option.label}
-                                            </option>
-                                          ))}
-                                        </select>
-                                      </div>
-                                    </td>
-                                  );
-                                    })}
-                                    <td
-                                  className={cn(
-                                    'bg-inherit',
-                                    'px-4 py-3 text-left text-xs font-mono transition-colors hover:bg-sky-50 group-hover:bg-sky-50',
-                                    summaryMeta.hasIssue ? 'text-red-500' : 'text-slate-500',
-                                    hoveredActionId === action.id && 'bg-sky-50'
-                                  )}
-                                >
-                                      <span className="inline-flex items-center gap-2">
-                                        {summaryMeta.hasIssue ? (
-                                          <span className="h-1.5 w-1.5 rounded-full bg-red-400" aria-hidden="true" />
-                                        ) : null}
-                                        <span>{summaryMeta.label}</span>
-                                      </span>
-                                    </td>
-                                  </tr>
-                                );
-                              })
-                        : null}
-
-                      {showEmptyMatrixState ? (
-                        <tr>
-                          <td
-                            colSpan={selectedDepartment.roles.length + 2}
-                            className="px-6 py-6 text-center text-sm text-slate-500"
-                          >
-                            Aucune action n’est disponible pour ce département pour le moment.
-                          </td>
-                        </tr>
-                      ) : null}
-                    </tbody>
-                  </table>
-                </div>
+                  <RaciGrid
+                    aggregatedProcesses={departmentAggregatedProcesses}
+                    aggregatedRowSummaries={aggregatedRowSummaries}
+                    collapsedProcesses={collapsedProcesses}
+                    departmentId={selectedDepartment.id}
+                    hasAggregatedActions={hasAggregatedActions}
+                    hasManualActions={hasManualActions}
+                    manualActions={selectedDepartmentState.actions}
+                    matrix={selectedDepartmentState.matrix}
+                    manualRowSummaries={manualRowSummaries}
+                    roleSummaries={roleSummaries}
+                    roles={selectedDepartment.roles}
+                    showEmptyMatrixState={showEmptyMatrixState}
+                    status={roleActionsQuery}
+                    toggleProcessVisibility={toggleProcessVisibility}
+                    updateMatrix={updateMatrix}
+                  />
                     {selectedDepartmentState.actions.length > 0 ? (
                       <div className="border-t border-slate-200 bg-white px-6 py-5">
                         <h3 className="text-sm font-semibold text-slate-900">Synthèse par action</h3>
