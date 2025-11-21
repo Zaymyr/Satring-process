@@ -487,6 +487,39 @@ export function JobDescriptionExplorer() {
                         ) : null}
                         <h1 className="text-2xl font-bold text-slate-900">{selectedRole?.name ?? 'Rôle non nommé'}</h1>
                       </div>
+                      <div className="mt-4 space-y-2">
+                        {jobDescriptionError ? (
+                          <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">
+                            {getErrorMessage(jobDescriptionError, 'Impossible de charger la fiche de poste.')}
+                          </p>
+                        ) : jobDescriptionQuery.isLoading ? (
+                          <div className="flex items-center gap-2 text-sm text-slate-600">
+                            <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                            <span>Chargement de la fiche de poste…</span>
+                          </div>
+                        ) : jobDescription ? (
+                          <>
+                            <p className="text-sm leading-relaxed text-slate-700">
+                              {jobDescription.sections.generalDescription}
+                            </p>
+                            <p className="text-xs text-slate-500">
+                              Dernière mise à jour : {formatUpdatedAt(jobDescription.updatedAt)}
+                            </p>
+                          </>
+                        ) : (
+                          <p className="text-sm leading-relaxed text-slate-600">
+                            {selectedDepartment ? (
+                              <>
+                                Au sein du département{' '}
+                                <span className="font-semibold text-slate-900">{selectedDepartment.name}</span>, ce rôle coordonne
+                                et exécute les actions clés qui suivent afin d’assurer la réussite des processus opérationnels.
+                              </>
+                            ) : (
+                              "Ce rôle coordonne et exécute les actions clés suivantes afin d’assurer la réussite des processus opérationnels."
+                            )}
+                          </p>
+                        )}
+                      </div>
                     </div>
                     <div className="flex flex-col gap-2 sm:items-end">
                       <div className="flex flex-wrap items-center gap-2">
@@ -538,54 +571,7 @@ export function JobDescriptionExplorer() {
                       ) : null}
                     </div>
                   </div>
-                  <p className="mt-4 text-sm leading-relaxed text-slate-600">
-                    {selectedDepartment ? (
-                      <>
-                        Au sein du département <span className="font-semibold text-slate-900">{selectedDepartment.name}</span>, ce rôle
-                        coordonne et exécute les actions clés qui suivent afin d’assurer la réussite des processus opérationnels.
-                      </>
-                    ) : (
-                      "Ce rôle coordonne et exécute les actions clés suivantes afin d’assurer la réussite des processus opérationnels."
-                    )}
-                  </p>
                 </header>
-
-                <section className="rounded-xl border border-slate-200 bg-white px-6 py-6 shadow-sm">
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                    <div>
-                      <h2 className="text-lg font-semibold text-slate-900">Fiche générée</h2>
-                      <p className="mt-1 text-sm text-slate-600">
-                        Générée à partir des actions du rôle et conservée pour consultation ultérieure.
-                      </p>
-                    </div>
-                  </div>
-
-                {jobDescriptionError ? (
-                  <p className="mt-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">
-                    {getErrorMessage(jobDescriptionError, 'Impossible de charger la fiche de poste.')}
-                  </p>
-                ) : jobDescriptionQuery.isLoading ? (
-                  <div className="mt-4 flex items-center gap-2 text-sm text-slate-600">
-                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-                    <span>Chargement de la fiche de poste…</span>
-                  </div>
-                ) : jobDescription ? (
-                  <>
-                    <article className="mt-4 space-y-2 rounded-lg border border-slate-100 bg-slate-50 px-4 py-4 text-sm leading-relaxed text-slate-800">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Titre de la fiche</p>
-                      <p className="text-base font-semibold text-slate-900">{jobDescription.sections.title}</p>
-                      <p className="text-sm text-slate-700">{jobDescription.sections.generalDescription}</p>
-                    </article>
-                    <p className="mt-3 text-xs text-slate-500">
-                      Dernière mise à jour : {formatUpdatedAt(jobDescription.updatedAt)}
-                    </p>
-                  </>
-                ) : (
-                  <div className="mt-4 rounded-md border border-dashed border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600">
-                    Aucune fiche de poste générée. Cliquez sur « Rafraîchir la fiche » pour créer une première version.
-                  </div>
-                )}
-              </section>
 
                 <div className="space-y-6">
                   <section className="rounded-xl border border-slate-200 bg-white px-6 py-6 shadow-sm">
