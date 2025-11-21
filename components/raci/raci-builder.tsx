@@ -513,7 +513,6 @@ const RaciGrid = ({
   return (
     <div className="ag-theme-quartz raci-grid min-h-[520px] w-full overflow-hidden rounded-xl border border-slate-200">
       <AgGridReact<RaciGridRow>
-        ref={gridRef}
         rowData={rows}
         columnDefs={columnDefs}
         defaultColDef={{
