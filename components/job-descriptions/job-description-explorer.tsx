@@ -269,6 +269,8 @@ export function JobDescriptionExplorer() {
 
   const jobDescription = jobDescriptionQuery.data ?? null;
   const jobDescriptionError = jobDescriptionQuery.error ?? refreshDescriptionMutation.error;
+  const [downloadFormat, setDownloadFormat] = useState<'pdf' | 'doc' | null>(null);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
 
   const groupedActions = useMemo(() => {
     if (!selectedSummary) {
@@ -296,6 +298,48 @@ export function JobDescriptionExplorer() {
       steps: Array.from(new Set(group.steps))
     }));
   }, [selectedSummary]);
+
+  const downloadFile = async (format: 'pdf' | 'doc') => {
+    if (!selectedRoleId || !jobDescription) {
+      return;
+    }
+
+    setDownloadError(null);
+    setDownloadFormat(format);
+
+    try {
+      const response = await fetch(`/api/job-descriptions/${selectedRoleId}/export?format=${format}`, {
+        method: 'GET',
+        credentials: 'include'
+      });
+
+      if (response.status === 401) {
+        throw new ApiError('Authentification requise', 401);
+      }
+
+      if (!response.ok) {
+        const message = await readErrorMessage(response, 'Impossible de télécharger la fiche de poste.');
+        throw new ApiError(message, response.status);
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      const safeRoleName = selectedRole?.name?.replace(/[^a-z0-9-_]/gi, '-').toLowerCase() || 'role';
+      const extension = format === 'pdf' ? 'pdf' : 'doc';
+
+      link.href = url;
+      link.download = `fiche-${safeRoleName}.${extension}`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      setDownloadError(getErrorMessage(error, 'Impossible de télécharger la fiche de poste.'));
+    } finally {
+      setDownloadFormat(null);
+    }
+  };
 
   const isLoading = departmentQuery.isLoading || roleActionQuery.isLoading;
   const hasError = departmentQuery.isError || roleActionQuery.isError;
@@ -461,24 +505,63 @@ export function JobDescriptionExplorer() {
                       Générée à partir des actions du rôle et conservée pour consultation ultérieure.
                     </p>
                   </div>
-                  <button
-                    type="button"
-                    className={cn(
-                      'inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm font-semibold shadow-sm transition focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-500',
-                      refreshDescriptionMutation.isPending
-                        ? 'border-slate-200 bg-slate-100 text-slate-500'
-                        : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
-                    )}
-                    onClick={() => selectedRoleId && refreshDescriptionMutation.mutate(selectedRoleId)}
-                    disabled={!selectedRoleId || refreshDescriptionMutation.isPending}
-                  >
-                    {refreshDescriptionMutation.isPending ? (
-                      <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-                    ) : (
-                      <RotateCw className="h-4 w-4" aria-hidden="true" />
-                    )}
-                    <span>Rafraîchir la fiche</span>
-                  </button>
+                  <div className="flex flex-col gap-2 sm:items-end">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        className={cn(
+                          'inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm font-semibold shadow-sm transition focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-500',
+                          refreshDescriptionMutation.isPending
+                            ? 'border-slate-200 bg-slate-100 text-slate-500'
+                            : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                        )}
+                        onClick={() => selectedRoleId && refreshDescriptionMutation.mutate(selectedRoleId)}
+                        disabled={!selectedRoleId || refreshDescriptionMutation.isPending}
+                      >
+                        {refreshDescriptionMutation.isPending ? (
+                          <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                        ) : (
+                          <RotateCw className="h-4 w-4" aria-hidden="true" />
+                        )}
+                        <span>Rafraîchir la fiche</span>
+                      </button>
+                      <button
+                        type="button"
+                        className={cn(
+                          'inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm font-semibold shadow-sm transition focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-500',
+                          downloadFormat === 'pdf'
+                            ? 'border-slate-200 bg-slate-100 text-slate-500'
+                            : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                        )}
+                        onClick={() => downloadFile('pdf')}
+                        disabled={!jobDescription || Boolean(downloadFormat)}
+                      >
+                        {downloadFormat === 'pdf' ? (
+                          <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                        ) : null}
+                        <span>Télécharger (PDF)</span>
+                      </button>
+                      <button
+                        type="button"
+                        className={cn(
+                          'inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm font-semibold shadow-sm transition focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-500',
+                          downloadFormat === 'doc'
+                            ? 'border-slate-200 bg-slate-100 text-slate-500'
+                            : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                        )}
+                        onClick={() => downloadFile('doc')}
+                        disabled={!jobDescription || Boolean(downloadFormat)}
+                      >
+                        {downloadFormat === 'doc' ? (
+                          <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                        ) : null}
+                        <span>Télécharger (Word)</span>
+                      </button>
+                    </div>
+                    {downloadError ? (
+                      <p className="max-w-md text-xs text-red-600">{downloadError}</p>
+                    ) : null}
+                  </div>
                 </div>
 
                 {jobDescriptionError ? (
@@ -492,9 +575,48 @@ export function JobDescriptionExplorer() {
                   </div>
                 ) : jobDescription ? (
                   <>
-                    <p className="mt-4 whitespace-pre-line text-sm leading-relaxed text-slate-700">
-                      {jobDescription.content}
-                    </p>
+                    <article className="mt-4 space-y-4 rounded-lg border border-slate-100 bg-slate-50 px-4 py-4 text-sm leading-relaxed text-slate-800">
+                      <div className="space-y-1">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Titre de la fiche</p>
+                        <p className="text-base font-semibold text-slate-900">{jobDescription.sections.title}</p>
+                        <p className="text-sm text-slate-700">{jobDescription.sections.generalDescription}</p>
+                      </div>
+
+                      <div className="grid gap-4 md:grid-cols-2">
+                        <section className="rounded-md border border-slate-200 bg-white px-4 py-3">
+                          <h3 className="text-sm font-semibold text-slate-900">Responsabilités clés</h3>
+                          <ul className="mt-2 space-y-1 text-sm text-slate-700">
+                            {jobDescription.sections.responsibilities.map((item) => (
+                              <li key={item} className="list-disc pl-4">
+                                {item}
+                              </li>
+                            ))}
+                          </ul>
+                        </section>
+
+                        <section className="rounded-md border border-slate-200 bg-white px-4 py-3">
+                          <h3 className="text-sm font-semibold text-slate-900">Objectifs & indicateurs</h3>
+                          <ul className="mt-2 space-y-1 text-sm text-slate-700">
+                            {jobDescription.sections.objectives.map((item) => (
+                              <li key={item} className="list-disc pl-4">
+                                {item}
+                              </li>
+                            ))}
+                          </ul>
+                        </section>
+
+                        <section className="rounded-md border border-slate-200 bg-white px-4 py-3 md:col-span-2">
+                          <h3 className="text-sm font-semibold text-slate-900">Collaboration attendue</h3>
+                          <ul className="mt-2 space-y-1 text-sm text-slate-700">
+                            {jobDescription.sections.collaboration.map((item) => (
+                              <li key={item} className="list-disc pl-4">
+                                {item}
+                              </li>
+                            ))}
+                          </ul>
+                        </section>
+                      </div>
+                    </article>
                     <p className="mt-3 text-xs text-slate-500">
                       Dernière mise à jour : {formatUpdatedAt(jobDescription.updatedAt)}
                     </p>

@@ -2,13 +2,19 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
 import { performChatCompletion } from '@/lib/ai/openai';
+import { ensureJobDescriptionSections, stringifySections } from '@/lib/job-descriptions/format';
 import { DEFAULT_PROCESS_TITLE } from '@/lib/process/defaults';
 import { createServerClient } from '@/lib/supabase/server';
 import { fetchUserOrganizations, getAccessibleOrganizationIds } from '@/lib/organization/memberships';
 import { stepSchema } from '@/lib/validation/process';
-import { jobDescriptionResponseSchema, jobDescriptionSchema } from '@/lib/validation/job-description';
+import {
+  jobDescriptionResponseSchema,
+  jobDescriptionSchema,
+  jobDescriptionSectionsSchema,
+  type JobDescription
+} from '@/lib/validation/job-description';
 
-import { NO_STORE_HEADERS, roleIdParamSchema } from '../../departments/helpers';
+import { NO_STORE_HEADERS, roleIdParamSchema } from '@/app/api/departments/helpers';
 
 const normalizeTimestamp = (value: unknown) => {
   const date = value instanceof Date ? value : new Date(value as string);
@@ -38,6 +44,24 @@ const normalizeSteps = (value: unknown): unknown => {
   return [];
 };
 
+const normalizeStringArray = (value: unknown): string[] => {
+  if (Array.isArray(value)) {
+    return value
+      .filter((item) => typeof item === 'string')
+      .map((item) => item.trim())
+      .filter((item) => item.length > 0);
+  }
+
+  if (typeof value === 'string') {
+    return value
+      .split(/\r?\n|•|-\s+/)
+      .map((item) => item.trim())
+      .filter((item) => item.length > 0);
+  }
+
+  return [];
+};
+
 const normalizedProcessSchema = z.object({
   id: z.string().uuid('Identifiant de process invalide.'),
   title: z.string().min(1, 'Le titre du process est requis.'),
@@ -59,6 +83,11 @@ const normalizeJobDescriptionRecord = (record: {
   role_id: unknown;
   organization_id: unknown;
   content: unknown;
+  title?: unknown;
+  general_description?: unknown;
+  responsibilities?: unknown;
+  objectives?: unknown;
+  collaboration?: unknown;
   updated_at?: unknown;
   created_at?: unknown;
 }) => ({
@@ -68,16 +97,55 @@ const normalizeJobDescriptionRecord = (record: {
       ? record.organization_id
       : String(record.organization_id ?? ''),
   content: typeof record.content === 'string' ? record.content.trim() : '',
+  sections: {
+    title: typeof record.title === 'string' ? record.title.trim() : '',
+    generalDescription:
+      typeof record.general_description === 'string' ? record.general_description.trim() : '',
+    responsibilities: normalizeStringArray(record.responsibilities),
+    objectives: normalizeStringArray(record.objectives),
+    collaboration: normalizeStringArray(record.collaboration)
+  },
   updatedAt: normalizeTimestamp(record.updated_at ?? record.created_at ?? new Date())
 });
 
-const mapDescriptionData = (record: unknown) => {
-  const parsed = jobDescriptionSchema.safeParse(record);
+const mapDescriptionData = (record: unknown, fallbackTitle?: string): JobDescription | null => {
+  const rawSchema = z.object({
+    roleId: z.string(),
+    organizationId: z.string(),
+    content: z.string(),
+    updatedAt: z.string(),
+    sections: z
+      .object({
+        title: z.string().optional(),
+        generalDescription: z.string().optional(),
+        responsibilities: z.array(z.string()).optional(),
+        objectives: z.array(z.string()).optional(),
+        collaboration: z.array(z.string()).optional()
+      })
+      .optional()
+  });
+
+  const parsed = rawSchema.safeParse(record);
   if (!parsed.success) {
     console.error('Fiche de poste invalide', parsed.error);
     return null;
   }
-  return parsed.data;
+
+  const sections = ensureJobDescriptionSections({
+    content: parsed.data.content,
+    sections: parsed.data.sections,
+    fallbackTitle
+  });
+
+  const content = parsed.data.content.trim().length > 0 ? parsed.data.content : stringifySections(sections);
+
+  const validated = jobDescriptionSchema.safeParse({ ...parsed.data, content, sections });
+  if (!validated.success) {
+    console.error('Fiche de poste invalide après normalisation', validated.error);
+    return null;
+  }
+
+  return validated.data;
 };
 
 const buildRoleContext = async (
@@ -143,7 +211,9 @@ const buildRoleContext = async (
 
   const { data: existingDescription, error: descriptionError } = await supabase
     .from('job_descriptions')
-    .select('role_id, organization_id, content, updated_at, created_at')
+    .select(
+      'role_id, organization_id, content, updated_at, created_at, title, general_description, responsibilities, objectives, collaboration'
+    )
     .eq('role_id', roleId)
     .maybeSingle();
 
@@ -154,7 +224,9 @@ const buildRoleContext = async (
 
   return {
     role: roleContextResult.data,
-    description: existingDescription ? mapDescriptionData(normalizeJobDescriptionRecord(existingDescription)) : null
+    description: existingDescription
+      ? mapDescriptionData(normalizeJobDescriptionRecord(existingDescription), roleContextResult.data.name)
+      : null
   };
 };
 
@@ -224,7 +296,7 @@ const fetchRoleActions = async (
 const buildPrompt = (params: {
   role: RoleContext;
   actions: ActionGroup[];
-  existingDescription: string | null;
+  existingDescription: JobDescription | null;
 }) => {
   const responsibilities =
     params.actions.length === 0
@@ -237,21 +309,55 @@ const buildPrompt = (params: {
 
   const details = `${baseContent}\n\nResponsabilités connues:\n${responsibilities}`;
 
-  const updateInstruction = params.existingDescription
-    ? `\n\nDescription actuelle à améliorer:\n${params.existingDescription}`
-    : '\n\nAucune fiche existante. Crée une version initiale.';
+  const existing = params.existingDescription
+    ? stringifySections(params.existingDescription.sections)
+    : 'Aucune fiche existante. Crée une version initiale.';
 
   return [
     {
       role: 'system' as const,
       content:
-        "Tu es un expert RH. Rédige une fiche de poste concise en français, structurée avec: mission générale (2 phrases max), responsabilités clés (liste à puces), indicateurs de succès, collaborations internes. Utilise un ton professionnel et précis, sans préambule ni conclusion, et limite la réponse à 220 mots."
+        "Tu es un expert RH. Rédige une fiche de poste concise en français. Réponds uniquement avec un JSON valide, sans texte supplémentaire ni markdown, avec les clés suivantes: title, generalDescription (2 phrases max), responsibilities (liste d'items), objectives (liste d'items), collaboration (liste d'items)."
     },
     {
       role: 'user' as const,
-      content: `${details}${updateInstruction}\n\nStructure la réponse pour pouvoir être affichée telle quelle (texte brut).`
+      content: `${details}\n\nFiche actuelle (à améliorer si fournie):\n${existing}`
     }
   ];
+};
+
+const generationSchema = jobDescriptionSectionsSchema.extend({
+  content: z.string().optional()
+});
+
+const parseGeneratedSections = (raw: string) => {
+  const trimmed = raw.trim();
+  const jsonCandidate = (() => {
+    const fenced = trimmed.match(/```json\s*([\s\S]*?)```/i);
+    if (fenced?.[1]) {
+      return fenced[1];
+    }
+    return trimmed;
+  })();
+
+  try {
+    const parsedJson = JSON.parse(jsonCandidate);
+    const validated = generationSchema.safeParse(parsedJson);
+    if (!validated.success) {
+      console.error('Réponse IA invalide pour la fiche de poste', validated.error);
+      return null;
+    }
+
+    const sections = ensureJobDescriptionSections({
+      content: validated.data.content ?? stringifySections(validated.data),
+      sections: validated.data
+    });
+
+    return { sections, content: stringifySections(sections) };
+  } catch (error) {
+    console.error('Impossible de parser la réponse IA pour la fiche de poste', error);
+    return null;
+  }
 };
 
 export async function GET(
@@ -382,13 +488,17 @@ export async function POST(
   const messages = buildPrompt({
     role: context.role,
     actions,
-    existingDescription: context.description?.content ?? null
+    existingDescription: context.description ?? null
   });
 
-  let generatedContent: string | null = null;
+  let generated: { content: string; sections: ReturnType<typeof ensureJobDescriptionSections> } | null = null;
 
   try {
-    generatedContent = await performChatCompletion({ messages, temperature: 0.7, maxTokens: 650 });
+    const raw = await performChatCompletion({ messages, temperature: 0.7, maxTokens: 650 });
+    const parsed = parseGeneratedSections(raw);
+    if (parsed) {
+      generated = parsed;
+    }
   } catch (generationError) {
     console.error('Erreur OpenAI lors de la génération de la fiche de poste', generationError);
     const message =
@@ -402,7 +512,7 @@ export async function POST(
     );
   }
 
-  if (!generatedContent) {
+  if (!generated) {
     return NextResponse.json(
       { error: 'La génération a renvoyé un contenu vide.' },
       { status: 500, headers: NO_STORE_HEADERS }
@@ -415,11 +525,18 @@ export async function POST(
       {
         role_id: context.role.id,
         organization_id: context.role.organizationId,
-        content: generatedContent
+        title: generated.sections.title,
+        general_description: generated.sections.generalDescription,
+        responsibilities: generated.sections.responsibilities,
+        objectives: generated.sections.objectives,
+        collaboration: generated.sections.collaboration,
+        content: generated.content
       },
       { onConflict: 'role_id' }
     )
-    .select('role_id, organization_id, content, updated_at, created_at')
+    .select(
+      'role_id, organization_id, content, updated_at, created_at, title, general_description, responsibilities, objectives, collaboration'
+    )
     .single();
 
   if (saveError || !savedDescription) {

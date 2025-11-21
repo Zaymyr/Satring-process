@@ -745,6 +745,11 @@ create table if not exists public.job_descriptions (
     id uuid primary key default gen_random_uuid(),
     role_id uuid not null references public.roles(id) on delete cascade,
     organization_id uuid not null references public.organizations(id) on delete cascade,
+    title text not null default 'Fiche de poste',
+    general_description text not null default '',
+    responsibilities text[] not null default '{}',
+    objectives text[] not null default '{}',
+    collaboration text[] not null default '{}',
     content text not null,
     created_at timestamptz not null default timezone('utc', now()),
     updated_at timestamptz not null default timezone('utc', now())
