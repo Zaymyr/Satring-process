@@ -456,7 +456,7 @@ const RaciGrid = ({
 
   const columnDefs = useMemo<ColDef[]>(() => {
     const actionColumn: ColDef<RaciGridRow> = {
-      field: 'action',
+      field: 'label',
       headerName: 'Actions',
       pinned: 'left',
       width: 280,
