@@ -479,16 +479,33 @@ const RaciGrid = ({
       minWidth: 180
     }));
 
-    const summaryColumn: ColDef<RaciGridRow> = {
-      field: 'summary',
-      headerName: 'Synthèse',
-      cellRenderer: SummaryCellRenderer,
-      minWidth: 200,
-      valueGetter: (params) => params.data?.summary?.label ?? ''
-    };
+  const summaryColumn: ColDef<RaciGridRow> = {
+    field: 'summary',
+    headerName: 'Synthèse',
+    cellRenderer: SummaryCellRenderer,
+    minWidth: 200,
+    valueGetter: (params) => params.data?.summary?.label ?? ''
+  };
 
-    return [actionColumn, ...roleColumns, summaryColumn];
+  return [actionColumn, ...roleColumns, summaryColumn];
   }, [roleSummaries, roles]);
+
+  const [hoveredRowId, setHoveredRowId] = useState<string | null>(null);
+  const [hoveredColId, setHoveredColId] = useState<string | null>(null);
+
+  const defaultColDef = useMemo<ColDef<RaciGridRow>>(() => ({
+    resizable: true,
+    sortable: false,
+    suppressMenu: true,
+    flex: 1,
+    minWidth: 140,
+    cellClass: 'text-sm text-slate-900',
+    headerClass: 'bg-white',
+    cellClassRules: {
+      'raci-row-hover': (params) => (!!hoveredRowId && params.data?.id === hoveredRowId) || false,
+      'raci-column-hover': (params) => (!!hoveredColId && params.column?.getColId() === hoveredColId) || false
+    }
+  }), [hoveredColId, hoveredRowId]);
 
   if (status.isLoading) {
     return (
@@ -515,17 +532,7 @@ const RaciGrid = ({
       <AgGridReact<RaciGridRow>
         rowData={rows}
         columnDefs={columnDefs}
-        defaultColDef={{
-          resizable: true,
-          sortable: false,
-          suppressMenu: true,
-          flex: 1,
-          minWidth: 140,
-          cellClass: 'text-sm text-slate-900',
-          headerClass: 'bg-white'
-        }}
-        rowHoverHighlight
-        columnHoverHighlight
+        defaultColDef={defaultColDef}
         tooltipShowDelay={0}
         animateRows
         suppressMovableColumns={false}
@@ -556,6 +563,14 @@ const RaciGrid = ({
           updateMatrix,
           departmentId
         }}
+        onCellMouseOver={(params) => {
+          setHoveredRowId(params.data?.id ?? null);
+          setHoveredColId(params.column?.getColId() ?? null);
+        }}
+        onCellMouseOut={() => {
+          setHoveredRowId(null);
+          setHoveredColId(null);
+        }}
         suppressRowClickSelection
         enableRangeSelection={false}
         suppressCellFocus
@@ -579,13 +594,10 @@ const RaciGrid = ({
           z-index: 3;
         }
 
-        .raci-grid .ag-row-hover .ag-cell,
-        .raci-grid .ag-row-hover .ag-pinned-left-cols-container .ag-cell {
-          background-color: #e0f2fe !important;
-        }
-
-        .raci-grid .ag-column-hover,
-        .raci-grid .ag-pinned-left-cols-container .ag-column-hover {
+        .raci-grid .raci-row-hover,
+        .raci-grid .ag-pinned-left-cols-container .raci-row-hover,
+        .raci-grid .raci-column-hover,
+        .raci-grid .ag-pinned-left-cols-container .raci-column-hover {
           background-color: #e0f2fe !important;
         }
 
