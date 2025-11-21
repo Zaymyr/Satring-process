@@ -147,6 +147,16 @@ const accumulateCounts = (target: RaciCounts, addition: RaciCounts) => {
   return target;
 };
 
+const processGlyphs = ['🔁', '⚡️', '📄', '🛠️', '🚀', '📊', '🧭', '✅', '⚙️', '📌'] as const;
+const getProcessGlyph = (title: string) => {
+  const total = Array.from(title || 'processus').reduce(
+    (sum, char) => sum + (char.codePointAt(0) ?? 0),
+    0
+  );
+
+  return processGlyphs[Math.abs(total) % processGlyphs.length];
+};
+
 type LoadedDepartment = {
   id: string;
   name: string;
@@ -825,13 +835,17 @@ export function RaciBuilder() {
       const next: Record<string, boolean> = {};
       let hasChanged = departmentAggregatedProcesses.length !== Object.keys(previous).length;
 
-      for (const process of departmentAggregatedProcesses) {
-        const previousValue = previous[process.id] ?? false;
-        next[process.id] = previousValue;
-        if (!hasChanged && previousValue !== previous[process.id]) {
+      departmentAggregatedProcesses.forEach((process, index) => {
+        const fallbackCollapsed = index > 0;
+        const previousValue = previous[process.id];
+        const nextValue = typeof previousValue === 'boolean' ? previousValue : fallbackCollapsed;
+
+        next[process.id] = nextValue;
+
+        if (!hasChanged && nextValue !== previousValue) {
           hasChanged = true;
         }
-      }
+      });
 
       if (!hasChanged) {
         for (const key of Object.keys(previous)) {
@@ -1408,7 +1422,7 @@ export function RaciBuilder() {
 
                             return (
                               <Fragment key={`process-${process.id}`}>
-                                <tr className="bg-slate-50 border-b border-slate-200">
+                                <tr className="border-b border-slate-200 bg-slate-50/80">
                                   <th
                                     colSpan={selectedDepartment.roles.length + 2}
                                     className="px-6 py-3 text-left text-xs font-semibold tracking-wide text-slate-600"
@@ -1416,19 +1430,24 @@ export function RaciBuilder() {
                                     <button
                                       type="button"
                                       onClick={() => toggleProcessVisibility(process.id)}
-                                      className="flex w-full items-center justify-between gap-3 rounded-md px-1 py-1 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
+                                      className="flex w-full items-center justify-between gap-4 rounded-lg bg-white/40 px-2 py-2 text-left shadow-sm ring-1 ring-inset ring-slate-200 transition hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
                                       aria-expanded={!isCollapsed}
                                     >
-                                      <div className="flex flex-1 items-center justify-between gap-3">
-                                        <span className="truncate text-sm font-semibold text-slate-700">{process.title}</span>
-                                        <span className="inline-flex items-center rounded-full bg-slate-200 px-2 py-0.5 text-[11px] font-medium text-slate-700">
-                                          {actionCountLabel}
+                                      <div className="flex flex-1 items-center gap-3">
+                                        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-base">
+                                          {getProcessGlyph(process.title)}
                                         </span>
+                                        <div className="min-w-0 flex-1">
+                                          <p className="truncate text-sm font-semibold text-slate-800 sm:text-base">
+                                            {process.title}
+                                          </p>
+                                          <p className="mt-0.5 text-xs font-medium text-slate-500">{actionCountLabel}</p>
+                                        </div>
                                       </div>
                                       <ChevronDown
                                         aria-hidden="true"
                                         className={cn(
-                                          'h-4 w-4 shrink-0 text-slate-500 transition-transform',
+                                          'h-5 w-5 shrink-0 rounded-full bg-slate-100 p-0.5 text-slate-600 transition-transform',
                                           isCollapsed ? '-rotate-90' : 'rotate-0'
                                         )}
                                       />
