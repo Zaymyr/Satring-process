@@ -467,209 +467,182 @@ export function JobDescriptionExplorer() {
                 'Impossible de générer la fiche de poste pour le moment.'
               )}
             </div>
-          ) : !selectedRoleId ? (
-            <div className="rounded-lg border border-slate-200 bg-white px-5 py-6 text-sm text-slate-600">
-              Sélectionnez un rôle dans la colonne de gauche pour afficher sa fiche de poste détaillée.
-            </div>
-          ) : (
-            <>
-              <header className="rounded-xl border border-slate-200 bg-white px-6 py-6 shadow-sm">
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Fiche de poste</p>
-                <div className="mt-2 flex items-center gap-2">
-                  {selectedRole ? (
-                    <span
-                      aria-hidden="true"
-                      className="inline-block h-3 w-3 rounded-full"
-                      style={{ backgroundColor: selectedRole.color }}
-                    />
-                  ) : null}
-                  <h1 className="text-2xl font-bold text-slate-900">{selectedRole?.name ?? 'Rôle non nommé'}</h1>
-                </div>
-                <p className="mt-2 text-sm leading-relaxed text-slate-600">
-                  {selectedDepartment ? (
-                    <>
-                      Au sein du département <span className="font-semibold text-slate-900">{selectedDepartment.name}</span>, ce rôle
-                      coordonne et exécute les actions clés qui suivent afin d’assurer la réussite des processus opérationnels.
-                    </>
-                  ) : (
-                    "Ce rôle coordonne et exécute les actions clés suivantes afin d’assurer la réussite des processus opérationnels."
-                  )}
-                </p>
-              </header>
-
-              <section className="rounded-xl border border-slate-200 bg-white px-6 py-6 shadow-sm">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                  <div>
-                    <h2 className="text-lg font-semibold text-slate-900">Fiche générée</h2>
-                    <p className="mt-1 text-sm text-slate-600">
-                      Générée à partir des actions du rôle et conservée pour consultation ultérieure.
-                    </p>
-                  </div>
-                  <div className="flex flex-col gap-2 sm:items-end">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <button
-                        type="button"
-                        className={cn(
-                          'inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm font-semibold shadow-sm transition focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-500',
-                          refreshDescriptionMutation.isPending
-                            ? 'border-slate-200 bg-slate-100 text-slate-500'
-                            : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
-                        )}
-                        onClick={() => selectedRoleId && refreshDescriptionMutation.mutate(selectedRoleId)}
-                        disabled={!selectedRoleId || refreshDescriptionMutation.isPending}
-                      >
-                        {refreshDescriptionMutation.isPending ? (
-                          <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-                        ) : (
-                          <RotateCw className="h-4 w-4" aria-hidden="true" />
-                        )}
-                        <span>Rafraîchir la fiche</span>
-                      </button>
-                      <button
-                        type="button"
-                        className={cn(
-                          'inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm font-semibold shadow-sm transition focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-500',
-                          downloadFormat === 'pdf'
-                            ? 'border-slate-200 bg-slate-100 text-slate-500'
-                            : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
-                        )}
-                        onClick={() => downloadFile('pdf')}
-                        disabled={!jobDescription || Boolean(downloadFormat)}
-                      >
-                        {downloadFormat === 'pdf' ? (
-                          <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-                        ) : null}
-                        <span>Télécharger (PDF)</span>
-                      </button>
-                      <button
-                        type="button"
-                        className={cn(
-                          'inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm font-semibold shadow-sm transition focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-500',
-                          downloadFormat === 'doc'
-                            ? 'border-slate-200 bg-slate-100 text-slate-500'
-                            : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
-                        )}
-                        onClick={() => downloadFile('doc')}
-                        disabled={!jobDescription || Boolean(downloadFormat)}
-                      >
-                        {downloadFormat === 'doc' ? (
-                          <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-                        ) : null}
-                        <span>Télécharger (Word)</span>
-                      </button>
-                    </div>
-                    {downloadError ? (
-                      <p className="max-w-md text-xs text-red-600">{downloadError}</p>
-                    ) : null}
-                  </div>
-                </div>
-
-                {jobDescriptionError ? (
-                  <p className="mt-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">
-                    {getErrorMessage(jobDescriptionError, 'Impossible de charger la fiche de poste.')}
-                  </p>
-                ) : jobDescriptionQuery.isLoading ? (
-                  <div className="mt-4 flex items-center gap-2 text-sm text-slate-600">
-                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-                    <span>Chargement de la fiche de poste…</span>
-                  </div>
-                ) : jobDescription ? (
-                  <>
-                    <article className="mt-4 space-y-4 rounded-lg border border-slate-100 bg-slate-50 px-4 py-4 text-sm leading-relaxed text-slate-800">
-                      <div className="space-y-1">
-                        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Titre de la fiche</p>
-                        <p className="text-base font-semibold text-slate-900">{jobDescription.sections.title}</p>
-                        <p className="text-sm text-slate-700">{jobDescription.sections.generalDescription}</p>
-                      </div>
-
-                      <div className="grid gap-4 md:grid-cols-2">
-                        <section className="rounded-md border border-slate-200 bg-white px-4 py-3">
-                          <h3 className="text-sm font-semibold text-slate-900">Responsabilités clés</h3>
-                          <ul className="mt-2 space-y-1 text-sm text-slate-700">
-                            {jobDescription.sections.responsibilities.map((item) => (
-                              <li key={item} className="list-disc pl-4">
-                                {item}
-                              </li>
-                            ))}
-                          </ul>
-                        </section>
-
-                        <section className="rounded-md border border-slate-200 bg-white px-4 py-3">
-                          <h3 className="text-sm font-semibold text-slate-900">Objectifs & indicateurs</h3>
-                          <ul className="mt-2 space-y-1 text-sm text-slate-700">
-                            {jobDescription.sections.objectives.map((item) => (
-                              <li key={item} className="list-disc pl-4">
-                                {item}
-                              </li>
-                            ))}
-                          </ul>
-                        </section>
-
-                        <section className="rounded-md border border-slate-200 bg-white px-4 py-3 md:col-span-2">
-                          <h3 className="text-sm font-semibold text-slate-900">Collaboration attendue</h3>
-                          <ul className="mt-2 space-y-1 text-sm text-slate-700">
-                            {jobDescription.sections.collaboration.map((item) => (
-                              <li key={item} className="list-disc pl-4">
-                                {item}
-                              </li>
-                            ))}
-                          </ul>
-                        </section>
-                      </div>
-                    </article>
-                    <p className="mt-3 text-xs text-slate-500">
-                      Dernière mise à jour : {formatUpdatedAt(jobDescription.updatedAt)}
-                    </p>
-                  </>
-                ) : (
-                  <div className="mt-4 rounded-md border border-dashed border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600">
-                    Aucune fiche de poste générée. Cliquez sur « Rafraîchir la fiche » pour créer une première version.
-                  </div>
-                )}
-              </section>
-
-              <div className="space-y-6">
-                <section className="rounded-xl border border-slate-200 bg-white px-6 py-6 shadow-sm">
-                  <h2 className="text-lg font-semibold text-slate-900">Responsabilités principales</h2>
-                  {groupedActions.length === 0 ? (
-                    <p className="mt-3 text-sm text-slate-600">
-                      Aucune action n’est encore associée à ce rôle. Assignez des étapes depuis vos processus pour générer une fiche de poste
-                      complète.
-                    </p>
-                  ) : (
-                    <div className="mt-4 space-y-5">
-                      {groupedActions.map((group) => (
-                        <div key={group.processId} className="space-y-2">
-                          <h3 className="text-sm font-semibold text-slate-800">{group.processTitle}</h3>
-                          <ul className="space-y-1 pl-4 text-sm text-slate-600">
-                            {group.steps.map((step) => (
-                              <li key={step} className="list-disc">
-                                {step}
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </section>
-
-                <section className="rounded-xl border border-slate-200 bg-white px-6 py-6 shadow-sm">
-                  <h2 className="text-lg font-semibold text-slate-900">Objectifs et indicateurs</h2>
-                  <p className="mt-3 text-sm text-slate-600">
-                    Utilisez les actions associées à ce rôle pour définir des objectifs mesurables. Identifiez les indicateurs clés de performance
-                    (KPI) liés à chaque processus afin de suivre efficacement la contribution du rôle.
-                  </p>
-                </section>
-
-                <section className="rounded-xl border border-slate-200 bg-white px-6 py-6 shadow-sm">
-                  <h2 className="text-lg font-semibold text-slate-900">Collaboration attendue</h2>
-                  <p className="mt-3 text-sm text-slate-600">
-                    Cette fiche met en lumière les interactions principales du rôle avec les autres équipes. Servez-vous des matrices RACI pour
-                    préciser qui intervient, valide ou doit être informé sur chaque étape des processus partagés.
-                  </p>
-                </section>
+            ) : !selectedRoleId ? (
+              <div className="rounded-lg border border-slate-200 bg-white px-5 py-6 text-sm text-slate-600">
+                Sélectionnez un rôle dans la colonne de gauche pour afficher sa fiche de poste détaillée.
               </div>
+            ) : (
+              <>
+                <header className="rounded-xl border border-slate-200 bg-white px-6 py-6 shadow-sm">
+                  <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Fiche de poste</p>
+                      <div className="mt-2 flex items-center gap-2">
+                        {selectedRole ? (
+                          <span
+                            aria-hidden="true"
+                            className="inline-block h-3 w-3 rounded-full"
+                            style={{ backgroundColor: selectedRole.color }}
+                          />
+                        ) : null}
+                        <h1 className="text-2xl font-bold text-slate-900">{selectedRole?.name ?? 'Rôle non nommé'}</h1>
+                      </div>
+                      <div className="mt-4 space-y-2">
+                        {jobDescriptionError ? (
+                          <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">
+                            {getErrorMessage(jobDescriptionError, 'Impossible de charger la fiche de poste.')}
+                          </p>
+                        ) : jobDescriptionQuery.isLoading ? (
+                          <div className="flex items-center gap-2 text-sm text-slate-600">
+                            <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                            <span>Chargement de la fiche de poste…</span>
+                          </div>
+                        ) : jobDescription ? (
+                          <>
+                            <p className="text-sm leading-relaxed text-slate-700">
+                              {jobDescription.sections.generalDescription}
+                            </p>
+                            <p className="text-xs text-slate-500">
+                              Dernière mise à jour : {formatUpdatedAt(jobDescription.updatedAt)}
+                            </p>
+                          </>
+                        ) : (
+                          <p className="text-sm leading-relaxed text-slate-600">
+                            {selectedDepartment ? (
+                              <>
+                                Au sein du département{' '}
+                                <span className="font-semibold text-slate-900">{selectedDepartment.name}</span>, ce rôle coordonne
+                                et exécute les actions clés qui suivent afin d’assurer la réussite des processus opérationnels.
+                              </>
+                            ) : (
+                              "Ce rôle coordonne et exécute les actions clés suivantes afin d’assurer la réussite des processus opérationnels."
+                            )}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex flex-col gap-2 sm:items-end">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <button
+                          type="button"
+                          className={cn(
+                            'inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm font-semibold shadow-sm transition focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-500',
+                            refreshDescriptionMutation.isPending
+                              ? 'border-slate-200 bg-slate-100 text-slate-500'
+                              : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                          )}
+                          onClick={() => selectedRoleId && refreshDescriptionMutation.mutate(selectedRoleId)}
+                          disabled={!selectedRoleId || refreshDescriptionMutation.isPending}
+                        >
+                          <RotateCw
+                            className={cn('h-4 w-4', refreshDescriptionMutation.isPending && 'animate-spin')}
+                            aria-hidden="true"
+                          />
+                          {refreshDescriptionMutation.isPending ? 'Génération…' : 'Rafraîchir la fiche'}
+                        </button>
+                        <button
+                          type="button"
+                          className="inline-flex items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-500"
+                          onClick={() => downloadFile('doc')}
+                          disabled={!jobDescription || Boolean(downloadFormat)}
+                        >
+                          {downloadFormat === 'doc' ? (
+                            <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                          ) : null}
+                          {downloadFormat === 'doc' ? 'Préparation…' : 'Télécharger (Word)'}
+                        </button>
+                        <button
+                          type="button"
+                          className="inline-flex items-center gap-2 rounded-md border border-slate-200 bg-slate-900 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-500"
+                          onClick={() => downloadFile('pdf')}
+                          disabled={!jobDescription || Boolean(downloadFormat)}
+                        >
+                          {downloadFormat === 'pdf' ? (
+                            <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                          ) : null}
+                          {downloadFormat === 'pdf' ? 'Préparation…' : 'Télécharger (PDF)'}
+                        </button>
+                      </div>
+                      {downloadError ? <p className="max-w-md text-xs text-red-600">{downloadError}</p> : null}
+                      {refreshDescriptionMutation.error ? (
+                        <p className="max-w-md text-xs text-red-600">
+                          {getErrorMessage(refreshDescriptionMutation.error, 'Impossible de générer la fiche de poste.')}
+                        </p>
+                      ) : null}
+                    </div>
+                  </div>
+                </header>
+
+                <div className="space-y-6">
+                  <section className="rounded-xl border border-slate-200 bg-white px-6 py-6 shadow-sm">
+                    <h2 className="text-lg font-semibold text-slate-900">Responsabilités principales</h2>
+                    {jobDescription ? (
+                      <ul className="mt-3 space-y-2 text-sm text-slate-700">
+                        {jobDescription.sections.responsibilities.map((item) => (
+                          <li key={item} className="list-disc pl-4">
+                            {item}
+                          </li>
+                        ))}
+                      </ul>
+                    ) : groupedActions.length === 0 ? (
+                      <p className="mt-3 text-sm text-slate-600">
+                        Aucune action n’est encore associée à ce rôle. Assignez des étapes depuis vos processus pour générer une fiche de poste
+                        complète.
+                      </p>
+                    ) : (
+                      <div className="mt-4 space-y-5">
+                        {groupedActions.map((group) => (
+                          <div key={group.processId} className="space-y-2">
+                            <h3 className="text-sm font-semibold text-slate-800">{group.processTitle}</h3>
+                            <ul className="space-y-1 pl-4 text-sm text-slate-600">
+                              {group.steps.map((step) => (
+                                <li key={step} className="list-disc">
+                                  {step}
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </section>
+
+                  <section className="rounded-xl border border-slate-200 bg-white px-6 py-6 shadow-sm">
+                    <h2 className="text-lg font-semibold text-slate-900">Objectifs et indicateurs</h2>
+                    {jobDescription ? (
+                      <ul className="mt-3 space-y-2 text-sm text-slate-700">
+                        {jobDescription.sections.objectives.map((item) => (
+                          <li key={item} className="list-disc pl-4">
+                            {item}
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="mt-3 text-sm text-slate-600">
+                        Utilisez les actions associées à ce rôle pour définir des objectifs mesurables. Identifiez les indicateurs clés de performance
+                        (KPI) liés à chaque processus afin de suivre efficacement la contribution du rôle.
+                      </p>
+                    )}
+                  </section>
+
+                  <section className="rounded-xl border border-slate-200 bg-white px-6 py-6 shadow-sm">
+                    <h2 className="text-lg font-semibold text-slate-900">Collaboration attendue</h2>
+                    {jobDescription ? (
+                      <ul className="mt-3 space-y-2 text-sm text-slate-700">
+                        {jobDescription.sections.collaboration.map((item) => (
+                          <li key={item} className="list-disc pl-4">
+                            {item}
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="mt-3 text-sm text-slate-600">
+                        Cette fiche met en lumière les interactions principales du rôle avec les autres équipes. Servez-vous des matrices RACI pour
+                        préciser qui intervient, valide ou doit être informé sur chaque étape des processus partagés.
+                      </p>
+                    )}
+                  </section>
+                </div>
             </>
           )}
         </div>
