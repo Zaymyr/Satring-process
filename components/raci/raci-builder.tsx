@@ -380,6 +380,14 @@ export function RaciBuilder() {
       .sort((left, right) => left.title.localeCompare(right.title, 'fr', { sensitivity: 'base' }));
   }, [roleActionsByRoleId, selectedDepartment]);
 
+  const aggregatedActionCount = useMemo(
+    () => departmentAggregatedProcesses.reduce((total, process) => total + process.steps.length, 0),
+    [departmentAggregatedProcesses]
+  );
+
+  const manualActionCount = selectedDepartmentState.actions.length;
+  const totalActionCount = aggregatedActionCount + manualActionCount;
+
   const [collapsedProcesses, setCollapsedProcesses] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
@@ -486,13 +494,13 @@ export function RaciBuilder() {
   };
 
   return (
-    <div className="h-full overflow-y-auto bg-slate-100">
+    <div className="h-full overflow-y-auto bg-slate-50">
       <div className="flex w-full flex-col gap-10 px-6 py-10">
         <header className="space-y-3">
           <span className="rounded-full bg-slate-900 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-white">
             Matrices RACI
           </span>
-          <h1 className="text-3xl font-semibold text-slate-900">Planifiez les responsabilités par département</h1>
+          <h1 className="text-2xl font-semibold text-slate-900 sm:text-3xl">Planifiez les responsabilités par département</h1>
           <p className="max-w-3xl text-sm text-slate-600">
             Construisez une matrice RACI pour chaque département : définissez vos équipes, listez les actions clés et
             assignez les rôles de Responsable, Autorité, Consulté ou Informé pour clarifier la collaboration.
@@ -583,25 +591,39 @@ export function RaciBuilder() {
 
           <div className="flex flex-col gap-6">
             {selectedDepartment ? (
-              <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-                <div className="border-b border-slate-200 bg-slate-50 px-6 py-4">
-                  <h2 className="text-lg font-semibold text-slate-900">Matrice RACI — {selectedDepartment.name}</h2>
-                  <p className="text-sm text-slate-600">
-                    Assignez un rôle pour chaque action en sélectionnant la responsabilité appropriée.
-                  </p>
+              <div className="overflow-hidden rounded-2xl bg-white shadow-lg ring-1 ring-slate-200">
+                <div className="border-b border-slate-200 px-6 py-5">
+                  <div className="flex flex-wrap items-start justify-between gap-4">
+                    <div className="space-y-1">
+                      <h2 className="text-xl font-semibold text-slate-900">Matrice RACI — {selectedDepartment.name}</h2>
+                      <p className="text-sm text-slate-600">
+                        Assignez un rôle pour chaque action en sélectionnant la responsabilité appropriée.
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700 ring-1 ring-inset ring-slate-200">
+                        <span className="h-2 w-2 rounded-full bg-slate-400" aria-hidden />
+                        {selectedDepartment.roles.length} rôle{selectedDepartment.roles.length > 1 ? 's' : ''}
+                      </span>
+                      <span className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700 ring-1 ring-inset ring-slate-200">
+                        <span className="h-2 w-2 rounded-full bg-slate-400" aria-hidden />
+                        {totalActionCount} action{totalActionCount > 1 ? 's' : ''}
+                      </span>
+                    </div>
+                  </div>
                   {hasAggregatedActions ? (
                     <div className="mt-4 flex flex-wrap items-center gap-2">
                       <button
                         type="button"
                         onClick={expandAllProcesses}
-                        className="inline-flex items-center rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 shadow-sm transition hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
+                        className="inline-flex items-center rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
                       >
                         Tout développer
                       </button>
                       <button
                         type="button"
                         onClick={collapseAllProcesses}
-                        className="inline-flex items-center rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 shadow-sm transition hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
+                        className="inline-flex items-center rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
                       >
                         Tout réduire
                       </button>
