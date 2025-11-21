@@ -2,6 +2,10 @@ import { NextResponse } from 'next/server';
 
 import { createServerClient } from '@/lib/supabase/server';
 import { roleInputSchema, roleSchema } from '@/lib/validation/role';
+import {
+  fetchUserOrganizations,
+  getAccessibleOrganizationIds
+} from '@/lib/organization/memberships';
 
 import {
   departmentIdParamSchema,
@@ -52,12 +56,66 @@ export async function POST(request: Request, context: RouteContext) {
 
   const departmentId = parsedParams.data.departmentId;
 
+  let memberships;
+
+  try {
+    memberships = await fetchUserOrganizations(supabase);
+  } catch (membershipError) {
+    console.error(
+      'Erreur lors de la récupération des organisations pour créer le rôle',
+      membershipError
+    );
+    return NextResponse.json(
+      { error: 'Impossible de déterminer l’organisation cible.' },
+      { status: 500, headers: NO_STORE_HEADERS }
+    );
+  }
+
+  const accessibleOrganizationIds = getAccessibleOrganizationIds(memberships);
+
+  if (accessibleOrganizationIds.length === 0) {
+    return NextResponse.json({ error: 'Département introuvable.' }, { status: 404, headers: NO_STORE_HEADERS });
+  }
+
+  const { data: department, error: departmentError } = await supabase
+    .from('departments')
+    .select('id, organization_id')
+    .eq('id', departmentId)
+    .in('organization_id', accessibleOrganizationIds)
+    .maybeSingle();
+
+  if (departmentError) {
+    console.error('Erreur lors de la vérification du département avant création du rôle', departmentError);
+    return NextResponse.json(
+      { error: 'Impossible de créer le rôle.' },
+      { status: 500, headers: NO_STORE_HEADERS }
+    );
+  }
+
+  if (!department) {
+    return NextResponse.json({ error: 'Département introuvable.' }, { status: 404, headers: NO_STORE_HEADERS });
+  }
+
+  const organizationId =
+    typeof department.organization_id === 'string'
+      ? department.organization_id
+      : String(department.organization_id ?? '');
+
+  if (!organizationId) {
+    console.error('Identifiant organisation manquant pour la création du rôle', department);
+    return NextResponse.json(
+      { error: 'Impossible de déterminer l’organisation cible.' },
+      { status: 500, headers: NO_STORE_HEADERS }
+    );
+  }
+
   const { data, error } = await supabase
     .from('roles')
     .insert({
       department_id: departmentId,
       name: parsedBody.data.name,
-      color: parsedBody.data.color
+      color: parsedBody.data.color,
+      organization_id: organizationId
     })
     .select('id, name, color, department_id, created_at, updated_at')
     .single();
