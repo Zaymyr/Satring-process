@@ -8,7 +8,7 @@ import { fetchUserOrganizations, getAccessibleOrganizationIds } from '@/lib/orga
 import { stepSchema } from '@/lib/validation/process';
 import { jobDescriptionResponseSchema, jobDescriptionSchema } from '@/lib/validation/job-description';
 
-import { NO_STORE_HEADERS, roleIdParamSchema } from '../../departments/helpers';
+import { NO_STORE_HEADERS, roleIdParamSchema } from '@/app/api/departments/helpers';
 
 const normalizeTimestamp = (value: unknown) => {
   const date = value instanceof Date ? value : new Date(value as string);
