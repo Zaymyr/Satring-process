@@ -913,6 +913,7 @@ export function RaciBuilder() {
   }, [departmentAggregatedProcesses, selectedDepartment, selectedDepartmentState, selectedRole]);
 
   const [hoveredRoleId, setHoveredRoleId] = useState<string | null>(null);
+  const [hoveredActionId, setHoveredActionId] = useState<string | null>(null);
   const [hoveredCell, setHoveredCell] = useState<{ actionId: string; roleId: string } | null>(null);
 
   const updateMatrix = (departmentId: string, actionId: string, roleId: string, value: RaciValue) => {
@@ -1254,7 +1255,13 @@ export function RaciBuilder() {
                         </div>
                       )}
                     </div>
-                    <div className="hidden overflow-auto md:block" onMouseLeave={() => setHoveredRoleId(null)}>
+                    <div
+                      className="hidden overflow-auto md:block"
+                      onMouseLeave={() => {
+                        setHoveredRoleId(null);
+                        setHoveredActionId(null);
+                      }}
+                    >
                       <table className="min-w-full border-separate border-spacing-0">
                     <thead className="sticky top-0 z-30 bg-white shadow-sm">
                       <tr>
@@ -1270,11 +1277,11 @@ export function RaciBuilder() {
                             scope="col"
                             onMouseEnter={() => setHoveredRoleId(role.id)}
                             className={cn(
-                              'border-b border-slate-200 bg-white px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500 transition-colors',
+                              'border-b border-slate-200 bg-white px-4 py-3 text-center text-xs font-semibold uppercase tracking-wide text-slate-500 transition-colors',
                               hoveredRoleId === role.id && 'bg-slate-50'
                             )}
                           >
-                            <span className="flex items-center gap-2">
+                            <span className="flex items-center justify-center gap-2 text-center">
                               <span
                                 aria-hidden="true"
                                 className="inline-block h-2.5 w-2.5 rounded-full"
@@ -1380,14 +1387,21 @@ export function RaciBuilder() {
                                       return (
                                         <tr
                                           key={`aggregated-${process.id}-${action.id}`}
-                                          className={cn(rowBackground, 'group transition-colors hover:bg-slate-50/80')}
+                                          onMouseEnter={() => setHoveredActionId(action.id)}
+                                          onMouseLeave={() => setHoveredActionId(null)}
+                                          className={cn(
+                                            rowBackground,
+                                            'group transition-colors hover:bg-slate-50/80',
+                                            hoveredActionId === action.id && 'bg-slate-50/80'
+                                          )}
                                         >
                                           <th
                                             scope="row"
                                             className={cn(
                                               'sticky left-0 z-20 px-6 py-4 pl-10 text-left align-top border-r border-slate-200',
                                               rowBackground,
-                                              'text-sm font-semibold text-slate-900 group-hover:bg-slate-50/80'
+                                              'text-sm font-semibold text-slate-900 group-hover:bg-slate-50/80',
+                                              hoveredActionId === action.id && 'bg-slate-50/80'
                                             )}
                                           >
                                             <div className="space-y-1">
@@ -1409,6 +1423,7 @@ export function RaciBuilder() {
                                                 'relative px-4 py-3 text-center text-sm align-middle transition-colors',
                                                 rowBackground,
                                                 hoveredRoleId === role.id && 'bg-slate-50/80',
+                                                hoveredActionId === action.id && 'bg-slate-50/80',
                                                 'group-hover:bg-slate-50/80'
                                               )}
                                             >
@@ -1448,12 +1463,14 @@ export function RaciBuilder() {
                                             </td>
                                               ))}
                                               <td
-                                                className={cn(
-                                                  rowBackground,
-                                                  'px-4 py-3 text-left text-xs font-mono',
-                                                  summaryMeta.hasIssue ? 'text-red-500' : 'text-slate-500'
-                                                )}
-                                              >
+                                              className={cn(
+                                                rowBackground,
+                                                'px-4 py-3 text-left text-xs font-mono transition-colors',
+                                                summaryMeta.hasIssue ? 'text-red-500' : 'text-slate-500'
+                                                ,
+                                                hoveredActionId === action.id && 'bg-slate-50/80'
+                                              )}
+                                            >
                                                 <span className="inline-flex items-center gap-2">
                                                   {summaryMeta.hasIssue ? (
                                                     <span className="h-1.5 w-1.5 rounded-full bg-red-400" aria-hidden="true" />
@@ -1479,14 +1496,21 @@ export function RaciBuilder() {
                             return (
                               <tr
                                 key={action.id}
-                                className={cn(rowBackground, 'group transition-colors hover:bg-slate-50/80')}
+                                onMouseEnter={() => setHoveredActionId(action.id)}
+                                onMouseLeave={() => setHoveredActionId(null)}
+                                className={cn(
+                                  rowBackground,
+                                  'group transition-colors hover:bg-slate-50/80',
+                                  hoveredActionId === action.id && 'bg-slate-50/80'
+                                )}
                               >
                                 <th
                                   scope="row"
                                   className={cn(
                                     'sticky left-0 z-20 px-6 py-4 text-left align-top border-r border-slate-200',
                                     rowBackground,
-                                    'text-sm font-semibold text-slate-900 group-hover:bg-slate-50/80'
+                                    'text-sm font-semibold text-slate-900 group-hover:bg-slate-50/80',
+                                    hoveredActionId === action.id && 'bg-slate-50/80'
                                   )}
                                 >
                                   <div className="space-y-1">
@@ -1509,6 +1533,7 @@ export function RaciBuilder() {
                                         'relative px-4 py-3 text-sm align-middle transition-colors',
                                         rowBackground,
                                         hoveredRoleId === role.id && 'bg-slate-50/80',
+                                        hoveredActionId === action.id && 'bg-slate-50/80',
                                         'group-hover:bg-slate-50/80'
                                       )}
                                     >
@@ -1557,12 +1582,13 @@ export function RaciBuilder() {
                                   );
                                     })}
                                     <td
-                                      className={cn(
-                                        rowBackground,
-                                        'px-4 py-3 text-left text-xs font-mono',
-                                        summaryMeta.hasIssue ? 'text-red-500' : 'text-slate-500'
-                                      )}
-                                    >
+                                  className={cn(
+                                    rowBackground,
+                                    'px-4 py-3 text-left text-xs font-mono transition-colors',
+                                    summaryMeta.hasIssue ? 'text-red-500' : 'text-slate-500',
+                                    hoveredActionId === action.id && 'bg-slate-50/80'
+                                  )}
+                                >
                                       <span className="inline-flex items-center gap-2">
                                         {summaryMeta.hasIssue ? (
                                           <span className="h-1.5 w-1.5 rounded-full bg-red-400" aria-hidden="true" />
