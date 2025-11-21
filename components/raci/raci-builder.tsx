@@ -126,7 +126,17 @@ type RaciCounts = Record<FilledRaciValue, number>;
 
 const createEmptyCounts = (): RaciCounts => ({ R: 0, A: 0, C: 0, I: 0 });
 const formatCountsLabel = (counts: RaciCounts) =>
-  `${counts.R} R / ${counts.A} A / ${counts.C} C / ${counts.I} I`;
+  `${counts.R}R / ${counts.A}A / ${counts.C}C / ${counts.I}I`;
+const getSummaryMeta = (counts: RaciCounts) => {
+  const hasResponsible = counts.R > 0;
+  const hasAuthorityIssue = counts.A !== 1;
+  const hasIssue = !hasResponsible || hasAuthorityIssue;
+
+  return {
+    label: formatCountsLabel(counts),
+    hasIssue
+  };
+};
 const formatCompactCountsLabel = (counts: RaciCounts) =>
   `R: ${counts.R} · A: ${counts.A} · C: ${counts.C} · I: ${counts.I}`;
 const accumulateCounts = (target: RaciCounts, addition: RaciCounts) => {
@@ -1430,6 +1440,7 @@ export function RaciBuilder() {
                                   ? process.steps.map((action) => {
                                       const rowBackground = getRowBackground();
                                       const summaryCounts = aggregatedRowSummaries.get(action.id) ?? createEmptyCounts();
+                                      const summaryMeta = getSummaryMeta(summaryCounts);
 
                                       return (
                                         <tr
@@ -1501,8 +1512,19 @@ export function RaciBuilder() {
                                               </div>
                                             </td>
                                               ))}
-                                              <td className={cn(rowBackground, 'px-4 py-3 text-left text-[11px] font-mono text-slate-500')}>
-                                                {formatCountsLabel(summaryCounts)}
+                                              <td
+                                                className={cn(
+                                                  rowBackground,
+                                                  'px-4 py-3 text-left text-xs font-mono',
+                                                  summaryMeta.hasIssue ? 'text-red-500' : 'text-slate-500'
+                                                )}
+                                              >
+                                                <span className="inline-flex items-center gap-2">
+                                                  {summaryMeta.hasIssue ? (
+                                                    <span className="h-1.5 w-1.5 rounded-full bg-red-400" aria-hidden="true" />
+                                                  ) : null}
+                                                  <span>{summaryMeta.label}</span>
+                                                </span>
                                               </td>
                                             </tr>
                                           );
@@ -1517,6 +1539,7 @@ export function RaciBuilder() {
                         ? selectedDepartmentState.actions.map((action) => {
                             const rowBackground = getRowBackground();
                             const summaryCounts = manualRowSummaries.get(action.id) ?? createEmptyCounts();
+                            const summaryMeta = getSummaryMeta(summaryCounts);
 
                             return (
                               <tr
@@ -1598,8 +1621,19 @@ export function RaciBuilder() {
                                     </td>
                                   );
                                     })}
-                                    <td className={cn(rowBackground, 'px-4 py-3 text-left text-[11px] font-mono text-slate-500')}>
-                                      {formatCountsLabel(summaryCounts)}
+                                    <td
+                                      className={cn(
+                                        rowBackground,
+                                        'px-4 py-3 text-left text-xs font-mono',
+                                        summaryMeta.hasIssue ? 'text-red-500' : 'text-slate-500'
+                                      )}
+                                    >
+                                      <span className="inline-flex items-center gap-2">
+                                        {summaryMeta.hasIssue ? (
+                                          <span className="h-1.5 w-1.5 rounded-full bg-red-400" aria-hidden="true" />
+                                        ) : null}
+                                        <span>{summaryMeta.label}</span>
+                                      </span>
                                     </td>
                                   </tr>
                                 );
