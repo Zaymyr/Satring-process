@@ -2,7 +2,7 @@
 
 import { Fragment, useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { ChevronDown, Loader2 } from 'lucide-react';
+import { ChevronDown, Copy, Download, FileText, Loader2 } from 'lucide-react';
 
 import { cn } from '@/lib/utils/cn';
 import { departmentListSchema, type Department as ApiDepartment } from '@/lib/validation/department';
@@ -163,6 +163,12 @@ type AggregatedProcessGroup = {
   steps: AggregatedRoleActionRow[];
 };
 
+type MatrixExportRow = {
+  id: string;
+  label: string;
+  values: Record<string, RaciValue>;
+};
+
 type ViewMode = 'actions' | 'roles';
 
 const EMPTY_DEPARTMENT_STATE: DepartmentMatrixState = {
@@ -273,6 +279,8 @@ export function RaciBuilder() {
   const [departmentStates, setDepartmentStates] = useState<Record<string, DepartmentMatrixState>>({});
   const [viewMode, setViewMode] = useState<ViewMode>('actions');
   const [selectedRoleId, setSelectedRoleId] = useState<string | null>(null);
+  const [markdownCopied, setMarkdownCopied] = useState(false);
+  const [csvCopied, setCsvCopied] = useState(false);
 
   useEffect(() => {
     if (departments.length === 0) {
@@ -485,6 +493,181 @@ export function RaciBuilder() {
 
     return summaries;
   }, [selectedDepartment, selectedDepartmentState]);
+
+  const matrixRows = useMemo<MatrixExportRow[]>(() => {
+    if (!selectedDepartment) {
+      return [];
+    }
+
+    const rows: MatrixExportRow[] = [];
+
+    for (const process of departmentAggregatedProcesses) {
+      for (const step of process.steps) {
+        const values: Record<string, RaciValue> = {};
+
+        for (const role of selectedDepartment.roles) {
+          values[role.id] = step.assignedRoleIds.has(role.id) ? step.responsibility : '';
+        }
+
+        rows.push({
+          id: step.id,
+          label: process.title ? `${process.title} — ${step.label}` : step.label,
+          values
+        });
+      }
+    }
+
+    for (const action of selectedDepartmentState.actions) {
+      const values: Record<string, RaciValue> = {};
+      const row = selectedDepartmentState.matrix[action.id] ?? {};
+
+      for (const role of selectedDepartment.roles) {
+        values[role.id] = row[role.id] ?? '';
+      }
+
+      rows.push({
+        id: action.id,
+        label: action.name,
+        values
+      });
+    }
+
+    return rows;
+  }, [departmentAggregatedProcesses, selectedDepartment, selectedDepartmentState.actions, selectedDepartmentState.matrix]);
+
+  const hasExportableData = matrixRows.length > 0 && selectedDepartment;
+
+  const departmentSlug = selectedDepartment
+    ? selectedDepartment.name
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/(^-|-$)+/g, '')
+    : 'departement';
+
+  const buildCsvContent = () => {
+    if (!selectedDepartment || matrixRows.length === 0) {
+      return '';
+    }
+
+    const headers = ['Action', ...selectedDepartment.roles.map((role) => role.name)];
+    const escape = (value: string) => `"${value.replace(/"/g, '""')}"`;
+
+    const lines = [
+      headers.map(escape).join(';'),
+      ...matrixRows.map((row) =>
+        [row.label, ...selectedDepartment.roles.map((role) => row.values[role.id] ?? '')]
+          .map((value) => escape(value))
+          .join(';')
+      )
+    ];
+
+    return lines.join('\n');
+  };
+
+  const handleCsvDownload = () => {
+    const content = buildCsvContent();
+
+    if (!content) {
+      return;
+    }
+
+    const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `matrice-raci-${departmentSlug}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleCopyMarkdown = async () => {
+    if (!selectedDepartment || matrixRows.length === 0 || !navigator.clipboard) {
+      return;
+    }
+
+    const headers = ['Action', ...selectedDepartment.roles.map((role) => role.name)];
+    const separator = `| ${headers.map(() => '---').join(' | ')} |`;
+    const tableRows = matrixRows.map(
+      (row) =>
+        `| ${[row.label, ...selectedDepartment.roles.map((role) => row.values[role.id] || '—')].join(' | ')} |`
+    );
+
+    const markdown = [`| ${headers.join(' | ')} |`, separator, ...tableRows].join('\n');
+    await navigator.clipboard.writeText(markdown);
+    setMarkdownCopied(true);
+    setTimeout(() => setMarkdownCopied(false), 1500);
+  };
+
+  const handleCopyCsv = async () => {
+    if (!navigator.clipboard) {
+      return;
+    }
+
+    const content = buildCsvContent();
+
+    if (!content) {
+      return;
+    }
+
+    await navigator.clipboard.writeText(content);
+    setCsvCopied(true);
+    setTimeout(() => setCsvCopied(false), 1500);
+  };
+
+  const handlePrintPdf = () => {
+    if (!selectedDepartment || matrixRows.length === 0) {
+      return;
+    }
+
+    const tableHeaders = ['Action', ...selectedDepartment.roles.map((role) => role.name)]
+      .map((header) => `<th style="padding:8px;border:1px solid #e2e8f0;text-align:left;">${header}</th>`)
+      .join('');
+
+    const tableRows = matrixRows
+      .map((row) => {
+        const cells = [row.label, ...selectedDepartment.roles.map((role) => row.values[role.id] || '—')]
+          .map((cell) => `<td style="padding:8px;border:1px solid #e2e8f0;">${cell}</td>`)
+          .join('');
+
+        return `<tr>${cells}</tr>`;
+      })
+      .join('');
+
+    const html = `<!doctype html>
+        <html>
+          <head>
+            <meta charset="utf-8" />
+            <title>Matrice RACI — ${selectedDepartment.name}</title>
+            <style>
+              @page { size: A4 landscape; margin: 16mm; }
+              body { font-family: 'Inter', system-ui, -apple-system, sans-serif; color: #0f172a; }
+              h1 { font-size: 20px; margin-bottom: 12px; }
+              table { border-collapse: collapse; width: 100%; font-size: 12px; }
+              th { background: #f8fafc; font-weight: 700; }
+              tr:nth-child(even) { background: #f8fafc; }
+            </style>
+          </head>
+          <body>
+            <h1>Matrice RACI — ${selectedDepartment.name}</h1>
+            <table>
+              <thead><tr>${tableHeaders}</tr></thead>
+              <tbody>${tableRows}</tbody>
+            </table>
+          </body>
+        </html>`;
+
+    const printWindow = window.open('', '_blank');
+
+    if (!printWindow) {
+      return;
+    }
+
+    printWindow.document.write(html);
+    printWindow.document.close();
+    printWindow.focus();
+    printWindow.print();
+  };
 
   const roleSummaries = useMemo(() => {
     if (!selectedDepartment) {
@@ -910,6 +1093,56 @@ export function RaciBuilder() {
                           )}
                         >
                           Vue par rôle
+                        </button>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={handleCsvDownload}
+                          disabled={!hasExportableData}
+                          className={cn(
+                            'inline-flex items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400',
+                            !hasExportableData && 'cursor-not-allowed opacity-60'
+                          )}
+                        >
+                          <Download className="h-4 w-4" aria-hidden />
+                          Exporter en CSV
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleCopyCsv}
+                          disabled={!hasExportableData}
+                          className={cn(
+                            'inline-flex items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400',
+                            !hasExportableData && 'cursor-not-allowed opacity-60'
+                          )}
+                        >
+                          <Copy className="h-4 w-4" aria-hidden />
+                          {csvCopied ? 'CSV copié !' : 'Copier CSV'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleCopyMarkdown}
+                          disabled={!hasExportableData}
+                          className={cn(
+                            'inline-flex items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400',
+                            !hasExportableData && 'cursor-not-allowed opacity-60'
+                          )}
+                        >
+                          <Copy className="h-4 w-4" aria-hidden />
+                          {markdownCopied ? 'Markdown copié !' : 'Copier en Markdown'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handlePrintPdf}
+                          disabled={!hasExportableData}
+                          className={cn(
+                            'inline-flex items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-slate-400',
+                            !hasExportableData && 'cursor-not-allowed opacity-60'
+                          )}
+                        >
+                          <FileText className="h-4 w-4" aria-hidden />
+                          Export PDF/Impression
                         </button>
                       </div>
                     </div>
