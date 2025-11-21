@@ -73,22 +73,29 @@ const fetchRoleActions = async (): Promise<RoleActionSummary[]> => {
 
 const filledRaciValues = ['R', 'A', 'C', 'I'] as const;
 
-const raciDefinitions: Record<(typeof filledRaciValues)[number], { short: string; description: string }> = {
+const raciDefinitions: Record<
+  (typeof filledRaciValues)[number],
+  { short: string; description: string; tooltip: string }
+> = {
   R: {
     short: 'Responsable',
-    description: "Responsable de l'exécution de la tâche et rend compte de son avancement."
+    description: "Ce rôle exécute la tâche et rend compte de l’avancement.",
+    tooltip: 'Responsable – exécute la tâche'
   },
   A: {
     short: 'Autorité',
-    description: "Détient l'autorité finale pour valider ou trancher."
+    description: 'Détient l’autorité finale pour valider ou trancher.',
+    tooltip: 'Autorité – valide / tranche'
   },
   C: {
     short: 'Consulté',
-    description: 'Doit être consulté pour apporter son expertise avant la décision.'
+    description: 'Apporte son expertise et doit être consulté avant la décision.',
+    tooltip: 'Consulté – apporte son expertise'
   },
   I: {
     short: 'Informé',
-    description: "Doit être tenu informé de l'avancement et des décisions."
+    description: 'Doit être tenu au courant de l’avancement et des décisions.',
+    tooltip: 'Informé – doit être tenu au courant'
   }
 } as const;
 
@@ -464,6 +471,7 @@ export function RaciBuilder() {
     !hasManualActions;
 
   const [hoveredRoleId, setHoveredRoleId] = useState<string | null>(null);
+  const [hoveredCell, setHoveredCell] = useState<{ actionId: string; roleId: string } | null>(null);
 
   const updateMatrix = (departmentId: string, actionId: string, roleId: string, value: RaciValue) => {
     setDepartmentStates((previous) => {
@@ -513,7 +521,7 @@ export function RaciBuilder() {
           </p>
         </header>
 
-        <section className="grid gap-6 lg:grid-cols-[360px_minmax(0,1fr)]">
+        <section className="grid gap-6 lg:grid-cols-[360px_minmax(0,1fr)_280px]">
           <div className="flex flex-col gap-6 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
             <div className="space-y-4">
               <div className="space-y-1">
@@ -759,26 +767,48 @@ export function RaciBuilder() {
                                           {selectedDepartment.roles.map((role) => (
                                             <td
                                               key={role.id}
-                                              onMouseEnter={() => setHoveredRoleId(role.id)}
+                                              onMouseEnter={() => {
+                                                setHoveredRoleId(role.id);
+                                                setHoveredCell({ actionId: action.id, roleId: role.id });
+                                              }}
+                                              onMouseLeave={() => setHoveredCell(null)}
                                               className={cn(
-                                                'px-4 py-3 text-center text-sm align-middle transition-colors',
+                                                'relative px-4 py-3 text-center text-sm align-middle transition-colors',
                                                 rowBackground,
                                                 hoveredRoleId === role.id && 'bg-slate-50/80',
                                                 'group-hover:bg-slate-50/80'
                                               )}
                                             >
-                                              {action.assignedRoleIds.has(role.id) ? (
-                                                <span
-                                                  className={cn(
-                                                    'inline-flex h-8 w-8 items-center justify-center rounded-md text-xs font-semibold uppercase tracking-wide',
-                                                    raciBadgeStyles[action.responsibility]
-                                                  )}
-                                                >
-                                                  {action.responsibility}
-                                                </span>
-                                              ) : (
-                                                <span className="inline-flex h-8 w-8 items-center justify-center text-xs text-slate-300">—</span>
-                                              )}
+                                              <div className="group/cell relative inline-flex">
+                                                {action.assignedRoleIds.has(role.id) ? (
+                                                  <span
+                                                    className={cn(
+                                                      'inline-flex min-w-[2.5rem] items-center justify-center rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide shadow-sm ring-1 ring-inset',
+                                                      raciBadgeStyles[action.responsibility]
+                                                    )}
+                                                    title={raciDefinitions[action.responsibility].tooltip}
+                                                  >
+                                                    {action.responsibility}
+                                                  </span>
+                                                ) : (
+                                                  <span className="inline-flex min-w-[2.5rem] items-center justify-center rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide text-slate-400 ring-1 ring-inset ring-slate-200">
+                                                    —
+                                                  </span>
+                                                )}
+
+                                                {action.assignedRoleIds.has(role.id) &&
+                                                hoveredCell?.actionId === action.id &&
+                                                hoveredCell?.roleId === role.id ? (
+                                                  <div className="pointer-events-none absolute left-1/2 top-full z-30 mt-2 hidden w-64 -translate-x-1/2 rounded-lg border border-slate-200 bg-white p-3 text-left shadow-lg ring-1 ring-slate-200 group-hover/cell:block">
+                                                    <p className="text-xs font-semibold text-slate-900">
+                                                      {raciDefinitions[action.responsibility].short}
+                                                    </p>
+                                                    <p className="mt-1 text-xs text-slate-600">
+                                                      {raciDefinitions[action.responsibility].description}
+                                                    </p>
+                                                  </div>
+                                                ) : null}
+                                              </div>
                                             </td>
                                           ))}
                                         </tr>
@@ -811,32 +841,68 @@ export function RaciBuilder() {
                                     <p className="text-sm font-semibold text-slate-900">{action.name}</p>
                                   </div>
                                 </th>
-                                {selectedDepartment.roles.map((role) => (
-                                  <td
-                                    key={role.id}
-                                    onMouseEnter={() => setHoveredRoleId(role.id)}
-                                    className={cn(
-                                      'px-4 py-3 text-sm align-middle transition-colors',
-                                      rowBackground,
-                                      hoveredRoleId === role.id && 'bg-slate-50/80',
-                                      'group-hover:bg-slate-50/80'
-                                    )}
-                                  >
-                                    <select
-                                      value={selectedDepartmentState.matrix[action.id]?.[role.id] ?? ''}
-                                      onChange={(event) =>
-                                        updateMatrix(selectedDepartment.id, action.id, role.id, event.target.value as RaciValue)
-                                      }
-                                      className="w-full rounded-md border border-slate-300 bg-white px-2 py-2 text-sm text-slate-900 shadow-sm focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-500"
+                                {selectedDepartment.roles.map((role) => {
+                                  const currentValue = selectedDepartmentState.matrix[action.id]?.[role.id] ?? '';
+                                  const isFilled = currentValue !== '';
+
+                                  return (
+                                    <td
+                                      key={role.id}
+                                      onMouseEnter={() => {
+                                        setHoveredRoleId(role.id);
+                                        setHoveredCell({ actionId: action.id, roleId: role.id });
+                                      }}
+                                      onMouseLeave={() => setHoveredCell(null)}
+                                      className={cn(
+                                        'relative px-4 py-3 text-sm align-middle transition-colors',
+                                        rowBackground,
+                                        hoveredRoleId === role.id && 'bg-slate-50/80',
+                                        'group-hover:bg-slate-50/80'
+                                      )}
                                     >
-                                      {raciOptions.map((option) => (
-                                        <option key={option.value} value={option.value}>
-                                          {option.label}
-                                        </option>
-                                      ))}
-                                    </select>
-                                  </td>
-                                ))}
+                                      <div className="flex flex-col items-center gap-3">
+                                        <div className="group/cell relative">
+                                          <span
+                                            className={cn(
+                                              'inline-flex min-w-[2.5rem] items-center justify-center rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide shadow-sm ring-1 ring-inset transition',
+                                              isFilled
+                                                ? raciBadgeStyles[currentValue as FilledRaciValue]
+                                                : 'bg-slate-100 text-slate-500 ring-slate-200'
+                                            )}
+                                            title={isFilled ? raciDefinitions[currentValue as FilledRaciValue].tooltip : undefined}
+                                          >
+                                            {isFilled ? currentValue : '—'}
+                                          </span>
+
+                                          {isFilled && hoveredCell?.actionId === action.id && hoveredCell?.roleId === role.id ? (
+                                            <div className="pointer-events-none absolute left-1/2 top-full z-30 mt-2 hidden w-64 -translate-x-1/2 rounded-lg border border-slate-200 bg-white p-3 text-left shadow-lg ring-1 ring-slate-200 group-hover/cell:block">
+                                              <p className="text-xs font-semibold text-slate-900">
+                                                {raciDefinitions[currentValue as FilledRaciValue].short}
+                                              </p>
+                                              <p className="mt-1 text-xs text-slate-600">
+                                                {raciDefinitions[currentValue as FilledRaciValue].description}
+                                              </p>
+                                            </div>
+                                          ) : null}
+                                        </div>
+
+                                        <select
+                                          value={currentValue}
+                                          onChange={(event) =>
+                                            updateMatrix(selectedDepartment.id, action.id, role.id, event.target.value as RaciValue)
+                                          }
+                                          className="w-full rounded-md border border-slate-300 bg-white px-2 py-2 text-sm text-slate-900 shadow-sm focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-500"
+                                        >
+                                          {raciOptions.map((option) => (
+                                            <option key={option.value} value={option.value}>
+                                              {option.label}
+                                            </option>
+                                          ))}
+                                        </select>
+                                      </div>
+                                    </td>
+                                  );
+                                })}
                               </tr>
                             );
                           })
@@ -888,34 +954,45 @@ export function RaciBuilder() {
                   </div>
                 ) : null}
               </div>
-            ) : (
-              <div className="flex h-full flex-col items-center justify-center rounded-xl border border-dashed border-slate-300 bg-slate-50 p-10 text-center text-sm text-slate-600">
-                <p>Sélectionnez un département pour générer sa matrice RACI.</p>
-              </div>
-            )}
-
-            <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-              <h3 className="text-base font-semibold text-slate-900">Rappels sur la méthodologie</h3>
-              <dl className="mt-4 grid gap-4 sm:grid-cols-2">
-                {filledRaciValues.map((value) => (
-                  <div key={value} className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-                    <dt className="flex items-center gap-2 text-sm font-semibold text-slate-900">
-                      <span
-                        className={cn(
-                          'inline-flex h-6 w-6 items-center justify-center rounded-md text-xs font-semibold uppercase tracking-wide',
-                          raciBadgeStyles[value]
-                        )}
-                      >
-                        {value}
-                      </span>
-                      <span>{raciDefinitions[value].short}</span>
-                    </dt>
-                    <dd className="mt-1 text-xs text-slate-600">{raciDefinitions[value].description}</dd>
-                  </div>
-                ))}
-              </dl>
-            </section>
+              ) : (
+                <div className="flex h-full flex-col items-center justify-center rounded-xl border border-dashed border-slate-300 bg-slate-50 p-10 text-center text-sm text-slate-600">
+                  <p>Sélectionnez un département pour générer sa matrice RACI.</p>
+                </div>
+              )}
           </div>
+
+          <aside className="flex flex-col gap-6 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+            <div className="space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <h3 className="text-base font-semibold text-slate-900">Méthodologie RACI</h3>
+                <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-xs font-semibold text-slate-600 ring-1 ring-slate-200">
+                  ?
+                </span>
+              </div>
+              <p className="text-sm text-slate-600">
+                Survolez un rôle ou une cellule pour afficher un rappel rapide des responsabilités.
+              </p>
+            </div>
+
+            <dl className="space-y-3">
+              {filledRaciValues.map((value) => (
+                <div key={value} className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                  <dt className="flex items-center gap-2 text-sm font-semibold text-slate-900">
+                    <span
+                      className={cn(
+                        'inline-flex h-7 w-7 items-center justify-center rounded-full text-xs font-semibold uppercase tracking-wide ring-1 ring-inset',
+                        raciBadgeStyles[value]
+                      )}
+                    >
+                      {value}
+                    </span>
+                    <span>{raciDefinitions[value].short}</span>
+                  </dt>
+                  <dd className="mt-1 text-xs text-slate-600">{raciDefinitions[value].description}</dd>
+                </div>
+              ))}
+            </dl>
+          </aside>
         </section>
       </div>
     </div>
