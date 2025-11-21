@@ -121,6 +121,8 @@ type RaciCounts = Record<FilledRaciValue, number>;
 const createEmptyCounts = (): RaciCounts => ({ R: 0, A: 0, C: 0, I: 0 });
 const formatCountsLabel = (counts: RaciCounts) =>
   `${counts.R} R / ${counts.A} A / ${counts.C} C / ${counts.I} I`;
+const formatCompactCountsLabel = (counts: RaciCounts) =>
+  `R: ${counts.R} · A: ${counts.A} · C: ${counts.C} · I: ${counts.I}`;
 
 type LoadedDepartment = {
   id: string;
@@ -712,36 +714,66 @@ export function RaciBuilder() {
                           type="button"
                           onClick={() => setSelectedDepartmentId(department.id)}
                           className={cn(
-                            'flex w-full items-center gap-3 rounded-lg border px-3 py-2 text-left transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400',
+                            'flex w-full items-start gap-3 rounded-lg border px-3 py-2 text-left transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400',
                             isSelected
                               ? 'border-slate-900 bg-slate-900/5 text-slate-900'
                               : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50'
                           )}
                         >
-                          <span
-                            aria-hidden="true"
-                            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-slate-200 shadow-inner"
-                            style={{ backgroundColor: department.color }}
-                          />
-                          <div className="min-w-0 flex-1">
-                            <p className="truncate text-sm font-semibold text-slate-900">{department.name}</p>
-                            <p className="truncate text-xs text-slate-500">
-                              {rolesCount > 0
-                                ? `${rolesCount} rôle${rolesCount > 1 ? 's' : ''} disponible${rolesCount > 1 ? 's' : ''}`
-                                : 'Aucun rôle défini'}
-                            </p>
+                          <div className="flex min-w-0 flex-1 items-start gap-3">
+                            <span
+                              aria-hidden="true"
+                              className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-slate-200 shadow-inner"
+                              style={{ backgroundColor: department.color }}
+                            />
+                            <div className="min-w-0 flex-1 space-y-1">
+                              <div className="flex items-center justify-between gap-2">
+                                <p className="truncate text-sm font-semibold text-slate-900">{department.name}</p>
+                                <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-1 text-[11px] font-semibold text-slate-700 ring-1 ring-inset ring-slate-200">
+                                  <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: department.color }} aria-hidden />
+                                  {rolesCount} rôle{rolesCount > 1 ? 's' : ''}
+                                </span>
+                              </div>
+                              <p className="truncate text-xs text-slate-500">
+                                {rolesCount > 0
+                                  ? `${rolesCount} rôle${rolesCount > 1 ? 's' : ''} disponible${rolesCount > 1 ? 's' : ''}`
+                                  : 'Aucun rôle défini'}
+                              </p>
+                            </div>
                           </div>
                         </button>
                         {isSelected ? (
                           <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
-                            <p className="text-xs font-semibold uppercase tracking-wide text-slate-700">Rôles du département</p>
+                            <div className="flex items-center justify-between gap-2">
+                              <p className="text-xs font-semibold uppercase tracking-wide text-slate-700">Rôles du département</p>
+                              <span className="rounded-full bg-white px-2 py-0.5 text-[11px] font-medium text-slate-600 ring-1 ring-inset ring-slate-200">
+                                Vue synthèse
+                              </span>
+                            </div>
                             {rolesCount > 0 ? (
-                              <ul className="mt-2 space-y-1">
-                                {department.roles.map((role) => (
-                                  <li key={role.id} className="text-sm text-slate-600">
-                                    {role.name}
-                                  </li>
-                                ))}
+                              <ul className="mt-3 space-y-1.5">
+                                {department.roles.map((role) => {
+                                  const counts = roleSummaries[role.id] ?? createEmptyCounts();
+
+                                  return (
+                                    <li
+                                      key={role.id}
+                                      className="flex items-center justify-between gap-3 rounded-md bg-white/60 px-2.5 py-2 text-sm text-slate-700 ring-1 ring-inset ring-slate-200"
+                                    >
+                                      <span className="flex items-center gap-2 truncate">
+                                        <span
+                                          aria-hidden="true"
+                                          className="inline-block h-2.5 w-2.5 rounded-full"
+                                          style={{ backgroundColor: role.color }}
+                                        />
+                                        <span className="truncate font-medium">{role.name}</span>
+                                      </span>
+                                      <span className="shrink-0 text-[11px] font-semibold text-slate-600">
+                                        {formatCompactCountsLabel(counts)}
+                                      </span>
+                                    </li>
+                                  );
+                                })}
                               </ul>
                             ) : (
                               <p className="mt-2 text-sm text-slate-500">Aucun rôle n’est associé à ce département.</p>
