@@ -1342,7 +1342,7 @@ export function RaciBuilder() {
                               />
                               <span className="truncate">{role.name}</span>
                             </span>
-                            <div className="mt-1 flex flex-wrap gap-1 text-[11px] font-medium text-slate-600">
+                            <div className="mt-1 flex flex-wrap gap-1 text-[11px] font-mono font-normal text-slate-500">
                               {filledRaciValues.map((value) => (
                                 <span
                                   key={`${role.id}-${value}`}
@@ -1362,7 +1362,7 @@ export function RaciBuilder() {
                         </th>
                       </tr>
                     </thead>
-                    <tbody className="[&_tr:not(:last-child)]:border-b [&_tr:not(:last-child)]:border-slate-200">
+                    <tbody className="[&_tr:not(:last-child)]:border-b [&_tr:not(:last-child)]:border-slate-100">
                       {roleActionsQuery.isLoading ? (
                         <tr>
                           <td
@@ -1398,7 +1398,7 @@ export function RaciBuilder() {
 
                             return (
                               <Fragment key={`process-${process.id}`}>
-                                <tr className="bg-slate-100">
+                                <tr className="bg-slate-50 border-b border-slate-200">
                                   <th
                                     colSpan={selectedDepartment.roles.length + 2}
                                     className="px-6 py-3 text-left text-xs font-semibold tracking-wide text-slate-600"
@@ -1478,7 +1478,10 @@ export function RaciBuilder() {
                                                     {action.responsibility}
                                                   </span>
                                                 ) : (
-                                                  <span className="inline-flex min-w-[2.5rem] items-center justify-center rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide text-slate-400 ring-1 ring-inset ring-slate-200">
+                                                  <span
+                                                    className="inline-flex min-w-[2.5rem] items-center justify-center rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide text-transparent ring-1 ring-inset ring-slate-100 transition group-hover/cell:text-slate-400"
+                                                    aria-label="Non attribué"
+                                                  >
                                                     —
                                                   </span>
                                                 )}
@@ -1498,7 +1501,7 @@ export function RaciBuilder() {
                                               </div>
                                             </td>
                                               ))}
-                                              <td className={cn(rowBackground, 'px-4 py-3 text-left text-xs text-slate-600')}>
+                                              <td className={cn(rowBackground, 'px-4 py-3 text-left text-[11px] font-mono text-slate-500')}>
                                                 {formatCountsLabel(summaryCounts)}
                                               </td>
                                             </tr>
@@ -1558,9 +1561,10 @@ export function RaciBuilder() {
                                               'inline-flex min-w-[2.5rem] items-center justify-center rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide shadow-sm ring-1 ring-inset transition',
                                               isFilled
                                                 ? raciBadgeStyles[currentValue as FilledRaciValue]
-                                                : 'bg-slate-100 text-slate-500 ring-slate-200'
+                                                : 'bg-white text-transparent ring-slate-100 group-hover/cell:text-slate-400'
                                             )}
                                             title={isFilled ? raciDefinitions[currentValue as FilledRaciValue].tooltip : undefined}
+                                            aria-label={isFilled ? raciDefinitions[currentValue as FilledRaciValue].short : 'Non attribué'}
                                           >
                                             {isFilled ? currentValue : '—'}
                                           </span>
@@ -1594,7 +1598,7 @@ export function RaciBuilder() {
                                     </td>
                                   );
                                     })}
-                                    <td className={cn(rowBackground, 'px-4 py-3 text-left text-xs text-slate-600')}>
+                                    <td className={cn(rowBackground, 'px-4 py-3 text-left text-[11px] font-mono text-slate-500')}>
                                       {formatCountsLabel(summaryCounts)}
                                     </td>
                                   </tr>
