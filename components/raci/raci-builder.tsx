@@ -116,6 +116,11 @@ const raciOptions: ReadonlyArray<{ value: RaciValue; label: string }> = [
 
 type FilledRaciValue = (typeof filledRaciValues)[number];
 type RaciValue = FilledRaciValue | '';
+type RaciCounts = Record<FilledRaciValue, number>;
+
+const createEmptyCounts = (): RaciCounts => ({ R: 0, A: 0, C: 0, I: 0 });
+const formatCountsLabel = (counts: RaciCounts) =>
+  `${counts.R} R / ${counts.A} A / ${counts.C} C / ${counts.I} I`;
 
 type LoadedDepartment = {
   id: string;
@@ -142,6 +147,8 @@ type AggregatedProcessGroup = {
   title: string;
   steps: AggregatedRoleActionRow[];
 };
+
+type ViewMode = 'actions' | 'roles';
 
 const EMPTY_DEPARTMENT_STATE: DepartmentMatrixState = {
   actions: [],
@@ -249,6 +256,8 @@ export function RaciBuilder() {
 
   const [selectedDepartmentId, setSelectedDepartmentId] = useState<string | null>(null);
   const [departmentStates, setDepartmentStates] = useState<Record<string, DepartmentMatrixState>>({});
+  const [viewMode, setViewMode] = useState<ViewMode>('actions');
+  const [selectedRoleId, setSelectedRoleId] = useState<string | null>(null);
 
   useEffect(() => {
     if (departments.length === 0) {
@@ -297,6 +306,30 @@ export function RaciBuilder() {
   const selectedDepartmentState = selectedDepartmentId
     ? departmentStates[selectedDepartmentId] ?? EMPTY_DEPARTMENT_STATE
     : EMPTY_DEPARTMENT_STATE;
+
+  useEffect(() => {
+    if (viewMode !== 'roles') {
+      return;
+    }
+
+    if (!selectedDepartment) {
+      setSelectedRoleId(null);
+      return;
+    }
+
+    setSelectedRoleId((current) => {
+      if (current && selectedDepartment.roles.some((role) => role.id === current)) {
+        return current;
+      }
+
+      return selectedDepartment.roles[0]?.id ?? null;
+    });
+  }, [selectedDepartment, viewMode]);
+
+  const selectedRole = useMemo(
+    () => selectedDepartment?.roles.find((role) => role.id === selectedRoleId) ?? null,
+    [selectedDepartment, selectedRoleId]
+  );
 
   const roleActionsByRoleId = useMemo(() => {
     const summaries = roleActionsQuery.data ?? [];
@@ -395,6 +428,88 @@ export function RaciBuilder() {
   const manualActionCount = selectedDepartmentState.actions.length;
   const totalActionCount = aggregatedActionCount + manualActionCount;
 
+  const aggregatedRowSummaries = useMemo(() => {
+    if (!selectedDepartment) {
+      return new Map<string, RaciCounts>();
+    }
+
+    const summaries = new Map<string, RaciCounts>();
+
+    for (const process of departmentAggregatedProcesses) {
+      for (const step of process.steps) {
+        const counts = createEmptyCounts();
+        counts[step.responsibility] = step.assignedRoleIds.size;
+        summaries.set(step.id, counts);
+      }
+    }
+
+    return summaries;
+  }, [departmentAggregatedProcesses, selectedDepartment]);
+
+  const manualRowSummaries = useMemo(() => {
+    if (!selectedDepartment) {
+      return new Map<string, RaciCounts>();
+    }
+
+    const summaries = new Map<string, RaciCounts>();
+
+    for (const action of selectedDepartmentState.actions) {
+      const row = selectedDepartmentState.matrix[action.id] ?? {};
+      const counts = createEmptyCounts();
+
+      for (const role of selectedDepartment.roles) {
+        const value = row[role.id];
+
+        if (value) {
+          counts[value as FilledRaciValue] += 1;
+        }
+      }
+
+      summaries.set(action.id, counts);
+    }
+
+    return summaries;
+  }, [selectedDepartment, selectedDepartmentState]);
+
+  const roleSummaries = useMemo(() => {
+    if (!selectedDepartment) {
+      return {} as Record<string, RaciCounts>;
+    }
+
+    const summaries = selectedDepartment.roles.reduce<Record<string, RaciCounts>>((accumulator, role) => {
+      accumulator[role.id] = createEmptyCounts();
+      return accumulator;
+    }, {});
+
+    for (const process of departmentAggregatedProcesses) {
+      for (const step of process.steps) {
+        for (const roleId of step.assignedRoleIds) {
+          if (!summaries[roleId]) {
+            continue;
+          }
+
+          summaries[roleId][step.responsibility] += 1;
+        }
+      }
+    }
+
+    for (const action of selectedDepartmentState.actions) {
+      const row = selectedDepartmentState.matrix[action.id] ?? {};
+
+      for (const role of selectedDepartment.roles) {
+        const value = row[role.id];
+
+        if (!value) {
+          continue;
+        }
+
+        summaries[role.id][value as FilledRaciValue] += 1;
+      }
+    }
+
+    return summaries;
+  }, [departmentAggregatedProcesses, selectedDepartment, selectedDepartmentState]);
+
   const [collapsedProcesses, setCollapsedProcesses] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
@@ -469,6 +584,49 @@ export function RaciBuilder() {
     !roleActionsQuery.isError &&
     !hasAggregatedActions &&
     !hasManualActions;
+
+  const roleCentricAssignments = useMemo(() => {
+    if (!selectedDepartment || !selectedRole) {
+      return null;
+    }
+
+    const groups: Record<
+      FilledRaciValue,
+      Array<{ id: string; label: string; context?: string; source: 'aggregated' | 'manual' }>
+    > = {
+      R: [],
+      A: [],
+      C: [],
+      I: []
+    };
+
+    for (const process of departmentAggregatedProcesses) {
+      for (const step of process.steps) {
+        if (step.assignedRoleIds.has(selectedRole.id)) {
+          groups[step.responsibility].push({
+            id: `aggregated-${process.id}-${step.id}`,
+            label: step.label,
+            context: step.processTitle,
+            source: 'aggregated'
+          });
+        }
+      }
+    }
+
+    for (const action of selectedDepartmentState.actions) {
+      const responsibility = selectedDepartmentState.matrix[action.id]?.[selectedRole.id];
+
+      if (responsibility) {
+        groups[responsibility as FilledRaciValue].push({
+          id: `manual-${action.id}`,
+          label: action.name,
+          source: 'manual'
+        });
+      }
+    }
+
+    return groups;
+  }, [departmentAggregatedProcesses, selectedDepartment, selectedDepartmentState, selectedRole]);
 
   const [hoveredRoleId, setHoveredRoleId] = useState<string | null>(null);
   const [hoveredCell, setHoveredCell] = useState<{ actionId: string; roleId: string } | null>(null);
@@ -614,7 +772,7 @@ export function RaciBuilder() {
                         Assignez un rôle pour chaque action en sélectionnant la responsabilité appropriée.
                       </p>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       <span className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700 ring-1 ring-inset ring-slate-200">
                         <span className="h-2 w-2 rounded-full bg-slate-400" aria-hidden />
                         {selectedDepartment.roles.length} rôle{selectedDepartment.roles.length > 1 ? 's' : ''}
@@ -623,9 +781,35 @@ export function RaciBuilder() {
                         <span className="h-2 w-2 rounded-full bg-slate-400" aria-hidden />
                         {totalActionCount} action{totalActionCount > 1 ? 's' : ''}
                       </span>
+                      <div className="inline-flex items-center rounded-full bg-slate-100 p-1 text-xs font-semibold text-slate-700 ring-1 ring-inset ring-slate-200">
+                        <button
+                          type="button"
+                          onClick={() => setViewMode('actions')}
+                          className={cn(
+                            'rounded-full px-3 py-1 transition',
+                            viewMode === 'actions'
+                              ? 'bg-white text-slate-900 shadow-sm ring-1 ring-inset ring-slate-200'
+                              : 'text-slate-600 hover:text-slate-900'
+                          )}
+                        >
+                          Vue par actions
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setViewMode('roles')}
+                          className={cn(
+                            'rounded-full px-3 py-1 transition',
+                            viewMode === 'roles'
+                              ? 'bg-white text-slate-900 shadow-sm ring-1 ring-inset ring-slate-200'
+                              : 'text-slate-600 hover:text-slate-900'
+                          )}
+                        >
+                          Vue par rôle
+                        </button>
+                      </div>
                     </div>
                   </div>
-                  {hasAggregatedActions ? (
+                  {viewMode === 'actions' && hasAggregatedActions ? (
                     <div className="mt-4 flex flex-wrap items-center gap-2">
                       <button
                         type="button"
@@ -644,8 +828,10 @@ export function RaciBuilder() {
                     </div>
                   ) : null}
                 </div>
-                <div className="overflow-auto" onMouseLeave={() => setHoveredRoleId(null)}>
-                  <table className="min-w-full border-separate border-spacing-0">
+                {viewMode === 'actions' ? (
+                  <>
+                    <div className="overflow-auto" onMouseLeave={() => setHoveredRoleId(null)}>
+                      <table className="min-w-full border-separate border-spacing-0">
                     <thead className="sticky top-0 z-30 bg-white shadow-sm">
                       <tr>
                         <th
@@ -672,15 +858,31 @@ export function RaciBuilder() {
                               />
                               <span className="truncate">{role.name}</span>
                             </span>
+                            <div className="mt-1 flex flex-wrap gap-1 text-[11px] font-medium text-slate-600">
+                              {filledRaciValues.map((value) => (
+                                <span
+                                  key={`${role.id}-${value}`}
+                                  className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5"
+                                >
+                                  {value}: {roleSummaries[role.id]?.[value] ?? 0}
+                                </span>
+                              ))}
+                            </div>
                           </th>
                         ))}
+                        <th
+                          scope="col"
+                          className="border-b border-slate-200 bg-white px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500"
+                        >
+                          Synthèse
+                        </th>
                       </tr>
                     </thead>
                     <tbody className="[&_tr:not(:last-child)]:border-b [&_tr:not(:last-child)]:border-slate-200">
                       {roleActionsQuery.isLoading ? (
                         <tr>
                           <td
-                            colSpan={selectedDepartment.roles.length + 1}
+                            colSpan={selectedDepartment.roles.length + 2}
                             className="px-6 py-4 text-sm text-slate-500"
                           >
                             <span className="flex items-center justify-center gap-2">
@@ -692,7 +894,7 @@ export function RaciBuilder() {
                       ) : roleActionsQuery.isError ? (
                         <tr>
                           <td
-                            colSpan={selectedDepartment.roles.length + 1}
+                            colSpan={selectedDepartment.roles.length + 2}
                             className="px-6 py-4 text-sm text-red-600"
                           >
                             {roleActionsQuery.error instanceof ApiError && roleActionsQuery.error.status === 401
@@ -714,7 +916,7 @@ export function RaciBuilder() {
                               <Fragment key={`process-${process.id}`}>
                                 <tr className="bg-slate-100">
                                   <th
-                                    colSpan={selectedDepartment.roles.length + 1}
+                                    colSpan={selectedDepartment.roles.length + 2}
                                     className="px-6 py-3 text-left text-xs font-semibold tracking-wide text-slate-600"
                                   >
                                     <button
@@ -743,6 +945,7 @@ export function RaciBuilder() {
                                 {!isCollapsed
                                   ? process.steps.map((action) => {
                                       const rowBackground = getRowBackground();
+                                      const summaryCounts = aggregatedRowSummaries.get(action.id) ?? createEmptyCounts();
 
                                       return (
                                         <tr
@@ -810,10 +1013,13 @@ export function RaciBuilder() {
                                                 ) : null}
                                               </div>
                                             </td>
-                                          ))}
-                                        </tr>
-                                      );
-                                    })
+                                              ))}
+                                              <td className={cn(rowBackground, 'px-4 py-3 text-left text-xs text-slate-600')}>
+                                                {formatCountsLabel(summaryCounts)}
+                                              </td>
+                                            </tr>
+                                          );
+                                        })
                                   : null}
                               </Fragment>
                             );
@@ -823,6 +1029,7 @@ export function RaciBuilder() {
                       {hasManualActions
                         ? selectedDepartmentState.actions.map((action) => {
                             const rowBackground = getRowBackground();
+                            const summaryCounts = manualRowSummaries.get(action.id) ?? createEmptyCounts();
 
                             return (
                               <tr
@@ -841,9 +1048,9 @@ export function RaciBuilder() {
                                     <p className="text-sm font-semibold text-slate-900">{action.name}</p>
                                   </div>
                                 </th>
-                                {selectedDepartment.roles.map((role) => {
-                                  const currentValue = selectedDepartmentState.matrix[action.id]?.[role.id] ?? '';
-                                  const isFilled = currentValue !== '';
+                                    {selectedDepartment.roles.map((role) => {
+                                      const currentValue = selectedDepartmentState.matrix[action.id]?.[role.id] ?? '';
+                                      const isFilled = currentValue !== '';
 
                                   return (
                                     <td
@@ -902,16 +1109,19 @@ export function RaciBuilder() {
                                       </div>
                                     </td>
                                   );
-                                })}
-                              </tr>
-                            );
-                          })
+                                    })}
+                                    <td className={cn(rowBackground, 'px-4 py-3 text-left text-xs text-slate-600')}>
+                                      {formatCountsLabel(summaryCounts)}
+                                    </td>
+                                  </tr>
+                                );
+                              })
                         : null}
 
                       {showEmptyMatrixState ? (
                         <tr>
                           <td
-                            colSpan={selectedDepartment.roles.length + 1}
+                            colSpan={selectedDepartment.roles.length + 2}
                             className="px-6 py-6 text-center text-sm text-slate-500"
                           >
                             Aucune action n’est disponible pour ce département pour le moment.
@@ -921,38 +1131,130 @@ export function RaciBuilder() {
                     </tbody>
                   </table>
                 </div>
-                {selectedDepartmentState.actions.length > 0 ? (
+                    {selectedDepartmentState.actions.length > 0 ? (
+                      <div className="border-t border-slate-200 bg-white px-6 py-5">
+                        <h3 className="text-sm font-semibold text-slate-900">Synthèse par action</h3>
+                        <div className="mt-4 grid gap-4 lg:grid-cols-2">
+                          {assignments.map(({ actionLabel, responsibilities }) => (
+                            <div key={actionLabel} className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                              <p className="text-sm font-semibold text-slate-900">{actionLabel}</p>
+                              <ul className="mt-3 space-y-2 text-xs text-slate-600">
+                                {responsibilities.map(({ value, roles }) => (
+                                  <li key={value} className="flex items-start justify-between gap-3">
+                                    <span className="flex items-center gap-2 font-medium text-slate-800">
+                                      <span
+                                        className={cn(
+                                          'inline-flex h-6 w-6 items-center justify-center rounded-md text-xs font-semibold uppercase tracking-wide',
+                                          raciBadgeStyles[value]
+                                        )}
+                                      >
+                                        {value}
+                                      </span>
+                                      <span>{raciDefinitions[value].short}</span>
+                                    </span>
+                                    <span className="text-right text-slate-600">
+                                      {roles.length > 0 ? roles.join(', ') : 'Non attribué'}
+                                    </span>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
+                  </>
+                ) : (
                   <div className="border-t border-slate-200 bg-white px-6 py-5">
-                    <h3 className="text-sm font-semibold text-slate-900">Synthèse par action</h3>
-                    <div className="mt-4 grid gap-4 lg:grid-cols-2">
-                      {assignments.map(({ actionLabel, responsibilities }) => (
-                        <div key={actionLabel} className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-                          <p className="text-sm font-semibold text-slate-900">{actionLabel}</p>
-                          <ul className="mt-3 space-y-2 text-xs text-slate-600">
-                            {responsibilities.map(({ value, roles }) => (
-                              <li key={value} className="flex items-start justify-between gap-3">
-                                <span className="flex items-center gap-2 font-medium text-slate-800">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-semibold text-slate-900">Vue par rôle</p>
+                        <p className="text-xs text-slate-600">Identifiez rapidement les actions où un rôle est Responsable, Autorité, Consulté ou Informé.</p>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        {selectedDepartment.roles.length > 0 ? (
+                          selectedDepartment.roles.map((role) => (
+                            <button
+                              key={role.id}
+                              type="button"
+                              onClick={() => setSelectedRoleId(role.id)}
+                              className={cn(
+                                'inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold transition',
+                                selectedRoleId === role.id
+                                  ? 'border-slate-900 bg-slate-900/5 text-slate-900'
+                                  : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50'
+                              )}
+                            >
+                              <span
+                                aria-hidden="true"
+                                className="inline-block h-2.5 w-2.5 rounded-full"
+                                style={{ backgroundColor: role.color }}
+                              />
+                              <span className="truncate">{role.name}</span>
+                            </button>
+                          ))
+                        ) : (
+                          <span className="text-xs text-slate-600">Aucun rôle n’est disponible.</span>
+                        )}
+                      </div>
+                    </div>
+
+                    {roleCentricAssignments && selectedRole ? (
+                      <div className="mt-5 grid gap-4 md:grid-cols-2">
+                        {filledRaciValues.map((value) => {
+                          const assignmentsForValue = roleCentricAssignments[value];
+                          const hasAssignments = assignmentsForValue.length > 0;
+
+                          return (
+                            <div key={value} className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                              <div className="flex items-center justify-between gap-2">
+                                <div className="flex items-center gap-2">
                                   <span
                                     className={cn(
-                                      'inline-flex h-6 w-6 items-center justify-center rounded-md text-xs font-semibold uppercase tracking-wide',
+                                      'inline-flex h-7 w-7 items-center justify-center rounded-full text-xs font-semibold uppercase tracking-wide ring-1 ring-inset',
                                       raciBadgeStyles[value]
                                     )}
                                   >
                                     {value}
                                   </span>
-                                  <span>{raciDefinitions[value].short}</span>
-                                </span>
-                                <span className="text-right text-slate-600">
-                                  {roles.length > 0 ? roles.join(', ') : 'Non attribué'}
-                                </span>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      ))}
-                    </div>
+                                  <div>
+                                    <p className="text-sm font-semibold text-slate-900">{raciDefinitions[value].short}</p>
+                                    <p className="text-xs text-slate-600">{raciDefinitions[value].tooltip}</p>
+                                  </div>
+                                </div>
+                                <span className="text-xs font-semibold text-slate-700">{assignmentsForValue.length} action{assignmentsForValue.length > 1 ? 's' : ''}</span>
+                              </div>
+                              <div className="mt-3 space-y-3">
+                                {hasAssignments ? (
+                                  assignmentsForValue.map((assignment) => (
+                                    <div
+                                      key={assignment.id}
+                                      className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 shadow-sm"
+                                    >
+                                      <p className="font-semibold text-slate-900">{assignment.label}</p>
+                                      {assignment.context ? (
+                                        <p className="text-xs text-slate-600">{assignment.context}</p>
+                                      ) : null}
+                                      <p className="mt-1 text-[11px] uppercase tracking-wide text-slate-500">
+                                        {assignment.source === 'aggregated' ? 'Action importée' : 'Action manuelle'}
+                                      </p>
+                                    </div>
+                                  ))
+                                ) : (
+                                  <p className="text-xs text-slate-600">Aucune action pour ce rôle.</p>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <p className="mt-5 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+                        Sélectionnez un rôle pour consulter ses responsabilités.
+                      </p>
+                    )}
                   </div>
-                ) : null}
+                )}
               </div>
               ) : (
                 <div className="flex h-full flex-col items-center justify-center rounded-xl border border-dashed border-slate-300 bg-slate-50 p-10 text-center text-sm text-slate-600">
