@@ -46,6 +46,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { DEFAULT_PROCESS_STEPS, DEFAULT_PROCESS_TITLE } from '@/lib/process/defaults';
+import type { Dictionary } from '@/lib/i18n/dictionaries';
 import { getInviteDemoDepartments } from '@/lib/department/demo';
 import { cn } from '@/lib/utils/cn';
 import {
@@ -222,6 +223,8 @@ class ApiError extends Error {
   }
 }
 
+type ProcessErrorMessages = Dictionary['landing']['errors'];
+
 const parseErrorPayload = (raw: string, fallback: string) => {
   if (!raw) {
     return fallback;
@@ -396,7 +399,10 @@ const formatUpdatedAt = (value: string | null | undefined) => {
   }
 };
 
-const requestProcess = async (processId: string): Promise<ProcessResponse> => {
+const requestProcess = async (
+  processId: string,
+  messages: ProcessErrorMessages
+): Promise<ProcessResponse> => {
   const response = await fetch(`/api/process?id=${encodeURIComponent(processId)}`, {
     method: 'GET',
     credentials: 'include',
@@ -404,11 +410,11 @@ const requestProcess = async (processId: string): Promise<ProcessResponse> => {
   });
 
   if (response.status === 401) {
-    throw new ApiError('Authentification requise', 401);
+    throw new ApiError(messages.authRequired, 401);
   }
 
   if (!response.ok) {
-    const message = await readErrorMessage(response, 'Impossible de récupérer le process.');
+    const message = await readErrorMessage(response, messages.process.fetchFailed);
     throw new ApiError(message, response.status);
   }
 
@@ -418,7 +424,9 @@ const requestProcess = async (processId: string): Promise<ProcessResponse> => {
 
 const processSummariesSchema = processSummarySchema.array();
 
-const requestProcessSummaries = async (): Promise<ProcessSummary[]> => {
+const requestProcessSummaries = async (
+  messages: ProcessErrorMessages
+): Promise<ProcessSummary[]> => {
   const response = await fetch('/api/processes', {
     method: 'GET',
     credentials: 'include',
@@ -426,11 +434,11 @@ const requestProcessSummaries = async (): Promise<ProcessSummary[]> => {
   });
 
   if (response.status === 401) {
-    throw new ApiError('Authentification requise', 401);
+    throw new ApiError(messages.authRequired, 401);
   }
 
   if (!response.ok) {
-    const message = await readErrorMessage(response, 'Impossible de lister vos process.');
+    const message = await readErrorMessage(response, messages.process.listFailed);
     throw new ApiError(message, response.status);
   }
 
@@ -438,7 +446,10 @@ const requestProcessSummaries = async (): Promise<ProcessSummary[]> => {
   return processSummariesSchema.parse(json);
 };
 
-const createProcessRequest = async (title?: string): Promise<ProcessResponse> => {
+const createProcessRequest = async (
+  messages: ProcessErrorMessages,
+  title?: string
+): Promise<ProcessResponse> => {
   const response = await fetch('/api/processes', {
     method: 'POST',
     credentials: 'include',
@@ -447,11 +458,11 @@ const createProcessRequest = async (title?: string): Promise<ProcessResponse> =>
   });
 
   if (response.status === 401) {
-    throw new ApiError('Authentification requise', 401);
+    throw new ApiError(messages.authRequired, 401);
   }
 
   if (!response.ok) {
-    const message = await readErrorMessage(response, 'Impossible de créer un nouveau process.');
+    const message = await readErrorMessage(response, messages.process.createFailed);
     throw new ApiError(message, response.status);
   }
 
@@ -459,7 +470,10 @@ const createProcessRequest = async (title?: string): Promise<ProcessResponse> =>
   return processResponseSchema.parse(json);
 };
 
-const renameProcessRequest = async (input: { id: string; title: string }): Promise<ProcessSummary> => {
+const renameProcessRequest = async (
+  messages: ProcessErrorMessages,
+  input: { id: string; title: string }
+): Promise<ProcessSummary> => {
   const response = await fetch(`/api/processes/${encodeURIComponent(input.id)}`, {
     method: 'PATCH',
     credentials: 'include',
@@ -468,11 +482,11 @@ const renameProcessRequest = async (input: { id: string; title: string }): Promi
   });
 
   if (response.status === 401) {
-    throw new ApiError('Authentification requise', 401);
+    throw new ApiError(messages.authRequired, 401);
   }
 
   if (!response.ok) {
-    const message = await readErrorMessage(response, 'Impossible de renommer le process.');
+    const message = await readErrorMessage(response, messages.process.renameFailed);
     throw new ApiError(message, response.status);
   }
 
@@ -480,14 +494,17 @@ const renameProcessRequest = async (input: { id: string; title: string }): Promi
   return processSummarySchema.parse(json);
 };
 
-const deleteProcessRequest = async (processId: string): Promise<void> => {
+const deleteProcessRequest = async (
+  messages: ProcessErrorMessages,
+  processId: string
+): Promise<void> => {
   const response = await fetch(`/api/processes/${encodeURIComponent(processId)}`, {
     method: 'DELETE',
     credentials: 'include'
   });
 
   if (response.status === 401) {
-    throw new ApiError('Authentification requise', 401);
+    throw new ApiError(messages.authRequired, 401);
   }
 
   if (response.status === 204) {
@@ -495,7 +512,7 @@ const deleteProcessRequest = async (processId: string): Promise<void> => {
   }
 
   if (!response.ok) {
-    const message = await readErrorMessage(response, 'Impossible de supprimer le process.');
+    const message = await readErrorMessage(response, messages.process.deleteFailed);
     throw new ApiError(message, response.status);
   }
 };
@@ -680,7 +697,8 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
   const { dictionary } = useI18n();
   const {
     defaults: { departmentName: defaultDepartmentName, roleName: defaultRoleName },
-    actions: { createLabel }
+    actions: { createLabel },
+    errors: processErrorMessages
   } = dictionary.landing;
   const [isPrimaryCollapsed, setIsPrimaryCollapsed] = useState(false);
   const [isSecondaryCollapsed, setIsSecondaryCollapsed] = useState(false);
@@ -726,7 +744,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
 
   const processSummariesQuery = useQuery<ProcessSummary[], ApiError>({
     queryKey: ['processes'],
-    queryFn: requestProcessSummaries,
+    queryFn: () => requestProcessSummaries(processErrorMessages),
     retry: (failureCount, error) => {
       if (error instanceof ApiError && error.status === 401) {
         return false;
@@ -739,7 +757,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
 
   const processQuery = useQuery<ProcessResponse, ApiError>({
     queryKey: ['process', currentProcessId],
-    queryFn: () => requestProcess(currentProcessId as string),
+    queryFn: () => requestProcess(currentProcessId as string, processErrorMessages),
     enabled: typeof currentProcessId === 'string',
     retry: (failureCount, error) => {
       if (error instanceof ApiError && error.status === 401) {
@@ -1304,7 +1322,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
   const isDirty = useMemo(() => !areStepsEqual(steps, baselineStepsRef.current), [steps]);
 
   const createProcessMutation = useMutation<ProcessResponse, ApiError, string | undefined>({
-    mutationFn: (title) => createProcessRequest(title),
+    mutationFn: (title) => createProcessRequest(processErrorMessages, title),
     onSuccess: (data) => {
       const sanitizedSteps = cloneSteps(data.steps);
       baselineStepsRef.current = cloneSteps(sanitizedSteps);
@@ -1333,7 +1351,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
   });
 
   const renameProcessMutation = useMutation<ProcessSummary, ApiError, { id: string; title: string }>({
-    mutationFn: renameProcessRequest,
+    mutationFn: (input) => renameProcessRequest(processErrorMessages, input),
     onSuccess: (summary) => {
       const normalizedTitle = normalizeProcessTitle(summary.title);
       queryClient.setQueryData(['processes'], (previous?: ProcessSummary[]) => {
@@ -1381,7 +1399,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
   });
 
   const deleteProcessMutation = useMutation<void, ApiError, string>({
-    mutationFn: deleteProcessRequest,
+    mutationFn: (processId) => deleteProcessRequest(processErrorMessages, processId),
     onSuccess: (_data, processId) => {
       queryClient.setQueryData(['processes'], (previous?: ProcessSummary[]) => {
         if (!previous) {
@@ -3196,7 +3214,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                   >
                     {isProcessListUnauthorized ? (
                       <p className="text-sm text-slate-600">
-                        Connectez-vous pour accéder à vos process sauvegardés.
+                        {processErrorMessages.authRequired}
                       </p>
                     ) : processSummariesQuery.isLoading ? (
                       <div className="flex items-center gap-2 text-sm text-slate-500">
@@ -3207,7 +3225,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                       <p className="text-sm text-red-600">
                         {processSummariesQuery.error instanceof ApiError
                           ? processSummariesQuery.error.message
-                          : 'Impossible de récupérer la liste des process.'}
+                          : processErrorMessages.process.listFailed}
                       </p>
                     ) : hasProcesses ? (
                       <ul role="tree" aria-label="Process sauvegardés" className="space-y-2">

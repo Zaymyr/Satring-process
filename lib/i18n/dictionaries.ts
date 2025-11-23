@@ -13,6 +13,16 @@ export type Dictionary = {
     actions: {
       createLabel: string;
     };
+    errors: {
+      authRequired: string;
+      process: {
+        fetchFailed: string;
+        listFailed: string;
+        createFailed: string;
+        renameFailed: string;
+        deleteFailed: string;
+      };
+    };
   };
   header: {
     localeToggle: {
@@ -146,6 +156,16 @@ const dictionaries: Record<Locale, Dictionary> = {
       },
       actions: {
         createLabel: 'New'
+      },
+      errors: {
+        authRequired: 'Authentication required',
+        process: {
+          fetchFailed: 'Unable to retrieve the process.',
+          listFailed: 'Unable to list your processes.',
+          createFailed: 'Unable to create a new process.',
+          renameFailed: 'Unable to rename the process.',
+          deleteFailed: 'Unable to delete the process.'
+        }
       }
     },
     header: {
@@ -280,6 +300,16 @@ const dictionaries: Record<Locale, Dictionary> = {
       },
       actions: {
         createLabel: 'Nouveau'
+      },
+      errors: {
+        authRequired: 'Authentification requise',
+        process: {
+          fetchFailed: 'Impossible de récupérer le process.',
+          listFailed: 'Impossible de lister vos process.',
+          createFailed: 'Impossible de créer un nouveau process.',
+          renameFailed: 'Impossible de renommer le process.',
+          deleteFailed: 'Impossible de supprimer le process.'
+        }
       }
     },
     header: {
