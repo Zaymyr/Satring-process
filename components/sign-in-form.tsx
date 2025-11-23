@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
@@ -9,18 +9,26 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import type { Dictionary } from '@/lib/i18n/dictionaries';
+import { useI18n } from './providers/i18n-provider';
 
-const signInSchema = z.object({
-  email: z.string().min(1, 'Adresse e-mail obligatoire').email("Adresse e-mail invalide"),
-  password: z.string().min(1, 'Mot de passe obligatoire')
-});
+const createSignInSchema = (dictionary: Dictionary) =>
+  z.object({
+    email: z
+      .string()
+      .min(1, dictionary.auth.forms.signIn.validation.emailRequired)
+      .email(dictionary.auth.forms.signIn.validation.emailInvalid),
+    password: z.string().min(1, dictionary.auth.forms.signIn.validation.passwordRequired)
+  });
 
-type SignInSchema = z.infer<typeof signInSchema>;
+type SignInSchema = z.infer<ReturnType<typeof createSignInSchema>>;
 
 export function SignInForm() {
+  const { dictionary } = useI18n();
   const router = useRouter();
   const [status, setStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [error, setError] = useState<string | null>(null);
+  const signInSchema = useMemo(() => createSignInSchema(dictionary), [dictionary]);
   const {
     handleSubmit,
     register,
@@ -41,7 +49,7 @@ export function SignInForm() {
     });
     if (!response.ok) {
       const payload = (await response.json().catch(() => null)) as unknown;
-      let message = 'Impossible de se connecter.';
+      let message = dictionary.auth.forms.signIn.errorMessage;
 
       if (payload && typeof payload === 'object' && 'error' in payload) {
         const errorValue = (payload as { error: unknown }).error;
@@ -97,25 +105,33 @@ export function SignInForm() {
   return (
     <form className="space-y-6" onSubmit={handleSubmit(onSubmit)} noValidate>
       <div className="space-y-2 text-left">
-        <Label htmlFor="email">Adresse e-mail</Label>
-        <Input id="email" type="email" placeholder="vous@example.com" autoComplete="email" {...register('email')} />
+        <Label htmlFor="email">{dictionary.auth.forms.common.emailLabel}</Label>
+        <Input
+          id="email"
+          type="email"
+          placeholder={dictionary.auth.forms.common.emailPlaceholder}
+          autoComplete="email"
+          {...register('email')}
+        />
         {errors.email && <p className="text-sm text-red-500">{errors.email.message}</p>}
       </div>
       <div className="space-y-2 text-left">
-        <Label htmlFor="password">Mot de passe</Label>
+        <Label htmlFor="password">{dictionary.auth.forms.common.passwordLabel}</Label>
         <Input
           id="password"
           type="password"
-          placeholder="••••••••"
+          placeholder={dictionary.auth.forms.common.passwordPlaceholder}
           autoComplete="current-password"
           {...register('password')}
         />
         {errors.password && <p className="text-sm text-red-500">{errors.password.message}</p>}
       </div>
       <Button type="submit" className="w-full" disabled={isSubmitting || status === 'success'}>
-        {isSubmitting ? 'Connexion en cours…' : 'Se connecter'}
+        {isSubmitting ? dictionary.auth.forms.signIn.submittingLabel : dictionary.auth.forms.signIn.submitLabel}
       </Button>
-      {status === 'success' && <p className="text-sm text-emerald-600">Connexion réussie. Redirection…</p>}
+      {status === 'success' && (
+        <p className="text-sm text-emerald-600">{dictionary.auth.forms.signIn.successMessage}</p>
+      )}
       {status === 'error' && error && <p className="text-sm text-red-500">{error}</p>}
     </form>
   );
