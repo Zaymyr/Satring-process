@@ -164,9 +164,9 @@ declare global {
 
 let mermaidLoader: Promise<MermaidAPI> | null = null;
 
-function loadMermaid(): Promise<MermaidAPI> {
+function loadMermaid(messages: MermaidErrorMessages): Promise<MermaidAPI> {
   if (typeof window === 'undefined') {
-    return Promise.reject(new Error('Mermaid nécessite un environnement navigateur.'));
+    return Promise.reject(new Error(messages.browserOnly));
   }
 
   if (window.mermaid) {
@@ -183,12 +183,12 @@ function loadMermaid(): Promise<MermaidAPI> {
             resolve(window.mermaid);
           } else {
             mermaidLoader = null;
-            reject(new Error('Mermaid est introuvable après le chargement du script.'));
+            reject(new Error(messages.missingAfterLoad));
           }
         });
         existingScript.addEventListener('error', () => {
           mermaidLoader = null;
-          reject(new Error('Impossible de charger le script Mermaid.'));
+          reject(new Error(messages.scriptLoadFailed));
         });
         return;
       }
@@ -203,12 +203,12 @@ function loadMermaid(): Promise<MermaidAPI> {
           resolve(window.mermaid);
         } else {
           mermaidLoader = null;
-          reject(new Error('Mermaid est introuvable après le chargement du script.'));
+          reject(new Error(messages.missingAfterLoad));
         }
       });
       script.addEventListener('error', () => {
         mermaidLoader = null;
-        reject(new Error('Impossible de charger le script Mermaid.'));
+        reject(new Error(messages.scriptLoadFailed));
       });
       document.head.appendChild(script);
     });
@@ -225,6 +225,7 @@ class ApiError extends Error {
 }
 
 type ProcessErrorMessages = Dictionary['landing']['errors'];
+type MermaidErrorMessages = Dictionary['landing']['errors']['mermaid'];
 
 const parseErrorPayload = (raw: string, fallback: string) => {
   if (!raw) {
@@ -685,11 +686,12 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
     landing: {
       defaults: { departmentName: defaultDepartmentName, roleName: defaultRoleName },
       actions: { createLabel },
-      errors: processErrorMessages,
+      errors: landingErrorMessages,
       status: statusMessages,
       saveButton: saveButtonLabels
     }
   } = dictionary;
+  const mermaidErrorMessages = landingErrorMessages.mermaid;
   const [isPrimaryCollapsed, setIsPrimaryCollapsed] = useState(false);
   const [isSecondaryCollapsed, setIsSecondaryCollapsed] = useState(false);
   const [isBottomCollapsed, setIsBottomCollapsed] = useState(false);
@@ -739,7 +741,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
 
   const processSummariesQuery = useQuery<ProcessSummary[], ApiError>({
     queryKey: ['processes'],
-    queryFn: () => requestProcessSummaries(processErrorMessages),
+    queryFn: () => requestProcessSummaries(landingErrorMessages),
     retry: (failureCount, error) => {
       if (error instanceof ApiError && error.status === 401) {
         return false;
@@ -752,7 +754,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
 
   const processQuery = useQuery<ProcessResponse, ApiError>({
     queryKey: ['process', currentProcessId],
-    queryFn: () => requestProcess(currentProcessId as string, processErrorMessages),
+    queryFn: () => requestProcess(currentProcessId as string, landingErrorMessages),
     enabled: typeof currentProcessId === 'string',
     retry: (failureCount, error) => {
       if (error instanceof ApiError && error.status === 401) {
@@ -1317,7 +1319,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
   const isDirty = useMemo(() => !areStepsEqual(steps, baselineStepsRef.current), [steps]);
 
   const createProcessMutation = useMutation<ProcessResponse, ApiError, string | undefined>({
-    mutationFn: (title) => createProcessRequest(processErrorMessages, title),
+    mutationFn: (title) => createProcessRequest(landingErrorMessages, title),
     onSuccess: (data) => {
       const sanitizedSteps = cloneSteps(data.steps);
       baselineStepsRef.current = cloneSteps(sanitizedSteps);
@@ -1346,7 +1348,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
   });
 
   const renameProcessMutation = useMutation<ProcessSummary, ApiError, { id: string; title: string }>({
-    mutationFn: (input) => renameProcessRequest(processErrorMessages, input),
+    mutationFn: (input) => renameProcessRequest(landingErrorMessages, input),
     onSuccess: (summary) => {
       const normalizedTitle = normalizeProcessTitle(summary.title);
       queryClient.setQueryData(['processes'], (previous?: ProcessSummary[]) => {
@@ -1394,7 +1396,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
   });
 
   const deleteProcessMutation = useMutation<void, ApiError, string>({
-    mutationFn: (processId) => deleteProcessRequest(processErrorMessages, processId),
+    mutationFn: (processId) => deleteProcessRequest(landingErrorMessages, processId),
     onSuccess: (_data, processId) => {
       queryClient.setQueryData(['processes'], (previous?: ProcessSummary[]) => {
         if (!previous) {
@@ -2239,7 +2241,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
   useEffect(() => {
     let isActive = true;
 
-    loadMermaid()
+    loadMermaid(mermaidErrorMessages)
       .then((mermaid) => {
         if (!isActive) {
           return;
@@ -3204,7 +3206,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                   >
                     {isProcessListUnauthorized ? (
                       <p className="text-sm text-slate-600">
-                        {processErrorMessages.authRequired}
+                        {landingErrorMessages.authRequired}
                       </p>
                     ) : processSummariesQuery.isLoading ? (
                       <div className="flex items-center gap-2 text-sm text-slate-500">
@@ -3215,7 +3217,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                       <p className="text-sm text-red-600">
                         {processSummariesQuery.error instanceof ApiError
                           ? processSummariesQuery.error.message
-                          : processErrorMessages.process.listFailed}
+                          : landingErrorMessages.process.listFailed}
                       </p>
                     ) : hasProcesses ? (
                       <ul role="tree" aria-label="Process sauvegardés" className="space-y-2">
