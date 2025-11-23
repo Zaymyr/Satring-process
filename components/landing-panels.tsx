@@ -46,9 +46,10 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { DEFAULT_PROCESS_STEPS, DEFAULT_PROCESS_TITLE } from '@/lib/process/defaults';
-import type { Dictionary } from '@/lib/i18n/dictionaries';
 import { getInviteDemoDepartments } from '@/lib/department/demo';
 import { cn } from '@/lib/utils/cn';
+import type { Dictionary } from '@/lib/i18n/dictionaries';
+import { createDateTimeFormatter } from '@/lib/i18n/format';
 import {
   processResponseSchema,
   processSummarySchema,
@@ -383,22 +384,6 @@ const normalizeProcessTitle = (value: string | null | undefined) => {
   return trimmed.length > 0 ? trimmed : DEFAULT_PROCESS_TITLE;
 };
 
-const formatUpdatedAt = (value: string | null | undefined) => {
-  if (!value) {
-    return null;
-  }
-
-  try {
-    return new Intl.DateTimeFormat('fr-FR', {
-      dateStyle: 'short',
-      timeStyle: 'short'
-    }).format(new Date(value));
-  } catch (error) {
-    console.error('Impossible de formater la date de mise à jour', error);
-    return null;
-  }
-};
-
 const requestProcess = async (
   processId: string,
   messages: ProcessErrorMessages
@@ -694,12 +679,17 @@ type LandingPanelsProps = {
 
 export function LandingPanels({ highlights }: LandingPanelsProps) {
   const queryClient = useQueryClient();
-  const { dictionary } = useI18n();
+  const { dictionary, locale } = useI18n();
   const {
-    defaults: { departmentName: defaultDepartmentName, roleName: defaultRoleName },
-    actions: { createLabel },
-    errors: processErrorMessages
-  } = dictionary.landing;
+    formatting: { dateTime: dateTimeFormatOptions },
+    landing: {
+      defaults: { departmentName: defaultDepartmentName, roleName: defaultRoleName },
+      actions: { createLabel },
+      errors: processErrorMessages,
+      status: statusMessages,
+      saveButton: saveButtonLabels
+    }
+  } = dictionary;
   const [isPrimaryCollapsed, setIsPrimaryCollapsed] = useState(false);
   const [isSecondaryCollapsed, setIsSecondaryCollapsed] = useState(false);
   const [isBottomCollapsed, setIsBottomCollapsed] = useState(false);
@@ -741,6 +731,11 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
     name: 'roles'
   });
   const editingDepartmentBaselineRef = useRef<Department | null>(null);
+
+  const formatDateTime = useMemo(
+    () => createDateTimeFormatter(locale, dateTimeFormatOptions),
+    [dateTimeFormatOptions, locale]
+  );
 
   const processSummariesQuery = useQuery<ProcessSummary[], ApiError>({
     queryKey: ['processes'],
@@ -1498,67 +1493,53 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
   const isCreating = createProcessMutation.isPending;
   const isRenaming = renameProcessMutation.isPending;
 
-  const formattedSavedAt = useMemo(() => {
-    if (!lastSavedAt) {
-      return null;
-    }
-
-    try {
-      return new Intl.DateTimeFormat('fr-FR', {
-        dateStyle: 'short',
-        timeStyle: 'short'
-      }).format(new Date(lastSavedAt));
-    } catch (error) {
-      console.error('Impossible de formater la date de sauvegarde', error);
-      return null;
-    }
-  }, [lastSavedAt]);
+  const formattedSavedAt = formatDateTime(lastSavedAt);
 
   const statusMessage = useMemo<ReactNode>(() => {
     if (isUnauthorized) {
       return (
         <>
-          Connectez-vous ou{' '}
+          {statusMessages.unauthorized.prompt}
           <Link href="/sign-up" className="font-medium text-slate-900 underline-offset-2 hover:underline">
-            créez un compte
+            {statusMessages.unauthorized.createAccount}
           </Link>{' '}
-          pour sauvegarder votre process.
+          {statusMessages.unauthorized.saveRequirement}
           {' '}
           <Link href="/sign-in" className="font-medium text-slate-900 underline-offset-2 hover:underline">
-            Se connecter
+            {statusMessages.unauthorized.signIn}
           </Link>
         </>
       );
     }
 
     if (isProcessManagementRestricted) {
-      return 'Votre rôle Lecteur vous permet uniquement de consulter les process sauvegardés.';
+      return statusMessages.readerRestriction;
     }
 
     if (!currentProcessId) {
       if (isCreating) {
-        return 'Création du process en cours…';
+        return statusMessages.creating;
       }
-      return 'Créez un process pour commencer.';
+      return statusMessages.createPrompt;
     }
 
     if (saveMutation.isError && saveMutation.error) {
-      return saveMutation.error.message || 'Impossible de sauvegarder le process.';
+      return saveMutation.error.message || statusMessages.saveErrorFallback;
     }
 
     if (processQuery.isLoading) {
-      return 'Chargement du process en cours…';
+      return statusMessages.loading;
     }
 
     if (isDirty) {
-      return 'Des modifications non sauvegardées sont en attente.';
+      return statusMessages.unsavedChanges;
     }
 
     if (formattedSavedAt) {
-      return `Dernière sauvegarde : ${formattedSavedAt}`;
+      return `${statusMessages.lastSavedLabel} : ${formattedSavedAt}`;
     }
 
-    return 'Aucune sauvegarde enregistrée pour le moment.';
+    return statusMessages.noSavedYet;
   }, [
     currentProcessId,
     formattedSavedAt,
@@ -1567,6 +1548,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
     isProcessManagementRestricted,
     isUnauthorized,
     processQuery.isLoading,
+    statusMessages,
     saveMutation.error,
     saveMutation.isError
   ]);
@@ -1589,22 +1571,30 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
 
   const saveButtonLabel = useMemo(() => {
     if (isUnauthorized) {
-      return 'Connexion requise';
+      return saveButtonLabels.authRequired;
     }
     if (isProcessManagementRestricted) {
-      return 'Lecture seule';
+      return saveButtonLabels.readOnly;
     }
     if (!currentProcessId) {
-      return isCreating ? 'Création…' : 'Créer un process';
+      return isCreating ? saveButtonLabels.creating : saveButtonLabels.create;
     }
     if (isSaving) {
-      return 'Sauvegarde…';
+      return saveButtonLabels.saving;
     }
     if (isDirty) {
-      return 'Sauvegarder le process';
+      return saveButtonLabels.save;
     }
-    return 'Process à jour';
-  }, [currentProcessId, isCreating, isDirty, isProcessManagementRestricted, isSaving, isUnauthorized]);
+    return saveButtonLabels.upToDate;
+  }, [
+    currentProcessId,
+    isCreating,
+    isDirty,
+    isProcessManagementRestricted,
+    isSaving,
+    isUnauthorized,
+    saveButtonLabels
+  ]);
 
   const isSaveDisabled = isProcessEditorReadOnly || isSaving || !isDirty || !currentProcessId;
 
@@ -3162,7 +3152,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                 </div>
                 {isProcessesTabActive && isProcessManagementRestricted ? (
                   <p className="text-xs text-slate-500">
-                    Votre rôle Lecteur vous permet uniquement de consulter les process existants.
+                    {statusMessages.readerRestriction}
                   </p>
                 ) : null}
                 <div className="flex items-center gap-2" role="tablist" aria-label="Navigation des listes">
@@ -3232,7 +3222,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                         {processSummaries.map((summary) => {
                           const isSelected = summary.id === currentProcessId;
                           const isEditing = editingProcessId === summary.id;
-                          const updatedLabel = formatUpdatedAt(summary.updatedAt);
+                          const updatedLabel = formatDateTime(summary.updatedAt);
 
                           return (
                             <li key={summary.id} role="treeitem" aria-selected={isSelected} className="focus:outline-none">
@@ -3361,8 +3351,8 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                     ) : (
                       <p className="text-sm text-slate-600">
                         {isProcessManagementRestricted
-                          ? 'Votre rôle Lecteur vous permet uniquement de consulter les process existants.'
-                          : 'Créez votre premier process pour le retrouver facilement ici.'}
+                          ? statusMessages.readerRestriction
+                          : statusMessages.createPrompt}
                       </p>
                     )}
                   </div>
@@ -3401,13 +3391,13 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                           className="department-tree flex flex-col gap-3"
                         >
                           {departments.map((department) => {
-                              const isEditingDepartment = editingDepartmentId === department.id;
-                              const isDeletingCurrent =
-                                isDeletingDepartment && deleteDepartmentId === department.id;
-                              const isExpanded = isEditingDepartment;
-                              const isCollapsed = !isExpanded;
-                              const updatedLabel = formatUpdatedAt(department.updatedAt);
-                              const colorInputId = `department-color-${department.id}`;
+                            const isEditingDepartment = editingDepartmentId === department.id;
+                            const isDeletingCurrent =
+                              isDeletingDepartment && deleteDepartmentId === department.id;
+                            const isExpanded = isEditingDepartment;
+                            const isCollapsed = !isExpanded;
+                            const updatedLabel = formatDateTime(department.updatedAt);
+                            const colorInputId = `department-color-${department.id}`;
                               return (
                                 <li
                                   key={department.id}

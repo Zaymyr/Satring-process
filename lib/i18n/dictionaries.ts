@@ -1,6 +1,9 @@
 export type Locale = 'en' | 'fr';
 
 export type Dictionary = {
+  formatting: {
+    dateTime: Intl.DateTimeFormatOptions;
+  };
   metadata: {
     title: string;
     description: string;
@@ -22,6 +25,31 @@ export type Dictionary = {
         renameFailed: string;
         deleteFailed: string;
       };
+    };
+    status: {
+      unauthorized: {
+        prompt: string;
+        createAccount: string;
+        saveRequirement: string;
+        signIn: string;
+      };
+      readerRestriction: string;
+      creating: string;
+      createPrompt: string;
+      loading: string;
+      unsavedChanges: string;
+      lastSavedLabel: string;
+      noSavedYet: string;
+      saveErrorFallback: string;
+    };
+    saveButton: {
+      authRequired: string;
+      readOnly: string;
+      create: string;
+      creating: string;
+      saving: string;
+      save: string;
+      upToDate: string;
     };
   };
   header: {
@@ -145,6 +173,9 @@ export const DEFAULT_LOCALE: Locale = 'en';
 
 const dictionaries: Record<Locale, Dictionary> = {
   en: {
+    formatting: {
+      dateTime: { dateStyle: 'short', timeStyle: 'short' }
+    },
     metadata: {
       title: 'Satring — Process clarity made simple',
       description: 'Unify your process in a clean interface: one workspace, two panels, zero distraction.'
@@ -166,6 +197,31 @@ const dictionaries: Record<Locale, Dictionary> = {
           renameFailed: 'Unable to rename the process.',
           deleteFailed: 'Unable to delete the process.'
         }
+      },
+      status: {
+        unauthorized: {
+          prompt: 'Sign in or ',
+          createAccount: 'create an account',
+          saveRequirement: ' to save your process.',
+          signIn: 'Sign in'
+        },
+        readerRestriction: 'Your Reader role only allows you to view saved processes.',
+        creating: 'Creating the process…',
+        createPrompt: 'Create a process to get started.',
+        loading: 'Loading process…',
+        unsavedChanges: 'You have unsaved changes.',
+        lastSavedLabel: 'Last saved',
+        noSavedYet: 'No saves yet.',
+        saveErrorFallback: 'Unable to save the process.'
+      },
+      saveButton: {
+        authRequired: 'Sign-in required',
+        readOnly: 'Read only',
+        create: 'Create a process',
+        creating: 'Creating…',
+        saving: 'Saving…',
+        save: 'Save process',
+        upToDate: 'Process is up to date'
       }
     },
     header: {
@@ -288,6 +344,9 @@ const dictionaries: Record<Locale, Dictionary> = {
     }
   },
   fr: {
+    formatting: {
+      dateTime: { dateStyle: 'short', timeStyle: 'short' }
+    },
     metadata: {
       title: 'Satring — Process clarity made simple',
       description:
@@ -310,6 +369,31 @@ const dictionaries: Record<Locale, Dictionary> = {
           renameFailed: 'Impossible de renommer le process.',
           deleteFailed: 'Impossible de supprimer le process.'
         }
+      },
+      status: {
+        unauthorized: {
+          prompt: 'Connectez-vous ou ',
+          createAccount: 'créez un compte',
+          saveRequirement: ' pour sauvegarder votre process.',
+          signIn: 'Se connecter'
+        },
+        readerRestriction: 'Votre rôle Lecteur vous permet uniquement de consulter les process sauvegardés.',
+        creating: 'Création du process en cours…',
+        createPrompt: 'Créez un process pour commencer.',
+        loading: 'Chargement du process en cours…',
+        unsavedChanges: 'Des modifications non sauvegardées sont en attente.',
+        lastSavedLabel: 'Dernière sauvegarde',
+        noSavedYet: 'Aucune sauvegarde enregistrée pour le moment.',
+        saveErrorFallback: 'Impossible de sauvegarder le process.'
+      },
+      saveButton: {
+        authRequired: 'Connexion requise',
+        readOnly: 'Lecture seule',
+        create: 'Créer un process',
+        creating: 'Création…',
+        saving: 'Sauvegarde…',
+        save: 'Sauvegarder le process',
+        upToDate: 'Process à jour'
       }
     },
     header: {
