@@ -8,19 +8,32 @@ export type Dictionary = {
     title: string;
     description: string;
   };
-  landing: {
-    defaults: {
-      departmentName: string;
-      roleName: string;
-    };
-    actions: {
-      createLabel: string;
-    };
-    errors: {
-      authRequired: string;
-      process: {
-        fetchFailed: string;
-        listFailed: string;
+    landing: {
+      defaults: {
+        departmentName: string;
+        roleName: string;
+      };
+      actions: {
+        createLabel: string;
+      };
+      secondaryPanel: {
+        title: {
+          processes: string;
+          departments: string;
+        };
+        description: {
+          processes: string;
+          departments: {
+            demo: string;
+            standard: string;
+          };
+        };
+      };
+      errors: {
+        authRequired: string;
+        process: {
+          fetchFailed: string;
+          listFailed: string;
         createFailed: string;
         renameFailed: string;
         deleteFailed: string;
@@ -192,6 +205,19 @@ const dictionaries: Record<Locale, Dictionary> = {
       },
       actions: {
         createLabel: 'New'
+      },
+      secondaryPanel: {
+        title: {
+          processes: 'My processes',
+          departments: 'My departments'
+        },
+        description: {
+          processes: 'Manage your saved journeys and rename them directly from this list.',
+          departments: {
+            demo: 'Read-only preview of example departments.',
+            standard: 'Organize your departments and rename them to structure your team.'
+          }
+        }
       },
       errors: {
         authRequired: 'Authentication required',
@@ -369,6 +395,19 @@ const dictionaries: Record<Locale, Dictionary> = {
       },
       actions: {
         createLabel: 'Nouveau'
+      },
+      secondaryPanel: {
+        title: {
+          processes: 'Mes process',
+          departments: 'Mes départements'
+        },
+        description: {
+          processes: 'Gérez vos parcours enregistrés et renommez-les directement depuis cette liste.',
+          departments: {
+            demo: 'Aperçu en lecture seule de départements d’exemple.',
+            standard: 'Organisez vos départements et renommez-les pour structurer votre équipe.'
+          }
+        }
       },
       errors: {
         authRequired: 'Authentification requise',
