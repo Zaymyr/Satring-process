@@ -1,6 +1,7 @@
 'use client';
 
 import { createContext, useCallback, useContext, useMemo, useState, useTransition } from 'react';
+import type { Route } from 'next';
 import { usePathname, useRouter } from 'next/navigation';
 import type { ReactNode } from 'react';
 import { z } from 'zod';
@@ -54,8 +55,9 @@ export function LocaleProvider({
       }
 
       startTransition(() => {
+        const targetPath = (pathname ?? '/') as Route;
         router.refresh();
-        router.replace(pathname);
+        router.replace(targetPath);
       });
     },
     [locale, pathname, router]
