@@ -6,6 +6,10 @@ export type Dictionary = {
     description: string;
   };
   header: {
+    localeToggle: {
+      label: string;
+      options: Record<Locale, string>;
+    };
     authenticatedLabel: string;
     unauthenticatedLabel: string;
     profileFallback: string;
@@ -127,6 +131,13 @@ const dictionaries: Record<Locale, Dictionary> = {
       description: 'Unify your process in a clean interface: one workspace, two panels, zero distraction.'
     },
     header: {
+      localeToggle: {
+        label: 'Language',
+        options: {
+          en: 'English',
+          fr: 'French'
+        }
+      },
       authenticatedLabel: 'Signed in:',
       unauthenticatedLabel: 'Not signed in',
       profileFallback: 'Profile',
@@ -245,6 +256,13 @@ const dictionaries: Record<Locale, Dictionary> = {
         'Unifiez votre processus dans une interface épurée : un espace, deux panneaux, zéro distraction.'
     },
     header: {
+      localeToggle: {
+        label: 'Langue',
+        options: {
+          en: 'Anglais',
+          fr: 'Français'
+        }
+      },
       authenticatedLabel: 'Connecté :',
       unauthenticatedLabel: 'Non connecté',
       profileFallback: 'Profil',
