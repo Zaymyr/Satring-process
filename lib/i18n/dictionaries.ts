@@ -25,6 +25,11 @@ export type Dictionary = {
         renameFailed: string;
         deleteFailed: string;
       };
+      mermaid: {
+        browserOnly: string;
+        missingAfterLoad: string;
+        scriptLoadFailed: string;
+      };
     };
     status: {
       unauthorized: {
@@ -196,6 +201,11 @@ const dictionaries: Record<Locale, Dictionary> = {
           createFailed: 'Unable to create a new process.',
           renameFailed: 'Unable to rename the process.',
           deleteFailed: 'Unable to delete the process.'
+        },
+        mermaid: {
+          browserOnly: 'Mermaid requires a browser environment.',
+          missingAfterLoad: 'Mermaid could not be found after loading the script.',
+          scriptLoadFailed: 'Unable to load the Mermaid script.'
         }
       },
       status: {
@@ -368,6 +378,11 @@ const dictionaries: Record<Locale, Dictionary> = {
           createFailed: 'Impossible de créer un nouveau process.',
           renameFailed: 'Impossible de renommer le process.',
           deleteFailed: 'Impossible de supprimer le process.'
+        },
+        mermaid: {
+          browserOnly: 'Mermaid nécessite un environnement navigateur.',
+          missingAfterLoad: 'Mermaid est introuvable après le chargement du script.',
+          scriptLoadFailed: 'Impossible de charger le script Mermaid.'
         }
       },
       status: {
