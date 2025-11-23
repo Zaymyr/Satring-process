@@ -41,6 +41,7 @@ import {
 } from 'lucide-react';
 import { Controller, useFieldArray, useForm } from 'react-hook-form';
 
+import { useI18n } from '@/components/providers/i18n-provider';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -78,9 +79,6 @@ const highlightIcons = {
   sparkles: Sparkles,
   shield: ShieldCheck
 } as const satisfies Record<string, LucideIcon>;
-
-const DEFAULT_DEPARTMENT_NAME = 'Nouveau département';
-const DEFAULT_ROLE_NAME = 'Nouveau rôle';
 
 const ROLE_ID_REGEX = /^[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}$/i;
 const HEX_COLOR_REGEX = /^#[0-9A-F]{6}$/;
@@ -679,6 +677,11 @@ type LandingPanelsProps = {
 
 export function LandingPanels({ highlights }: LandingPanelsProps) {
   const queryClient = useQueryClient();
+  const { dictionary } = useI18n();
+  const {
+    defaults: { departmentName: defaultDepartmentName, roleName: defaultRoleName },
+    actions: { createLabel }
+  } = dictionary.landing;
   const [isPrimaryCollapsed, setIsPrimaryCollapsed] = useState(false);
   const [isSecondaryCollapsed, setIsSecondaryCollapsed] = useState(false);
   const [isBottomCollapsed, setIsBottomCollapsed] = useState(false);
@@ -791,7 +794,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
 
   const createDepartmentMutation = useMutation<Department, ApiError, void>({
     mutationFn: () =>
-      createDepartmentRequest({ name: DEFAULT_DEPARTMENT_NAME, color: DEFAULT_DEPARTMENT_COLOR }),
+      createDepartmentRequest({ name: defaultDepartmentName, color: DEFAULT_DEPARTMENT_COLOR }),
     onSuccess: async (department) => {
       queryClient.setQueryData(['departments'], (previous?: Department[]) => {
         if (!previous) {
@@ -815,7 +818,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
     mutationFn: ({ departmentId }) => {
       const department = departments.find((item) => item.id === departmentId);
       const fallbackColor = department?.color ?? DEFAULT_ROLE_COLOR;
-      return createRoleRequest({ departmentId, name: DEFAULT_ROLE_NAME, color: fallbackColor });
+      return createRoleRequest({ departmentId, name: defaultRoleName, color: fallbackColor });
     },
     onSuccess: (role) => {
       queryClient.setQueryData(['departments'], (previous?: Department[]) => {
@@ -3117,10 +3120,10 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                       size="sm"
                       onClick={handleCreateProcess}
                       disabled={isProcessEditorReadOnly || isCreating}
-                      className="inline-flex h-8 items-center gap-1 rounded-md bg-slate-900 px-3 text-xs font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600"
-                    >
+                    className="inline-flex h-8 items-center gap-1 rounded-md bg-slate-900 px-3 text-xs font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600"
+                  >
                     {isCreating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
-                    Nouveau
+                    {createLabel}
                   </Button>
                 ) : isDepartmentsTabActive ? (
                   <Button
@@ -3135,9 +3138,9 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                     ) : (
                       <Plus className="h-3.5 w-3.5" />
                     )}
-                    Nouveau
+                    {createLabel}
                   </Button>
-                  ) : null}
+                ) : null}
                 </div>
                 {isProcessesTabActive && isProcessManagementRestricted ? (
                   <p className="text-xs text-slate-500">

@@ -5,6 +5,15 @@ export type Dictionary = {
     title: string;
     description: string;
   };
+  landing: {
+    defaults: {
+      departmentName: string;
+      roleName: string;
+    };
+    actions: {
+      createLabel: string;
+    };
+  };
   header: {
     localeToggle: {
       label: string;
@@ -130,6 +139,15 @@ const dictionaries: Record<Locale, Dictionary> = {
       title: 'Satring — Process clarity made simple',
       description: 'Unify your process in a clean interface: one workspace, two panels, zero distraction.'
     },
+    landing: {
+      defaults: {
+        departmentName: 'New department',
+        roleName: 'New role'
+      },
+      actions: {
+        createLabel: 'New'
+      }
+    },
     header: {
       localeToggle: {
         label: 'Language',
@@ -254,6 +272,15 @@ const dictionaries: Record<Locale, Dictionary> = {
       title: 'Satring — Process clarity made simple',
       description:
         'Unifiez votre processus dans une interface épurée : un espace, deux panneaux, zéro distraction.'
+    },
+    landing: {
+      defaults: {
+        departmentName: 'Nouveau département',
+        roleName: 'Nouveau rôle'
+      },
+      actions: {
+        createLabel: 'Nouveau'
+      }
     },
     header: {
       localeToggle: {
