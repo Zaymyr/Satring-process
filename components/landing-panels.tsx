@@ -686,6 +686,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
     landing: {
       defaults: { departmentName: defaultDepartmentName, roleName: defaultRoleName },
       actions: { createLabel },
+      secondaryPanel,
       errors: landingErrorMessages,
       status: statusMessages,
       saveButton: saveButtonLabels
@@ -1082,12 +1083,14 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
   const isSavingDepartment = saveDepartmentMutation.isPending;
   const isAddingDepartmentRole = createDepartmentRoleMutation.isPending;
   const isDeletingDepartment = deleteDepartmentMutation.isPending;
-  const secondaryPanelTitle = isDepartmentsTabActive ? 'Mes départements' : 'Mes process';
+  const secondaryPanelTitle = isDepartmentsTabActive
+    ? secondaryPanel.title.departments
+    : secondaryPanel.title.processes;
   const secondaryPanelDescription = isDepartmentsTabActive
     ? shouldUseDepartmentDemo
-      ? 'Aperçu en lecture seule de départements d’exemple.'
-      : 'Organisez vos départements et renommez-les pour structurer votre équipe.'
-    : 'Gérez vos parcours enregistrés et renommez-les directement depuis cette liste.';
+      ? secondaryPanel.description.departments.demo
+      : secondaryPanel.description.departments.standard
+    : secondaryPanel.description.processes;
 
   const handleCreateDepartment = useCallback(() => {
     if (isDepartmentActionsDisabled || isCreatingDepartment) {
