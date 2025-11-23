@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
@@ -9,24 +9,32 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import type { Dictionary } from '@/lib/i18n/dictionaries';
+import { useI18n } from './providers/i18n-provider';
 
-const signUpSchema = z
-  .object({
-    email: z.string().min(1, "Adresse e-mail obligatoire").email("Adresse e-mail invalide"),
-    password: z.string().min(8, 'Le mot de passe doit contenir au moins 8 caractères.'),
-    confirmPassword: z.string().min(8, 'Veuillez confirmer votre mot de passe.')
-  })
-  .refine((value) => value.password === value.confirmPassword, {
-    message: 'Les mots de passe ne correspondent pas.',
-    path: ['confirmPassword']
-  });
+const createSignUpSchema = (dictionary: Dictionary) =>
+  z
+    .object({
+      email: z
+        .string()
+        .min(1, dictionary.auth.forms.signUp.validation.emailRequired)
+        .email(dictionary.auth.forms.signUp.validation.emailInvalid),
+      password: z.string().min(8, dictionary.auth.forms.signUp.validation.passwordMin),
+      confirmPassword: z.string().min(8, dictionary.auth.forms.signUp.validation.confirmPasswordRequired)
+    })
+    .refine((value) => value.password === value.confirmPassword, {
+      message: dictionary.auth.forms.signUp.validation.passwordMismatch,
+      path: ['confirmPassword']
+    });
 
-type SignUpSchema = z.infer<typeof signUpSchema>;
+type SignUpSchema = z.infer<ReturnType<typeof createSignUpSchema>>;
 
 export function SignUpForm() {
+  const { dictionary } = useI18n();
   const router = useRouter();
   const [status, setStatus] = useState<'idle' | 'success' | 'needsVerification' | 'error'>('idle');
   const [error, setError] = useState<string | null>(null);
+  const signUpSchema = useMemo(() => createSignUpSchema(dictionary), [dictionary]);
 
   const {
     handleSubmit,
@@ -49,7 +57,7 @@ export function SignUpForm() {
 
     if (!response.ok) {
       const payload = await response.json().catch(() => ({}));
-      const message = typeof payload.error === 'string' ? payload.error : 'Impossible de créer le compte.';
+      const message = typeof payload.error === 'string' ? payload.error : dictionary.auth.forms.signUp.errorMessage;
       setError(message);
       setStatus('error');
       return;
@@ -60,7 +68,7 @@ export function SignUpForm() {
       | null;
 
     if (!payload) {
-      setError('Réponse inattendue du serveur.');
+      setError(dictionary.auth.forms.signUp.unexpectedResponseMessage);
       setStatus('error');
       return;
     }
@@ -78,42 +86,46 @@ export function SignUpForm() {
   return (
     <form className="space-y-6" onSubmit={handleSubmit(onSubmit)} noValidate>
       <div className="space-y-2 text-left">
-        <Label htmlFor="email">Adresse e-mail</Label>
-        <Input id="email" type="email" autoComplete="email" placeholder="vous@example.com" {...register('email')} />
+        <Label htmlFor="email">{dictionary.auth.forms.common.emailLabel}</Label>
+        <Input
+          id="email"
+          type="email"
+          autoComplete="email"
+          placeholder={dictionary.auth.forms.common.emailPlaceholder}
+          {...register('email')}
+        />
         {errors.email && <p className="text-sm text-red-500">{errors.email.message}</p>}
       </div>
       <div className="space-y-2 text-left">
-        <Label htmlFor="password">Mot de passe</Label>
+        <Label htmlFor="password">{dictionary.auth.forms.common.passwordLabel}</Label>
         <Input
           id="password"
           type="password"
           autoComplete="new-password"
-          placeholder="••••••••"
+          placeholder={dictionary.auth.forms.common.passwordPlaceholder}
           {...register('password')}
         />
         {errors.password && <p className="text-sm text-red-500">{errors.password.message}</p>}
       </div>
       <div className="space-y-2 text-left">
-        <Label htmlFor="confirmPassword">Confirmer le mot de passe</Label>
+        <Label htmlFor="confirmPassword">{dictionary.auth.forms.common.confirmPasswordLabel}</Label>
         <Input
           id="confirmPassword"
           type="password"
           autoComplete="new-password"
-          placeholder="••••••••"
+          placeholder={dictionary.auth.forms.common.confirmPasswordPlaceholder}
           {...register('confirmPassword')}
         />
         {errors.confirmPassword && <p className="text-sm text-red-500">{errors.confirmPassword.message}</p>}
       </div>
       <Button type="submit" className="w-full" disabled={isSubmitting || status === 'success'}>
-        {isSubmitting ? 'Création en cours…' : 'Créer un compte'}
+        {isSubmitting ? dictionary.auth.forms.signUp.submittingLabel : dictionary.auth.forms.signUp.submitLabel}
       </Button>
       {status === 'needsVerification' && (
-        <p className="text-sm text-slate-600">
-          Votre compte a été créé. Vérifiez votre boîte mail pour activer votre accès.
-        </p>
+        <p className="text-sm text-slate-600">{dictionary.auth.forms.signUp.needsVerificationMessage}</p>
       )}
       {status === 'success' && (
-        <p className="text-sm text-emerald-600">Compte créé avec succès. Redirection en cours…</p>
+        <p className="text-sm text-emerald-600">{dictionary.auth.forms.signUp.successMessage}</p>
       )}
       {status === 'error' && error && <p className="text-sm text-red-500">{error}</p>}
     </form>

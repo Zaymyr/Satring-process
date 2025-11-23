@@ -14,6 +14,108 @@ export type Dictionary = {
     createAccount: string;
     signIn: string;
   };
+  auth: {
+    signIn: {
+      metadata: {
+        title: string;
+        description: string;
+      };
+      heading: string;
+      description: string;
+      cta: {
+        prompt: string;
+        action: string;
+      };
+      backHome: string;
+    };
+    signUp: {
+      metadata: {
+        title: string;
+        description: string;
+      };
+      heading: string;
+      description: string;
+      cta: {
+        prompt: string;
+        action: string;
+      };
+      backHome: string;
+    };
+    resetPassword: {
+      metadata: {
+        title: string;
+        description: string;
+      };
+      heading: string;
+      description: string;
+      invalidLink: {
+        title: string;
+        description: string;
+        cta: string;
+      };
+    };
+    forms: {
+      common: {
+        emailLabel: string;
+        emailPlaceholder: string;
+        passwordLabel: string;
+        passwordPlaceholder: string;
+        confirmPasswordLabel: string;
+        confirmPasswordPlaceholder: string;
+      };
+      signIn: {
+        submitLabel: string;
+        submittingLabel: string;
+        successMessage: string;
+        errorMessage: string;
+        validation: {
+          emailRequired: string;
+          emailInvalid: string;
+          passwordRequired: string;
+        };
+      };
+      signUp: {
+        submitLabel: string;
+        submittingLabel: string;
+        successMessage: string;
+        needsVerificationMessage: string;
+        unexpectedResponseMessage: string;
+        errorMessage: string;
+        validation: {
+          emailRequired: string;
+          emailInvalid: string;
+          passwordMin: string;
+          confirmPasswordRequired: string;
+          passwordMismatch: string;
+        };
+      };
+      passwordResetRequest: {
+        title: string;
+        description: string;
+        submitLabel: string;
+        submittingLabel: string;
+        successMessage: string;
+        errorMessage: string;
+        validation: {
+          emailRequired: string;
+          emailInvalid: string;
+        };
+      };
+      resetPassword: {
+        newPasswordLabel: string;
+        confirmNewPasswordLabel: string;
+        submitLabel: string;
+        submittingLabel: string;
+        successMessage: string;
+        errorMessage: string;
+        validation: {
+          passwordMin: string;
+          confirmPasswordRequired: string;
+          passwordMismatch: string;
+        };
+      };
+    };
+  };
 };
 
 export const DEFAULT_LOCALE: Locale = 'en';
@@ -32,6 +134,108 @@ const dictionaries: Record<Locale, Dictionary> = {
       signOut: 'Sign out',
       createAccount: 'Create account',
       signIn: 'Sign in'
+    },
+    auth: {
+      signIn: {
+        metadata: {
+          title: 'Sign in — Satring',
+          description: 'Receive a secure link to edit your process.'
+        },
+        heading: 'Sign in',
+        description: 'Sign in with your credentials to edit and save your processes.',
+        cta: {
+          prompt: "Don't have an account?",
+          action: 'Create an account'
+        },
+        backHome: 'Back to home'
+      },
+      signUp: {
+        metadata: {
+          title: 'Create account — Satring',
+          description: 'Create an account to save and manage your processes.'
+        },
+        heading: 'Create an account',
+        description: 'Sign up to save your processes, find them, and update them securely.',
+        cta: {
+          prompt: 'Already have an account?',
+          action: 'Sign in'
+        },
+        backHome: 'Back to home'
+      },
+      resetPassword: {
+        metadata: {
+          title: 'Reset password — Satring',
+          description: 'Set a new password to secure your account.'
+        },
+        heading: 'Reset password',
+        description: 'Choose a new password to secure your Satring account.',
+        invalidLink: {
+          title: 'The reset link is invalid or has expired.',
+          description: 'Return to the sign-in page to request a new link.',
+          cta: 'Back to sign in'
+        }
+      },
+      forms: {
+        common: {
+          emailLabel: 'Email address',
+          emailPlaceholder: 'you@example.com',
+          passwordLabel: 'Password',
+          passwordPlaceholder: '••••••••',
+          confirmPasswordLabel: 'Confirm password',
+          confirmPasswordPlaceholder: '••••••••'
+        },
+        signIn: {
+          submitLabel: 'Sign in',
+          submittingLabel: 'Signing in…',
+          successMessage: 'Signed in successfully. Redirecting…',
+          errorMessage: 'Unable to sign in.',
+          validation: {
+            emailRequired: 'Email is required',
+            emailInvalid: 'Invalid email address',
+            passwordRequired: 'Password is required'
+          }
+        },
+        signUp: {
+          submitLabel: 'Create account',
+          submittingLabel: 'Creating account…',
+          successMessage: 'Account created successfully. Redirecting…',
+          needsVerificationMessage: 'Your account was created. Check your email to activate access.',
+          unexpectedResponseMessage: 'Unexpected server response.',
+          errorMessage: 'Unable to create the account.',
+          validation: {
+            emailRequired: 'Email is required',
+            emailInvalid: 'Invalid email address',
+            passwordMin: 'Password must be at least 8 characters long.',
+            confirmPasswordRequired: 'Please confirm your password.',
+            passwordMismatch: 'Passwords do not match.'
+          }
+        },
+        passwordResetRequest: {
+          title: 'Forgot password?',
+          description: 'Receive a secure email to set a new password and regain access.',
+          submitLabel: 'Send reset link',
+          submittingLabel: 'Sending…',
+          successMessage: 'If an account exists for this email, a reset email has been sent.',
+          errorMessage: 'Unable to send the link.',
+          validation: {
+            emailRequired: 'Email is required',
+            emailInvalid: 'Invalid email address'
+          }
+        },
+        resetPassword: {
+          newPasswordLabel: 'New password',
+          confirmNewPasswordLabel: 'Confirm password',
+          submitLabel: 'Save new password',
+          submittingLabel: 'Updating…',
+          successMessage: 'Password updated. You will be redirected.',
+          errorMessage: 'Unable to update the password.',
+          validation: {
+            passwordMin: 'Password must be at least 8 characters long.',
+            confirmPasswordRequired: 'Please confirm your password.',
+            passwordMismatch: 'Passwords do not match.'
+          }
+        }
+      }
     }
   },
   fr: {
@@ -48,6 +252,108 @@ const dictionaries: Record<Locale, Dictionary> = {
       signOut: 'Se déconnecter',
       createAccount: 'Créer un compte',
       signIn: 'Se connecter'
+    },
+    auth: {
+      signIn: {
+        metadata: {
+          title: 'Connexion — Satring',
+          description: 'Recevez un lien sécurisé pour modifier votre process.'
+        },
+        heading: 'Connexion',
+        description: 'Connectez-vous avec vos identifiants pour modifier et sauvegarder vos process.',
+        cta: {
+          prompt: 'Pas encore de compte ?',
+          action: 'Créer un compte'
+        },
+        backHome: "Retour à l’accueil"
+      },
+      signUp: {
+        metadata: {
+          title: 'Création de compte — Satring',
+          description: 'Créez un compte pour sauvegarder et gérer vos process.'
+        },
+        heading: 'Créer un compte',
+        description: 'Inscrivez-vous pour enregistrer vos process, les retrouver et les mettre à jour en toute sécurité.',
+        cta: {
+          prompt: 'Déjà un compte ?',
+          action: 'Se connecter'
+        },
+        backHome: "Retour à l’accueil"
+      },
+      resetPassword: {
+        metadata: {
+          title: 'Réinitialisation du mot de passe — Satring',
+          description: 'Définissez un nouveau mot de passe pour sécuriser votre compte.'
+        },
+        heading: 'Réinitialiser le mot de passe',
+        description: 'Choisissez un nouveau mot de passe pour sécuriser votre compte Satring.',
+        invalidLink: {
+          title: 'Le lien de réinitialisation est invalide ou a expiré.',
+          description: 'Retournez à la page de connexion pour demander un nouveau lien.',
+          cta: 'Retour à la connexion'
+        }
+      },
+      forms: {
+        common: {
+          emailLabel: 'Adresse e-mail',
+          emailPlaceholder: 'vous@example.com',
+          passwordLabel: 'Mot de passe',
+          passwordPlaceholder: '••••••••',
+          confirmPasswordLabel: 'Confirmer le mot de passe',
+          confirmPasswordPlaceholder: '••••••••'
+        },
+        signIn: {
+          submitLabel: 'Se connecter',
+          submittingLabel: 'Connexion en cours…',
+          successMessage: 'Connexion réussie. Redirection…',
+          errorMessage: 'Impossible de se connecter.',
+          validation: {
+            emailRequired: 'Adresse e-mail obligatoire',
+            emailInvalid: 'Adresse e-mail invalide',
+            passwordRequired: 'Mot de passe obligatoire'
+          }
+        },
+        signUp: {
+          submitLabel: 'Créer un compte',
+          submittingLabel: 'Création en cours…',
+          successMessage: 'Compte créé avec succès. Redirection en cours…',
+          needsVerificationMessage: 'Votre compte a été créé. Vérifiez votre boîte mail pour activer votre accès.',
+          unexpectedResponseMessage: 'Réponse inattendue du serveur.',
+          errorMessage: 'Impossible de créer le compte.',
+          validation: {
+            emailRequired: 'Adresse e-mail obligatoire',
+            emailInvalid: 'Adresse e-mail invalide',
+            passwordMin: 'Le mot de passe doit contenir au moins 8 caractères.',
+            confirmPasswordRequired: 'Veuillez confirmer votre mot de passe.',
+            passwordMismatch: 'Les mots de passe ne correspondent pas.'
+          }
+        },
+        passwordResetRequest: {
+          title: 'Mot de passe oublié ?',
+          description: 'Recevez un e-mail sécurisé pour définir un nouveau mot de passe et retrouver votre accès.',
+          submitLabel: 'Recevoir un lien de réinitialisation',
+          submittingLabel: 'Envoi en cours…',
+          successMessage: 'Si un compte existe pour cette adresse, un e-mail de réinitialisation vient d’être envoyé.',
+          errorMessage: "Impossible d'envoyer le lien.",
+          validation: {
+            emailRequired: 'Adresse e-mail obligatoire',
+            emailInvalid: 'Adresse e-mail invalide'
+          }
+        },
+        resetPassword: {
+          newPasswordLabel: 'Nouveau mot de passe',
+          confirmNewPasswordLabel: 'Confirmer le mot de passe',
+          submitLabel: 'Enregistrer le nouveau mot de passe',
+          submittingLabel: 'Mise à jour…',
+          successMessage: 'Mot de passe mis à jour. Vous allez être redirigé.',
+          errorMessage: 'Impossible de mettre à jour le mot de passe.',
+          validation: {
+            passwordMin: 'Le mot de passe doit contenir au moins 8 caractères.',
+            confirmPasswordRequired: 'Veuillez confirmer votre mot de passe.',
+            passwordMismatch: 'Les mots de passe ne correspondent pas.'
+          }
+        }
+      }
     }
   }
 };

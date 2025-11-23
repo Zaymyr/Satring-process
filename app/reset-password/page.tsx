@@ -1,14 +1,22 @@
 import type { Metadata } from 'next';
+import { cookies } from 'next/headers';
 import Link from 'next/link';
 
 import { ResetPasswordForm } from '@/components/reset-password-form';
 import { ResetPasswordTokenHandler } from '@/components/reset-password-token-handler';
+import { DEFAULT_LOCALE, getDictionary, type Locale } from '@/lib/i18n/dictionaries';
 import { createServerClient } from '@/lib/supabase/server';
 
-export const metadata: Metadata = {
-  title: 'Réinitialisation du mot de passe — Satring',
-  description: 'Définissez un nouveau mot de passe pour sécuriser votre compte.'
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const localeCookie = cookies().get('locale')?.value as Locale | undefined;
+  const locale = localeCookie === 'fr' ? 'fr' : DEFAULT_LOCALE;
+  const dictionary = getDictionary(locale);
+
+  return {
+    title: dictionary.auth.resetPassword.metadata.title,
+    description: dictionary.auth.resetPassword.metadata.description
+  };
+}
 
 export default async function ResetPasswordPage() {
   const supabase = createServerClient();
@@ -16,24 +24,26 @@ export default async function ResetPasswordPage() {
     data: { user }
   } = await supabase.auth.getUser();
 
+  const localeCookie = cookies().get('locale')?.value as Locale | undefined;
+  const locale = localeCookie === 'fr' ? 'fr' : DEFAULT_LOCALE;
+  const dictionary = getDictionary(locale);
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-slate-100 px-4 py-12">
       <div className="w-full max-w-md space-y-6 rounded-2xl border border-slate-200 bg-white/95 p-8 shadow-xl">
         <ResetPasswordTokenHandler />
         <div className="space-y-2 text-center">
-          <h1 className="text-xl font-semibold text-slate-900">Réinitialiser le mot de passe</h1>
-          <p className="text-sm text-slate-600">
-            Choisissez un nouveau mot de passe pour sécuriser votre compte Satring.
-          </p>
+          <h1 className="text-xl font-semibold text-slate-900">{dictionary.auth.resetPassword.heading}</h1>
+          <p className="text-sm text-slate-600">{dictionary.auth.resetPassword.description}</p>
         </div>
         {user ? (
           <ResetPasswordForm />
         ) : (
           <div className="space-y-4 text-center text-sm text-slate-600">
-            <p>Le lien de réinitialisation est invalide ou a expiré.</p>
-            <p>Retournez à la page de connexion pour demander un nouveau lien.</p>
+            <p>{dictionary.auth.resetPassword.invalidLink.title}</p>
+            <p>{dictionary.auth.resetPassword.invalidLink.description}</p>
             <Link href="/sign-in" className="text-sm font-medium text-slate-700 hover:underline">
-              Retour à la connexion
+              {dictionary.auth.resetPassword.invalidLink.cta}
             </Link>
           </div>
         )}
