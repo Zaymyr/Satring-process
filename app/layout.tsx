@@ -10,8 +10,14 @@ import { QueryProvider } from '@/components/providers/query-provider';
 import { LocaleToggle } from '@/components/ui/locale-toggle';
 import { createServerClient } from '@/lib/supabase/server';
 import { Analytics } from '@vercel/analytics/react';
+import { I18nProvider } from '@/components/providers/i18n-provider';
+import { DEFAULT_LOCALE, getDictionary } from '@/lib/i18n/dictionaries';
+import { Analytics } from '@vercel/analytics/react';
+
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-sans' });
+const defaultLocale = DEFAULT_LOCALE;
+const defaultDictionary = getDictionary(defaultLocale);
 
 const messages = {
   fr: {
@@ -33,9 +39,8 @@ const messages = {
 } as const;
 
 export const metadata: Metadata = {
-  title: 'Satring — Process clarity made simple',
-  description:
-    'Unifiez votre processus dans une interface épurée : un espace, deux panneaux, zéro distraction.'
+  title: defaultDictionary.metadata.title,
+  description: defaultDictionary.metadata.description
 };
 
 type SupportedLocale = keyof typeof messages;
@@ -45,6 +50,9 @@ export default async function RootLayout({
 }: {
   children: ReactNode;
 }) {
+  const locale = defaultLocale;
+  const dictionary = getDictionary(locale);
+
   const supabase = createServerClient();
   const {
     data: { user }
@@ -74,6 +82,7 @@ export default async function RootLayout({
     <html lang={locale} className={inter.variable}>
       <body className="font-sans antialiased">
         <LocaleProvider initialLocale={locale}>
+        <I18nProvider locale={locale} dictionary={dictionary}>
           <QueryProvider>
             <div className="flex h-screen flex-col overflow-hidden">
               <header className="relative z-50 w-full shrink-0 border-b border-slate-200 bg-white/90 backdrop-blur">
@@ -90,6 +99,14 @@ export default async function RootLayout({
                         </span>
                       ) : (
                         <span className="text-sm text-slate-600">{text.guest}</span>
+                        {user ? dictionary.header.authenticatedLabel : dictionary.header.unauthenticatedLabel}
+                      </span>
+                      {user ? (
+                        <span className="max-w-[220px] truncate rounded-full bg-slate-100 px-3 py-1 text-sm font-semibold text-slate-900">
+                          {displayName ?? dictionary.header.profileFallback}
+                        </span>
+                      ) : (
+                        <span className="text-sm text-slate-600">{dictionary.header.guestLabel}</span>
                       )}
                     </div>
                   </div>
@@ -102,6 +119,7 @@ export default async function RootLayout({
                           className="inline-flex items-center rounded-md border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 transition hover:bg-slate-50"
                         >
                           {text.signOut}
+                          {dictionary.header.signOut}
                         </button>
                       </form>
                     ) : (
@@ -111,12 +129,14 @@ export default async function RootLayout({
                           className="inline-flex items-center rounded-md border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 transition hover:bg-slate-50"
                         >
                           {text.signUp}
+                          {dictionary.header.createAccount}
                         </Link>
                         <Link
                           href="/sign-in"
                           className="inline-flex items-center rounded-md bg-slate-900 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-slate-800"
                         >
                           {text.signIn}
+                          {dictionary.header.signIn}
                         </Link>
                       </>
                     )}
@@ -127,6 +147,7 @@ export default async function RootLayout({
             </div>
           </QueryProvider>
         </LocaleProvider>
+        </I18nProvider>
 
         {/* Vercel Analytics */}
         <Analytics />
