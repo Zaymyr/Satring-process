@@ -3831,6 +3831,11 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                   type="button"
                   onClick={() => setAreDepartmentsVisible((previous) => !previous)}
                   aria-pressed={areDepartmentsVisible}
+                  aria-label={
+                    areDepartmentsVisible
+                      ? diagramControls.hideDepartments
+                      : diagramControls.showDepartments
+                  }
                   className={cn(
                     'inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white/70 px-3 py-1.5 text-xs font-medium text-slate-600 shadow-inner transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400 hover:bg-slate-100',
                     isBottomCollapsed && 'hidden'
@@ -3841,9 +3846,11 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                   ) : (
                     <Eye className="h-3.5 w-3.5" aria-hidden="true" />
                   )}
-                  {areDepartmentsVisible
-                    ? diagramControls.hideDepartments
-                    : diagramControls.showDepartments}
+                  <span className="sr-only">
+                    {areDepartmentsVisible
+                      ? diagramControls.hideDepartments
+                      : diagramControls.showDepartments}
+                  </span>
                 </button>
                 <button
                   type="button"
