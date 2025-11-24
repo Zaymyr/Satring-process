@@ -8,7 +8,7 @@ import { fetchUserOrganizations } from '@/lib/organization/memberships';
 import { profileResponseSchema } from '@/lib/validation/profile';
 
 export const metadata: Metadata = {
-  title: 'Administration — Satring',
+  title: 'Administration — PI',
   description: "Gérez les informations liées à votre compte utilisateur."
 };
 
