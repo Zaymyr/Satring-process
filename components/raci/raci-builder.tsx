@@ -935,11 +935,6 @@ export function RaciBuilder() {
                                   {rolesCount} rôle{rolesCount > 1 ? 's' : ''}
                                 </span>
                               </div>
-                              <p className="truncate text-xs text-slate-500">
-                                {rolesCount > 0
-                                  ? `${rolesCount} rôle${rolesCount > 1 ? 's' : ''} disponible${rolesCount > 1 ? 's' : ''}`
-                                  : 'Aucun rôle défini'}
-                              </p>
                             </div>
                           </div>
                         </button>
@@ -947,9 +942,6 @@ export function RaciBuilder() {
                           <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
                             <div className="space-y-1">
                               <p className="text-xs font-semibold uppercase tracking-wide text-slate-700">Rôles du département</p>
-                              <p className="text-xs text-slate-600">
-                                Aperçu rapide des rôles disponibles dans ce département.
-                              </p>
                             </div>
                             {rolesCount > 0 ? (
                               <ul className="mt-3 space-y-1.5">
