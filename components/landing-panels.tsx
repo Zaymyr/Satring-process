@@ -3759,7 +3759,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
           </aside>
         </div>
         <div className="pointer-events-auto flex w-full justify-center lg:col-start-2 lg:row-start-2">
-          <div className="relative w-full max-w-4xl pt-4">
+          <div className="relative w-full max-w-3xl pt-2 lg:max-w-2xl">
             <button
               type="button"
               onClick={() => setIsBottomCollapsed((previous) => !previous)}
@@ -3779,13 +3779,13 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
               id="diagram-controls-panel"
               aria-hidden={isBottomCollapsed}
               className={cn(
-                'w-full rounded-3xl border border-slate-200 bg-white/85 p-5 pt-8 shadow-[0_30px_120px_-50px_rgba(15,23,42,0.35)] backdrop-blur transition-all duration-300 ease-out',
+                'w-full rounded-2xl border border-slate-200 bg-white/85 p-4 pt-6 shadow-[0_24px_96px_-48px_rgba(15,23,42,0.3)] backdrop-blur transition-all duration-300 ease-out',
                 isBottomCollapsed
                   ? 'pointer-events-none -translate-y-2 opacity-0'
                   : 'pointer-events-auto translate-y-0 opacity-100'
               )}
             >
-              <div className="flex flex-wrap items-center gap-4">
+              <div className="flex flex-wrap items-center gap-3">
                 <div className="flex min-w-0 flex-1 items-center gap-3">
                   <h2 className="text-sm font-semibold text-slate-900">{diagramControls.title}</h2>
                 </div>
