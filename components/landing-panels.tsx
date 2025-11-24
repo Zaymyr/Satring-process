@@ -2712,7 +2712,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
     [diagramUserOffset.x, diagramUserOffset.y]
   );
 
-  const primaryWidth = isPrimaryCollapsed ? '3.5rem' : 'clamp(18rem, 28vw, 34rem)';
+  const primaryWidth = isPrimaryCollapsed ? '3.5rem' : 'clamp(13.5rem, 21vw, 25.5rem)';
   const secondaryWidth = isSecondaryCollapsed ? '3.5rem' : 'clamp(16rem, 22vw, 26rem)';
   const layoutStyle = useMemo<CSSProperties>(
     () => ({
