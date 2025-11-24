@@ -2794,31 +2794,29 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                 : 'pointer-events-auto opacity-100 lg:translate-x-0'
             )}
           >
-            <div className="flex flex-col gap-2">
-              <div className="flex flex-wrap items-center gap-2.5">
+            <div className="grid grid-cols-2 gap-2 sm:gap-3">
+              <div className="col-span-2 row-span-2 flex items-center sm:col-span-1 sm:row-span-2">
                 <h1 className="text-base font-semibold text-slate-900">{processTitle}</h1>
-                <Button
-                  type="button"
-                  onClick={() => addStep('action')}
-                  disabled={isProcessEditorReadOnly}
-                  className="h-9 rounded-md bg-slate-900 px-3 text-sm text-white hover:bg-slate-800"
-                >
-                  <Plus className="mr-2 h-3.5 w-3.5" />
-                  {primaryPanel.addAction}
-                </Button>
               </div>
-              <div>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => addStep('decision')}
-                  disabled={isProcessEditorReadOnly}
-                  className="h-9 rounded-md border-slate-300 bg-white px-3 text-sm text-slate-900 hover:bg-slate-50"
-                >
-                  <GitBranch className="mr-2 h-3.5 w-3.5" />
-                  {primaryPanel.addDecision}
-                </Button>
-              </div>
+              <Button
+                type="button"
+                onClick={() => addStep('action')}
+                disabled={isProcessEditorReadOnly}
+                className="h-10 w-full rounded-md bg-slate-900 px-3 text-sm text-white hover:bg-slate-800"
+              >
+                <Plus className="mr-2 h-3.5 w-3.5" />
+                {primaryPanel.addAction}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => addStep('decision')}
+                disabled={isProcessEditorReadOnly}
+                className="h-10 w-full rounded-md border-slate-300 bg-white px-3 text-sm text-slate-900 hover:bg-slate-50"
+              >
+                <GitBranch className="mr-2 h-3.5 w-3.5" />
+                {primaryPanel.addDecision}
+              </Button>
             </div>
             <div className="flex-1 min-h-0 overflow-hidden">
               <div className="h-full space-y-4 overflow-y-auto rounded-2xl border border-slate-200 bg-white/75 p-3 pr-1 shadow-inner sm:pr-1.5">
