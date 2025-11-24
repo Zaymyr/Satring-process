@@ -2873,67 +2873,55 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                             isSelectedStep ? 'items-start' : 'items-center gap-1.5 p-2'
                           )}
                         >
-                          {isSelectedStep ? (
-                            <button
-                              type="button"
-                              className={cn(
-                                'absolute right-3 top-3 flex h-7 w-7 items-center justify-center rounded-full border border-transparent bg-slate-100 text-slate-500 transition',
-                                canReorderStep ? 'hover:border-slate-300 hover:bg-white' : 'cursor-not-allowed opacity-60'
-                              )}
-                              draggable={canReorderStep}
-                              onDragStart={(event) => {
-                                if (!canReorderStep) {
-                                  event.preventDefault();
-                                  return;
-                                }
-                                handleStepDragStart(event, step.id);
-                              }}
-                              onDragEnd={handleStepDragEnd}
-                              aria-label={`Reorder ${getStepDisplayLabel(step)}`}
-                              aria-grabbed={isDragging}
-                              disabled={!canReorderStep}
-                            >
-                              <GripVertical className="h-3.5 w-3.5" />
-                            </button>
-                          ) : null}
-                          <div
+                        <div
+                          className={cn(
+                            'flex items-center',
+                            isSelectedStep ? 'flex-col gap-2 pt-0.5' : 'flex-row gap-2'
+                          )}
+                        >
+                          <span
                             className={cn(
-                              'flex items-center',
-                              isSelectedStep ? 'flex-col gap-1' : 'flex-row gap-2'
+                              'flex h-7 w-7 items-center justify-center rounded-full text-[0.65rem] font-semibold transition-colors',
+                              isSelectedStep ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600'
                             )}
                           >
-                            {!isSelectedStep ? (
-                              <button
-                                type="button"
-                                className={cn(
-                                  'flex h-7 w-7 items-center justify-center rounded-full border border-transparent bg-slate-100 text-slate-500 transition',
-                                  canReorderStep ? 'hover:border-slate-300 hover:bg-white' : 'cursor-not-allowed opacity-60'
-                                )}
-                                draggable={canReorderStep}
-                                onDragStart={(event) => {
-                                  if (!canReorderStep) {
-                                    event.preventDefault();
-                                    return;
-                                  }
-                                  handleStepDragStart(event, step.id);
-                                }}
-                                onDragEnd={handleStepDragEnd}
-                                aria-label={`Reorder ${getStepDisplayLabel(step)}`}
-                                aria-grabbed={isDragging}
-                                disabled={!canReorderStep}
-                              >
-                                <GripVertical className="h-3.5 w-3.5" />
-                              </button>
-                            ) : null}
-                            <span
-                              className={cn(
-                                'flex h-7 w-7 items-center justify-center rounded-full text-[0.65rem] font-semibold transition-colors',
-                                isSelectedStep ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600'
-                              )}
+                            {stepPosition}
+                          </span>
+                          <button
+                            type="button"
+                            className={cn(
+                              'flex h-7 w-7 items-center justify-center rounded-full border border-transparent bg-slate-100 text-slate-500 transition',
+                              canReorderStep ? 'hover:border-slate-300 hover:bg-white' : 'cursor-not-allowed opacity-60'
+                            )}
+                            draggable={canReorderStep}
+                            onDragStart={(event) => {
+                              if (!canReorderStep) {
+                                event.preventDefault();
+                                return;
+                              }
+                              handleStepDragStart(event, step.id);
+                            }}
+                            onDragEnd={handleStepDragEnd}
+                            aria-label={`Reorder ${getStepDisplayLabel(step)}`}
+                            aria-grabbed={isDragging}
+                            disabled={!canReorderStep}
+                          >
+                            <GripVertical className="h-3.5 w-3.5" />
+                          </button>
+                          {isSelectedStep && isRemovable ? (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => removeStep(step.id)}
+                              disabled={isProcessEditorReadOnly}
+                              className="h-7 w-7 shrink-0 text-red-500 hover:text-red-600"
+                              aria-label="Delete step"
                             >
-                              {stepPosition}
-                            </span>
-                          </div>
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          ) : null}
+                        </div>
                           {isSelectedStep ? (
                             <div className="flex min-w-0 flex-1 flex-col gap-2">
                               <Input
@@ -3065,19 +3053,6 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                               </span>
                             </div>
                           )}
-                          {isRemovable && isSelectedStep ? (
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => removeStep(step.id)}
-                              disabled={isProcessEditorReadOnly}
-                              className="absolute bottom-3 right-3 h-7 w-7 shrink-0 text-slate-400 hover:text-slate-900"
-                              aria-label="Delete step"
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </Button>
-                          ) : null}
                         </CardContent>
                       </Card>
                     );
