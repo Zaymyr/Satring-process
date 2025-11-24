@@ -3056,7 +3056,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                               </span>
                             </div>
                           )}
-                          {isRemovable ? (
+                          {isRemovable && isSelectedStep ? (
                             <Button
                               type="button"
                               variant="ghost"
