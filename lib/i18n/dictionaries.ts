@@ -143,6 +143,18 @@ export type Dictionary = {
       label: string;
       options: Record<Locale, string>;
     };
+    navigation: {
+      menuLabel: string;
+      ariaLabel: string;
+      openLabel: string;
+      closeLabel: string;
+      links: {
+        home: string;
+        raci: string;
+        jobDescriptions: string;
+        administration: string;
+      };
+    };
     authenticatedLabel: string;
     unauthenticatedLabel: string;
     profileFallback: string;
@@ -404,6 +416,18 @@ const dictionaries: Record<Locale, Dictionary> = {
           fr: 'French'
         }
       },
+      navigation: {
+        menuLabel: 'Menu',
+        ariaLabel: 'Main navigation',
+        openLabel: 'Open navigation',
+        closeLabel: 'Close navigation',
+        links: {
+          home: 'Home',
+          raci: 'RACI matrices',
+          jobDescriptions: 'Job descriptions',
+          administration: 'Administration'
+        }
+      },
       authenticatedLabel: 'Signed in:',
       unauthenticatedLabel: 'Not signed in',
       profileFallback: 'Profile',
@@ -660,6 +684,18 @@ const dictionaries: Record<Locale, Dictionary> = {
         options: {
           en: 'Anglais',
           fr: 'Français'
+        }
+      },
+      navigation: {
+        menuLabel: 'Menu',
+        ariaLabel: 'Navigation principale',
+        openLabel: 'Ouvrir la navigation',
+        closeLabel: 'Fermer la navigation',
+        links: {
+          home: 'Accueil',
+          raci: 'Matrices RACI',
+          jobDescriptions: 'Fiches de poste',
+          administration: 'Administration'
         }
       },
       authenticatedLabel: 'Connecté :',
