@@ -174,8 +174,6 @@ type MatrixExportRow = {
   values: Record<string, RaciValue>;
 };
 
-type ViewMode = 'actions' | 'roles';
-
 const EMPTY_DEPARTMENT_STATE: DepartmentMatrixState = {
   actions: [],
   matrix: {}
@@ -282,8 +280,6 @@ export function RaciBuilder() {
 
   const [selectedDepartmentId, setSelectedDepartmentId] = useState<string | null>(null);
   const [departmentStates, setDepartmentStates] = useState<Record<string, DepartmentMatrixState>>({});
-  const [viewMode, setViewMode] = useState<ViewMode>('actions');
-  const [selectedRoleId, setSelectedRoleId] = useState<string | null>(null);
   const [markdownCopied, setMarkdownCopied] = useState(false);
   const [csvCopied, setCsvCopied] = useState(false);
 
@@ -334,30 +330,6 @@ export function RaciBuilder() {
   const selectedDepartmentState = selectedDepartmentId
     ? departmentStates[selectedDepartmentId] ?? EMPTY_DEPARTMENT_STATE
     : EMPTY_DEPARTMENT_STATE;
-
-  useEffect(() => {
-    if (viewMode !== 'roles') {
-      return;
-    }
-
-    if (!selectedDepartment) {
-      setSelectedRoleId(null);
-      return;
-    }
-
-    setSelectedRoleId((current) => {
-      if (current && selectedDepartment.roles.some((role) => role.id === current)) {
-        return current;
-      }
-
-      return selectedDepartment.roles[0]?.id ?? null;
-    });
-  }, [selectedDepartment, viewMode]);
-
-  const selectedRole = useMemo(
-    () => selectedDepartment?.roles.find((role) => role.id === selectedRoleId) ?? null,
-    [selectedDepartment, selectedRoleId]
-  );
 
   const roleActionsByRoleId = useMemo(() => {
     const summaries = roleActionsQuery.data ?? [];
@@ -869,49 +841,6 @@ export function RaciBuilder() {
     !hasAggregatedActions &&
     !hasManualActions;
 
-  const roleCentricAssignments = useMemo(() => {
-    if (!selectedDepartment || !selectedRole) {
-      return null;
-    }
-
-    const groups: Record<
-      FilledRaciValue,
-      Array<{ id: string; label: string; context?: string; source: 'aggregated' | 'manual' }>
-    > = {
-      R: [],
-      A: [],
-      C: [],
-      I: []
-    };
-
-    for (const process of departmentAggregatedProcesses) {
-      for (const step of process.steps) {
-        if (step.assignedRoleIds.has(selectedRole.id)) {
-          groups[step.responsibility].push({
-            id: `aggregated-${process.id}-${step.id}`,
-            label: step.label,
-            context: step.processTitle,
-            source: 'aggregated'
-          });
-        }
-      }
-    }
-
-    for (const action of selectedDepartmentState.actions) {
-      const responsibility = selectedDepartmentState.matrix[action.id]?.[selectedRole.id];
-
-      if (responsibility) {
-        groups[responsibility as FilledRaciValue].push({
-          id: `manual-${action.id}`,
-          label: action.name,
-          source: 'manual'
-        });
-      }
-    }
-
-    return groups;
-  }, [departmentAggregatedProcesses, selectedDepartment, selectedDepartmentState, selectedRole]);
-
   const [hoveredRoleId, setHoveredRoleId] = useState<string | null>(null);
   const [hoveredActionId, setHoveredActionId] = useState<string | null>(null);
   const [hoveredCell, setHoveredCell] = useState<{ actionId: string; roleId: string } | null>(null);
@@ -1076,32 +1005,6 @@ export function RaciBuilder() {
                         <span className="h-2 w-2 rounded-full bg-slate-400" aria-hidden />
                         {totalActionCount} action{totalActionCount > 1 ? 's' : ''}
                       </span>
-                      <div className="inline-flex items-center rounded-full bg-slate-100 p-1 text-xs font-semibold text-slate-700 ring-1 ring-inset ring-slate-200">
-                        <button
-                          type="button"
-                          onClick={() => setViewMode('actions')}
-                          className={cn(
-                            'rounded-full px-3 py-1 transition',
-                            viewMode === 'actions'
-                              ? 'bg-white text-slate-900 shadow-sm ring-1 ring-inset ring-slate-200'
-                              : 'text-slate-600 hover:text-slate-900'
-                          )}
-                        >
-                          Vue par actions
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setViewMode('roles')}
-                          className={cn(
-                            'rounded-full px-3 py-1 transition',
-                            viewMode === 'roles'
-                              ? 'bg-white text-slate-900 shadow-sm ring-1 ring-inset ring-slate-200'
-                              : 'text-slate-600 hover:text-slate-900'
-                          )}
-                        >
-                          Vue par rôle
-                        </button>
-                      </div>
                       <div className="flex flex-wrap items-center gap-2">
                         <button
                           type="button"
@@ -1154,7 +1057,7 @@ export function RaciBuilder() {
                       </div>
                     </div>
                   </div>
-                  {viewMode === 'actions' && hasAggregatedActions ? (
+                  {hasAggregatedActions ? (
                     <div className="mt-4 flex flex-wrap items-center gap-2">
                       <button
                         type="button"
@@ -1173,85 +1076,84 @@ export function RaciBuilder() {
                     </div>
                   ) : null}
                 </div>
-                {viewMode === 'actions' ? (
-                  <>
-                    <div className="space-y-3 md:hidden">
-                      {roleActionsQuery.isLoading ? (
-                        <div className="flex items-center justify-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                          Analyse des actions en cours…
-                        </div>
-                      ) : roleActionsQuery.isError ? (
-                        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
-                          {roleActionsQuery.error instanceof ApiError && roleActionsQuery.error.status === 401
-                            ? 'Connectez-vous pour consulter les actions assignées à vos rôles.'
-                            : roleActionsQuery.error.message}
-                        </div>
-                      ) : showEmptyMatrixState ? (
-                        <div className="rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 shadow-sm">
-                          Ajoutez des actions ou importez des processus pour générer la matrice RACI du département.
-                        </div>
-                      ) : (
-                        <div className="space-y-3">
-                          {smallScreenActions.map((action) => (
-                            <div
-                              key={action.id}
-                              className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
-                            >
-                              <div className="flex items-start justify-between gap-3">
-                                <div className="space-y-1">
-                                  <p className="text-sm font-semibold text-slate-900">{action.title}</p>
-                                  {action.context ? (
-                                    <p className="text-xs text-slate-600">{action.context}</p>
-                                  ) : null}
-                                </div>
-                                <span
-                                  className={cn(
-                                    'inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide ring-1 ring-inset',
-                                    action.source === 'aggregated'
-                                      ? 'bg-emerald-50 text-emerald-700 ring-emerald-200'
-                                      : 'bg-slate-100 text-slate-700 ring-slate-200'
-                                  )}
-                                >
-                                  {action.source === 'aggregated' ? 'Action importée' : 'Action manuelle'}
-                                </span>
+                <>
+                  <div className="space-y-3 md:hidden">
+                    {roleActionsQuery.isLoading ? (
+                      <div className="flex items-center justify-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Analyse des actions en cours…
+                      </div>
+                    ) : roleActionsQuery.isError ? (
+                      <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+                        {roleActionsQuery.error instanceof ApiError && roleActionsQuery.error.status === 401
+                          ? 'Connectez-vous pour consulter les actions assignées à vos rôles.'
+                          : roleActionsQuery.error.message}
+                      </div>
+                    ) : showEmptyMatrixState ? (
+                      <div className="rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 shadow-sm">
+                        Ajoutez des actions ou importez des processus pour générer la matrice RACI du département.
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {smallScreenActions.map((action) => (
+                          <div
+                            key={action.id}
+                            className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
+                          >
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="space-y-1">
+                                <p className="text-sm font-semibold text-slate-900">{action.title}</p>
+                                {action.context ? (
+                                  <p className="text-xs text-slate-600">{action.context}</p>
+                                ) : null}
                               </div>
-                              <dl className="mt-3 space-y-2">
-                                {filledRaciValues.map((value) => {
-                                  const roles = action.responsibilities[value];
-                                  const hasRoles = roles.length > 0;
-
-                                  return (
-                                    <div key={`${action.id}-${value}`} className="flex items-start gap-3 rounded-lg bg-slate-50 px-3 py-2">
-                                      <span
-                                        className={cn(
-                                          'inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold uppercase tracking-wide ring-1 ring-inset',
-                                          raciBadgeStyles[value]
-                                        )}
-                                      >
-                                        {value}
-                                      </span>
-                                      <div className="space-y-0.5">
-                                        <p className="text-sm font-semibold text-slate-900">{raciDefinitions[value].short}</p>
-                                        <p className="text-xs text-slate-700">{hasRoles ? roles.join(', ') : 'Non attribué'}</p>
-                                      </div>
-                                    </div>
-                                  );
-                                })}
-                              </dl>
+                              <span
+                                className={cn(
+                                  'inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide ring-1 ring-inset',
+                                  action.source === 'aggregated'
+                                    ? 'bg-emerald-50 text-emerald-700 ring-emerald-200'
+                                    : 'bg-slate-100 text-slate-700 ring-slate-200'
+                                )}
+                              >
+                                {action.source === 'aggregated' ? 'Action importée' : 'Action manuelle'}
+                              </span>
                             </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                    <div
-                      className="hidden overflow-auto md:block"
-                      onMouseLeave={() => {
-                        setHoveredRoleId(null);
-                        setHoveredActionId(null);
-                      }}
-                    >
-                      <table className="min-w-full border-separate border-spacing-0">
+                            <dl className="mt-3 space-y-2">
+                              {filledRaciValues.map((value) => {
+                                const roles = action.responsibilities[value];
+                                const hasRoles = roles.length > 0;
+
+                                return (
+                                  <div key={`${action.id}-${value}`} className="flex items-start gap-3 rounded-lg bg-slate-50 px-3 py-2">
+                                    <span
+                                      className={cn(
+                                        'inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold uppercase tracking-wide ring-1 ring-inset',
+                                        raciBadgeStyles[value]
+                                      )}
+                                    >
+                                      {value}
+                                    </span>
+                                    <div className="space-y-0.5">
+                                      <p className="text-sm font-semibold text-slate-900">{raciDefinitions[value].short}</p>
+                                      <p className="text-xs text-slate-700">{hasRoles ? roles.join(', ') : 'Non attribué'}</p>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </dl>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <div
+                    className="hidden overflow-auto md:block"
+                    onMouseLeave={() => {
+                      setHoveredRoleId(null);
+                      setHoveredActionId(null);
+                    }}
+                  >
+                    <table className="min-w-full border-separate border-spacing-0">
                     <thead className="sticky top-0 z-30 bg-white shadow-sm">
                       <tr>
                         <th
@@ -1603,130 +1505,39 @@ export function RaciBuilder() {
                     </tbody>
                   </table>
                 </div>
-                    {selectedDepartmentState.actions.length > 0 ? (
-                      <div className="border-t border-slate-200 bg-white px-6 py-5">
-                        <h3 className="text-sm font-semibold text-slate-900">Synthèse par action</h3>
-                        <div className="mt-4 grid gap-4 lg:grid-cols-2">
-                          {assignments.map(({ actionLabel, responsibilities }) => (
-                            <div key={actionLabel} className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-                              <p className="text-sm font-semibold text-slate-900">{actionLabel}</p>
-                              <ul className="mt-3 space-y-2 text-xs text-slate-600">
-                                {responsibilities.map(({ value, roles }) => (
-                                  <li key={value} className="flex items-start justify-between gap-3">
-                                    <span className="flex items-center gap-2 font-medium text-slate-800">
-                                      <span
-                                        className={cn(
-                                          'inline-flex h-6 w-6 items-center justify-center rounded-md text-xs font-semibold uppercase tracking-wide',
-                                          raciBadgeStyles[value]
-                                        )}
-                                      >
-                                        {value}
-                                      </span>
-                                      <span>{raciDefinitions[value].short}</span>
-                                    </span>
-                                    <span className="text-right text-slate-600">
-                                      {roles.length > 0 ? roles.join(', ') : 'Non attribué'}
-                                    </span>
-                                  </li>
-                                ))}
-                              </ul>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    ) : null}
-                  </>
-                ) : (
+                {selectedDepartmentState.actions.length > 0 ? (
                   <div className="border-t border-slate-200 bg-white px-6 py-5">
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                      <div>
-                        <p className="text-sm font-semibold text-slate-900">Vue par rôle</p>
-                        <p className="text-xs text-slate-600">Identifiez rapidement les actions où un rôle est Responsable, Autorité, Consulté ou Informé.</p>
-                      </div>
-                      <div className="flex flex-wrap items-center gap-2">
-                        {selectedDepartment.roles.length > 0 ? (
-                          selectedDepartment.roles.map((role) => (
-                            <button
-                              key={role.id}
-                              type="button"
-                              onClick={() => setSelectedRoleId(role.id)}
-                              className={cn(
-                                'inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold transition',
-                                selectedRoleId === role.id
-                                  ? 'border-slate-900 bg-slate-900/5 text-slate-900'
-                                  : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50'
-                              )}
-                            >
-                              <span
-                                aria-hidden="true"
-                                className="inline-block h-2.5 w-2.5 rounded-full"
-                                style={{ backgroundColor: role.color }}
-                              />
-                              <span className="truncate">{role.name}</span>
-                            </button>
-                          ))
-                        ) : (
-                          <span className="text-xs text-slate-600">Aucun rôle n’est disponible.</span>
-                        )}
-                      </div>
-                    </div>
-
-                    {roleCentricAssignments && selectedRole ? (
-                      <div className="mt-5 grid gap-4 md:grid-cols-2">
-                        {filledRaciValues.map((value) => {
-                          const assignmentsForValue = roleCentricAssignments[value];
-                          const hasAssignments = assignmentsForValue.length > 0;
-
-                          return (
-                            <div key={value} className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                              <div className="flex items-center justify-between gap-2">
-                                <div className="flex items-center gap-2">
+                    <h3 className="text-sm font-semibold text-slate-900">Synthèse par action</h3>
+                    <div className="mt-4 grid gap-4 lg:grid-cols-2">
+                      {assignments.map(({ actionLabel, responsibilities }) => (
+                        <div key={actionLabel} className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                          <p className="text-sm font-semibold text-slate-900">{actionLabel}</p>
+                          <ul className="mt-3 space-y-2 text-xs text-slate-600">
+                            {responsibilities.map(({ value, roles }) => (
+                              <li key={value} className="flex items-start justify-between gap-3">
+                                <span className="flex items-center gap-2 font-medium text-slate-800">
                                   <span
                                     className={cn(
-                                      'inline-flex h-7 w-7 items-center justify-center rounded-full text-xs font-semibold uppercase tracking-wide ring-1 ring-inset',
+                                      'inline-flex h-6 w-6 items-center justify-center rounded-md text-xs font-semibold uppercase tracking-wide',
                                       raciBadgeStyles[value]
                                     )}
                                   >
                                     {value}
                                   </span>
-                                  <div>
-                                    <p className="text-sm font-semibold text-slate-900">{raciDefinitions[value].short}</p>
-                                    <p className="text-xs text-slate-600">{raciDefinitions[value].tooltip}</p>
-                                  </div>
-                                </div>
-                                <span className="text-xs font-semibold text-slate-700">{assignmentsForValue.length} action{assignmentsForValue.length > 1 ? 's' : ''}</span>
-                              </div>
-                              <div className="mt-3 space-y-3">
-                                {hasAssignments ? (
-                                  assignmentsForValue.map((assignment) => (
-                                    <div
-                                      key={assignment.id}
-                                      className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 shadow-sm"
-                                    >
-                                      <p className="font-semibold text-slate-900">{assignment.label}</p>
-                                      {assignment.context ? (
-                                        <p className="text-xs text-slate-600">{assignment.context}</p>
-                                      ) : null}
-                                      <p className="mt-1 text-[11px] uppercase tracking-wide text-slate-500">
-                                        {assignment.source === 'aggregated' ? 'Action importée' : 'Action manuelle'}
-                                      </p>
-                                    </div>
-                                  ))
-                                ) : (
-                                  <p className="text-xs text-slate-600">Aucune action pour ce rôle.</p>
-                                )}
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    ) : (
-                      <p className="mt-5 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
-                        Sélectionnez un rôle pour consulter ses responsabilités.
-                      </p>
-                    )}
+                                  <span>{raciDefinitions[value].short}</span>
+                                </span>
+                                <span className="text-right text-slate-600">
+                                  {roles.length > 0 ? roles.join(', ') : 'Non attribué'}
+                                </span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                )}
+                ) : null}
+              </>
               </div>
               ) : (
                 <div className="flex h-full flex-col items-center justify-center rounded-xl border border-dashed border-slate-300 bg-slate-50 p-10 text-center text-sm text-slate-600">
