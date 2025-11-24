@@ -635,7 +635,7 @@ const dictionaries: Record<Locale, Dictionary> = {
         create: 'Créer un process',
         creating: 'Création…',
         saving: 'Sauvegarde…',
-        save: 'Sauvegarder le process',
+        save: 'Sauvegarder',
         upToDate: 'Process à jour'
       },
       diagramControls: {
