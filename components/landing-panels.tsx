@@ -2794,27 +2794,29 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                 : 'pointer-events-auto opacity-100 lg:translate-x-0'
             )}
           >
-            <h1 className="text-base font-semibold text-slate-900">{processTitle}</h1>
-            <div className="flex flex-wrap gap-2.5">
-              <Button
-                type="button"
-                onClick={() => addStep('action')}
-                disabled={isProcessEditorReadOnly}
-                className="h-9 rounded-md bg-slate-900 px-3 text-sm text-white hover:bg-slate-800"
-              >
-                <Plus className="mr-2 h-3.5 w-3.5" />
-                {primaryPanel.addAction}
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => addStep('decision')}
-                disabled={isProcessEditorReadOnly}
-                className="h-9 rounded-md border-slate-300 bg-white px-3 text-sm text-slate-900 hover:bg-slate-50"
-              >
-                <GitBranch className="mr-2 h-3.5 w-3.5" />
-                {primaryPanel.addDecision}
-              </Button>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <h1 className="text-base font-semibold text-slate-900">{processTitle}</h1>
+              <div className="flex flex-wrap items-center gap-2.5">
+                <Button
+                  type="button"
+                  onClick={() => addStep('action')}
+                  disabled={isProcessEditorReadOnly}
+                  className="h-9 rounded-md bg-slate-900 px-3 text-sm text-white hover:bg-slate-800"
+                >
+                  <Plus className="mr-2 h-3.5 w-3.5" />
+                  {primaryPanel.addAction}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => addStep('decision')}
+                  disabled={isProcessEditorReadOnly}
+                  className="h-9 rounded-md border-slate-300 bg-white px-3 text-sm text-slate-900 hover:bg-slate-50"
+                >
+                  <GitBranch className="mr-2 h-3.5 w-3.5" />
+                  {primaryPanel.addDecision}
+                </Button>
+              </div>
             </div>
             <div className="flex-1 min-h-0 overflow-hidden">
               <div className="h-full space-y-4 overflow-y-auto rounded-2xl border border-slate-200 bg-white/75 p-3 pr-1 shadow-inner sm:pr-1.5">
