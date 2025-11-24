@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { DEFAULT_PROCESS_TITLE } from '@/lib/process/defaults';
 import { ensureSampleDataSeeded } from '@/lib/onboarding/sample-seed';
 import { createServerClient } from '@/lib/supabase/server';
+import { getServerUser } from '@/lib/supabase/auth';
 import { stepSchema } from '@/lib/validation/process';
 import { roleActionSummaryListSchema, type RoleActionItem } from '@/lib/validation/role-action';
 import { DEFAULT_ROLE_COLOR, roleColorSchema } from '@/lib/validation/role';
@@ -49,10 +50,7 @@ const normalizedRoleSchema = z.object({
 
 export async function GET() {
   const supabase = createServerClient();
-  const {
-    data: { user },
-    error: authError
-  } = await supabase.auth.getUser();
+  const { user, error: authError } = await getServerUser(supabase);
 
   if (authError || !user) {
     return NextResponse.json({ error: 'Authentification requise.' }, { status: 401, headers: NO_STORE_HEADERS });

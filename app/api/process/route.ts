@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
 import { createServerClient } from '@/lib/supabase/server';
+import { getServerUser } from '@/lib/supabase/auth';
 import { DEFAULT_PROCESS_TITLE } from '@/lib/process/defaults';
 import { processPayloadSchema, processResponseSchema, type ProcessPayload } from '@/lib/validation/process';
 import {
@@ -133,10 +134,7 @@ export async function GET(request: Request) {
   }
 
   const supabase = createServerClient();
-  const {
-    data: { user },
-    error: authError
-  } = await supabase.auth.getUser();
+  const { user, error: authError } = await getServerUser(supabase);
 
   if (authError || !user) {
     return NextResponse.json({ error: 'Authentification requise.' }, { status: 401, headers: NO_STORE_HEADERS });
@@ -231,10 +229,7 @@ export async function POST(request: Request) {
   }
 
   const supabase = createServerClient();
-  const {
-    data: { user },
-    error: authError
-  } = await supabase.auth.getUser();
+  const { user, error: authError } = await getServerUser(supabase);
 
   if (authError || !user) {
     return NextResponse.json({ error: 'Authentification requise.' }, { status: 401, headers: NO_STORE_HEADERS });

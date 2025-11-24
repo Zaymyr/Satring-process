@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 
 import { fetchUserOrganizations } from '@/lib/organization/memberships';
 import { createServerClient } from '@/lib/supabase/server';
+import { getServerUser } from '@/lib/supabase/auth';
 import {
   profileOrganizationSchema,
   type ProfileResponse
@@ -70,10 +71,7 @@ export async function PATCH(request: Request, context: RouteContext) {
   const payload: UpdateOrganizationNameInput = parsedBody.data;
 
   const supabase = createServerClient();
-  const {
-    data: { user },
-    error: authError
-  } = await supabase.auth.getUser();
+  const { user, error: authError } = await getServerUser(supabase);
 
   if (authError || !user) {
     return NextResponse.json({ error: 'Authentification requise.' }, { status: 401, headers: NO_STORE_HEADERS });

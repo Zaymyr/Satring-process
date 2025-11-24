@@ -5,6 +5,7 @@ import { performChatCompletion } from '@/lib/ai/openai';
 import { ensureJobDescriptionSections, stringifySections } from '@/lib/job-descriptions/format';
 import { DEFAULT_PROCESS_TITLE } from '@/lib/process/defaults';
 import { createServerClient } from '@/lib/supabase/server';
+import { getServerUser } from '@/lib/supabase/auth';
 import { fetchUserOrganizations, getAccessibleOrganizationIds } from '@/lib/organization/memberships';
 import { stepSchema } from '@/lib/validation/process';
 import {
@@ -374,10 +375,7 @@ export async function GET(
   }
 
   const supabase = createServerClient();
-  const {
-    data: { user },
-    error: authError
-  } = await supabase.auth.getUser();
+  const { user, error: authError } = await getServerUser(supabase);
 
   if (authError || !user) {
     return NextResponse.json({ error: 'Authentification requise.' }, { status: 401, headers: NO_STORE_HEADERS });
@@ -437,10 +435,7 @@ export async function POST(
   }
 
   const supabase = createServerClient();
-  const {
-    data: { user },
-    error: authError
-  } = await supabase.auth.getUser();
+  const { user, error: authError } = await getServerUser(supabase);
 
   if (authError || !user) {
     return NextResponse.json({ error: 'Authentification requise.' }, { status: 401, headers: NO_STORE_HEADERS });

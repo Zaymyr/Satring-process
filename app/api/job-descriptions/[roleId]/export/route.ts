@@ -3,6 +3,7 @@ import { z } from 'zod';
 
 import { ensureJobDescriptionSections, stringifySections } from '@/lib/job-descriptions/format';
 import { createServerClient } from '@/lib/supabase/server';
+import { getServerUser } from '@/lib/supabase/auth';
 import { fetchUserOrganizations, getAccessibleOrganizationIds } from '@/lib/organization/memberships';
 import { jobDescriptionSchema } from '@/lib/validation/job-description';
 
@@ -255,10 +256,7 @@ export async function GET(request: Request, { params }: { params: { roleId: stri
   }
 
   const supabase = createServerClient();
-  const {
-    data: { user },
-    error: authError
-  } = await supabase.auth.getUser();
+  const { user, error: authError } = await getServerUser(supabase);
 
   if (authError || !user) {
     return NextResponse.json({ error: 'Authentification requise.' }, { status: 401, headers: NO_STORE_HEADERS });
