@@ -2,7 +2,7 @@
 
 import { createContext, useCallback, useContext, useMemo, useState, useTransition } from 'react';
 import type { Route } from 'next';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import type { ReactNode } from 'react';
 import { z } from 'zod';
 
@@ -31,6 +31,7 @@ export function LocaleProvider({
   const [locale, setLocaleState] = useState<Locale>(initialLocale);
   const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [isPending, startTransition] = useTransition();
 
   const setLocale = useCallback(
@@ -55,12 +56,14 @@ export function LocaleProvider({
       }
 
       startTransition(() => {
-        const targetPath = (pathname ?? '/') as Route;
+        const currentPath = pathname ?? '/';
+        const currentSearch = searchParams.toString();
+        const targetPath = (currentSearch ? `${currentPath}?${currentSearch}` : currentPath) as Route;
         router.refresh();
         router.replace(targetPath);
       });
     },
-    [locale, pathname, router]
+    [locale, pathname, router, searchParams]
   );
 
   const value = useMemo(
