@@ -20,6 +20,12 @@ export type Dictionary = {
         toggleLabel: string;
         addAction: string;
         addDecision: string;
+        stepLabels: {
+          start: string;
+          action: string;
+          decision: string;
+          finish: string;
+        };
       };
       secondaryPanel: {
         title: {
@@ -267,7 +273,13 @@ const dictionaries: Record<Locale, Dictionary> = {
       primaryPanel: {
         toggleLabel: 'Toggle primary panel',
         addAction: 'Add action',
-        addDecision: 'Add decision'
+        addDecision: 'Add decision',
+        stepLabels: {
+          start: 'Start',
+          action: 'Action',
+          decision: 'Decision',
+          finish: 'Finish'
+        }
       },
       secondaryPanel: {
         title: {
@@ -515,7 +527,13 @@ const dictionaries: Record<Locale, Dictionary> = {
       primaryPanel: {
         toggleLabel: 'Basculer le panneau principal',
         addAction: 'Ajouter une action',
-        addDecision: 'Ajouter une décision'
+        addDecision: 'Ajouter une décision',
+        stepLabels: {
+          start: 'Début',
+          action: 'Action',
+          decision: 'Décision',
+          finish: 'Fin'
+        }
       },
       secondaryPanel: {
         title: {

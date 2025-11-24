@@ -647,23 +647,11 @@ const deleteRoleRequest = async (roleId: string): Promise<void> => {
   }
 };
 
-const STEP_TYPE_LABELS: Record<StepType, string> = {
-  start: 'Start',
-  action: 'Action',
-  decision: 'Decision',
-  finish: 'Finish'
-};
-
 const STEP_TYPE_ICONS: Record<StepType, LucideIcon> = {
   start: PlayCircle,
   action: ListChecks,
   decision: GitBranch,
   finish: Flag
-};
-
-const getStepDisplayLabel = (step: Step) => {
-  const trimmed = step.label.trim();
-  return trimmed.length > 0 ? trimmed : STEP_TYPE_LABELS[step.type];
 };
 
 function generateStepId() {
@@ -694,7 +682,16 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
       diagramControls
     }
   } = dictionary;
+  const stepTypeLabels = primaryPanel.stepLabels;
   const mermaidErrorMessages = landingErrorMessages.mermaid;
+
+  const getStepDisplayLabel = useCallback(
+    (step: Step) => {
+      const trimmed = step.label.trim();
+      return trimmed.length > 0 ? trimmed : stepTypeLabels[step.type];
+    },
+    [stepTypeLabels]
+  );
   const [isPrimaryCollapsed, setIsPrimaryCollapsed] = useState(false);
   const [isSecondaryCollapsed, setIsSecondaryCollapsed] = useState(false);
   const [isBottomCollapsed, setIsBottomCollapsed] = useState(false);
