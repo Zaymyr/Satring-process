@@ -2802,7 +2802,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
           <div
             id="primary-panel"
             className={cn(
-              'flex h-full w-full flex-col gap-8 overflow-hidden rounded-3xl border border-slate-200 bg-white/85 px-8 py-10 shadow-[0_30px_120px_-50px_rgba(15,23,42,0.35)] backdrop-blur transition-all duration-300 ease-out sm:px-10',
+              'flex h-full w-full flex-col gap-8 overflow-hidden rounded-3xl border border-slate-200 bg-white/85 px-6 py-8 shadow-[0_30px_120px_-50px_rgba(15,23,42,0.35)] backdrop-blur transition-all duration-300 ease-out sm:px-8',
               isPrimaryCollapsed
                 ? 'pointer-events-none opacity-0 lg:-translate-x-[110%]'
                 : 'pointer-events-auto opacity-100 lg:translate-x-0'
@@ -2831,7 +2831,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
               </Button>
             </div>
             <div className="flex-1 min-h-0 overflow-hidden">
-              <div className="h-full space-y-6 overflow-y-auto rounded-2xl border border-slate-200 bg-white/75 p-5 pr-2 shadow-inner sm:pr-3">
+              <div className="h-full space-y-6 overflow-y-auto rounded-2xl border border-slate-200 bg-white/75 p-4 pr-1 shadow-inner sm:pr-2">
                 <div className="space-y-3.5">
                   {steps.map((step, index) => {
                     const Icon = STEP_TYPE_ICONS[step.type];
