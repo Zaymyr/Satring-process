@@ -953,17 +953,6 @@ export function RaciBuilder() {
   return (
     <div className="h-full overflow-y-auto bg-slate-50">
       <div className="flex w-full flex-col gap-10 px-6 py-10">
-        <header className="space-y-3">
-          <span className="rounded-full bg-slate-900 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-white">
-            Matrices RACI
-          </span>
-          <h1 className="text-2xl font-semibold text-slate-900 sm:text-3xl">Planifiez les responsabilités par département</h1>
-          <p className="max-w-3xl text-sm text-slate-600">
-            Construisez une matrice RACI pour chaque département : définissez vos équipes, listez les actions clés et
-            assignez les rôles de Responsable, Autorité, Consulté ou Informé pour clarifier la collaboration.
-          </p>
-        </header>
-
         <section className="grid gap-6 lg:grid-cols-[360px_minmax(0,1fr)_280px]">
           <div className="flex flex-col gap-6 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
             <div className="space-y-4">
