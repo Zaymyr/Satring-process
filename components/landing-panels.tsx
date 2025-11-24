@@ -23,10 +23,13 @@ import {
   ChevronUp,
   Eye,
   EyeOff,
+  Flag,
   FolderTree,
   GitBranch,
   Loader2,
+  ListChecks,
   Pencil,
+  PlayCircle,
   Plus,
   GripVertical,
   Save,
@@ -642,6 +645,13 @@ const deleteRoleRequest = async (roleId: string): Promise<void> => {
     const message = await readErrorMessage(response, 'Impossible de supprimer le rôle.');
     throw new ApiError(message, response.status);
   }
+};
+
+const STEP_TYPE_ICONS: Record<StepType, LucideIcon> = {
+  start: PlayCircle,
+  action: ListChecks,
+  decision: GitBranch,
+  finish: Flag
 };
 
 const FALLBACK_ROLE_PICKER_MESSAGES = getDictionary(DEFAULT_LOCALE).landing.primaryPanel.rolePicker;
@@ -2820,6 +2830,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
               <div className="h-full space-y-4 overflow-y-auto rounded-2xl border border-slate-200 bg-white/75 p-3 pr-1 shadow-inner sm:pr-1.5">
                 <div className="space-y-3">
                   {steps.map((step, index) => {
+                    const Icon = STEP_TYPE_ICONS[step.type];
                     const isRemovable = step.type === 'action' || step.type === 'decision';
                     const stepPosition = index + 1;
                     const availableTargets = steps.filter((candidate) => candidate.id !== step.id);
@@ -2867,15 +2878,20 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                       >
                         <CardContent
                           className={cn(
-                            'relative flex gap-2.5 p-3',
+                            'flex gap-2.5 p-3',
                             isSelectedStep ? 'items-start' : 'items-center gap-1.5 p-2'
                           )}
                         >
-                          {isSelectedStep ? (
+                          <div
+                            className={cn(
+                              'flex items-center',
+                              isSelectedStep ? 'flex-col gap-1' : 'flex-row gap-2'
+                            )}
+                          >
                             <button
                               type="button"
                               className={cn(
-                                'absolute right-3 top-3 flex h-7 w-7 items-center justify-center rounded-full border border-transparent bg-slate-100 text-slate-500 transition',
+                                'flex h-7 w-7 items-center justify-center rounded-full border border-transparent bg-slate-100 text-slate-500 transition',
                                 canReorderStep ? 'hover:border-slate-300 hover:bg-white' : 'cursor-not-allowed opacity-60'
                               )}
                               draggable={canReorderStep}
@@ -2893,36 +2909,6 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                             >
                               <GripVertical className="h-3.5 w-3.5" />
                             </button>
-                          ) : null}
-                          <div
-                            className={cn(
-                              'flex items-center',
-                              isSelectedStep ? 'flex-col gap-1' : 'flex-row gap-2'
-                            )}
-                          >
-                            {!isSelectedStep ? (
-                              <button
-                                type="button"
-                                className={cn(
-                                  'flex h-7 w-7 items-center justify-center rounded-full border border-transparent bg-slate-100 text-slate-500 transition',
-                                  canReorderStep ? 'hover:border-slate-300 hover:bg-white' : 'cursor-not-allowed opacity-60'
-                                )}
-                                draggable={canReorderStep}
-                                onDragStart={(event) => {
-                                  if (!canReorderStep) {
-                                    event.preventDefault();
-                                    return;
-                                  }
-                                  handleStepDragStart(event, step.id);
-                                }}
-                                onDragEnd={handleStepDragEnd}
-                                aria-label={`Reorder ${getStepDisplayLabel(step)}`}
-                                aria-grabbed={isDragging}
-                                disabled={!canReorderStep}
-                              >
-                                <GripVertical className="h-3.5 w-3.5" />
-                              </button>
-                            ) : null}
                             <span
                               className={cn(
                                 'flex h-7 w-7 items-center justify-center rounded-full text-[0.65rem] font-semibold transition-colors',
@@ -2933,7 +2919,13 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                             </span>
                           </div>
                           {isSelectedStep ? (
-                            <div className="flex min-w-0 flex-1 flex-col gap-2">
+                            <div className="flex min-w-0 flex-1 flex-col gap-1">
+                              <div className="flex items-center gap-1.5 text-slate-500">
+                                <Icon className="h-3.5 w-3.5" />
+                                <span className="text-[0.6rem] font-medium uppercase tracking-[0.24em]">
+                                  {stepTypeLabels[step.type]}
+                                </span>
+                              </div>
                               <Input
                                 id={`step-${step.id}-label`}
                                 value={step.label}
@@ -3070,7 +3062,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                               size="icon"
                               onClick={() => removeStep(step.id)}
                               disabled={isProcessEditorReadOnly}
-                              className="absolute bottom-3 right-3 h-7 w-7 shrink-0 text-slate-400 hover:text-slate-900"
+                              className="h-7 w-7 shrink-0 text-slate-400 hover:text-slate-900"
                               aria-label="Delete step"
                             >
                               <Trash2 className="h-3.5 w-3.5" />
