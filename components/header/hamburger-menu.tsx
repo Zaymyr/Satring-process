@@ -5,20 +5,28 @@ import Link from 'next/link';
 import type { Route } from 'next';
 import { usePathname } from 'next/navigation';
 import { Menu, X } from 'lucide-react';
+import { useI18n } from '@/components/providers/i18n-provider';
+import type { Dictionary } from '@/lib/i18n/dictionaries';
 import { cn } from '@/lib/utils/cn';
 
 const NAV_LINKS = [
-  { href: '/', label: 'Accueil' },
-  { href: '/raci', label: 'Matrices RACI' },
-  { href: '/job-descriptions', label: 'Fiches de poste' },
-  { href: '/administration', label: 'Administration' }
-] satisfies Array<{ href: Route; label: string }>;
+  { href: '/', labelKey: 'home' },
+  { href: '/raci', labelKey: 'raci' },
+  { href: '/job-descriptions', labelKey: 'jobDescriptions' },
+  { href: '/administration', labelKey: 'administration' }
+] satisfies Array<{
+  href: Route;
+  labelKey: keyof Dictionary['header']['navigation']['links'];
+}>;
 
 export function HamburgerMenu() {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const dropdownRef = useRef<HTMLDivElement | null>(null);
+  const { dictionary } = useI18n();
+
+  const navigationCopy = dictionary.header.navigation;
 
   const closeMenu = () => setOpen(false);
 
@@ -68,7 +76,7 @@ export function HamburgerMenu() {
         aria-controls="global-navigation"
       >
         {open ? <X className="h-5 w-5" aria-hidden="true" /> : <Menu className="h-5 w-5" aria-hidden="true" />}
-        <span className="sr-only">{open ? 'Fermer la navigation' : 'Ouvrir la navigation'}</span>
+        <span className="sr-only">{open ? navigationCopy.closeLabel : navigationCopy.openLabel}</span>
       </button>
 
       {open ? (
@@ -76,9 +84,9 @@ export function HamburgerMenu() {
           ref={dropdownRef}
           id="global-navigation"
           className="absolute left-0 top-full z-50 mt-2 w-64 rounded-lg border border-slate-200 bg-white p-2 shadow-xl"
-          aria-label="Navigation principale"
+          aria-label={navigationCopy.ariaLabel}
         >
-          <p className="px-2 pb-2 text-sm font-semibold text-slate-900">Menu</p>
+          <p className="px-2 pb-2 text-sm font-semibold text-slate-900">{navigationCopy.menuLabel}</p>
           <ul className="flex flex-col gap-1">
             {NAV_LINKS.map((item) => {
               const isActive = pathname === item.href;
@@ -94,18 +102,12 @@ export function HamburgerMenu() {
                         : 'text-slate-700 hover:bg-slate-100'
                     )}
                   >
-                    <span>{item.label}</span>
-                    {isActive ? (
-                      <span className="text-xs font-semibold uppercase tracking-wide">Actif</span>
-                    ) : null}
+                    <span>{navigationCopy.links[item.labelKey]}</span>
                   </Link>
                 </li>
               );
             })}
           </ul>
-          <div className="mt-3 rounded-md bg-slate-50 px-3 py-2 text-xs text-slate-500">
-            <p>Générez vos matrices RACI par département en quelques clics.</p>
-          </div>
         </div>
       ) : null}
     </div>
