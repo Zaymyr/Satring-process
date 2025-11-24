@@ -26,6 +26,11 @@ export type Dictionary = {
           decision: string;
           finish: string;
         };
+        rolePicker: {
+          addRole: string;
+          noDepartmentRoles: string;
+          chooseRoleForDepartment: string;
+        };
       };
       secondaryPanel: {
         title: {
@@ -279,6 +284,11 @@ const dictionaries: Record<Locale, Dictionary> = {
           action: 'Action',
           decision: 'Decision',
           finish: 'Finish'
+        },
+        rolePicker: {
+          addRole: 'Add a role to associate it with this step.',
+          noDepartmentRoles: 'No roles are available for this department.',
+          chooseRoleForDepartment: 'Choose a role to automatically populate the department.'
         }
       },
       secondaryPanel: {
@@ -533,6 +543,11 @@ const dictionaries: Record<Locale, Dictionary> = {
           action: 'Action',
           decision: 'Décision',
           finish: 'Fin'
+        },
+        rolePicker: {
+          addRole: 'Ajoutez un rôle pour l’associer à cette étape.',
+          noDepartmentRoles: 'Aucun rôle disponible pour ce département.',
+          chooseRoleForDepartment: 'Choisissez un rôle pour renseigner automatiquement le département.'
         }
       },
       secondaryPanel: {

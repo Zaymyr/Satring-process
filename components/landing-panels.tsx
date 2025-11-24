@@ -48,7 +48,7 @@ import { Input } from '@/components/ui/input';
 import { DEFAULT_PROCESS_STEPS, DEFAULT_PROCESS_TITLE } from '@/lib/process/defaults';
 import { getInviteDemoDepartments } from '@/lib/department/demo';
 import { cn } from '@/lib/utils/cn';
-import type { Dictionary } from '@/lib/i18n/dictionaries';
+import { DEFAULT_LOCALE, getDictionary, type Dictionary } from '@/lib/i18n/dictionaries';
 import { createDateTimeFormatter } from '@/lib/i18n/format';
 import {
   processResponseSchema,
@@ -654,6 +654,8 @@ const STEP_TYPE_ICONS: Record<StepType, LucideIcon> = {
   finish: Flag
 };
 
+const FALLBACK_ROLE_PICKER_MESSAGES = getDictionary(DEFAULT_LOCALE).landing.primaryPanel.rolePicker;
+
 function generateStepId() {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
     return crypto.randomUUID();
@@ -683,6 +685,14 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
     }
   } = dictionary;
   const stepTypeLabels = primaryPanel.stepLabels;
+  const rolePickerMessages = {
+    addRole: primaryPanel.rolePicker.addRole || FALLBACK_ROLE_PICKER_MESSAGES.addRole,
+    noDepartmentRoles:
+      primaryPanel.rolePicker.noDepartmentRoles || FALLBACK_ROLE_PICKER_MESSAGES.noDepartmentRoles,
+    chooseRoleForDepartment:
+      primaryPanel.rolePicker.chooseRoleForDepartment ||
+      FALLBACK_ROLE_PICKER_MESSAGES.chooseRoleForDepartment
+  };
   const mermaidErrorMessages = landingErrorMessages.mermaid;
 
   const getStepDisplayLabel = useCallback(
@@ -2845,15 +2855,15 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                         : roleLookup.all;
                     const roleHelperText = (() => {
                       if (!hasRoles) {
-                        return 'Add a role to associate it with this step.';
+                        return rolePickerMessages.addRole;
                       }
 
                       if (step.departmentId && availableRoleEntries.length === 0) {
-                        return 'No roles are available for this department.';
+                        return rolePickerMessages.noDepartmentRoles;
                       }
 
                       if (!step.departmentId && hasRoles) {
-                        return 'Choose a role to automatically populate the department.';
+                        return rolePickerMessages.chooseRoleForDepartment;
                       }
 
                       return null;
