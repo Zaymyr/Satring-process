@@ -262,7 +262,7 @@ const dictionaries: Record<Locale, Dictionary> = {
       dateTime: { dateStyle: 'short', timeStyle: 'short' }
     },
     metadata: {
-      title: 'Satring — Process clarity made simple',
+      title: 'PI — Process Intelligence',
       description: 'Unify your process in a clean interface: one workspace, two panels, zero distraction.'
     },
     landing: {
@@ -413,7 +413,7 @@ const dictionaries: Record<Locale, Dictionary> = {
     auth: {
       signIn: {
         metadata: {
-          title: 'Sign in — Satring',
+          title: 'Sign in — PI',
           description: 'Receive a secure link to edit your process.'
         },
         heading: 'Sign in',
@@ -426,7 +426,7 @@ const dictionaries: Record<Locale, Dictionary> = {
       },
       signUp: {
         metadata: {
-          title: 'Create account — Satring',
+          title: 'Create account — PI',
           description: 'Create an account to save and manage your processes.'
         },
         heading: 'Create an account',
@@ -439,11 +439,11 @@ const dictionaries: Record<Locale, Dictionary> = {
       },
       resetPassword: {
         metadata: {
-          title: 'Reset password — Satring',
+          title: 'Reset password — PI',
           description: 'Set a new password to secure your account.'
         },
         heading: 'Reset password',
-        description: 'Choose a new password to secure your Satring account.',
+        description: 'Choose a new password to secure your PI account.',
         invalidLink: {
           title: 'The reset link is invalid or has expired.',
           description: 'Return to the sign-in page to request a new link.',
@@ -518,7 +518,7 @@ const dictionaries: Record<Locale, Dictionary> = {
       dateTime: { dateStyle: 'short', timeStyle: 'short' }
     },
     metadata: {
-      title: 'Satring — Process clarity made simple',
+      title: 'PI — Intelligence des processus',
       description:
         'Unifiez votre processus dans une interface épurée : un espace, deux panneaux, zéro distraction.'
     },
@@ -670,7 +670,7 @@ const dictionaries: Record<Locale, Dictionary> = {
     auth: {
       signIn: {
         metadata: {
-          title: 'Connexion — Satring',
+          title: 'Connexion — PI',
           description: 'Recevez un lien sécurisé pour modifier votre process.'
         },
         heading: 'Connexion',
@@ -683,7 +683,7 @@ const dictionaries: Record<Locale, Dictionary> = {
       },
       signUp: {
         metadata: {
-          title: 'Création de compte — Satring',
+          title: 'Création de compte — PI',
           description: 'Créez un compte pour sauvegarder et gérer vos process.'
         },
         heading: 'Créer un compte',
@@ -696,11 +696,11 @@ const dictionaries: Record<Locale, Dictionary> = {
       },
       resetPassword: {
         metadata: {
-          title: 'Réinitialisation du mot de passe — Satring',
+          title: 'Réinitialisation du mot de passe — PI',
           description: 'Définissez un nouveau mot de passe pour sécuriser votre compte.'
         },
         heading: 'Réinitialiser le mot de passe',
-        description: 'Choisissez un nouveau mot de passe pour sécuriser votre compte Satring.',
+        description: 'Choisissez un nouveau mot de passe pour sécuriser votre compte PI.',
         invalidLink: {
           title: 'Le lien de réinitialisation est invalide ou a expiré.',
           description: 'Retournez à la page de connexion pour demander un nouveau lien.',
