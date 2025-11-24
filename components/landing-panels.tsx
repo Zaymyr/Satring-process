@@ -307,7 +307,7 @@ const escapeHtml = (value: string) =>
 
 const wrapStepLabel = (value: string) => {
   const normalized = value.trim();
-  const source = normalized.length > 0 ? normalized : 'Étape';
+  const source = normalized.length > 0 ? normalized : 'Step';
   const maxCharsPerLine = 18;
   const words = source.split(/\s+/);
   const lines: string[] = [];
@@ -340,7 +340,7 @@ const wrapStepLabel = (value: string) => {
 
 const formatDepartmentClusterLabel = (value: string) => {
   const trimmed = value.trim();
-  const base = trimmed.length > 0 ? trimmed : 'Département';
+  const base = trimmed.length > 0 ? trimmed : 'Department';
   const escaped = escapeHtml(base);
   return escaped.replace(/&quot;/g, '\\"');
 };
@@ -648,10 +648,10 @@ const deleteRoleRequest = async (roleId: string): Promise<void> => {
 };
 
 const STEP_TYPE_LABELS: Record<StepType, string> = {
-  start: 'Départ',
+  start: 'Start',
   action: 'Action',
-  decision: 'Décision',
-  finish: 'Arrivée'
+  decision: 'Decision',
+  finish: 'Finish'
 };
 
 const STEP_TYPE_ICONS: Record<StepType, LucideIcon> = {
@@ -2327,7 +2327,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
       return;
     }
 
-    const label = type === 'action' ? 'Nouvelle action' : 'Nouvelle décision';
+    const label = type === 'action' ? 'New action' : 'New decision';
     const newStepId = generateStepId();
     const nextStep: Step = {
       id: newStepId,
@@ -2788,7 +2788,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
             )}
           >
             {isPrimaryCollapsed ? <ChevronRight className="h-5 w-5" /> : <ChevronLeft className="h-5 w-5" />}
-            <span className="sr-only">Basculer le panneau principal</span>
+            <span className="sr-only">Toggle primary panel</span>
           </button>
           <div
             id="primary-panel"
@@ -2808,7 +2808,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                 className="h-9 rounded-md bg-slate-900 px-3 text-sm text-white hover:bg-slate-800"
               >
                 <Plus className="mr-2 h-3.5 w-3.5" />
-                Ajouter une action
+                Add action
               </Button>
               <Button
                 type="button"
@@ -2818,14 +2818,14 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                 className="h-9 rounded-md border-slate-300 bg-white px-3 text-sm text-slate-900 hover:bg-slate-50"
               >
                 <GitBranch className="mr-2 h-3.5 w-3.5" />
-                Ajouter une décision
+                Add decision
               </Button>
             </div>
             <div className="flex-1 min-h-0 overflow-hidden">
               <div className="h-full space-y-6 overflow-y-auto rounded-2xl border border-slate-200 bg-white/75 p-5 pr-2 shadow-inner sm:pr-3">
                 {selectedStep ? (
                   <p className="text-xs text-slate-600">
-                    Étape sélectionnée :{' '}
+                    Selected step:{' '}
                     <span className="font-medium text-slate-900">{getStepDisplayLabel(selectedStep)}</span>
                   </p>
                 ) : null}
@@ -2846,15 +2846,15 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                         : roleLookup.all;
                     const roleHelperText = (() => {
                       if (!hasRoles) {
-                        return 'Ajoutez un rôle pour l’associer à cette étape.';
+                        return 'Add a role to associate it with this step.';
                       }
 
                       if (step.departmentId && availableRoleEntries.length === 0) {
-                        return 'Aucun rôle disponible pour ce département.';
+                        return 'No roles are available for this department.';
                       }
 
                       if (!step.departmentId && hasRoles) {
-                        return 'Choisissez un rôle pour remplir automatiquement le département.';
+                        return 'Choose a role to automatically populate the department.';
                       }
 
                       return null;
@@ -2904,7 +2904,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                                 handleStepDragStart(event, step.id);
                               }}
                               onDragEnd={handleStepDragEnd}
-                              aria-label={`Réorganiser ${getStepDisplayLabel(step)}`}
+                              aria-label={`Reorder ${getStepDisplayLabel(step)}`}
                               aria-grabbed={isDragging}
                               disabled={!canReorderStep}
                             >
@@ -2931,13 +2931,13 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                                 id={`step-${step.id}-label`}
                                 value={step.label}
                                 onChange={(event) => updateStepLabel(step.id, event.target.value)}
-                                placeholder="Intitulé de l’étape"
+                                placeholder="Step label"
                                 disabled={isProcessEditorReadOnly}
                                 className="h-8 w-full border-slate-200 bg-white text-sm text-slate-900 placeholder:text-slate-400 focus-visible:ring-slate-900/20 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-50"
                               />
                               <div className="grid gap-2 sm:grid-cols-2">
                                 <label className="flex flex-col gap-1 text-[0.6rem] font-semibold uppercase tracking-[0.18em] text-slate-500">
-                                  <span>Département</span>
+                                  <span>Department</span>
                                   <select
                                     value={step.departmentId ?? ''}
                                     onChange={(event) =>
@@ -2949,7 +2949,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                                     className="h-8 rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-900 transition focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
                                     disabled={isProcessEditorReadOnly || !hasDepartments}
                                   >
-                                    <option value="">Aucun département</option>
+                                    <option value="">No department</option>
                                     {departments.map((department) => (
                                       <option key={department.id} value={department.id}>
                                         {department.name}
@@ -2958,12 +2958,12 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                                   </select>
                                   {!hasDepartments ? (
                                     <span className="text-[0.6rem] font-normal normal-case tracking-normal text-slate-500">
-                                      Ajoutez un département pour l’associer à cette étape.
+                                      Add a department to assign it to this step.
                                     </span>
                                   ) : null}
                                 </label>
                                 <label className="flex flex-col gap-1 text-[0.6rem] font-semibold uppercase tracking-[0.18em] text-slate-500">
-                                  <span>Rôle</span>
+                                  <span>Role</span>
                                   <select
                                     value={step.roleId ?? ''}
                                     onChange={(event) =>
@@ -2975,7 +2975,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                                     className="h-8 rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-900 transition focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
                                     disabled={isProcessEditorReadOnly || !hasRoles}
                                   >
-                                    <option value="">Aucun rôle</option>
+                                    <option value="">No role</option>
                                     {availableRoleEntries.map((entry) => (
                                       <option key={entry.role.id} value={entry.role.id}>
                                         {step.departmentId
@@ -2994,7 +2994,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                               {step.type === 'decision' ? (
                                 <div className="mt-2 grid gap-2 sm:grid-cols-2">
                                   <label className="flex flex-col gap-1 text-[0.6rem] font-semibold uppercase tracking-[0.18em] text-slate-500">
-                                    <span>Branche Oui</span>
+                                    <span>Yes branch</span>
                                   <select
                                     value={step.yesTargetId ?? ''}
                                     onChange={(event) =>
@@ -3003,7 +3003,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                                     disabled={isProcessEditorReadOnly}
                                     className="h-8 rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-900 transition focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
                                   >
-                                      <option value="">Étape suivante (défaut)</option>
+                                      <option value="">Next step (default)</option>
                                       {availableTargets.map((candidate) => {
                                         const position = stepPositions.get(candidate.id);
                                         const optionLabel = position
@@ -3019,7 +3019,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                                     </select>
                                   </label>
                                   <label className="flex flex-col gap-1 text-[0.6rem] font-semibold uppercase tracking-[0.18em] text-slate-500">
-                                    <span>Branche Non</span>
+                                    <span>No branch</span>
                                   <select
                                     value={step.noTargetId ?? ''}
                                     onChange={(event) =>
@@ -3028,7 +3028,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                                     disabled={isProcessEditorReadOnly}
                                     className="h-8 rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-900 transition focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
                                   >
-                                      <option value="">Étape suivante (défaut)</option>
+                                      <option value="">Next step (default)</option>
                                       {availableTargets.map((candidate) => {
                                         const position = stepPositions.get(candidate.id);
                                         const optionLabel = position
@@ -3061,7 +3061,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                               onClick={() => removeStep(step.id)}
                               disabled={isProcessEditorReadOnly}
                               className="h-7 w-7 shrink-0 text-slate-400 hover:text-slate-900"
-                              aria-label="Supprimer l’étape"
+                              aria-label="Delete step"
                             >
                               <Trash2 className="h-3.5 w-3.5" />
                             </Button>
@@ -3080,7 +3080,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                     onDrop={handleStepDrop}
                   >
                     {draggedStepId ? (
-                      <span className="sr-only">Déposer ici pour placer l’étape à la fin</span>
+                      <span className="sr-only">Drop here to place the step at the end</span>
                     ) : null}
                   </div>
                 </div>
