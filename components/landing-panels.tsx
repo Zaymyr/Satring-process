@@ -3089,18 +3089,20 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                 </div>
               </div>
             </div>
-            <div className="rounded-2xl border border-slate-200 bg-white/80 p-4 shadow-inner">
-              <Button
-                type="button"
-                onClick={handleSave}
-                disabled={isSaveDisabled}
-                className="h-10 w-full rounded-md bg-slate-900 text-sm font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600"
-              >
-                {saveButtonLabel}
-              </Button>
-              <p className={cn('mt-2 text-xs', statusToneClass)} aria-live="polite">
-                {statusMessage}
-              </p>
+            <div className="rounded-2xl border border-slate-200 bg-white/80 px-3 py-2 shadow-inner">
+              <div className="flex flex-wrap items-center gap-3">
+                <Button
+                  type="button"
+                  onClick={handleSave}
+                  disabled={isSaveDisabled}
+                  className="h-9 rounded-md bg-slate-900 px-3 text-sm font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600"
+                >
+                  {saveButtonLabel}
+                </Button>
+                <p className={cn('text-xs', statusToneClass)} aria-live="polite">
+                  {statusMessage}
+                </p>
+              </div>
             </div>
           </div>
         </div>
