@@ -2774,9 +2774,9 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
           </span>
         ) : null}
       </div>
-      <div className="pointer-events-none relative z-10 flex h-full min-h-0 w-full flex-col gap-4 px-3 py-6 lg:px-7 lg:py-10 xl:px-10">
+      <div className="pointer-events-none relative z-10 flex h-full min-h-0 w-full flex-col gap-3 px-2.5 py-4 lg:px-5 lg:py-6 xl:px-6">
         <div
-          className="pointer-events-none flex min-h-0 flex-1 flex-col gap-6 lg:grid lg:[grid-template-rows:minmax(0,1fr)_auto] lg:items-stretch lg:gap-0"
+          className="pointer-events-none flex min-h-0 flex-1 flex-col gap-4 lg:grid lg:[grid-template-rows:minmax(0,1fr)_auto] lg:items-stretch lg:gap-0"
           style={layoutStyle}
         >
         <div
