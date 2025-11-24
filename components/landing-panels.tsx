@@ -3221,8 +3221,6 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                         {processSummaries.map((summary) => {
                           const isSelected = summary.id === currentProcessId;
                           const isEditing = editingProcessId === summary.id;
-                          const updatedLabel = formatDateTime(summary.updatedAt);
-
                           return (
                             <li key={summary.id} role="treeitem" aria-selected={isSelected} className="focus:outline-none">
                               <div
@@ -3262,9 +3260,6 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                               >
                                 <div className="flex items-center justify-between gap-2">
                                   <div className="flex items-center gap-2">
-                                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-200 text-slate-700">
-                                      <FolderTree className="h-4 w-4" />
-                                    </div>
                                     <div className="min-w-0">
                                       {isEditing ? (
                                         <div className="flex items-center gap-2">
@@ -3294,18 +3289,10 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                                     ) : (
                                       <>
                                           <p
-                                            className="text-sm font-medium text-slate-900 leading-snug break-words overflow-hidden [display:-webkit-box] [-webkit-line-clamp:2] [-webkit-box-orient:vertical]"
-                                          >
-                                            {summary.title}
-                                          </p>
-                                          {updatedLabel ? (
-                                            <p className="text-xs text-slate-500">
-                                              {formatTemplateText(
-                                                secondaryPanel.processes.updatedLabel,
-                                                updatedLabel
-                                              )}
-                                            </p>
-                                          ) : null}
+                                          className="text-sm font-medium text-slate-900 leading-snug break-words overflow-hidden [display:-webkit-box] [-webkit-line-clamp:2] [-webkit-box-orient:vertical]"
+                                        >
+                                          {summary.title}
+                                        </p>
                                         </>
                                       )}
                                     </div>
