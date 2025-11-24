@@ -2832,12 +2832,6 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
             </div>
             <div className="flex-1 min-h-0 overflow-hidden">
               <div className="h-full space-y-6 overflow-y-auto rounded-2xl border border-slate-200 bg-white/75 p-5 pr-2 shadow-inner sm:pr-3">
-                {selectedStep ? (
-                  <p className="text-xs text-slate-600">
-                    Selected step:{' '}
-                    <span className="font-medium text-slate-900">{getStepDisplayLabel(selectedStep)}</span>
-                  </p>
-                ) : null}
                 <div className="space-y-3.5">
                   {steps.map((step, index) => {
                     const Icon = STEP_TYPE_ICONS[step.type];
