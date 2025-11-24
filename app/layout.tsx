@@ -5,6 +5,7 @@ import { cookies } from 'next/headers';
 import type { ReactNode } from 'react';
 import './globals.css';
 import { HamburgerMenu } from '@/components/header/hamburger-menu';
+import { CurrentPageTitle } from '@/components/header/current-page-title';
 import { LocaleProvider } from '@/components/providers/locale-provider';
 import { QueryProvider } from '@/components/providers/query-provider';
 import { LocaleToggle } from '@/components/ui/locale-toggle';
@@ -59,8 +60,8 @@ export default async function RootLayout({
             <QueryProvider>
               <div className="flex h-screen flex-col overflow-hidden">
                 <header className="relative z-50 w-full shrink-0 border-b border-slate-200 bg-white/90 backdrop-blur">
-                  <div className="flex w-full flex-col justify-between gap-3 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="flex items-center gap-4">
+                  <div className="grid w-full grid-cols-1 gap-3 px-6 py-4 sm:grid-cols-[auto,1fr,auto] sm:items-center">
+                    <div className="flex items-center gap-4 sm:min-w-0">
                       <HamburgerMenu />
                       <div className="flex items-center gap-3">
                         <span className="text-sm font-medium text-slate-500">
@@ -75,7 +76,10 @@ export default async function RootLayout({
                         )}
                       </div>
                     </div>
-                    <div className="flex items-center gap-3">
+                    <div className="flex justify-center">
+                      <CurrentPageTitle />
+                    </div>
+                    <div className="flex items-center gap-3 justify-start sm:justify-end sm:justify-self-end">
                       <LocaleToggle />
                       {user ? (
                         <form action="/api/auth/sign-out" method="post">

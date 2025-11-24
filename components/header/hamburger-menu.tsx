@@ -2,22 +2,11 @@
 
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import type { Route } from 'next';
 import { usePathname } from 'next/navigation';
 import { Menu, X } from 'lucide-react';
 import { useI18n } from '@/components/providers/i18n-provider';
-import type { Dictionary } from '@/lib/i18n/dictionaries';
+import { NAVIGATION_LINKS } from '@/lib/navigation/nav-links';
 import { cn } from '@/lib/utils/cn';
-
-const NAV_LINKS = [
-  { href: '/', labelKey: 'home' },
-  { href: '/raci', labelKey: 'raci' },
-  { href: '/job-descriptions', labelKey: 'jobDescriptions' },
-  { href: '/administration', labelKey: 'administration' }
-] satisfies Array<{
-  href: Route;
-  labelKey: keyof Dictionary['header']['navigation']['links'];
-}>;
 
 export function HamburgerMenu() {
   const [open, setOpen] = useState(false);
@@ -88,7 +77,7 @@ export function HamburgerMenu() {
         >
           <p className="px-2 pb-2 text-sm font-semibold text-slate-900">{navigationCopy.menuLabel}</p>
           <ul className="flex flex-col gap-1">
-            {NAV_LINKS.map((item) => {
+            {NAVIGATION_LINKS.map((item) => {
               const isActive = pathname === item.href;
               return (
                 <li key={item.href}>
