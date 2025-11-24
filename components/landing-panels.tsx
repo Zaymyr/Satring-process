@@ -3759,14 +3759,14 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
           </aside>
         </div>
         <div className="pointer-events-auto flex w-full justify-center lg:col-start-2 lg:row-start-2">
-          <div className="relative w-full max-w-4xl pt-6">
+          <div className="relative w-full max-w-4xl pt-4">
             <button
               type="button"
               onClick={() => setIsBottomCollapsed((previous) => !previous)}
               aria-expanded={!isBottomCollapsed}
               aria-controls="diagram-controls-panel"
             className={cn(
-              'z-30 flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white/90 text-slate-600 shadow-sm transition hover:bg-white',
+              'z-30 flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white/90 text-slate-600 shadow-sm transition hover:bg-white',
               isBottomCollapsed
                 ? 'fixed bottom-6 left-1/2 -translate-x-1/2'
                 : 'absolute left-1/2 top-0 -translate-x-1/2 -translate-y-1/2'
@@ -3779,7 +3779,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
               id="diagram-controls-panel"
               aria-hidden={isBottomCollapsed}
               className={cn(
-                'w-full rounded-3xl border border-slate-200 bg-white/85 p-6 pt-10 shadow-[0_30px_120px_-50px_rgba(15,23,42,0.35)] backdrop-blur transition-all duration-300 ease-out',
+                'w-full rounded-3xl border border-slate-200 bg-white/85 p-5 pt-8 shadow-[0_30px_120px_-50px_rgba(15,23,42,0.35)] backdrop-blur transition-all duration-300 ease-out',
                 isBottomCollapsed
                   ? 'pointer-events-none -translate-y-2 opacity-0'
                   : 'pointer-events-auto translate-y-0 opacity-100'
