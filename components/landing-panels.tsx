@@ -2931,120 +2931,120 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                                 placeholder="Step label"
                                 disabled={isProcessEditorReadOnly}
                                 className="h-8 w-full border-slate-200 bg-white text-sm text-slate-900 placeholder:text-slate-400 focus-visible:ring-slate-900/20 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-50"
-                              />
-                              <div className="grid gap-1.5 sm:grid-cols-2">
-                                <label className="flex flex-col gap-1 text-[0.6rem] font-semibold uppercase tracking-[0.18em] text-slate-500">
-                                  <span>Department</span>
-                                  <select
-                                    value={step.departmentId ?? ''}
-                                    onChange={(event) =>
-                                      updateStepDepartment(
-                                        step.id,
-                                        event.target.value.length > 0 ? event.target.value : null
-                                      )
-                                    }
-                                    className="h-8 rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-900 transition focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
-                                    disabled={isProcessEditorReadOnly || !hasDepartments}
-                                  >
-                                    <option value="">No department</option>
-                                    {departments.map((department) => (
-                                      <option key={department.id} value={department.id}>
-                                        {department.name}
-                                      </option>
-                                    ))}
-                                  </select>
-                                  {!hasDepartments ? (
-                                    <span className="text-[0.6rem] font-normal normal-case tracking-normal text-slate-500">
-                                      Add a department to assign it to this step.
-                                    </span>
-                                  ) : null}
-                                </label>
-                                <label className="flex flex-col gap-1 text-[0.6rem] font-semibold uppercase tracking-[0.18em] text-slate-500">
-                                  <span title={rolePickerMessages.chooseRoleForDepartment}>Role</span>
-                                  <select
-                                    value={step.roleId ?? ''}
-                                    onChange={(event) =>
-                                      updateStepRole(
-                                        step.id,
-                                        event.target.value.length > 0 ? event.target.value : null
-                                      )
-                                    }
-                                    className="h-8 rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-900 transition focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
-                                    disabled={isProcessEditorReadOnly || !hasRoles}
-                                  >
-                                    <option value="">No role</option>
-                                    {availableRoleEntries.map((entry) => (
-                                      <option key={entry.role.id} value={entry.role.id}>
-                                        {step.departmentId
-                                          ? entry.role.name
-                                          : `${entry.role.name} — ${entry.departmentName}`}
-                                      </option>
-                                    ))}
-                                  </select>
-                                  {roleHelperText &&
-                                  step.type !== 'start' &&
-                                  step.type !== 'finish' &&
-                                  roleHelperText !== rolePickerMessages.chooseRoleForDepartment ? (
-                                    <span className="text-[0.6rem] font-normal normal-case tracking-normal text-slate-500">
-                                      {roleHelperText}
-                                    </span>
-                                  ) : null}
-                                </label>
-                              </div>
-                              {step.type === 'decision' ? (
-                                <div className="mt-1.5 grid gap-1.5 sm:grid-cols-2">
-                                  <label className="flex flex-col gap-1 text-[0.6rem] font-semibold uppercase tracking-[0.18em] text-slate-500">
-                                    <span>Yes branch</span>
+                                />
+                                <div className="grid gap-1.5 sm:grid-cols-2">
+                                  <label className="flex flex-col gap-1 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                                    <span>Department</span>
                                     <select
-                                      value={step.yesTargetId ?? ''}
+                                      value={step.departmentId ?? ''}
                                       onChange={(event) =>
-                                        updateDecisionBranch(step.id, 'yes', event.target.value || null)
+                                        updateStepDepartment(
+                                          step.id,
+                                          event.target.value.length > 0 ? event.target.value : null
+                                        )
                                       }
-                                      disabled={isProcessEditorReadOnly}
                                       className="h-8 rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-900 transition focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
+                                      disabled={isProcessEditorReadOnly || !hasDepartments}
                                     >
-                                      <option value="">Next step (default)</option>
-                                      {availableTargets.map((candidate) => {
-                                        const position = stepPositions.get(candidate.id);
-                                        const optionLabel = position
-                                          ? `${position}. ${getStepDisplayLabel(candidate)}`
-                                          : getStepDisplayLabel(candidate);
-
-                                        return (
-                                          <option key={candidate.id} value={candidate.id}>
-                                            {optionLabel}
-                                          </option>
-                                        );
-                                      })}
+                                      <option value="">No department</option>
+                                      {departments.map((department) => (
+                                        <option key={department.id} value={department.id}>
+                                          {department.name}
+                                        </option>
+                                      ))}
                                     </select>
+                                    {!hasDepartments ? (
+                                      <span className="text-[0.6rem] font-normal normal-case tracking-normal text-slate-500">
+                                        Add a department to assign it to this step.
+                                      </span>
+                                    ) : null}
                                   </label>
-                                  <label className="flex flex-col gap-1 text-[0.6rem] font-semibold uppercase tracking-[0.18em] text-slate-500">
-                                    <span>No branch</span>
+                                  <label className="flex flex-col gap-1 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                                    <span title={rolePickerMessages.chooseRoleForDepartment}>Role</span>
                                     <select
-                                      value={step.noTargetId ?? ''}
+                                      value={step.roleId ?? ''}
                                       onChange={(event) =>
-                                        updateDecisionBranch(step.id, 'no', event.target.value || null)
+                                        updateStepRole(
+                                          step.id,
+                                          event.target.value.length > 0 ? event.target.value : null
+                                        )
                                       }
-                                      disabled={isProcessEditorReadOnly}
                                       className="h-8 rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-900 transition focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
+                                      disabled={isProcessEditorReadOnly || !hasRoles}
                                     >
-                                      <option value="">Next step (default)</option>
-                                      {availableTargets.map((candidate) => {
-                                        const position = stepPositions.get(candidate.id);
-                                        const optionLabel = position
-                                          ? `${position}. ${getStepDisplayLabel(candidate)}`
-                                          : getStepDisplayLabel(candidate);
-
-                                        return (
-                                          <option key={candidate.id} value={candidate.id}>
-                                            {optionLabel}
-                                          </option>
-                                        );
-                                      })}
+                                      <option value="">No role</option>
+                                      {availableRoleEntries.map((entry) => (
+                                        <option key={entry.role.id} value={entry.role.id}>
+                                          {step.departmentId
+                                            ? entry.role.name
+                                            : `${entry.role.name} — ${entry.departmentName}`}
+                                        </option>
+                                      ))}
                                     </select>
+                                    {roleHelperText &&
+                                    step.type !== 'start' &&
+                                    step.type !== 'finish' &&
+                                    roleHelperText !== rolePickerMessages.chooseRoleForDepartment ? (
+                                      <span className="text-[0.6rem] font-normal normal-case tracking-normal text-slate-500">
+                                        {roleHelperText}
+                                      </span>
+                                    ) : null}
                                   </label>
                                 </div>
-                              ) : null}
+                                {step.type === 'decision' ? (
+                                  <div className="mt-1.5 grid gap-1.5 sm:grid-cols-2">
+                                    <label className="flex flex-col gap-1 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                                      <span>Yes branch</span>
+                                      <select
+                                        value={step.yesTargetId ?? ''}
+                                        onChange={(event) =>
+                                          updateDecisionBranch(step.id, 'yes', event.target.value || null)
+                                        }
+                                        disabled={isProcessEditorReadOnly}
+                                        className="h-8 rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-900 transition focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
+                                      >
+                                        <option value="">Next step (default)</option>
+                                        {availableTargets.map((candidate) => {
+                                          const position = stepPositions.get(candidate.id);
+                                          const optionLabel = position
+                                            ? `${position}. ${getStepDisplayLabel(candidate)}`
+                                            : getStepDisplayLabel(candidate);
+
+                                          return (
+                                            <option key={candidate.id} value={candidate.id}>
+                                              {optionLabel}
+                                            </option>
+                                          );
+                                        })}
+                                      </select>
+                                    </label>
+                                    <label className="flex flex-col gap-1 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                                      <span>No branch</span>
+                                      <select
+                                        value={step.noTargetId ?? ''}
+                                        onChange={(event) =>
+                                          updateDecisionBranch(step.id, 'no', event.target.value || null)
+                                        }
+                                        disabled={isProcessEditorReadOnly}
+                                        className="h-8 rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-900 transition focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
+                                      >
+                                        <option value="">Next step (default)</option>
+                                        {availableTargets.map((candidate) => {
+                                          const position = stepPositions.get(candidate.id);
+                                          const optionLabel = position
+                                            ? `${position}. ${getStepDisplayLabel(candidate)}`
+                                            : getStepDisplayLabel(candidate);
+
+                                          return (
+                                            <option key={candidate.id} value={candidate.id}>
+                                              {optionLabel}
+                                            </option>
+                                          );
+                                        })}
+                                      </select>
+                                    </label>
+                                  </div>
+                                ) : null}
                             </div>
                           ) : (
                             <div className="flex min-w-0 flex-1 items-center gap-2">
