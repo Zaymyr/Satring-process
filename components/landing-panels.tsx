@@ -3073,20 +3073,18 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                 </div>
               </div>
             </div>
-            <div className="rounded-2xl border border-slate-200 bg-white/80 px-3 py-2 shadow-inner">
-              <div className="flex flex-wrap items-center gap-3">
-                <Button
-                  type="button"
-                  onClick={handleSave}
-                  disabled={isSaveDisabled}
-                  className="h-9 rounded-md bg-slate-900 px-3 text-sm font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600"
-                >
-                  {saveButtonLabel}
-                </Button>
-                <p className={cn('text-[11px] whitespace-nowrap', statusToneClass)} aria-live="polite">
-                  {statusMessage}
-                </p>
-              </div>
+            <div className="grid grid-cols-[auto,1fr] items-start gap-3 pt-2">
+              <Button
+                type="button"
+                onClick={handleSave}
+                disabled={isSaveDisabled}
+                className="h-9 rounded-md bg-slate-900 px-3 text-sm font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600"
+              >
+                {saveButtonLabel}
+              </Button>
+              <p className={cn('text-[11px] leading-5', statusToneClass)} aria-live="polite">
+                {statusMessage}
+              </p>
             </div>
           </div>
         </div>
