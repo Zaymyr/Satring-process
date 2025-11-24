@@ -3,6 +3,7 @@ import { notFound, redirect } from 'next/navigation';
 
 import { AdministrationPanel } from '@/components/administration/administration-panel';
 import { createServerClient } from '@/lib/supabase/server';
+import { getServerUser } from '@/lib/supabase/auth';
 import { fetchUserOrganizations } from '@/lib/organization/memberships';
 import { profileResponseSchema } from '@/lib/validation/profile';
 
@@ -13,10 +14,7 @@ export const metadata: Metadata = {
 
 export default async function AdministrationPage() {
   const supabase = createServerClient();
-  const {
-    data: { user },
-    error: authError
-  } = await supabase.auth.getUser();
+  const { user, error: authError } = await getServerUser(supabase);
 
   if (authError || !user) {
     redirect('/sign-in');

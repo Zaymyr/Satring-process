@@ -3,6 +3,7 @@ import type { PostgrestError } from '@supabase/supabase-js';
 import { z } from 'zod';
 
 import { createServerClient } from '@/lib/supabase/server';
+import { getServerUser } from '@/lib/supabase/auth';
 import {
   organizationMemberListResponseSchema,
   userIdSchema,
@@ -36,10 +37,7 @@ export async function GET(_: Request, context: RouteContext) {
   }
 
   const supabase = createServerClient();
-  const {
-    data: { user },
-    error: authError
-  } = await supabase.auth.getUser();
+  const { user, error: authError } = await getServerUser(supabase);
 
   if (authError || !user) {
     return NextResponse.json({ error: 'Authentification requise.' }, { status: 401, headers: NO_STORE_HEADERS });

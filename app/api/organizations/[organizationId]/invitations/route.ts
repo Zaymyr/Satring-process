@@ -7,6 +7,7 @@ import { fetchUserOrganizations } from '@/lib/organization/memberships';
 import { db } from '@/lib/db';
 import { createAdminClient, findAdminUserByEmail } from '@/lib/supabase/admin';
 import { createServerClient } from '@/lib/supabase/server';
+import { getServerUser } from '@/lib/supabase/auth';
 import {
   inviteMemberInputSchema,
   inviteMemberResponseSchema,
@@ -336,10 +337,7 @@ export async function GET(_: Request, context: RouteContext) {
   }
 
   const supabase = createServerClient();
-  const {
-    data: { user },
-    error: authError
-  } = await supabase.auth.getUser();
+  const { user, error: authError } = await getServerUser(supabase);
 
   if (authError || !user) {
     return AUTH_ERROR_RESPONSE;
@@ -420,10 +418,7 @@ export async function POST(request: Request, context: RouteContext) {
   invitationRedirect.searchParams.set('next', '/reset-password');
 
   const supabase = createServerClient();
-  const {
-    data: { user },
-    error: authError
-  } = await supabase.auth.getUser();
+  const { user, error: authError } = await getServerUser(supabase);
 
   if (authError || !user) {
     return AUTH_ERROR_RESPONSE;

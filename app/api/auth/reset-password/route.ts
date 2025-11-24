@@ -6,6 +6,7 @@ import { and, eq } from 'drizzle-orm';
 import { organizationInvitations } from '@/drizzle/schema';
 import { db } from '@/lib/db';
 import { createServerClient } from '@/lib/supabase/server';
+import { getServerUser } from '@/lib/supabase/auth';
 
 const requestSchema = z.object({
   email: z.string().email('Adresse e-mail invalide.')
@@ -58,9 +59,7 @@ export async function PUT(request: Request) {
   }
 
   const supabase = createServerClient(cookies());
-  const {
-    data: { user }
-  } = await supabase.auth.getUser();
+  const { user } = await getServerUser(supabase);
 
   if (!user) {
     return NextResponse.json({ error: 'Session expirée. Demandez un nouveau lien de réinitialisation.' }, { status: 401 });

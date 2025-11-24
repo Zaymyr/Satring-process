@@ -6,6 +6,7 @@ import { redirect } from 'next/navigation';
 import { SignUpForm } from '@/components/sign-up-form';
 import { DEFAULT_LOCALE, getDictionary, type Locale } from '@/lib/i18n/dictionaries';
 import { createServerClient } from '@/lib/supabase/server';
+import { getServerUser } from '@/lib/supabase/auth';
 
 export async function generateMetadata(): Promise<Metadata> {
   const localeCookie = cookies().get('locale')?.value as Locale | undefined;
@@ -20,9 +21,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function SignUpPage() {
   const supabase = createServerClient();
-  const {
-    data: { user }
-  } = await supabase.auth.getUser();
+  const { user } = await getServerUser(supabase);
 
   const localeCookie = cookies().get('locale')?.value as Locale | undefined;
   const locale = localeCookie === 'fr' ? 'fr' : DEFAULT_LOCALE;

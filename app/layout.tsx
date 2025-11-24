@@ -9,6 +9,7 @@ import { LocaleProvider } from '@/components/providers/locale-provider';
 import { QueryProvider } from '@/components/providers/query-provider';
 import { LocaleToggle } from '@/components/ui/locale-toggle';
 import { createServerClient } from '@/lib/supabase/server';
+import { getServerUser } from '@/lib/supabase/auth';
 import { I18nProvider } from '@/components/providers/i18n-provider';
 import { DEFAULT_LOCALE, getDictionary, type Locale } from '@/lib/i18n/dictionaries';
 import { Analytics } from '@vercel/analytics/react';
@@ -28,9 +29,7 @@ export default async function RootLayout({
   children: ReactNode;
 }) {
   const supabase = createServerClient();
-  const {
-    data: { user }
-  } = await supabase.auth.getUser();
+  const { user } = await getServerUser(supabase);
 
   const localeCookie = cookies().get('locale')?.value as Locale | undefined;
   const locale: Locale = localeCookie === 'fr' ? 'fr' : 'en';

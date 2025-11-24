@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { getInviteDemoDepartments } from '@/lib/department/demo';
 import { ensureSampleDataSeeded } from '@/lib/onboarding/sample-seed';
 import { createServerClient } from '@/lib/supabase/server';
+import { getServerUser } from '@/lib/supabase/auth';
 import { departmentInputSchema, departmentListSchema, departmentSchema } from '@/lib/validation/department';
 import {
   fetchUserOrganizations,
@@ -18,10 +19,7 @@ import {
 
 export async function GET() {
   const supabase = createServerClient();
-  const {
-    data: { user },
-    error: authError
-  } = await supabase.auth.getUser();
+  const { user, error: authError } = await getServerUser(supabase);
 
   if (authError) {
     console.error("Erreur lors de la récupération de l'utilisateur", authError);
@@ -114,10 +112,7 @@ export async function POST(request: Request) {
   }
 
   const supabase = createServerClient();
-  const {
-    data: { user },
-    error: authError
-  } = await supabase.auth.getUser();
+  const { user, error: authError } = await getServerUser(supabase);
 
   if (authError || !user) {
     return NextResponse.json({ error: 'Authentification requise.' }, { status: 401, headers: NO_STORE_HEADERS });
