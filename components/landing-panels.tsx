@@ -2819,8 +2819,8 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
               </Button>
             </div>
             <div className="flex-1 min-h-0 overflow-hidden">
-              <div className="h-full space-y-4 overflow-y-auto rounded-2xl border border-slate-200 bg-white/75 p-3 pr-1 shadow-inner sm:pr-1.5">
-                <div className="space-y-3">
+              <div className="h-full space-y-3 overflow-y-auto rounded-2xl border border-slate-200 bg-white/75 p-3 pr-1 shadow-inner sm:pr-1.5">
+                <div className="space-y-2.5">
                   {steps.map((step, index) => {
                     const isRemovable = step.type === 'action' || step.type === 'decision';
                     const stepPosition = index + 1;
@@ -2869,7 +2869,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                       >
                         <CardContent
                           className={cn(
-                            'relative flex gap-2.5 p-3',
+                            'relative flex gap-2 p-2.5',
                             isSelectedStep ? 'items-start' : 'items-center gap-1.5 p-2'
                           )}
                         >
@@ -2923,7 +2923,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                           ) : null}
                         </div>
                           {isSelectedStep ? (
-                            <div className="flex min-w-0 flex-1 flex-col gap-2">
+                            <div className="flex min-w-0 flex-1 flex-col gap-1.5">
                               <Input
                                 id={`step-${step.id}-label`}
                                 value={step.label}
