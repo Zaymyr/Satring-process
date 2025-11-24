@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { createServerClient } from '@/lib/supabase/server';
 import { getServerUser } from '@/lib/supabase/auth';
 import { DEFAULT_PROCESS_TITLE } from '@/lib/process/defaults';
+import { getInviteDemoProcessById } from '@/lib/process/demo';
 import { processPayloadSchema, processResponseSchema, type ProcessPayload } from '@/lib/validation/process';
 import {
   fetchUserOrganizations,
@@ -131,6 +132,12 @@ export async function GET(request: Request) {
       { error: 'Identifiant de process invalide.' },
       { status: 400, headers: NO_STORE_HEADERS }
     );
+  }
+
+  const demoProcess = getInviteDemoProcessById(processId.data);
+
+  if (demoProcess) {
+    return NextResponse.json(demoProcess, { headers: NO_STORE_HEADERS });
   }
 
   const supabase = createServerClient();
