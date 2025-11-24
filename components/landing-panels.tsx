@@ -3152,42 +3152,66 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                     {statusMessages.readerRestriction}
                   </p>
                 ) : null}
-                <div className="flex items-center gap-2" role="tablist" aria-label={secondaryPanel.tabs.ariaLabel}>
-                <button
-                  type="button"
-                  id="processes-tab"
-                  role="tab"
-                  aria-selected={isProcessesTabActive}
-                  aria-controls="processes-panel"
-                  onClick={() => setActiveSecondaryTab('processes')}
-                  className={cn(
-                    'flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium transition',
-                    isProcessesTabActive
-                      ? 'bg-slate-900 text-white shadow'
-                      : 'bg-transparent text-slate-600 hover:bg-slate-100'
-                  )}
-                >
-                  <FolderTree className="h-3.5 w-3.5" />
-                  {secondaryPanel.tabs.processes}
-                </button>
-                <button
-                  type="button"
-                  id="departments-tab"
-                  role="tab"
-                  aria-selected={isDepartmentsTabActive}
-                  aria-controls="departments-panel"
-                  onClick={() => setActiveSecondaryTab('departments')}
-                  className={cn(
-                    'flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium transition',
-                    isDepartmentsTabActive
-                      ? 'bg-slate-900 text-white shadow'
-                      : 'bg-transparent text-slate-600 hover:bg-slate-100'
-                  )}
-                >
-                  <Building2 className="h-3.5 w-3.5" />
-                  {secondaryPanel.tabs.departments}
-                </button>
-              </div>
+                <div className="flex flex-col gap-1" aria-live="polite">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Onglets</p>
+                  <div
+                    className="flex items-center gap-1.5 rounded-2xl bg-slate-100 p-1.5 shadow-inner ring-1 ring-inset ring-slate-200"
+                    role="tablist"
+                    aria-label={secondaryPanel.tabs.ariaLabel}
+                  >
+                    <button
+                      type="button"
+                      id="processes-tab"
+                      role="tab"
+                      aria-selected={isProcessesTabActive}
+                      aria-controls="processes-panel"
+                      onClick={() => setActiveSecondaryTab('processes')}
+                      className={cn(
+                        'group relative flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400',
+                        isProcessesTabActive
+                          ? 'bg-white text-slate-900 shadow-sm ring-1 ring-inset ring-slate-200'
+                          : 'text-slate-600 hover:bg-white/70'
+                      )}
+                    >
+                      <FolderTree className="h-3.5 w-3.5" />
+                      {secondaryPanel.tabs.processes}
+                      <span
+                        aria-hidden="true"
+                        className={cn(
+                          'pointer-events-none absolute inset-x-3 -bottom-1 h-0.5 rounded-full bg-slate-900 transition-opacity',
+                          isProcessesTabActive ? 'opacity-100' : 'opacity-0'
+                        )}
+                      />
+                    </button>
+                    <button
+                      type="button"
+                      id="departments-tab"
+                      role="tab"
+                      aria-selected={isDepartmentsTabActive}
+                      aria-controls="departments-panel"
+                      onClick={() => setActiveSecondaryTab('departments')}
+                      className={cn(
+                        'group relative flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400',
+                        isDepartmentsTabActive
+                          ? 'bg-white text-slate-900 shadow-sm ring-1 ring-inset ring-slate-200'
+                          : 'text-slate-600 hover:bg-white/70'
+                      )}
+                    >
+                      <Building2 className="h-3.5 w-3.5" />
+                      {secondaryPanel.tabs.departments}
+                      <span
+                        aria-hidden="true"
+                        className={cn(
+                          'pointer-events-none absolute inset-x-3 -bottom-1 h-0.5 rounded-full bg-slate-900 transition-opacity',
+                          isDepartmentsTabActive ? 'opacity-100' : 'opacity-0'
+                        )}
+                      />
+                    </button>
+                  </div>
+                  <p className="text-[11px] text-slate-600">
+                    Sélectionnez un onglet pour afficher le contenu associé juste en dessous.
+                  </p>
+                </div>
             </div>
             <div className="flex-1 min-h-0 overflow-hidden">
               <div className="flex h-full flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white/80">
