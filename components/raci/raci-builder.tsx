@@ -1146,10 +1146,10 @@ export function RaciBuilder() {
                     }}
                   >
                     <table className="min-w-full border-separate border-spacing-0">
-                    <thead className="sticky top-0 z-30 bg-white shadow-sm">
+                    <thead className="sticky top-24 z-30 bg-white shadow-sm">
                       <tr>
                         <th
-                          className="sticky left-0 top-0 z-30 w-64 border-b border-r border-slate-200 bg-white px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500"
+                          className="sticky left-0 top-24 z-30 w-64 border-b border-r border-slate-200 bg-white px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500"
                           scope="col"
                         >
                           Actions
