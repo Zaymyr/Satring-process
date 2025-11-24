@@ -2794,9 +2794,9 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                 : 'pointer-events-auto opacity-100 lg:translate-x-0'
             )}
           >
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <h1 className="text-base font-semibold text-slate-900">{processTitle}</h1>
+            <div className="flex flex-col gap-2">
               <div className="flex flex-wrap items-center gap-2.5">
+                <h1 className="text-base font-semibold text-slate-900">{processTitle}</h1>
                 <Button
                   type="button"
                   onClick={() => addStep('action')}
@@ -2806,6 +2806,8 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                   <Plus className="mr-2 h-3.5 w-3.5" />
                   {primaryPanel.addAction}
                 </Button>
+              </div>
+              <div>
                 <Button
                   type="button"
                   variant="outline"
