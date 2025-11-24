@@ -675,6 +675,13 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
     }
   } = dictionary;
   const stepTypeLabels = primaryPanel.stepLabels;
+  const tooltipLabels = useMemo(
+    () =>
+      locale === 'fr'
+        ? { type: 'Type', department: 'Département', role: 'Rôle' }
+        : { type: 'Step type', department: 'Department', role: 'Role' },
+    [locale]
+  );
   const rolePickerMessages = {
     addRole: primaryPanel.rolePicker.addRole || FALLBACK_ROLE_PICKER_MESSAGES.addRole,
     noDepartmentRoles:
@@ -1039,6 +1046,13 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
     () => (shouldUseDepartmentDemo ? getInviteDemoDepartments() : departmentsQuery.data ?? []),
     [departmentsQuery.data, shouldUseDepartmentDemo]
   );
+  const departmentNameById = useMemo(() => {
+    const map = new Map<string, string>();
+    departments.forEach((department) => {
+      map.set(department.id, department.name);
+    });
+    return map;
+  }, [departments]);
 
   const roleLookup = useMemo(() => {
     const byId = new Map<string, RoleLookupEntry>();
@@ -2828,6 +2842,13 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                     const canReorderStep = !isFixedStep && !isProcessEditorReadOnly;
                     const isSelectedStep = selectedStepId === step.id;
                     const displayLabel = getStepDisplayLabel(step);
+                    const roleEntry = step.roleId ? roleLookup.byId.get(step.roleId) ?? null : null;
+                    const departmentName =
+                      (step.departmentId
+                        ? departmentNameById.get(step.departmentId)
+                        : roleEntry?.departmentName) ?? defaultDepartmentName;
+                    const roleName = roleEntry?.role.name ?? defaultRoleName;
+                    const tooltipTitle = `${tooltipLabels.type}: ${stepTypeLabels[step.type]}\n${tooltipLabels.department}: ${departmentName}\n${tooltipLabels.role}: ${roleName}`;
                     const availableRoleEntries =
                       step.departmentId !== null
                         ? roleLookup.byDepartment.get(step.departmentId) ?? []
@@ -2851,6 +2872,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                     return (
                       <Card
                         key={step.id}
+                        title={tooltipTitle}
                         className={cn(
                           'border-slate-200 bg-white/90 shadow-sm transition',
                           isDragging
