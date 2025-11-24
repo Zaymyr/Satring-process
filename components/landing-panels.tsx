@@ -1037,10 +1037,6 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
     [processSummariesQuery.data]
   );
   const hasProcesses = processSummaries.length > 0;
-  const selectedStep = useMemo(
-    () => steps.find((step) => step.id === selectedStepId) ?? null,
-    [selectedStepId, steps]
-  );
   const isDepartmentUnauthorized =
     departmentsQuery.isError &&
     departmentsQuery.error instanceof ApiError &&
@@ -1993,7 +1989,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
       ...connections,
       ...nodeStyles
     ].join('\n');
-  }, [areDepartmentsVisible, departments, diagramDirection, steps]);
+  }, [areDepartmentsVisible, departments, diagramDirection, getStepDisplayLabel, steps]);
 
   useEffect(() => {
     setDiagramUserOffset((previous) =>
@@ -2253,7 +2249,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
         })}
       </svg>
     );
-  }, [areDepartmentsVisible, departments, steps]);
+  }, [areDepartmentsVisible, departments, getStepDisplayLabel, steps]);
 
   useEffect(() => {
     let isActive = true;
@@ -2294,7 +2290,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
     return () => {
       isActive = false;
     };
-  }, []);
+  }, [mermaidErrorMessages]);
 
   useEffect(() => {
     const mermaid = mermaidAPIRef.current;
