@@ -47,6 +47,7 @@ export type Dictionary = {
         toggleLabel: string;
         tabs: {
           ariaLabel: string;
+          tooltip: string;
           processes: string;
           departments: string;
         };
@@ -304,6 +305,7 @@ const dictionaries: Record<Locale, Dictionary> = {
         toggleLabel: 'Toggle the secondary panel',
         tabs: {
           ariaLabel: 'List navigation',
+          tooltip: 'Select a tab to display the related content below.',
           processes: 'Processes',
           departments: 'Departments'
         },
@@ -561,6 +563,7 @@ const dictionaries: Record<Locale, Dictionary> = {
         toggleLabel: 'Basculer le panneau secondaire',
         tabs: {
           ariaLabel: 'Navigation des listes',
+          tooltip: 'Sélectionnez un onglet pour afficher le contenu associé juste en dessous.',
           processes: 'Process',
           departments: 'Départements'
         },
