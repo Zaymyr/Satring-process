@@ -876,69 +876,74 @@ export function RaciBuilder() {
             {selectedDepartment ? (
               <div className="overflow-hidden rounded-2xl bg-white shadow-lg ring-1 ring-slate-200">
                 <div className="border-b border-slate-200 px-6 py-5">
-                  <div className="flex flex-wrap items-start justify-between gap-4">
-                    <div className="space-y-1">
+                  <div className="flex flex-wrap items-center justify-between gap-4">
+                    <div className="flex flex-wrap items-center gap-3">
                       <h2 className="text-xl font-semibold text-slate-900">{selectedDepartment.name}</h2>
-                    </div>
-                    <div className="flex flex-1 flex-wrap items-center justify-end gap-2">
-                      <span className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700 ring-1 ring-inset ring-slate-200">
-                        <span className="h-2 w-2 rounded-full bg-slate-400" aria-hidden />
-                        {selectedDepartment.roles.length} rôle{selectedDepartment.roles.length > 1 ? 's' : ''}
-                      </span>
-                      <span className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700 ring-1 ring-inset ring-slate-200">
-                        <span className="h-2 w-2 rounded-full bg-slate-400" aria-hidden />
-                        {totalActionCount} action{totalActionCount > 1 ? 's' : ''}
-                      </span>
                       <div className="flex flex-wrap items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={handleCsvDownload}
-                          disabled={!hasExportableData}
-                          className={cn(
-                            'inline-flex items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400',
-                            !hasExportableData && 'cursor-not-allowed opacity-60'
-                          )}
-                        >
-                          <Download className="h-4 w-4" aria-hidden />
-                          Exporter en CSV
-                        </button>
-                        <button
-                          type="button"
-                          onClick={handleCopyCsv}
-                          disabled={!hasExportableData}
-                          className={cn(
-                            'inline-flex items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400',
-                            !hasExportableData && 'cursor-not-allowed opacity-60'
-                          )}
-                        >
-                          <Copy className="h-4 w-4" aria-hidden />
-                          {csvCopied ? 'CSV copié !' : 'Copier CSV'}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={handleCopyMarkdown}
-                          disabled={!hasExportableData}
-                          className={cn(
-                            'inline-flex items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400',
-                            !hasExportableData && 'cursor-not-allowed opacity-60'
-                          )}
-                        >
-                          <Copy className="h-4 w-4" aria-hidden />
-                          {markdownCopied ? 'Markdown copié !' : 'Copier en Markdown'}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={handlePrintPdf}
-                          disabled={!hasExportableData}
-                          className={cn(
-                            'inline-flex items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-slate-400',
-                            !hasExportableData && 'cursor-not-allowed opacity-60'
-                          )}
-                        >
-                          <FileText className="h-4 w-4" aria-hidden />
-                          Export PDF/Impression
-                        </button>
+                        <span className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700 ring-1 ring-inset ring-slate-200">
+                          <span className="h-2 w-2 rounded-full bg-slate-400" aria-hidden />
+                          {selectedDepartment.roles.length} rôle{selectedDepartment.roles.length > 1 ? 's' : ''}
+                        </span>
+                        <span className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700 ring-1 ring-inset ring-slate-200">
+                          <span className="h-2 w-2 rounded-full bg-slate-400" aria-hidden />
+                          {totalActionCount} action{totalActionCount > 1 ? 's' : ''}
+                        </span>
                       </div>
+                    </div>
+                    <div className="flex flex-wrap items-center justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={handleCsvDownload}
+                        disabled={!hasExportableData}
+                        title="Exporter en CSV"
+                        className={cn(
+                          'inline-flex h-10 w-10 items-center justify-center rounded-md border border-slate-200 bg-white text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400',
+                          !hasExportableData && 'cursor-not-allowed opacity-60'
+                        )}
+                      >
+                        <Download className="h-4 w-4" aria-hidden />
+                        <span className="sr-only">Exporter en CSV</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleCopyCsv}
+                        disabled={!hasExportableData}
+                        title={csvCopied ? 'CSV copié !' : 'Copier CSV'}
+                        className={cn(
+                          'inline-flex h-10 w-10 items-center justify-center rounded-md border border-slate-200 bg-white text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400',
+                          !hasExportableData && 'cursor-not-allowed opacity-60'
+                        )}
+                      >
+                        <Copy className="h-4 w-4" aria-hidden />
+                        <span className="sr-only">{csvCopied ? 'CSV copié !' : 'Copier CSV'}</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleCopyMarkdown}
+                        disabled={!hasExportableData}
+                        title={markdownCopied ? 'Markdown copié !' : 'Copier en Markdown'}
+                        className={cn(
+                          'inline-flex h-10 w-10 items-center justify-center rounded-md border border-slate-200 bg-white text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400',
+                          !hasExportableData && 'cursor-not-allowed opacity-60'
+                        )}
+                      >
+                        <Copy className="h-4 w-4" aria-hidden />
+                        <span className="sr-only">{markdownCopied ? 'Markdown copié !' : 'Copier en Markdown'}</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handlePrintPdf}
+                        disabled={!hasExportableData}
+                        title="Export PDF/Impression"
+                        className={cn(
+                          'inline-flex h-10 w-10 items-center justify-center rounded-md border border-slate-200 bg-white text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400',
+                          !hasExportableData && 'cursor-not-allowed opacity-60'
+                        )}
+                      >
+                        <FileText className="h-4 w-4" aria-hidden />
+                        <span className="sr-only">Export PDF/Impression</span>
+                      </button>
+                    </div>
                     </div>
                   </div>
                   {hasAggregatedActions ? (
