@@ -2774,7 +2774,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
           </span>
         ) : null}
       </div>
-      <div className="pointer-events-none relative z-10 flex h-full min-h-0 w-full flex-col gap-6 px-4 py-8 lg:px-8 lg:py-12 xl:px-12">
+      <div className="pointer-events-none relative z-10 flex h-full min-h-0 w-full flex-col gap-4 px-3 py-6 lg:px-7 lg:py-10 xl:px-10">
         <div
           className="pointer-events-none flex min-h-0 flex-1 flex-col gap-6 lg:grid lg:[grid-template-rows:minmax(0,1fr)_auto] lg:items-stretch lg:gap-0"
           style={layoutStyle}
@@ -2798,7 +2798,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
           <div
             id="primary-panel"
             className={cn(
-              'flex h-full w-full flex-col gap-8 overflow-hidden rounded-3xl border border-slate-200 bg-white/85 px-6 py-8 shadow-[0_30px_120px_-50px_rgba(15,23,42,0.35)] backdrop-blur transition-all duration-300 ease-out sm:px-8',
+              'flex h-full w-full flex-col gap-6 overflow-hidden rounded-3xl border border-slate-200 bg-white/85 px-5 py-6 shadow-[0_30px_120px_-50px_rgba(15,23,42,0.35)] backdrop-blur transition-all duration-300 ease-out sm:px-6',
               isPrimaryCollapsed
                 ? 'pointer-events-none opacity-0 lg:-translate-x-[110%]'
                 : 'pointer-events-auto opacity-100 lg:translate-x-0'
@@ -2827,8 +2827,8 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
               </Button>
             </div>
             <div className="flex-1 min-h-0 overflow-hidden">
-              <div className="h-full space-y-6 overflow-y-auto rounded-2xl border border-slate-200 bg-white/75 p-4 pr-1 shadow-inner sm:pr-2">
-                <div className="space-y-3.5">
+              <div className="h-full space-y-4 overflow-y-auto rounded-2xl border border-slate-200 bg-white/75 p-3 pr-1 shadow-inner sm:pr-1.5">
+                <div className="space-y-3">
                   {steps.map((step, index) => {
                     const Icon = STEP_TYPE_ICONS[step.type];
                     const isRemovable = step.type === 'action' || step.type === 'decision';
@@ -2878,8 +2878,8 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                       >
                         <CardContent
                           className={cn(
-                            'flex gap-3 p-3.5',
-                            isSelectedStep ? 'items-start' : 'items-center gap-2 p-2.5'
+                            'flex gap-2.5 p-3',
+                            isSelectedStep ? 'items-start' : 'items-center gap-1.5 p-2'
                           )}
                         >
                           <div
@@ -2934,7 +2934,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                                 disabled={isProcessEditorReadOnly}
                                 className="h-8 w-full border-slate-200 bg-white text-sm text-slate-900 placeholder:text-slate-400 focus-visible:ring-slate-900/20 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-50"
                               />
-                              <div className="grid gap-2 sm:grid-cols-2">
+                              <div className="grid gap-1.5 sm:grid-cols-2">
                                 <label className="flex flex-col gap-1 text-[0.6rem] font-semibold uppercase tracking-[0.18em] text-slate-500">
                                   <span>Department</span>
                                   <select
@@ -2991,17 +2991,17 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                                 </label>
                               </div>
                               {step.type === 'decision' ? (
-                                <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                                <div className="mt-1.5 grid gap-1.5 sm:grid-cols-2">
                                   <label className="flex flex-col gap-1 text-[0.6rem] font-semibold uppercase tracking-[0.18em] text-slate-500">
                                     <span>Yes branch</span>
-                                  <select
-                                    value={step.yesTargetId ?? ''}
-                                    onChange={(event) =>
-                                      updateDecisionBranch(step.id, 'yes', event.target.value || null)
-                                    }
-                                    disabled={isProcessEditorReadOnly}
-                                    className="h-8 rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-900 transition focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
-                                  >
+                                    <select
+                                      value={step.yesTargetId ?? ''}
+                                      onChange={(event) =>
+                                        updateDecisionBranch(step.id, 'yes', event.target.value || null)
+                                      }
+                                      disabled={isProcessEditorReadOnly}
+                                      className="h-8 rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-900 transition focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
+                                    >
                                       <option value="">Next step (default)</option>
                                       {availableTargets.map((candidate) => {
                                         const position = stepPositions.get(candidate.id);
@@ -3019,14 +3019,14 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                                   </label>
                                   <label className="flex flex-col gap-1 text-[0.6rem] font-semibold uppercase tracking-[0.18em] text-slate-500">
                                     <span>No branch</span>
-                                  <select
-                                    value={step.noTargetId ?? ''}
-                                    onChange={(event) =>
-                                      updateDecisionBranch(step.id, 'no', event.target.value || null)
-                                    }
-                                    disabled={isProcessEditorReadOnly}
-                                    className="h-8 rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-900 transition focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
-                                  >
+                                    <select
+                                      value={step.noTargetId ?? ''}
+                                      onChange={(event) =>
+                                        updateDecisionBranch(step.id, 'no', event.target.value || null)
+                                      }
+                                      disabled={isProcessEditorReadOnly}
+                                      className="h-8 rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-900 transition focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
+                                    >
                                       <option value="">Next step (default)</option>
                                       {availableTargets.map((candidate) => {
                                         const position = stepPositions.get(candidate.id);
