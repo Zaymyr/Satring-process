@@ -3852,19 +3852,6 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                       : diagramControls.showDepartments}
                   </span>
                 </button>
-                <button
-                  type="button"
-                  onClick={() => setIsBottomCollapsed((previous) => !previous)}
-                  aria-expanded={!isBottomCollapsed}
-                  aria-controls={diagramControlsContentId}
-                  className="ml-auto flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-slate-200 text-slate-500 transition hover:bg-slate-100"
-                >
-                  <ChevronDown
-                    aria-hidden="true"
-                    className={cn('h-4 w-4 transition-transform duration-200', !isBottomCollapsed && 'rotate-180')}
-                  />
-                  <span className="sr-only">{diagramControls.collapseLabel}</span>
-                </button>
               </div>
             </section>
           </div>
