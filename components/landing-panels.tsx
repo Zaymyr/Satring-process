@@ -2933,7 +2933,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                               <div className="flex items-center gap-1.5 text-slate-500">
                                 <Icon className="h-3.5 w-3.5" />
                                 <span className="text-[0.6rem] font-medium uppercase tracking-[0.24em]">
-                                  {STEP_TYPE_LABELS[step.type]}
+                                  {stepTypeLabels[step.type]}
                                 </span>
                               </div>
                               <Input
