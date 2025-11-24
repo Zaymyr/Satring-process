@@ -2953,7 +2953,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                                         event.target.value.length > 0 ? event.target.value : null
                                       )
                                     }
-                                    className="h-8 rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-900 transition focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
+                                    className="relative z-10 h-8 rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-900 transition focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
                                     disabled={isProcessEditorReadOnly || !hasDepartments}
                                   >
                                     <option value="">No department</option>
@@ -2979,7 +2979,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                                         event.target.value.length > 0 ? event.target.value : null
                                       )
                                     }
-                                    className="h-8 rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-900 transition focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
+                                    className="relative z-10 h-8 rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-900 transition focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
                                     disabled={isProcessEditorReadOnly || !hasRoles}
                                   >
                                     <option value="">No role</option>
@@ -3011,7 +3011,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                                         updateDecisionBranch(step.id, 'yes', event.target.value || null)
                                       }
                                       disabled={isProcessEditorReadOnly}
-                                      className="h-8 rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-900 transition focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
+                                      className="relative z-10 h-8 rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-900 transition focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
                                     >
                                       <option value="">Next step (default)</option>
                                       {availableTargets.map((candidate) => {
@@ -3036,7 +3036,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                                         updateDecisionBranch(step.id, 'no', event.target.value || null)
                                       }
                                       disabled={isProcessEditorReadOnly}
-                                      className="h-8 rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-900 transition focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
+                                      className="relative z-10 h-8 rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-900 transition focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
                                     >
                                       <option value="">Next step (default)</option>
                                       {availableTargets.map((candidate) => {
