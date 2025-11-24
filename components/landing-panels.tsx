@@ -686,10 +686,12 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
     landing: {
       defaults: { departmentName: defaultDepartmentName, roleName: defaultRoleName },
       actions: { createLabel },
+      primaryPanel,
       secondaryPanel,
       errors: landingErrorMessages,
       status: statusMessages,
-      saveButton: saveButtonLabels
+      saveButton: saveButtonLabels,
+      diagramControls
     }
   } = dictionary;
   const mermaidErrorMessages = landingErrorMessages.mermaid;
@@ -2788,7 +2790,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
             )}
           >
             {isPrimaryCollapsed ? <ChevronRight className="h-5 w-5" /> : <ChevronLeft className="h-5 w-5" />}
-            <span className="sr-only">Toggle primary panel</span>
+            <span className="sr-only">{primaryPanel.toggleLabel}</span>
           </button>
           <div
             id="primary-panel"
@@ -2808,7 +2810,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                 className="h-9 rounded-md bg-slate-900 px-3 text-sm text-white hover:bg-slate-800"
               >
                 <Plus className="mr-2 h-3.5 w-3.5" />
-                Add action
+                {primaryPanel.addAction}
               </Button>
               <Button
                 type="button"
@@ -2818,7 +2820,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                 className="h-9 rounded-md border-slate-300 bg-white px-3 text-sm text-slate-900 hover:bg-slate-50"
               >
                 <GitBranch className="mr-2 h-3.5 w-3.5" />
-                Add decision
+                {primaryPanel.addDecision}
               </Button>
             </div>
             <div className="flex-1 min-h-0 overflow-hidden">
@@ -3756,16 +3758,16 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
               onClick={() => setIsBottomCollapsed((previous) => !previous)}
               aria-expanded={!isBottomCollapsed}
               aria-controls="diagram-controls-panel"
-              className={cn(
-                'z-30 flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white/90 text-slate-600 shadow-sm transition hover:bg-white',
-                isBottomCollapsed
-                  ? 'fixed bottom-6 left-1/2 -translate-x-1/2'
-                  : 'absolute left-1/2 top-0 -translate-x-1/2 -translate-y-1/2'
-              )}
-            >
-              {isBottomCollapsed ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
-              <span className="sr-only">Toggle the diagram options panel</span>
-            </button>
+            className={cn(
+              'z-30 flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white/90 text-slate-600 shadow-sm transition hover:bg-white',
+              isBottomCollapsed
+                ? 'fixed bottom-6 left-1/2 -translate-x-1/2'
+                : 'absolute left-1/2 top-0 -translate-x-1/2 -translate-y-1/2'
+            )}
+          >
+            {isBottomCollapsed ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
+            <span className="sr-only">{diagramControls.toggleLabel}</span>
+          </button>
             <section
               id="diagram-controls-panel"
               aria-hidden={isBottomCollapsed}
@@ -3778,17 +3780,17 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
             >
               <div className="flex flex-wrap items-center gap-4">
                 <div className="flex min-w-0 flex-1 items-center gap-3">
-                  <h2 className="text-sm font-semibold text-slate-900">Diagram options</h2>
+                  <h2 className="text-sm font-semibold text-slate-900">{diagramControls.title}</h2>
                   <p className="truncate text-xs text-slate-600">
                     {diagramDirection === 'TD'
-                      ? 'Current layout: top to bottom.'
-                      : 'Current layout: left to right.'}
+                      ? diagramControls.layoutTopToBottom
+                      : diagramControls.layoutLeftToRight}
                   </p>
                 </div>
                 <div
                   id={diagramControlsContentId}
                   role="group"
-                  aria-label="Orientation du diagramme"
+                  aria-label={diagramControls.orientationAriaLabel}
                   className={cn(
                     'flex flex-1 items-center justify-center gap-1 rounded-lg border border-slate-200 bg-white/70 p-1 shadow-inner sm:flex-none',
                     isBottomCollapsed && 'hidden'
@@ -3806,7 +3808,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                     )}
                   >
                     <ArrowUpDown className="h-3.5 w-3.5" />
-                    Haut-bas
+                    {diagramControls.directions.topToBottom}
                   </button>
                   <button
                     type="button"
@@ -3820,7 +3822,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                     )}
                   >
                     <ArrowLeftRight className="h-3.5 w-3.5" />
-                    Gauche-droite
+                    {diagramControls.directions.leftToRight}
                   </button>
                 </div>
                 <button
@@ -3837,7 +3839,9 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                   ) : (
                     <Eye className="h-3.5 w-3.5" aria-hidden="true" />
                   )}
-                  {areDepartmentsVisible ? 'Masquer les départements' : 'Afficher les départements'}
+                  {areDepartmentsVisible
+                    ? diagramControls.hideDepartments
+                    : diagramControls.showDepartments}
                 </button>
                 <button
                   type="button"
@@ -3850,7 +3854,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                     aria-hidden="true"
                     className={cn('h-4 w-4 transition-transform duration-200', !isBottomCollapsed && 'rotate-180')}
                   />
-                  <span className="sr-only">Replier les options du diagramme</span>
+                  <span className="sr-only">{diagramControls.collapseLabel}</span>
                 </button>
               </div>
             </section>

@@ -16,6 +16,11 @@ export type Dictionary = {
       actions: {
         createLabel: string;
       };
+      primaryPanel: {
+        toggleLabel: string;
+        addAction: string;
+        addDecision: string;
+      };
       secondaryPanel: {
         title: {
           processes: string;
@@ -99,16 +104,30 @@ export type Dictionary = {
       noSavedYet: string;
       saveErrorFallback: string;
     };
-    saveButton: {
-      authRequired: string;
-      readOnly: string;
-      create: string;
-      creating: string;
-      saving: string;
-      save: string;
-      upToDate: string;
+      saveButton: {
+        authRequired: string;
+        readOnly: string;
+        create: string;
+        creating: string;
+        saving: string;
+        save: string;
+        upToDate: string;
+      };
+      diagramControls: {
+        toggleLabel: string;
+        title: string;
+        layoutTopToBottom: string;
+        layoutLeftToRight: string;
+        orientationAriaLabel: string;
+        directions: {
+          topToBottom: string;
+          leftToRight: string;
+        };
+        hideDepartments: string;
+        showDepartments: string;
+        collapseLabel: string;
+      };
     };
-  };
   header: {
     localeToggle: {
       label: string;
@@ -245,6 +264,11 @@ const dictionaries: Record<Locale, Dictionary> = {
       actions: {
         createLabel: 'New'
       },
+      primaryPanel: {
+        toggleLabel: 'Toggle primary panel',
+        addAction: 'Add action',
+        addDecision: 'Add decision'
+      },
       secondaryPanel: {
         title: {
           processes: 'My processes',
@@ -336,6 +360,20 @@ const dictionaries: Record<Locale, Dictionary> = {
         saving: 'Saving…',
         save: 'Save process',
         upToDate: 'Process is up to date'
+      },
+      diagramControls: {
+        toggleLabel: 'Toggle the diagram options panel',
+        title: 'Diagram options',
+        layoutTopToBottom: 'Current layout: top to bottom.',
+        layoutLeftToRight: 'Current layout: left to right.',
+        orientationAriaLabel: 'Diagram orientation',
+        directions: {
+          topToBottom: 'Top-bottom',
+          leftToRight: 'Left-right'
+        },
+        hideDepartments: 'Hide departments',
+        showDepartments: 'Show departments',
+        collapseLabel: 'Collapse diagram options'
       }
     },
     header: {
@@ -474,6 +512,11 @@ const dictionaries: Record<Locale, Dictionary> = {
       actions: {
         createLabel: 'Nouveau'
       },
+      primaryPanel: {
+        toggleLabel: 'Basculer le panneau principal',
+        addAction: 'Ajouter une action',
+        addDecision: 'Ajouter une décision'
+      },
       secondaryPanel: {
         title: {
           processes: 'Mes process',
@@ -565,6 +608,20 @@ const dictionaries: Record<Locale, Dictionary> = {
         saving: 'Sauvegarde…',
         save: 'Sauvegarder le process',
         upToDate: 'Process à jour'
+      },
+      diagramControls: {
+        toggleLabel: 'Basculer le panneau des options du diagramme',
+        title: 'Options du diagramme',
+        layoutTopToBottom: 'Affichage actuel : de haut en bas.',
+        layoutLeftToRight: 'Affichage actuel : de gauche à droite.',
+        orientationAriaLabel: 'Orientation du diagramme',
+        directions: {
+          topToBottom: 'Haut-bas',
+          leftToRight: 'Gauche-droite'
+        },
+        hideDepartments: 'Masquer les départements',
+        showDepartments: 'Afficher les départements',
+        collapseLabel: 'Replier les options du diagramme'
       }
     },
     header: {
