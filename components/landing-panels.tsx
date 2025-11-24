@@ -2962,7 +2962,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                                   ) : null}
                                 </label>
                                 <label className="flex flex-col gap-1 text-[0.6rem] font-semibold uppercase tracking-[0.18em] text-slate-500">
-                                  <span>Role</span>
+                                  <span title={rolePickerMessages.chooseRoleForDepartment}>Role</span>
                                   <select
                                     value={step.roleId ?? ''}
                                     onChange={(event) =>
@@ -2983,7 +2983,10 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                                       </option>
                                     ))}
                                   </select>
-                                  {roleHelperText ? (
+                                  {roleHelperText &&
+                                  step.type !== 'start' &&
+                                  step.type !== 'finish' &&
+                                  roleHelperText !== rolePickerMessages.chooseRoleForDepartment ? (
                                     <span className="text-[0.6rem] font-normal normal-case tracking-normal text-slate-500">
                                       {roleHelperText}
                                     </span>
