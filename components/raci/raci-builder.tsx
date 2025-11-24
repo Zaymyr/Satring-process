@@ -1,6 +1,7 @@
 'use client';
 
 import { Fragment, useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import { ChevronDown, Copy, Download, FileText, Loader2 } from 'lucide-react';
 
@@ -1222,31 +1223,41 @@ export function RaciBuilder() {
                                     colSpan={selectedDepartment.roles.length + 2}
                                     className="px-6 py-3 text-left text-xs font-semibold tracking-wide text-slate-600"
                                   >
-                                    <button
-                                      type="button"
-                                      onClick={() => toggleProcessVisibility(process.id)}
-                                      className="flex w-full items-center justify-between gap-4 rounded-lg bg-white/40 px-2 py-2 text-left shadow-sm ring-1 ring-inset ring-slate-200 transition hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
-                                      aria-expanded={!isCollapsed}
-                                    >
+                                    <div className="flex w-full items-center justify-between gap-4 rounded-lg bg-white/40 px-2 py-2 text-left shadow-sm ring-1 ring-inset ring-slate-200">
                                       <div className="flex flex-1 items-center gap-3">
                                         <span className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-base">
                                           {getProcessGlyph(process.title)}
                                         </span>
                                         <div className="min-w-0 flex-1">
-                                          <p className="truncate text-sm font-semibold text-slate-800 sm:text-base">
+                                          <Link
+                                            href={`/?processId=${encodeURIComponent(process.id)}`}
+                                            className="truncate text-sm font-semibold text-slate-800 underline decoration-slate-300 underline-offset-4 transition hover:text-slate-900 hover:decoration-slate-400 sm:text-base"
+                                          >
                                             {process.title}
-                                          </p>
+                                          </Link>
                                           <p className="mt-0.5 text-xs font-medium text-slate-500">{actionCountLabel}</p>
                                         </div>
                                       </div>
-                                      <ChevronDown
-                                        aria-hidden="true"
-                                        className={cn(
-                                          'h-5 w-5 shrink-0 rounded-full bg-slate-100 p-0.5 text-slate-600 transition-transform',
-                                          isCollapsed ? '-rotate-90' : 'rotate-0'
-                                        )}
-                                      />
-                                    </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => toggleProcessVisibility(process.id)}
+                                        className="inline-flex h-9 w-9 items-center justify-center rounded-md bg-slate-100 text-slate-600 ring-1 ring-inset ring-slate-200 transition hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
+                                        aria-expanded={!isCollapsed}
+                                        aria-label={
+                                          isCollapsed
+                                            ? 'Afficher les étapes du processus'
+                                            : 'Masquer les étapes du processus'
+                                        }
+                                      >
+                                        <ChevronDown
+                                          aria-hidden="true"
+                                          className={cn(
+                                            'h-5 w-5 shrink-0 text-slate-600 transition-transform',
+                                            isCollapsed ? '-rotate-90' : 'rotate-0'
+                                          )}
+                                        />
+                                      </button>
+                                    </div>
                                   </th>
                                 </tr>
 

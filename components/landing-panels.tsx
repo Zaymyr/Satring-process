@@ -12,6 +12,7 @@ import {
 } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   ArrowLeftRight,
@@ -661,6 +662,8 @@ type LandingPanelsProps = {
 export function LandingPanels({ highlights }: LandingPanelsProps) {
   const queryClient = useQueryClient();
   const { dictionary, locale } = useI18n();
+  const searchParams = useSearchParams();
+  const processIdFromQuery = searchParams.get('processId');
   const {
     formatting: { dateTime: dateTimeFormatOptions },
     landing: {
@@ -727,6 +730,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
   const [editingProcessId, setEditingProcessId] = useState<string | null>(null);
   const [renameDraft, setRenameDraft] = useState('');
   const renameInputRef = useRef<HTMLInputElement | null>(null);
+  const appliedQueryProcessIdRef = useRef<string | null>(null);
   const [activeSecondaryTab, setActiveSecondaryTab] = useState<'processes' | 'departments'>('processes');
   const hasAppliedInviteTabRef = useRef(false);
   const [editingDepartmentId, setEditingDepartmentId] = useState<string | null>(null);
@@ -1313,6 +1317,32 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
       setProcessTitle(normalizeProcessTitle(currentSummary.title));
     }
   }, [currentProcessId, isUnauthorized, processSummariesQuery.data]);
+
+  useEffect(() => {
+    if (!processIdFromQuery) {
+      return;
+    }
+
+    const summaries = processSummariesQuery.data;
+
+    if (!summaries || summaries.length === 0) {
+      return;
+    }
+
+    const matchingSummary = summaries.find((item) => item.id === processIdFromQuery);
+
+    if (!matchingSummary) {
+      return;
+    }
+
+    if (appliedQueryProcessIdRef.current === processIdFromQuery) {
+      return;
+    }
+
+    setSelectedProcessId(processIdFromQuery);
+    setProcessTitle(normalizeProcessTitle(matchingSummary.title));
+    appliedQueryProcessIdRef.current = processIdFromQuery;
+  }, [processIdFromQuery, processSummariesQuery.data]);
 
   useEffect(() => {
     if (
