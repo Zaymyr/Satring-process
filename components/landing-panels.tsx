@@ -3098,7 +3098,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                 >
                   {saveButtonLabel}
                 </Button>
-                <p className={cn('text-xs', statusToneClass)} aria-live="polite">
+                <p className={cn('text-[11px] whitespace-nowrap', statusToneClass)} aria-live="polite">
                   {statusMessage}
                 </p>
               </div>
