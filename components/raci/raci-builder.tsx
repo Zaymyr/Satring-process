@@ -1270,17 +1270,14 @@ export function RaciBuilder() {
                                           <th
                                             scope="row"
                                               className={cn(
-                                                'sticky left-0 z-20 px-6 py-4 pl-10 text-left align-top border-r border-slate-200',
+                                                'sticky left-0 z-20 px-5 py-3 pl-10 text-left align-top border-r border-slate-200',
                                                 'bg-inherit',
                                                 'text-sm font-semibold text-slate-900 hover:bg-sky-50 group-hover:bg-sky-50',
                                                 hoveredActionId === action.id && 'bg-sky-50'
                                               )}
                                           >
-                                            <div className="space-y-1">
+                                            <div>
                                               <p className="text-sm font-semibold text-slate-900">{action.label}</p>
-                                              {action.processTitle ? (
-                                                <p className="text-xs font-medium text-slate-500">{action.processTitle}</p>
-                                              ) : null}
                                             </div>
                                           </th>
                                           {selectedDepartment.roles.map((role) => (
@@ -1292,7 +1289,7 @@ export function RaciBuilder() {
                                               }}
                                               onMouseLeave={() => setHoveredCell(null)}
                                               className={cn(
-                                                'relative px-4 py-3 text-center text-sm align-middle transition-colors',
+                                                'relative px-3 py-2 text-center text-sm align-middle transition-colors',
                                                 'bg-inherit',
                                                 hoveredRoleId === role.id && 'bg-sky-50',
                                                 hoveredActionId === action.id && 'bg-sky-50',
@@ -1337,7 +1334,7 @@ export function RaciBuilder() {
                                               <td
                                               className={cn(
                                                 'bg-inherit',
-                                                'px-4 py-3 text-left text-xs font-mono transition-colors',
+                                                'px-3 py-2 text-left text-xs font-mono transition-colors',
                                                 summaryMeta.hasIssue ? 'text-red-500' : 'text-slate-500'
                                                 ,
                                                 hoveredActionId === action.id && 'bg-sky-50'
@@ -1379,13 +1376,13 @@ export function RaciBuilder() {
                                 <th
                                   scope="row"
                                   className={cn(
-                                    'sticky left-0 z-20 px-6 py-4 text-left align-top border-r border-slate-200',
+                                    'sticky left-0 z-20 px-5 py-3 text-left align-top border-r border-slate-200',
                                     'bg-inherit',
                                     'text-sm font-semibold text-slate-900 hover:bg-sky-50 group-hover:bg-sky-50',
                                     hoveredActionId === action.id && 'bg-sky-50'
                                   )}
                                 >
-                                  <div className="space-y-1">
+                                  <div>
                                     <p className="text-sm font-semibold text-slate-900">{action.name}</p>
                                   </div>
                                 </th>
@@ -1402,14 +1399,14 @@ export function RaciBuilder() {
                                       }}
                                     onMouseLeave={() => setHoveredCell(null)}
                                   className={cn(
-                                      'relative px-4 py-3 text-sm align-middle transition-colors',
+                                      'relative px-3 py-2 text-sm align-middle transition-colors',
                                       'bg-inherit',
                                       hoveredRoleId === role.id && 'bg-sky-50',
                                       hoveredActionId === action.id && 'bg-sky-50',
                                       'hover:bg-sky-50 group-hover:bg-sky-50'
                                     )}
                                   >
-                                      <div className="flex flex-col items-center gap-3">
+                                      <div className="flex flex-col items-center gap-2">
                                         <div className="group/cell relative">
                                           <span
                                             className={cn(
@@ -1456,7 +1453,7 @@ export function RaciBuilder() {
                                     <td
                                   className={cn(
                                     'bg-inherit',
-                                    'px-4 py-3 text-left text-xs font-mono transition-colors hover:bg-sky-50 group-hover:bg-sky-50',
+                                    'px-3 py-2 text-left text-xs font-mono transition-colors hover:bg-sky-50 group-hover:bg-sky-50',
                                     summaryMeta.hasIssue ? 'text-red-500' : 'text-slate-500',
                                     hoveredActionId === action.id && 'bg-sky-50'
                                   )}
