@@ -3788,11 +3788,6 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
               <div className="flex flex-wrap items-center gap-4">
                 <div className="flex min-w-0 flex-1 items-center gap-3">
                   <h2 className="text-sm font-semibold text-slate-900">{diagramControls.title}</h2>
-                  <p className="truncate text-xs text-slate-600">
-                    {diagramDirection === 'TD'
-                      ? diagramControls.layoutTopToBottom
-                      : diagramControls.layoutLeftToRight}
-                  </p>
                 </div>
                 <div
                   id={diagramControlsContentId}

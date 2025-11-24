@@ -127,8 +127,6 @@ export type Dictionary = {
       diagramControls: {
         toggleLabel: string;
         title: string;
-        layoutTopToBottom: string;
-        layoutLeftToRight: string;
         orientationAriaLabel: string;
         directions: {
           topToBottom: string;
@@ -386,8 +384,6 @@ const dictionaries: Record<Locale, Dictionary> = {
       diagramControls: {
         toggleLabel: 'Toggle the diagram options panel',
         title: 'Diagram options',
-        layoutTopToBottom: 'Current layout: top to bottom.',
-        layoutLeftToRight: 'Current layout: left to right.',
         orientationAriaLabel: 'Diagram orientation',
         directions: {
           topToBottom: 'Top-bottom',
@@ -645,8 +641,6 @@ const dictionaries: Record<Locale, Dictionary> = {
       diagramControls: {
         toggleLabel: 'Basculer le panneau des options du diagramme',
         title: 'Options du diagramme',
-        layoutTopToBottom: 'Affichage actuel : de haut en bas.',
-        layoutLeftToRight: 'Affichage actuel : de gauche à droite.',
         orientationAriaLabel: 'Orientation du diagramme',
         directions: {
           topToBottom: 'Haut-bas',
