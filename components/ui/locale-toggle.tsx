@@ -1,12 +1,13 @@
 'use client';
 
+import Image from 'next/image';
 import { Loader2 } from 'lucide-react';
 import { useI18n } from '@/components/providers/i18n-provider';
 import { useLocale, type Locale } from '@/components/providers/locale-provider';
 
-const localeFlag: Record<Locale, string> = {
-  en: '🇬🇧',
-  fr: '🇫🇷'
+const localeFlag: Record<Locale, { src: string; alt: string }> = {
+  en: { src: '/flags/gb.svg', alt: 'United Kingdom flag' },
+  fr: { src: '/flags/fr.svg', alt: 'Drapeau français' }
 };
 
 export function LocaleToggle() {
@@ -24,7 +25,18 @@ export function LocaleToggle() {
       aria-label={`${dictionary.header.localeToggle.label}: ${dictionary.header.localeToggle.options[nextLocale]}`}
       title={dictionary.header.localeToggle.options[nextLocale]}
     >
-      {isPending ? <Loader2 className="h-4 w-4 animate-spin text-slate-500" /> : <span aria-hidden>{localeFlag[locale]}</span>}
+      {isPending ? (
+        <Loader2 className="h-4 w-4 animate-spin text-slate-500" />
+      ) : (
+        <Image
+          src={localeFlag[locale].src}
+          alt={localeFlag[locale].alt}
+          width={20}
+          height={20}
+          className="h-5 w-6 rounded-sm"
+          priority
+        />
+      )}
       <span className="sr-only">{dictionary.header.localeToggle.options[locale]}</span>
     </button>
   );
