@@ -1081,11 +1081,6 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
   const secondaryPanelTitle = isDepartmentsTabActive
     ? secondaryPanel.title.departments
     : secondaryPanel.title.processes;
-  const secondaryPanelDescription = isDepartmentsTabActive
-    ? shouldUseDepartmentDemo
-      ? secondaryPanel.description.departments.demo
-      : secondaryPanel.description.departments.standard
-    : secondaryPanel.description.processes;
   const formatTemplateText = useCallback(
     (template: string, value: string | null, token = '{timestamp}') =>
       value ? template.replace(token, value) : null,
@@ -3117,12 +3112,11 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <h2 className="text-lg font-semibold text-slate-900">{secondaryPanelTitle}</h2>
-                  <p className="text-xs text-slate-600">{secondaryPanelDescription}</p>
                 </div>
-                  {isProcessesTabActive ? (
-                    <Button
-                      type="button"
-                      size="sm"
+                {isProcessesTabActive ? (
+                  <Button
+                    type="button"
+                    size="sm"
                       onClick={handleCreateProcess}
                       disabled={isProcessEditorReadOnly || isCreating}
                     className="inline-flex h-8 items-center gap-1 rounded-md bg-slate-900 px-3 text-xs font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600"
@@ -3152,8 +3146,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                     {statusMessages.readerRestriction}
                   </p>
                 ) : null}
-                <div className="flex flex-col gap-1" aria-live="polite">
-                  <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Onglets</p>
+                <div className="flex flex-col gap-2" aria-live="polite">
                   <div
                     className="flex items-center gap-1.5 rounded-2xl bg-slate-100 p-1.5 shadow-inner ring-1 ring-inset ring-slate-200"
                     role="tablist"
@@ -3166,6 +3159,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                       aria-selected={isProcessesTabActive}
                       aria-controls="processes-panel"
                       onClick={() => setActiveSecondaryTab('processes')}
+                      title={secondaryPanel.tabs.tooltip}
                       className={cn(
                         'group relative flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400',
                         isProcessesTabActive
@@ -3190,6 +3184,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                       aria-selected={isDepartmentsTabActive}
                       aria-controls="departments-panel"
                       onClick={() => setActiveSecondaryTab('departments')}
+                      title={secondaryPanel.tabs.tooltip}
                       className={cn(
                         'group relative flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400',
                         isDepartmentsTabActive
@@ -3208,9 +3203,6 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                       />
                     </button>
                   </div>
-                  <p className="text-[11px] text-slate-600">
-                    Sélectionnez un onglet pour afficher le contenu associé juste en dessous.
-                  </p>
                 </div>
             </div>
             <div className="flex-1 min-h-0 overflow-hidden">
