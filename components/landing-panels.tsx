@@ -1091,6 +1091,11 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
       ? secondaryPanel.description.departments.demo
       : secondaryPanel.description.departments.standard
     : secondaryPanel.description.processes;
+  const formatTemplateText = useCallback(
+    (template: string, value: string | null, token = '{timestamp}') =>
+      value ? template.replace(token, value) : null,
+    []
+  );
 
   const handleCreateDepartment = useCallback(() => {
     if (isDepartmentActionsDisabled || isCreatingDepartment) {
@@ -3110,7 +3115,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
             )}
           >
             {isSecondaryCollapsed ? <ChevronLeft className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
-            <span className="sr-only">Basculer le panneau secondaire</span>
+            <span className="sr-only">{secondaryPanel.toggleLabel}</span>
           </button>
           <aside
             id="secondary-panel"
@@ -3160,7 +3165,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                     {statusMessages.readerRestriction}
                   </p>
                 ) : null}
-                <div className="flex items-center gap-2" role="tablist" aria-label="Navigation des listes">
+                <div className="flex items-center gap-2" role="tablist" aria-label={secondaryPanel.tabs.ariaLabel}>
                 <button
                   type="button"
                   id="processes-tab"
@@ -3176,7 +3181,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                   )}
                 >
                   <FolderTree className="h-3.5 w-3.5" />
-                  Process
+                  {secondaryPanel.tabs.processes}
                 </button>
                 <button
                   type="button"
@@ -3193,7 +3198,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                   )}
                 >
                   <Building2 className="h-3.5 w-3.5" />
-                  Départements
+                  {secondaryPanel.tabs.departments}
                 </button>
               </div>
             </div>
@@ -3214,7 +3219,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                     ) : processSummariesQuery.isLoading ? (
                       <div className="flex items-center gap-2 text-sm text-slate-500">
                         <Loader2 className="h-4 w-4 animate-spin" />
-                        Chargement des process…
+                        {secondaryPanel.processes.loading}
                       </div>
                     ) : processSummariesQuery.isError ? (
                       <p className="text-sm text-red-600">
@@ -3223,7 +3228,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                           : landingErrorMessages.process.listFailed}
                       </p>
                     ) : hasProcesses ? (
-                      <ul role="tree" aria-label="Process sauvegardés" className="space-y-2">
+                      <ul role="tree" aria-label={secondaryPanel.processes.listAriaLabel} className="space-y-2">
                         {processSummaries.map((summary) => {
                           const isSelected = summary.id === currentProcessId;
                           const isEditing = editingProcessId === summary.id;
@@ -3278,34 +3283,39 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                                             ref={renameInputRef}
                                             value={renameDraft}
                                             onChange={(event) => setRenameDraft(event.target.value)}
-                                            className="h-8 w-40 rounded-md border border-slate-300 bg-white px-2 text-sm text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
-                                          />
-                                          <div className="flex items-center gap-1">
-                                            <button
-                                              type="button"
-                                              onClick={() => confirmRenameProcess(summary.id)}
-                                              className="inline-flex h-8 items-center justify-center rounded-md bg-slate-900 px-2 text-xs font-medium text-white hover:bg-slate-800"
-                                            >
-                                              Enregistrer
-                                            </button>
-                                            <button
-                                              type="button"
-                                              onClick={cancelEditingProcess}
-                                              className="inline-flex h-8 items-center justify-center rounded-md border border-slate-200 px-2 text-xs font-medium text-slate-700 hover:bg-slate-100"
-                                            >
-                                              Annuler
-                                            </button>
-                                          </div>
+                                          className="h-8 w-40 rounded-md border border-slate-300 bg-white px-2 text-sm text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
+                                        />
+                                        <div className="flex items-center gap-1">
+                                          <button
+                                            type="button"
+                                            onClick={() => confirmRenameProcess(summary.id)}
+                                            className="inline-flex h-8 items-center justify-center rounded-md bg-slate-900 px-2 text-xs font-medium text-white hover:bg-slate-800"
+                                          >
+                                              {secondaryPanel.processes.rename.save}
+                                          </button>
+                                          <button
+                                            type="button"
+                                            onClick={cancelEditingProcess}
+                                            className="inline-flex h-8 items-center justify-center rounded-md border border-slate-200 px-2 text-xs font-medium text-slate-700 hover:bg-slate-100"
+                                          >
+                                              {secondaryPanel.processes.rename.cancel}
+                                          </button>
                                         </div>
-                                      ) : (
-                                        <>
+                                      </div>
+                                    ) : (
+                                      <>
                                           <p
                                             className="text-sm font-medium text-slate-900 leading-snug break-words overflow-hidden [display:-webkit-box] [-webkit-line-clamp:2] [-webkit-box-orient:vertical]"
                                           >
                                             {summary.title}
                                           </p>
                                           {updatedLabel ? (
-                                            <p className="text-xs text-slate-500">Mis à jour {updatedLabel}</p>
+                                            <p className="text-xs text-slate-500">
+                                              {formatTemplateText(
+                                                secondaryPanel.processes.updatedLabel,
+                                                updatedLabel
+                                              )}
+                                            </p>
                                           ) : null}
                                         </>
                                       )}
@@ -3323,7 +3333,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                                         )}
                                       >
                                         <Pencil className="h-4 w-4" />
-                                        <span className="sr-only">Renommer le process</span>
+                                        <span className="sr-only">{secondaryPanel.processes.rename.ariaLabel}</span>
                                       </button>
                                       <button
                                         type="button"
@@ -3343,7 +3353,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                                         ) : (
                                           <Trash2 className="h-4 w-4" />
                                         )}
-                                        <span className="sr-only">Supprimer le process</span>
+                                        <span className="sr-only">{secondaryPanel.processes.deleteAriaLabel}</span>
                                       </button>
                                     </div>
                                   ) : null}
@@ -3371,8 +3381,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                     <div className="space-y-4">
                       {shouldUseDepartmentDemo ? (
                         <p className="text-sm text-slate-600">
-                          Vous explorez des départements d’exemple en lecture seule. Connectez-vous pour gérer
-                          les vôtres.
+                          {secondaryPanel.departments.demoNotice}
                         </p>
                       ) : null}
                       {!shouldUseDepartmentDemo && createDepartmentMutation.isError ? (
@@ -3381,18 +3390,18 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                       {!shouldUseDepartmentDemo && departmentsQuery.isLoading ? (
                         <div className="flex items-center gap-2 text-sm text-slate-500">
                           <Loader2 className="h-4 w-4 animate-spin" />
-                          Chargement des départements…
+                          {secondaryPanel.departments.loading}
                         </div>
                       ) : !shouldUseDepartmentDemo && departmentsQuery.isError ? (
                         <p className="text-sm text-red-600">
                           {departmentsQuery.error instanceof ApiError
                             ? departmentsQuery.error.message
-                            : 'Impossible de récupérer la liste des départements.'}
+                            : secondaryPanel.departments.errorFallback}
                         </p>
                       ) : departments.length > 0 ? (
                         <ul
                           role="tree"
-                          aria-label="Départements"
+                          aria-label={secondaryPanel.departments.listAriaLabel}
                           className="department-tree flex flex-col gap-3"
                         >
                           {departments.map((department) => {
@@ -3435,7 +3444,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                                           <div className="flex flex-wrap items-center gap-2">
                                             <div className="flex items-center">
                                               <label htmlFor={colorInputId} className="sr-only">
-                                                Couleur du département
+                                                {secondaryPanel.departments.colorLabel}
                                               </label>
                                               <input
                                                 id={colorInputId}
@@ -3456,22 +3465,22 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                                               disabled={isSavingDepartment}
                                               className="h-9 min-w-[12rem] flex-1 rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
                                             />
-                                            <Button
-                                              type="button"
-                                              size="icon"
-                                              variant="ghost"
-                                              onClick={() => handleDeleteDepartment(department.id)}
-                                              disabled={isDepartmentActionsDisabled || isDeletingCurrent || isSavingDepartment}
-                                              className="ml-auto h-8 w-8 text-red-500 hover:bg-red-50 hover:text-red-600"
-                                            >
-                                              {isDeletingCurrent ? (
-                                                <Loader2 aria-hidden="true" className="h-4 w-4 animate-spin" />
-                                              ) : (
-                                                <Trash2 aria-hidden="true" className="h-4 w-4" />
-                                              )}
-                                              <span className="sr-only">Supprimer le département</span>
-                                            </Button>
-                                          </div>
+                                              <Button
+                                                type="button"
+                                                size="icon"
+                                                variant="ghost"
+                                                onClick={() => handleDeleteDepartment(department.id)}
+                                                disabled={isDepartmentActionsDisabled || isDeletingCurrent || isSavingDepartment}
+                                                className="ml-auto h-8 w-8 text-red-500 hover:bg-red-50 hover:text-red-600"
+                                              >
+                                                {isDeletingCurrent ? (
+                                                  <Loader2 aria-hidden="true" className="h-4 w-4 animate-spin" />
+                                                ) : (
+                                                  <Trash2 aria-hidden="true" className="h-4 w-4" />
+                                                )}
+                                                <span className="sr-only">{secondaryPanel.departments.deleteAriaLabel}</span>
+                                              </Button>
+                                            </div>
                                           {departmentEditForm.formState.errors.color ? (
                                             <p id={`${colorInputId}-error`} className="text-xs text-red-600">
                                               {departmentEditForm.formState.errors.color.message}
@@ -3552,18 +3561,18 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                                                         variant="ghost"
                                                         onClick={() => departmentRoleFields.remove(index)}
                                                         disabled={isSavingDepartment || isAddingDepartmentRole}
-                                                        className="h-8 w-8 text-red-500 hover:bg-red-50 hover:text-red-600"
-                                                        title={
-                                                          field.roleId
-                                                            ? 'Supprimera ce rôle lors de l\'enregistrement'
-                                                            : 'Retirer ce rôle'
-                                                        }
-                                                      >
+                                                          className="h-8 w-8 text-red-500 hover:bg-red-50 hover:text-red-600"
+                                                          title={
+                                                            field.roleId
+                                                              ? secondaryPanel.departments.roles.removeTitleSaved
+                                                              : secondaryPanel.departments.roles.removeTitleUnsaved
+                                                          }
+                                                        >
                                                         <Trash2 aria-hidden="true" className="h-4 w-4" />
-                                                        <span className="sr-only">Retirer le rôle</span>
-                                                      </Button>
-                                                      </div>
-                                                    {roleNameError ? (
+                                                      <span className="sr-only">{secondaryPanel.departments.roles.removeAriaLabel}</span>
+                                                    </Button>
+                                                    </div>
+                                                  {roleNameError ? (
                                                       <p className="text-xs text-red-600">{roleNameError.message}</p>
                                                     ) : null}
                                                     {roleColorError ? (
@@ -3575,7 +3584,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                                                 );
                                               })
                                             ) : (
-                                              <p className="text-xs text-slate-500">Aucun rôle pour ce département.</p>
+                                              <p className="text-xs text-slate-500">{secondaryPanel.departments.roles.empty}</p>
                                             )}
                                           </div>
                                           <div className="flex flex-wrap items-center justify-between gap-2">
@@ -3598,7 +3607,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                                                 ) : (
                                                   <Plus className="h-3.5 w-3.5" />
                                                 )}
-                                                Ajouter un rôle
+                                                {secondaryPanel.departments.addRole}
                                               </Button>
                                               <Button
                                                 type="submit"
@@ -3611,7 +3620,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                                                 ) : (
                                                   <Save aria-hidden="true" className="h-3.5 w-3.5" />
                                                 )}
-                                                Enregistrer
+                                                {secondaryPanel.departments.save}
                                               </Button>
                                             </div>
                                             <div className="space-y-1">
@@ -3633,9 +3642,9 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                                             !(isDepartmentActionsDisabled || isDeletingCurrent) &&
                                               'cursor-pointer hover:border-slate-300 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400'
                                           )}
-                                          role="button"
-                                          tabIndex={isDepartmentActionsDisabled || isDeletingCurrent ? -1 : 0}
-                                          aria-disabled={isDepartmentActionsDisabled || isDeletingCurrent}
+                                              role="button"
+                                              tabIndex={isDepartmentActionsDisabled || isDeletingCurrent ? -1 : 0}
+                                              aria-disabled={isDepartmentActionsDisabled || isDeletingCurrent}
                                           onClick={() => {
                                             if (isDepartmentActionsDisabled || isDeletingCurrent) {
                                               return;
@@ -3653,16 +3662,27 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                                           }}
                                         >
                                           <div className="flex min-w-0 flex-1 items-center gap-3">
-                                            <span
-                                              className="inline-flex h-8 w-8 shrink-0 rounded-md border border-slate-200 shadow-inner"
-                                              style={{ backgroundColor: department.color }}
-                                              aria-hidden="true"
-                                            />
-                                            <span className="sr-only">Couleur : {department.color}</span>
+                                              <span
+                                                className="inline-flex h-8 w-8 shrink-0 rounded-md border border-slate-200 shadow-inner"
+                                                style={{ backgroundColor: department.color }}
+                                                aria-hidden="true"
+                                              />
+                                            <span className="sr-only">
+                                              {formatTemplateText(
+                                                secondaryPanel.departments.colorValueLabel,
+                                                department.color,
+                                                '{color}'
+                                              )}
+                                            </span>
                                             <div className="min-w-0">
                                               <p className="truncate text-sm font-medium text-slate-900">{department.name}</p>
                                               {updatedLabel ? (
-                                                <p className="text-xs text-slate-500">Mis à jour {updatedLabel}</p>
+                                                <p className="text-xs text-slate-500">
+                                                  {formatTemplateText(
+                                                    secondaryPanel.departments.updatedLabel,
+                                                    updatedLabel
+                                                  )}
+                                                </p>
                                               ) : null}
                                             </div>
                                           </div>
@@ -3685,7 +3705,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                                           ) : (
                                             <Trash2 className="h-4 w-4" />
                                           )}
-                                          <span className="sr-only">Supprimer le département</span>
+                                          <span className="sr-only">{secondaryPanel.departments.deleteAriaLabel}</span>
                                         </Button>
                                       ) : null}
                                     </CardContent>
@@ -3696,17 +3716,15 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                                     </p>
                                   ) : null}
                                 </li>
-                              );
-                          })}
-                        </ul>
+                            );
+                        })}
+                      </ul>
 
-                      ) : shouldUseDepartmentDemo ? (
-                        <p className="text-sm text-slate-600">
-                          Aucun département d’exemple n’est disponible pour le moment.
-                        </p>
-                      ) : (
-                        <p className="text-sm text-slate-600">Aucun département enregistré pour le moment.</p>
-                      )}
+                    ) : shouldUseDepartmentDemo ? (
+                      <p className="text-sm text-slate-600">{secondaryPanel.departments.empty.demo}</p>
+                    ) : (
+                      <p className="text-sm text-slate-600">{secondaryPanel.departments.empty.standard}</p>
+                    )}
                     </div>
                   </div>
                 </div>

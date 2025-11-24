@@ -28,21 +28,60 @@ export type Dictionary = {
             standard: string;
           };
         };
+        toggleLabel: string;
+        tabs: {
+          ariaLabel: string;
+          processes: string;
+          departments: string;
+        };
+        processes: {
+          loading: string;
+          listAriaLabel: string;
+          updatedLabel: string;
+          rename: {
+            save: string;
+            cancel: string;
+            ariaLabel: string;
+          };
+          deleteAriaLabel: string;
+        };
+        departments: {
+          demoNotice: string;
+          loading: string;
+          errorFallback: string;
+          listAriaLabel: string;
+          colorLabel: string;
+          colorValueLabel: string;
+          updatedLabel: string;
+          deleteAriaLabel: string;
+          empty: {
+            demo: string;
+            standard: string;
+          };
+          addRole: string;
+          save: string;
+          roles: {
+            empty: string;
+            removeAriaLabel: string;
+            removeTitleSaved: string;
+            removeTitleUnsaved: string;
+          };
+        };
       };
       errors: {
         authRequired: string;
         process: {
           fetchFailed: string;
           listFailed: string;
-        createFailed: string;
-        renameFailed: string;
-        deleteFailed: string;
-      };
-      mermaid: {
-        browserOnly: string;
-        missingAfterLoad: string;
-        scriptLoadFailed: string;
-      };
+          createFailed: string;
+          renameFailed: string;
+          deleteFailed: string;
+        };
+        mermaid: {
+          browserOnly: string;
+          missingAfterLoad: string;
+          scriptLoadFailed: string;
+        };
     };
     status: {
       unauthorized: {
@@ -216,6 +255,45 @@ const dictionaries: Record<Locale, Dictionary> = {
           departments: {
             demo: 'Read-only preview of example departments.',
             standard: 'Organize your departments and rename them to structure your team.'
+          }
+        },
+        toggleLabel: 'Toggle the secondary panel',
+        tabs: {
+          ariaLabel: 'List navigation',
+          processes: 'Processes',
+          departments: 'Departments'
+        },
+        processes: {
+          loading: 'Loading processes…',
+          listAriaLabel: 'Saved processes',
+          updatedLabel: 'Updated {timestamp}',
+          rename: {
+            save: 'Save',
+            cancel: 'Cancel',
+            ariaLabel: 'Rename process'
+          },
+          deleteAriaLabel: 'Delete process'
+        },
+        departments: {
+          demoNotice: 'You are exploring read-only sample departments. Sign in to manage your own.',
+          loading: 'Loading departments…',
+          errorFallback: 'Unable to retrieve the list of departments.',
+          listAriaLabel: 'Departments',
+          colorLabel: 'Department color',
+          colorValueLabel: 'Color: {color}',
+          updatedLabel: 'Updated {timestamp}',
+          deleteAriaLabel: 'Delete department',
+          empty: {
+            demo: 'No sample departments are available right now.',
+            standard: 'No departments saved yet.'
+          },
+          addRole: 'Add role',
+          save: 'Save',
+          roles: {
+            empty: 'No roles for this department yet.',
+            removeAriaLabel: 'Remove role',
+            removeTitleSaved: 'This role will be removed when you save',
+            removeTitleUnsaved: 'Remove this role'
           }
         }
       },
@@ -406,6 +484,45 @@ const dictionaries: Record<Locale, Dictionary> = {
           departments: {
             demo: 'Aperçu en lecture seule de départements d’exemple.',
             standard: 'Organisez vos départements et renommez-les pour structurer votre équipe.'
+          }
+        },
+        toggleLabel: 'Basculer le panneau secondaire',
+        tabs: {
+          ariaLabel: 'Navigation des listes',
+          processes: 'Process',
+          departments: 'Départements'
+        },
+        processes: {
+          loading: 'Chargement des process…',
+          listAriaLabel: 'Process sauvegardés',
+          updatedLabel: 'Mis à jour {timestamp}',
+          rename: {
+            save: 'Enregistrer',
+            cancel: 'Annuler',
+            ariaLabel: 'Renommer le process'
+          },
+          deleteAriaLabel: 'Supprimer le process'
+        },
+        departments: {
+          demoNotice: 'Vous explorez des départements d’exemple en lecture seule. Connectez-vous pour gérer les vôtres.',
+          loading: 'Chargement des départements…',
+          errorFallback: 'Impossible de récupérer la liste des départements.',
+          listAriaLabel: 'Départements',
+          colorLabel: 'Couleur du département',
+          colorValueLabel: 'Couleur : {color}',
+          updatedLabel: 'Mis à jour {timestamp}',
+          deleteAriaLabel: 'Supprimer le département',
+          empty: {
+            demo: 'Aucun département d’exemple n’est disponible pour le moment.',
+            standard: 'Aucun département enregistré pour le moment.'
+          },
+          addRole: 'Ajouter un rôle',
+          save: 'Enregistrer',
+          roles: {
+            empty: 'Aucun rôle pour ce département.',
+            removeAriaLabel: 'Retirer le rôle',
+            removeTitleSaved: 'Ce rôle sera supprimé lors de l’enregistrement',
+            removeTitleUnsaved: 'Retirer ce rôle'
           }
         }
       },
