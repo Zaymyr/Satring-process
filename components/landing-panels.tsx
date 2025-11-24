@@ -3764,7 +3764,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
               )}
             >
               {isBottomCollapsed ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
-              <span className="sr-only">Basculer le panneau des options du diagramme</span>
+              <span className="sr-only">Toggle the diagram options panel</span>
             </button>
             <section
               id="diagram-controls-panel"
@@ -3778,11 +3778,11 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
             >
               <div className="flex flex-wrap items-center gap-4">
                 <div className="flex min-w-0 flex-1 items-center gap-3">
-                  <h2 className="text-sm font-semibold text-slate-900">Options du diagramme</h2>
+                  <h2 className="text-sm font-semibold text-slate-900">Diagram options</h2>
                   <p className="truncate text-xs text-slate-600">
                     {diagramDirection === 'TD'
-                      ? 'Affichage actuel : de haut en bas.'
-                      : 'Affichage actuel : de gauche à droite.'}
+                      ? 'Current layout: top to bottom.'
+                      : 'Current layout: left to right.'}
                   </p>
                 </div>
                 <div
