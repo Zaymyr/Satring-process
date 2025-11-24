@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { createServerClient } from '@/lib/supabase/server';
 import { getServerUser } from '@/lib/supabase/auth';
 import { createDefaultProcessPayload, DEFAULT_PROCESS_TITLE } from '@/lib/process/defaults';
+import { getInviteDemoProcessSummaries } from '@/lib/process/demo';
 import { ensureSampleDataSeeded } from '@/lib/onboarding/sample-seed';
 import { processResponseSchema, processSummarySchema, type ProcessResponse } from '@/lib/validation/process';
 import {
@@ -130,8 +131,23 @@ export async function GET() {
   const supabase = createServerClient();
   const { user, error: authError } = await getServerUser(supabase);
 
-  if (authError || !user) {
+  if (authError) {
     return NextResponse.json({ error: 'Authentification requise.' }, { status: 401, headers: NO_STORE_HEADERS });
+  }
+
+  if (!user) {
+    const demoSummaries = getInviteDemoProcessSummaries();
+    const parsedDemo = z.array(processSummarySchema).safeParse(demoSummaries);
+
+    if (!parsedDemo.success) {
+      console.error('Données de process de démonstration invalides', parsedDemo.error);
+      return NextResponse.json(
+        { error: 'Impossible de fournir les process de démonstration.' },
+        { status: 500, headers: NO_STORE_HEADERS }
+      );
+    }
+
+    return NextResponse.json(parsedDemo.data, { headers: NO_STORE_HEADERS });
   }
 
   let memberships;

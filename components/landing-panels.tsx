@@ -1011,6 +1011,8 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
       (organization) => organization.role === 'owner' || organization.role === 'admin'
     ).length ?? 0;
   const isProcessManagementRestricted = profileQuery.isSuccess && manageableMembershipCount === 0;
+  const isProfileUnauthorized =
+    profileQuery.isError && profileQuery.error instanceof ApiError && profileQuery.error.status === 401;
 
   const isProcessListUnauthorized =
     processSummariesQuery.isError &&
@@ -1021,7 +1023,8 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
     processQuery.isError && processQuery.error instanceof ApiError && processQuery.error.status === 401;
 
   const isUnauthorized = isProcessListUnauthorized || isProcessQueryUnauthorized;
-  const isProcessEditorReadOnly = isUnauthorized || isProcessManagementRestricted;
+  const isAuthMissing = isUnauthorized || isProfileUnauthorized;
+  const isProcessEditorReadOnly = isAuthMissing || isProcessManagementRestricted;
   const processSummaries = useMemo(
     () => processSummariesQuery.data ?? [],
     [processSummariesQuery.data]
@@ -1031,7 +1034,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
     departmentsQuery.isError &&
     departmentsQuery.error instanceof ApiError &&
     departmentsQuery.error.status === 401;
-  const shouldUseDepartmentDemo = isUnauthorized || isDepartmentUnauthorized;
+  const shouldUseDepartmentDemo = isAuthMissing || isDepartmentUnauthorized;
   const departments = useMemo(
     () => (shouldUseDepartmentDemo ? getInviteDemoDepartments() : departmentsQuery.data ?? []),
     [departmentsQuery.data, shouldUseDepartmentDemo]
@@ -1496,7 +1499,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
   const formattedSavedAt = formatDateTime(lastSavedAt);
 
   const statusMessage = useMemo<ReactNode>(() => {
-    if (isUnauthorized) {
+    if (isAuthMissing) {
       return (
         <>
           {statusMessages.unauthorized.prompt}
@@ -1543,10 +1546,10 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
   }, [
     currentProcessId,
     formattedSavedAt,
+    isAuthMissing,
     isCreating,
     isDirty,
     isProcessManagementRestricted,
-    isUnauthorized,
     processQuery.isLoading,
     statusMessages,
     saveMutation.error,
@@ -1570,7 +1573,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
   }, [currentProcessId, formattedSavedAt, isDirty, isProcessEditorReadOnly, saveMutation.isError]);
 
   const saveButtonLabel = useMemo(() => {
-    if (isUnauthorized) {
+    if (isAuthMissing) {
       return saveButtonLabels.authRequired;
     }
     if (isProcessManagementRestricted) {
@@ -1588,11 +1591,11 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
     return saveButtonLabels.upToDate;
   }, [
     currentProcessId,
+    isAuthMissing,
     isCreating,
     isDirty,
     isProcessManagementRestricted,
     isSaving,
-    isUnauthorized,
     saveButtonLabels
   ]);
 
