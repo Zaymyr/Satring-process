@@ -483,7 +483,7 @@ export async function POST(
   const messages = buildPrompt({
     role: context.role,
     actions,
-    existingDescription: context.description ?? null
+    existingDescription: null
   });
 
   let generated: { content: string; sections: ReturnType<typeof ensureJobDescriptionSections> } | null = null;
