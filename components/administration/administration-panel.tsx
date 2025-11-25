@@ -97,12 +97,9 @@ export function AdministrationPanel({ initialProfile }: AdministrationPanelProps
   const ownerOrganizations = profile.organizations.filter((organization) => organization.role === 'owner');
 
   return (
-    <div className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-6 py-10">
+    <div className="mx-auto flex w-full flex-col gap-8 px-6 py-10 lg:px-8">
       <div>
         <h1 className="text-3xl font-semibold text-slate-900">Administration</h1>
-        <p className="mt-2 text-sm text-slate-600">
-          Personnalisez les informations affichées dans l’en-tête et consultez votre organisation actuelle.
-        </p>
         {profileQuery.isError ? (
           <p className="mt-2 text-sm text-red-600" role="alert">
             {profileQuery.error instanceof Error
@@ -113,7 +110,7 @@ export function AdministrationPanel({ initialProfile }: AdministrationPanelProps
       </div>
 
       <div className="flex flex-1 flex-col gap-6 lg:flex-row">
-        <aside className="lg:w-64">
+        <aside className="lg:w-64 lg:shrink-0">
           <nav className="flex flex-row gap-3 overflow-hidden rounded-xl border border-slate-200 bg-white p-3 text-slate-900 shadow-sm lg:flex-col">
             <button
               type="button"
