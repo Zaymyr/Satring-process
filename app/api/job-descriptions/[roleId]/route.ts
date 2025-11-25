@@ -301,7 +301,7 @@ const buildPrompt = (params: {
 }) => {
   const responsibilities =
     params.actions.length === 0
-      ? 'Aucune action documentée — propose des responsabilités standards adaptées au périmètre indiqué.'
+      ? "Aucune action documentée — laisse les responsabilités, objectifs et collaborations vides."
       : params.actions
           .map((action) => `- ${action.processTitle}: ${action.steps.join(', ')}`)
           .join('\n');
@@ -318,7 +318,7 @@ const buildPrompt = (params: {
     {
       role: 'system' as const,
       content:
-        "Tu es un expert RH. Rédige une fiche de poste concise en français. Réponds uniquement avec un JSON valide, sans texte supplémentaire ni markdown, avec les clés suivantes: title, generalDescription (2 phrases max), responsibilities (liste d'items), objectives (liste d'items), collaboration (liste d'items)."
+        "Tu es un expert RH. Rédige une fiche de poste concise en français uniquement à partir des informations fournies, sans extrapoler ni inventer de KPI ou de chiffres. Utilise uniquement les actions listées; si aucune action n'est fournie, laisse les sections responsibilities, objectives et collaboration vides. Réponds uniquement avec un JSON valide, sans texte supplémentaire ni markdown, avec les clés suivantes: title, generalDescription (2 phrases max), responsibilities (liste d'items), objectives (liste d'items), collaboration (liste d'items)."
     },
     {
       role: 'user' as const,
