@@ -1,11 +1,19 @@
 import type { Metadata } from 'next';
-import { RaciBuilder } from '@/components/raci/raci-builder';
+import { cookies } from 'next/headers';
 
-export const metadata: Metadata = {
-  title: 'Matrices RACI par département — PI',
-  description:
-    'Créez rapidement des matrices RACI pour chaque département : définissez les rôles, les actions et clarifiez les responsabilités.'
-};
+import { RaciBuilder } from '@/components/raci/raci-builder';
+import { DEFAULT_LOCALE, getDictionary, type Locale } from '@/lib/i18n/dictionaries';
+
+export async function generateMetadata(): Promise<Metadata> {
+  const localeCookie = cookies().get('locale')?.value as Locale | undefined;
+  const locale = localeCookie === 'fr' ? 'fr' : DEFAULT_LOCALE;
+  const dictionary = getDictionary(locale);
+
+  return {
+    title: dictionary.raci.metadata.title,
+    description: dictionary.raci.metadata.description
+  };
+}
 
 export default function RaciPage() {
   return <RaciBuilder />;
