@@ -517,11 +517,11 @@ export function JobDescriptionExplorer() {
                               {selectedDepartment ? (
                                 <>
                                   Au sein du département{' '}
-                                  <span className="font-semibold text-slate-900">{selectedDepartment.name}</span>, ce rôle coordonne
-                                  et exécute les actions clés qui suivent afin d’assurer la réussite des processus opérationnels.
+                                  <span className="font-semibold text-slate-900">{selectedDepartment.name}</span>, la description
+                                  sera générée à partir des actions déjà attribuées à ce rôle.
                                 </>
                               ) : (
-                                "Ce rôle coordonne et exécute les actions clés suivantes afin d’assurer la réussite des processus opérationnels."
+                                'La fiche de poste sera générée uniquement à partir des actions attribuées à ce rôle.'
                               )}
                             </p>
                           )}
@@ -631,8 +631,7 @@ export function JobDescriptionExplorer() {
                         </ul>
                       ) : (
                         <p className="mt-3 text-sm text-slate-600">
-                          Utilisez les actions associées à ce rôle pour définir des objectifs mesurables. Identifiez les indicateurs clés de performance
-                          (KPI) liés à chaque processus afin de suivre efficacement la contribution du rôle.
+                          Aucun objectif enregistré pour l’instant. Une fois la fiche générée, les objectifs saisis s’afficheront ici.
                         </p>
                       )}
                     </section>
@@ -649,8 +648,7 @@ export function JobDescriptionExplorer() {
                         </ul>
                       ) : (
                         <p className="mt-3 text-sm text-slate-600">
-                          Cette fiche met en lumière les interactions principales du rôle avec les autres équipes. Servez-vous des matrices RACI pour
-                          préciser qui intervient, valide ou doit être informé sur chaque étape des processus partagés.
+                          Les interactions avec les autres équipes apparaîtront dès que la fiche aura été générée à partir des actions affectées au rôle.
                         </p>
                       )}
                     </section>
