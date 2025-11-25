@@ -1120,7 +1120,7 @@ export function RaciBuilder() {
                   {columnHighlight ? (
                     <div
                       aria-hidden
-                      className="pointer-events-none absolute top-0 z-30 rounded-md border-2 border-slate-800 shadow-[0_0_0_1px_rgba(15,23,42,0.5)]"
+                      className="pointer-events-none absolute top-0 z-50 rounded-md border-2 border-slate-800 shadow-[0_0_0_1px_rgba(15,23,42,0.5)]"
                       style={{
                         left: columnHighlight.left,
                         width: columnHighlight.width,
