@@ -109,7 +109,7 @@ export function AdministrationPanel({ initialProfile }: AdministrationPanelProps
         ) : null}
       </div>
 
-      <div className="flex flex-1 flex-col gap-6 lg:flex-row-reverse">
+      <div className="flex flex-1 flex-col gap-6 lg:flex-row">
         <aside className="lg:w-64 lg:shrink-0">
           <nav className="flex flex-row gap-3 overflow-hidden rounded-xl border border-slate-200 bg-white p-3 text-slate-900 shadow-sm lg:flex-col">
             <button
