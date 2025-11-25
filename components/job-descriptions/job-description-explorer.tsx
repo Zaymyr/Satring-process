@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Loader2, RotateCw } from 'lucide-react';
 
+import { useI18n } from '@/components/providers/i18n-provider';
 import { cn } from '@/lib/utils/cn';
 import { departmentListSchema, type Department as ApiDepartment } from '@/lib/validation/department';
 import { jobDescriptionResponseSchema, type JobDescription } from '@/lib/validation/job-description';
@@ -160,6 +161,8 @@ const formatUpdatedAt = (value: string) => {
 };
 
 export function JobDescriptionExplorer() {
+  const { dictionary } = useI18n();
+  const sidebarTexts = dictionary.jobDescriptions.explorer.sidebar;
   const queryClient = useQueryClient();
   const departmentQuery = useQuery({
     queryKey: ['departments'],
@@ -350,10 +353,8 @@ export function JobDescriptionExplorer() {
         <div className="grid w-full gap-6 lg:grid-cols-[340px,minmax(0,1fr)] xl:grid-cols-[360px,minmax(0,1fr)]">
           <aside className="flex min-h-0 flex-col gap-5 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
             <div className="space-y-2">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Départements & rôles</p>
-              <p className="text-sm text-slate-600">
-                Sélectionnez un rôle pour afficher sa fiche de poste générée automatiquement.
-              </p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{sidebarTexts.title}</p>
+              <p className="text-sm text-slate-600">{sidebarTexts.description}</p>
             </div>
             <div className="flex-1 overflow-hidden">
               <div className="h-full overflow-y-auto rounded-lg border border-slate-200 bg-slate-50/70 p-3">
