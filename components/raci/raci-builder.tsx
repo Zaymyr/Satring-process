@@ -1,6 +1,6 @@
 'use client';
 
-import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import { ChevronDown, Copy, Download, Expand, FileText, Loader2, Shrink } from 'lucide-react';
@@ -43,7 +43,6 @@ const raciBadgeStyles: Record<FilledRaciValue, string> = {
 } as const;
 
 const rowHighlightShadow = 'shadow-[0_0_0_1px_rgba(148,163,184,0.6)]';
-const cellHighlightShadow = 'shadow-[inset_0_0_0_1px_rgba(148,163,184,0.6)]';
 
 type FilledRaciValue = (typeof filledRaciValues)[number];
 type RaciValue = FilledRaciValue | '';
@@ -741,6 +740,77 @@ export function RaciBuilder() {
   const [hoveredRoleId, setHoveredRoleId] = useState<string | null>(null);
   const [hoveredActionId, setHoveredActionId] = useState<string | null>(null);
   const [hoveredCell, setHoveredCell] = useState<{ actionId: string; roleId: string } | null>(null);
+  const tableContainerRef = useRef<HTMLDivElement | null>(null);
+  const columnRefs = useRef<Map<string, HTMLTableCellElement | null>>(new Map());
+  const rowRefs = useRef<Map<string, HTMLTableRowElement | null>>(new Map());
+  const [columnHighlight, setColumnHighlight] = useState<{ left: number; width: number } | null>(null);
+  const [rowHighlight, setRowHighlight] = useState<{ top: number; height: number } | null>(null);
+
+  const updateColumnHighlight = useCallback(() => {
+    if (!hoveredRoleId) {
+      setColumnHighlight(null);
+      return;
+    }
+
+    const container = tableContainerRef.current;
+    const header = columnRefs.current.get(hoveredRoleId);
+
+    if (!container || !header) {
+      setColumnHighlight(null);
+      return;
+    }
+
+    setColumnHighlight({
+      left: header.offsetLeft - container.scrollLeft,
+      width: header.offsetWidth
+    });
+  }, [hoveredRoleId]);
+
+  const updateRowHighlight = useCallback(() => {
+    if (!hoveredActionId) {
+      setRowHighlight(null);
+      return;
+    }
+
+    const container = tableContainerRef.current;
+    const row = rowRefs.current.get(hoveredActionId);
+
+    if (!container || !row) {
+      setRowHighlight(null);
+      return;
+    }
+
+    setRowHighlight({
+      top: row.offsetTop - container.scrollTop,
+      height: row.offsetHeight
+    });
+  }, [hoveredActionId]);
+
+  useEffect(() => {
+    updateColumnHighlight();
+  }, [updateColumnHighlight]);
+
+  useEffect(() => {
+    updateRowHighlight();
+  }, [updateRowHighlight]);
+
+  useEffect(() => {
+    const container = tableContainerRef.current;
+    if (!container) {
+      return;
+    }
+
+    const handleScroll = () => {
+      updateColumnHighlight();
+      updateRowHighlight();
+    };
+
+    container.addEventListener('scroll', handleScroll);
+
+    return () => {
+      container.removeEventListener('scroll', handleScroll);
+    };
+  }, [updateColumnHighlight, updateRowHighlight]);
 
   const updateMatrix = (departmentId: string, actionId: string, roleId: string, value: RaciValue) => {
     setDepartmentStates((previous) => {
@@ -1039,12 +1109,36 @@ export function RaciBuilder() {
                 </div>
 
                 <div
-                  className="hidden overflow-auto md:block"
+                  ref={tableContainerRef}
+                  className="relative hidden overflow-auto md:block"
                   onMouseLeave={() => {
                     setHoveredRoleId(null);
                     setHoveredActionId(null);
+                    setHoveredCell(null);
                   }}
                 >
+                  {columnHighlight ? (
+                    <div
+                      aria-hidden
+                      className="pointer-events-none absolute top-0 z-30 rounded-md border-2 border-slate-800 shadow-[0_0_0_1px_rgba(15,23,42,0.5)]"
+                      style={{
+                        left: columnHighlight.left,
+                        width: columnHighlight.width,
+                        height: tableContainerRef.current?.scrollHeight
+                      }}
+                    />
+                  ) : null}
+                  {rowHighlight ? (
+                    <div
+                      aria-hidden
+                      className="pointer-events-none absolute left-0 z-30 rounded-md border-2 border-slate-800 shadow-[0_0_0_1px_rgba(15,23,42,0.5)]"
+                      style={{
+                        top: rowHighlight.top,
+                        height: rowHighlight.height,
+                        width: tableContainerRef.current?.scrollWidth
+                      }}
+                    />
+                  ) : null}
                   <table className="min-w-full border-separate border-spacing-0">
                     <thead className="sticky top-0 z-30 bg-white shadow-sm">
                       <tr>
@@ -1058,11 +1152,16 @@ export function RaciBuilder() {
                           <th
                             key={role.id}
                             scope="col"
+                            ref={(node) => {
+                              if (node) {
+                                columnRefs.current.set(role.id, node);
+                              } else {
+                                columnRefs.current.delete(role.id);
+                              }
+                            }}
                             onMouseEnter={() => setHoveredRoleId(role.id)}
                             className={cn(
-                              'min-w-[6.5rem] max-w-[8rem] border-b border-slate-200 bg-white px-3 py-3 text-center text-xs font-semibold uppercase tracking-wide text-slate-500 transition-shadow',
-                              hoveredRoleId === role.id && cellHighlightShadow,
-                              'hover:shadow-[inset_0_0_0_1px_rgba(148,163,184,0.45)]'
+                              'min-w-[6.5rem] max-w-[8rem] border-b border-slate-200 bg-white px-3 py-3 text-center text-xs font-semibold uppercase tracking-wide text-slate-500'
                             )}
                           >
                             <span className="flex flex-col items-center justify-center gap-1 text-center leading-tight">
@@ -1165,12 +1264,18 @@ export function RaciBuilder() {
                                       return (
                                         <tr
                                           key={`aggregated-${process.id}-${action.id}`}
+                                          ref={(node) => {
+                                            if (node) {
+                                              rowRefs.current.set(action.id, node);
+                                            } else {
+                                              rowRefs.current.delete(action.id);
+                                            }
+                                          }}
                                           onMouseEnter={() => setHoveredActionId(action.id)}
                                           onMouseLeave={() => setHoveredActionId(null)}
                                           className={cn(
                                             rowBackground,
                                             'odd:bg-white even:bg-slate-100 group relative transition-shadow',
-                                            'hover:shadow-[0_0_0_1px_rgba(148,163,184,0.45)]',
                                             hoveredActionId === action.id && rowHighlightShadow
                                           )}
                                         >
@@ -1194,14 +1299,8 @@ export function RaciBuilder() {
                                                 setHoveredCell({ actionId: action.id, roleId: role.id });
                                               }}
                                               onMouseLeave={() => setHoveredCell(null)}
-                                              className={cn(
-                                                'relative px-2.5 py-2 text-center text-sm align-middle transition-shadow',
-                                                'bg-inherit',
-                                                hoveredRoleId === role.id && cellHighlightShadow,
-                                                hoveredActionId === action.id && cellHighlightShadow,
-                                                'hover:shadow-[inset_0_0_0_1px_rgba(148,163,184,0.45)] group-hover:shadow-[inset_0_0_0_1px_rgba(148,163,184,0.45)]'
-                                              )}
-                                              >
+                                              className="relative px-2.5 py-2 text-center text-sm align-middle bg-inherit"
+                                            >
                                                 <div className="group/cell relative inline-flex">
                                                   {action.assignedRoleIds.has(role.id) ? (
                                                     <span
@@ -1253,12 +1352,18 @@ export function RaciBuilder() {
                             return (
                               <tr
                                 key={action.id}
+                                ref={(node) => {
+                                  if (node) {
+                                    rowRefs.current.set(action.id, node);
+                                  } else {
+                                    rowRefs.current.delete(action.id);
+                                  }
+                                }}
                                 onMouseEnter={() => setHoveredActionId(action.id)}
                                 onMouseLeave={() => setHoveredActionId(null)}
                                 className={cn(
                                   rowBackground,
                                   'odd:bg-white even:bg-slate-100 group relative transition-shadow',
-                                  'hover:shadow-[0_0_0_1px_rgba(148,163,184,0.45)]',
                                   hoveredActionId === action.id && rowHighlightShadow
                                 )}
                               >
@@ -1285,14 +1390,8 @@ export function RaciBuilder() {
                                         setHoveredRoleId(role.id);
                                         setHoveredCell({ actionId: action.id, roleId: role.id });
                                       }}
-                                    onMouseLeave={() => setHoveredCell(null)}
-                                  className={cn(
-                                      'relative px-2.5 py-2 text-sm align-middle transition-shadow',
-                                      'bg-inherit',
-                                      hoveredRoleId === role.id && cellHighlightShadow,
-                                      hoveredActionId === action.id && cellHighlightShadow,
-                                      'hover:shadow-[inset_0_0_0_1px_rgba(148,163,184,0.45)] group-hover:shadow-[inset_0_0_0_1px_rgba(148,163,184,0.45)]'
-                                    )}
+                                      onMouseLeave={() => setHoveredCell(null)}
+                                      className="relative px-2.5 py-2 text-sm align-middle bg-inherit"
                                     >
                                       <div className="flex flex-col items-center gap-2">
                                         <div className="group/cell relative">
