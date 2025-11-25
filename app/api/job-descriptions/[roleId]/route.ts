@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
 import { performChatCompletion } from '@/lib/ai/openai';
-import { ensureJobDescriptionSections, stringifySections } from '@/lib/job-descriptions/format';
+import { ensureJobDescriptionSections, stringifySections, type JobDescriptionSections } from '@/lib/job-descriptions/format';
 import { DEFAULT_PROCESS_TITLE } from '@/lib/process/defaults';
 import { createServerClient } from '@/lib/supabase/server';
 import { getServerUser } from '@/lib/supabase/auth';
@@ -353,12 +353,33 @@ const parseGeneratedSections = (raw: string) => {
       return null;
     }
 
+    const fallbackSections: JobDescriptionSections = {
+      title: validated.data.title?.trim() || 'Fiche de poste',
+      generalDescription: validated.data.generalDescription?.trim() || 'Description générale à préciser.',
+      responsibilities:
+        validated.data.responsibilities.length > 0
+          ? validated.data.responsibilities
+          : ['Responsabilités à préciser.'],
+      objectives:
+        validated.data.objectives.length > 0
+          ? validated.data.objectives
+          : ['Objectifs et indicateurs à préciser.'],
+      collaboration:
+        validated.data.collaboration.length > 0
+          ? validated.data.collaboration
+          : ['Collaborations attendues à préciser.']
+    };
+
+    const contentSeed = validated.data.content ?? stringifySections(fallbackSections);
+
     const sections = ensureJobDescriptionSections({
-      content: validated.data.content ?? stringifySections(validated.data),
+      content: contentSeed,
       sections: validated.data
     });
 
-    return { sections, content: stringifySections(sections) };
+    const content = validated.data.content ?? stringifySections(sections);
+
+    return { sections, content };
   } catch (error) {
     console.error('Impossible de parser la réponse IA pour la fiche de poste', error);
     return null;
