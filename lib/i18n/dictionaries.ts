@@ -137,8 +137,12 @@ export type Dictionary = {
         showDepartments: string;
         collapseLabel: string;
       };
-    };
+  };
   raci: {
+    metadata: {
+      title: string;
+      description: string;
+    };
     definitions: Record<
       'R' | 'A' | 'C' | 'I',
       { short: string; description: string; tooltip: string }
@@ -475,6 +479,11 @@ const dictionaries: Record<Locale, Dictionary> = {
       }
     },
     raci: {
+      metadata: {
+        title: 'Department RACI matrices — PI',
+        description:
+          'Quickly create RACI matrices for each department: define roles, actions, and clarify responsibilities.'
+      },
       definitions: {
         R: {
           short: 'Responsible',
@@ -829,6 +838,11 @@ const dictionaries: Record<Locale, Dictionary> = {
       }
     },
     raci: {
+      metadata: {
+        title: 'Matrices RACI par département — PI',
+        description:
+          'Créez rapidement des matrices RACI pour chaque département : définissez les rôles, les actions et clarifiez les responsabilités.'
+      },
       definitions: {
         R: {
           short: 'Responsable',
