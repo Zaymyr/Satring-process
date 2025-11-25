@@ -138,6 +138,72 @@ export type Dictionary = {
         collapseLabel: string;
       };
     };
+  raci: {
+    definitions: Record<
+      'R' | 'A' | 'C' | 'I',
+      { short: string; description: string; tooltip: string }
+    >;
+    departments: {
+      title: string;
+      loading: string;
+      authRequired: string;
+      ariaLabel: string;
+      empty: string;
+      noRoles: string;
+      roleCount: { singular: string; plural: string };
+    };
+    builder: {
+      counts: {
+        roles: { singular: string; plural: string };
+        actions: { singular: string; plural: string };
+      };
+      exports: {
+        csv: { download: string; copy: string; copied: string };
+        markdown: { copy: string; copied: string };
+        pdf: string;
+        fileName: string;
+        headers: { action: string };
+        departmentFallbackSlug: string;
+        documentTitle: string;
+      };
+      processes: {
+        expandAll: string;
+        collapseAll: string;
+        showSteps: string;
+        hideSteps: string;
+      };
+      mobile: {
+        loading: string;
+        authError: string;
+        empty: string;
+      };
+      table: {
+        heading: string;
+        loading: string;
+        authError: string;
+        empty: string;
+        unassigned: string;
+      };
+      badges: {
+        imported: string;
+        manual: string;
+      };
+      summary: {
+        title: string;
+        unassigned: string;
+      };
+      emptySelection: string;
+      methodology: {
+        title: string;
+        description: string;
+      };
+    };
+    errors: {
+      authRequired: string;
+      listDepartmentsFailed: string;
+      listRoleActionsFailed: string;
+    };
+  };
   header: {
     localeToggle: {
       label: string;
@@ -408,6 +474,90 @@ const dictionaries: Record<Locale, Dictionary> = {
         collapseLabel: 'Collapse diagram options'
       }
     },
+    raci: {
+      definitions: {
+        R: {
+          short: 'Responsible',
+          description: 'Executes the task and reports on progress.',
+          tooltip: 'Responsible – executes the task'
+        },
+        A: {
+          short: 'Accountable',
+          description: 'Holds final authority to validate or decide.',
+          tooltip: 'Accountable – validates / decides'
+        },
+        C: {
+          short: 'Consulted',
+          description: 'Provides expertise and must be consulted before decisions.',
+          tooltip: 'Consulted – provides expertise'
+        },
+        I: {
+          short: 'Informed',
+          description: 'Should be kept up to date on progress and decisions.',
+          tooltip: 'Informed – must be kept up to date'
+        }
+      },
+      departments: {
+        title: 'Departments',
+        loading: 'Loading departments…',
+        authRequired: 'Sign in to access your departments.',
+        ariaLabel: 'Available departments',
+        empty: 'No departments available. Create departments from the home page to start.',
+        noRoles: 'No roles are linked to this department.',
+        roleCount: { singular: 'role', plural: 'roles' }
+      },
+      builder: {
+        counts: {
+          roles: { singular: 'role', plural: 'roles' },
+          actions: { singular: 'action', plural: 'actions' }
+        },
+        exports: {
+          csv: { download: 'Export CSV', copy: 'Copy CSV', copied: 'CSV copied!' },
+          markdown: { copy: 'Copy Markdown', copied: 'Markdown copied!' },
+          pdf: 'Export PDF/Print',
+          fileName: 'raci-matrix',
+          headers: { action: 'Action' },
+          departmentFallbackSlug: 'department',
+          documentTitle: 'RACI matrix — {department}'
+        },
+        processes: {
+          expandAll: 'Expand all',
+          collapseAll: 'Collapse all',
+          showSteps: 'Show process steps',
+          hideSteps: 'Hide process steps'
+        },
+        mobile: {
+          loading: 'Analyzing actions…',
+          authError: 'Sign in to view actions assigned to your roles.',
+          empty: 'Add actions or import processes to generate the department RACI matrix.'
+        },
+        table: {
+          heading: 'Actions',
+          loading: 'Analyzing actions…',
+          authError: 'Sign in to view actions assigned to your roles.',
+          empty: 'No actions are available for this department yet.',
+          unassigned: 'Unassigned'
+        },
+        badges: {
+          imported: 'Imported action',
+          manual: 'Manual action'
+        },
+        summary: {
+          title: 'Action summary',
+          unassigned: 'Unassigned'
+        },
+        emptySelection: 'Select a department to generate its RACI matrix.',
+        methodology: {
+          title: 'RACI methodology',
+          description: 'Hover a role or a cell to see a quick reminder of responsibilities.'
+        }
+      },
+      errors: {
+        authRequired: 'Authentication required',
+        listDepartmentsFailed: 'Unable to list your departments.',
+        listRoleActionsFailed: 'Unable to retrieve the role actions.'
+      }
+    },
     header: {
       localeToggle: {
         label: 'Language',
@@ -676,6 +826,90 @@ const dictionaries: Record<Locale, Dictionary> = {
         hideDepartments: 'Masquer les départements',
         showDepartments: 'Afficher les départements',
         collapseLabel: 'Replier les options du diagramme'
+      }
+    },
+    raci: {
+      definitions: {
+        R: {
+          short: 'Responsable',
+          description: "Ce rôle exécute la tâche et rend compte de l’avancement.",
+          tooltip: 'Responsable – exécute la tâche'
+        },
+        A: {
+          short: 'Autorité',
+          description: 'Détient l’autorité finale pour valider ou trancher.',
+          tooltip: 'Autorité – valide / tranche'
+        },
+        C: {
+          short: 'Consulté',
+          description: 'Apporte son expertise et doit être consulté avant la décision.',
+          tooltip: 'Consulté – apporte son expertise'
+        },
+        I: {
+          short: 'Informé',
+          description: 'Doit être tenu au courant de l’avancement et des décisions.',
+          tooltip: 'Informé – doit être tenu au courant'
+        }
+      },
+      departments: {
+        title: 'Départements',
+        loading: 'Chargement des départements…',
+        authRequired: 'Connectez-vous pour accéder à vos départements.',
+        ariaLabel: 'Départements disponibles',
+        empty: 'Aucun département disponible. Créez vos départements depuis l’accueil pour commencer.',
+        noRoles: 'Aucun rôle n’est associé à ce département.',
+        roleCount: { singular: 'rôle', plural: 'rôles' }
+      },
+      builder: {
+        counts: {
+          roles: { singular: 'rôle', plural: 'rôles' },
+          actions: { singular: 'action', plural: 'actions' }
+        },
+        exports: {
+          csv: { download: 'Exporter en CSV', copy: 'Copier CSV', copied: 'CSV copié !' },
+          markdown: { copy: 'Copier en Markdown', copied: 'Markdown copié !' },
+          pdf: 'Export PDF/Impression',
+          fileName: 'matrice-raci',
+          headers: { action: 'Action' },
+          departmentFallbackSlug: 'departement',
+          documentTitle: 'Matrice RACI — {department}'
+        },
+        processes: {
+          expandAll: 'Tout développer',
+          collapseAll: 'Tout réduire',
+          showSteps: 'Afficher les étapes du processus',
+          hideSteps: 'Masquer les étapes du processus'
+        },
+        mobile: {
+          loading: 'Analyse des actions en cours…',
+          authError: 'Connectez-vous pour consulter les actions assignées à vos rôles.',
+          empty: 'Ajoutez des actions ou importez des processus pour générer la matrice RACI du département.'
+        },
+        table: {
+          heading: 'Actions',
+          loading: 'Analyse des actions en cours…',
+          authError: 'Connectez-vous pour consulter les actions assignées à vos rôles.',
+          empty: 'Aucune action n’est disponible pour ce département pour le moment.',
+          unassigned: 'Non attribué'
+        },
+        badges: {
+          imported: 'Action importée',
+          manual: 'Action manuelle'
+        },
+        summary: {
+          title: 'Synthèse par action',
+          unassigned: 'Non attribué'
+        },
+        emptySelection: 'Sélectionnez un département pour générer sa matrice RACI.',
+        methodology: {
+          title: 'Méthodologie RACI',
+          description: 'Survolez un rôle ou une cellule pour afficher un rappel rapide des responsabilités.'
+        }
+      },
+      errors: {
+        authRequired: 'Authentification requise',
+        listDepartmentsFailed: 'Impossible de lister vos départements.',
+        listRoleActionsFailed: 'Impossible de récupérer les actions des rôles.'
       }
     },
     header: {

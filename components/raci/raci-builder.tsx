@@ -1,10 +1,11 @@
 'use client';
 
-import { Fragment, useEffect, useMemo, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import { ChevronDown, Copy, Download, FileText, Loader2 } from 'lucide-react';
 
+import { useI18n } from '@/components/providers/i18n-provider';
 import { cn } from '@/lib/utils/cn';
 import { departmentListSchema, type Department as ApiDepartment } from '@/lib/validation/department';
 import { roleActionSummaryListSchema, type RoleActionSummary } from '@/lib/validation/role-action';
@@ -32,73 +33,7 @@ const readErrorMessage = async (response: Response, fallback: string) => {
   return fallback;
 };
 
-const fetchDepartments = async (): Promise<ApiDepartment[]> => {
-  const response = await fetch('/api/departments', {
-    method: 'GET',
-    credentials: 'include',
-    cache: 'no-store'
-  });
-
-  if (response.status === 401) {
-    throw new ApiError('Authentification requise', 401);
-  }
-
-  if (!response.ok) {
-    const message = await readErrorMessage(response, 'Impossible de lister vos départements.');
-    throw new ApiError(message, response.status);
-  }
-
-  const json = await response.json();
-  return departmentListSchema.parse(json);
-};
-
-const fetchRoleActions = async (): Promise<RoleActionSummary[]> => {
-  const response = await fetch('/api/roles/actions', {
-    method: 'GET',
-    credentials: 'include',
-    cache: 'no-store'
-  });
-
-  if (response.status === 401) {
-    throw new ApiError('Authentification requise', 401);
-  }
-
-  if (!response.ok) {
-    const message = await readErrorMessage(response, 'Impossible de récupérer les actions des rôles.');
-    throw new ApiError(message, response.status);
-  }
-
-  const json = await response.json();
-  return roleActionSummaryListSchema.parse(json);
-};
-
 const filledRaciValues = ['R', 'A', 'C', 'I'] as const;
-
-const raciDefinitions: Record<
-  (typeof filledRaciValues)[number],
-  { short: string; description: string; tooltip: string }
-> = {
-  R: {
-    short: 'Responsable',
-    description: "Ce rôle exécute la tâche et rend compte de l’avancement.",
-    tooltip: 'Responsable – exécute la tâche'
-  },
-  A: {
-    short: 'Autorité',
-    description: 'Détient l’autorité finale pour valider ou trancher.',
-    tooltip: 'Autorité – valide / tranche'
-  },
-  C: {
-    short: 'Consulté',
-    description: 'Apporte son expertise et doit être consulté avant la décision.',
-    tooltip: 'Consulté – apporte son expertise'
-  },
-  I: {
-    short: 'Informé',
-    description: 'Doit être tenu au courant de l’avancement et des décisions.',
-    tooltip: 'Informé – doit être tenu au courant'
-  }
-} as const;
 
 const raciBadgeStyles: Record<FilledRaciValue, string> = {
   R: 'bg-emerald-100 text-emerald-700 ring-1 ring-inset ring-emerald-200',
@@ -106,14 +41,6 @@ const raciBadgeStyles: Record<FilledRaciValue, string> = {
   C: 'bg-amber-100 text-amber-700 ring-1 ring-inset ring-amber-200',
   I: 'bg-slate-100 text-slate-700 ring-1 ring-inset ring-slate-200'
 } as const;
-
-const raciOptions: ReadonlyArray<{ value: RaciValue; label: string }> = [
-  { value: '', label: '—' },
-  ...filledRaciValues.map((value) => ({
-    value,
-    label: `${value} — ${raciDefinitions[value].short}`
-  }))
-];
 
 type FilledRaciValue = (typeof filledRaciValues)[number];
 type RaciValue = FilledRaciValue | '';
@@ -159,6 +86,9 @@ type MatrixExportRow = {
   label: string;
   values: Record<string, RaciValue>;
 };
+
+const formatCount = (count: number, labels: { singular: string; plural: string }) =>
+  `${count} ${count === 1 ? labels.singular : labels.plural}`;
 
 const EMPTY_DEPARTMENT_STATE: DepartmentMatrixState = {
   actions: [],
@@ -241,6 +171,61 @@ const ensureMatrixCoverage = (
 };
 
 export function RaciBuilder() {
+  const { dictionary, locale } = useI18n();
+
+  const raciDefinitions = dictionary.raci.definitions;
+
+  const raciOptions = useMemo<ReadonlyArray<{ value: RaciValue; label: string }>>(
+    () => [
+      { value: '', label: '—' },
+      ...filledRaciValues.map((value) => ({
+        value,
+        label: `${value} — ${raciDefinitions[value].short}`
+      }))
+    ],
+    [raciDefinitions]
+  );
+
+  const fetchDepartments = useCallback(async (): Promise<ApiDepartment[]> => {
+    const response = await fetch('/api/departments', {
+      method: 'GET',
+      credentials: 'include',
+      cache: 'no-store'
+    });
+
+    if (response.status === 401) {
+      throw new ApiError(dictionary.raci.errors.authRequired, 401);
+    }
+
+    if (!response.ok) {
+      const message = await readErrorMessage(response, dictionary.raci.errors.listDepartmentsFailed);
+      throw new ApiError(message, response.status);
+    }
+
+    const json = await response.json();
+    return departmentListSchema.parse(json);
+  }, [dictionary.raci.errors.authRequired, dictionary.raci.errors.listDepartmentsFailed]);
+
+  const fetchRoleActions = useCallback(async (): Promise<RoleActionSummary[]> => {
+    const response = await fetch('/api/roles/actions', {
+      method: 'GET',
+      credentials: 'include',
+      cache: 'no-store'
+    });
+
+    if (response.status === 401) {
+      throw new ApiError(dictionary.raci.errors.authRequired, 401);
+    }
+
+    if (!response.ok) {
+      const message = await readErrorMessage(response, dictionary.raci.errors.listRoleActionsFailed);
+      throw new ApiError(message, response.status);
+    }
+
+    const json = await response.json();
+    return roleActionSummaryListSchema.parse(json);
+  }, [dictionary.raci.errors.authRequired, dictionary.raci.errors.listRoleActionsFailed]);
+
   const departmentsQuery = useQuery<ApiDepartment[], ApiError>({
     queryKey: ['departments'],
     queryFn: fetchDepartments,
@@ -400,11 +385,11 @@ export function RaciBuilder() {
         id: process.id,
         title: process.title,
         steps: Array.from(process.steps.values()).sort((left, right) =>
-          left.label.localeCompare(right.label, 'fr', { sensitivity: 'base' })
+          left.label.localeCompare(right.label, locale, { sensitivity: 'base' })
         )
       }))
-      .sort((left, right) => left.title.localeCompare(right.title, 'fr', { sensitivity: 'base' }));
-  }, [roleActionsByRoleId, selectedDepartment]);
+      .sort((left, right) => left.title.localeCompare(right.title, locale, { sensitivity: 'base' }));
+  }, [locale, roleActionsByRoleId, selectedDepartment]);
 
   const aggregatedActionCount = useMemo(
     () => departmentAggregatedProcesses.reduce((total, process) => total + process.steps.length, 0),
@@ -463,14 +448,14 @@ export function RaciBuilder() {
         .normalize('NFD')
         .replace(/[^a-z0-9]+/g, '-')
         .replace(/(^-|-$)+/g, '')
-    : 'departement';
+    : dictionary.raci.builder.exports.departmentFallbackSlug;
 
   const buildCsvContent = () => {
     if (!selectedDepartment || matrixRows.length === 0) {
       return '';
     }
 
-    const headers = ['Action', ...selectedDepartment.roles.map((role) => role.name)];
+    const headers = [dictionary.raci.builder.exports.headers.action, ...selectedDepartment.roles.map((role) => role.name)];
     const escape = (value: string) => `"${value.replace(/"/g, '""')}"`;
 
     const lines = [
@@ -496,7 +481,7 @@ export function RaciBuilder() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `matrice-raci-${departmentSlug}.csv`;
+    link.download = `${dictionary.raci.builder.exports.fileName}-${departmentSlug}.csv`;
     link.click();
     URL.revokeObjectURL(url);
   };
@@ -506,7 +491,7 @@ export function RaciBuilder() {
       return;
     }
 
-    const headers = ['Action', ...selectedDepartment.roles.map((role) => role.name)];
+    const headers = [dictionary.raci.builder.exports.headers.action, ...selectedDepartment.roles.map((role) => role.name)];
     const separator = `| ${headers.map(() => '---').join(' | ')} |`;
     const tableRows = matrixRows.map(
       (row) =>
@@ -540,7 +525,7 @@ export function RaciBuilder() {
       return;
     }
 
-    const tableHeaders = ['Action', ...selectedDepartment.roles.map((role) => role.name)]
+    const tableHeaders = [dictionary.raci.builder.exports.headers.action, ...selectedDepartment.roles.map((role) => role.name)]
       .map((header) => `<th style="padding:8px;border:1px solid #e2e8f0;text-align:left;">${header}</th>`)
       .join('');
 
@@ -554,11 +539,16 @@ export function RaciBuilder() {
       })
       .join('');
 
+    const documentTitle = dictionary.raci.builder.exports.documentTitle.replace(
+      '{department}',
+      selectedDepartment.name
+    );
+
     const html = `<!doctype html>
         <html>
           <head>
             <meta charset="utf-8" />
-            <title>Matrice RACI — ${selectedDepartment.name}</title>
+            <title>${documentTitle}</title>
             <style>
               @page { size: A4 landscape; margin: 16mm; }
               body { font-family: 'Inter', system-ui, -apple-system, sans-serif; color: #0f172a; }
@@ -569,7 +559,7 @@ export function RaciBuilder() {
             </style>
           </head>
           <body>
-            <h1>Matrice RACI — ${selectedDepartment.name}</h1>
+            <h1>${documentTitle}</h1>
             <table>
               <thead><tr>${tableHeaders}</tr></thead>
               <tbody>${tableRows}</tbody>
@@ -789,21 +779,21 @@ export function RaciBuilder() {
         <section className="grid gap-6 lg:grid-cols-[360px_minmax(0,1fr)_280px]">
           <div className="flex flex-col gap-6 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
             <div className="space-y-4">
-              <h2 className="text-base font-semibold text-slate-900">Départements</h2>
+              <h2 className="text-base font-semibold text-slate-900">{dictionary.raci.departments.title}</h2>
 
               {departmentsQuery.isLoading ? (
                 <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-500">
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  Chargement des départements…
+                  {dictionary.raci.departments.loading}
                 </div>
               ) : departmentsQuery.isError ? (
                 <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">
                   {departmentsQuery.error instanceof ApiError && departmentsQuery.error.status === 401
-                    ? 'Connectez-vous pour accéder à vos départements.'
+                    ? dictionary.raci.departments.authRequired
                     : departmentsQuery.error.message}
                 </div>
               ) : departments.length > 0 ? (
-                <ul className="flex flex-col gap-3" role="tree" aria-label="Départements disponibles">
+                <ul className="flex flex-col gap-3" role="tree" aria-label={dictionary.raci.departments.ariaLabel}>
                   {departments.map((department) => {
                     const isSelected = department.id === selectedDepartmentId;
                     const rolesCount = department.roles.length;
@@ -825,16 +815,16 @@ export function RaciBuilder() {
                               aria-hidden="true"
                               className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-slate-200 shadow-inner"
                               style={{ backgroundColor: department.color }}
-                            />
-                            <div className="min-w-0 flex-1 space-y-1">
-                              <div className="flex items-center justify-between gap-2">
-                                <p className="truncate text-sm font-semibold text-slate-900">{department.name}</p>
-                                <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-1 text-[11px] font-semibold text-slate-700 ring-1 ring-inset ring-slate-200">
-                                  <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: department.color }} aria-hidden />
-                                  {rolesCount} rôle{rolesCount > 1 ? 's' : ''}
-                                </span>
+                              />
+                              <div className="min-w-0 flex-1 space-y-1">
+                                <div className="flex items-center justify-between gap-2">
+                                  <p className="truncate text-sm font-semibold text-slate-900">{department.name}</p>
+                                  <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-1 text-[11px] font-semibold text-slate-700 ring-1 ring-inset ring-slate-200">
+                                    <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: department.color }} aria-hidden />
+                                    {formatCount(rolesCount, dictionary.raci.departments.roleCount)}
+                                  </span>
+                                </div>
                               </div>
-                            </div>
                           </div>
                         </button>
                         {isSelected ? (
@@ -856,7 +846,7 @@ export function RaciBuilder() {
                                 ))}
                               </ul>
                             ) : (
-                              <p className="mt-2 text-sm text-slate-500">Aucun rôle n’est associé à ce département.</p>
+                              <p className="mt-2 text-sm text-slate-500">{dictionary.raci.departments.noRoles}</p>
                             )}
                           </div>
                         ) : null}
@@ -866,7 +856,7 @@ export function RaciBuilder() {
                 </ul>
               ) : (
                 <p className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-500">
-                  Aucun département disponible. Créez vos départements depuis l’accueil pour commencer.
+                  {dictionary.raci.departments.empty}
                 </p>
               )}
             </div>
@@ -884,11 +874,11 @@ export function RaciBuilder() {
                         <div className="flex flex-wrap items-center gap-2">
                           <span className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700 ring-1 ring-inset ring-slate-200">
                             <span className="h-2 w-2 rounded-full bg-slate-400" aria-hidden />
-                            {selectedDepartment.roles.length} rôle{selectedDepartment.roles.length > 1 ? 's' : ''}
+                            {formatCount(selectedDepartment.roles.length, dictionary.raci.builder.counts.roles)}
                           </span>
                           <span className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700 ring-1 ring-inset ring-slate-200">
                             <span className="h-2 w-2 rounded-full bg-slate-400" aria-hidden />
-                            {totalActionCount} action{totalActionCount > 1 ? 's' : ''}
+                            {formatCount(totalActionCount, dictionary.raci.builder.counts.actions)}
                           </span>
                         </div>
                       </div>
@@ -897,53 +887,57 @@ export function RaciBuilder() {
                           type="button"
                           onClick={handleCsvDownload}
                           disabled={!hasExportableData}
-                          title="Exporter en CSV"
+                          title={dictionary.raci.builder.exports.csv.download}
                           className={cn(
                             'inline-flex h-10 w-10 items-center justify-center rounded-md border border-slate-200 bg-white text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400',
                             !hasExportableData && 'cursor-not-allowed opacity-60'
                           )}
                         >
                           <Download className="h-4 w-4" aria-hidden />
-                          <span className="sr-only">Exporter en CSV</span>
+                          <span className="sr-only">{dictionary.raci.builder.exports.csv.download}</span>
                         </button>
                         <button
                           type="button"
                           onClick={handleCopyCsv}
                           disabled={!hasExportableData}
-                          title={csvCopied ? 'CSV copié !' : 'Copier CSV'}
+                          title={csvCopied ? dictionary.raci.builder.exports.csv.copied : dictionary.raci.builder.exports.csv.copy}
                           className={cn(
                             'inline-flex h-10 w-10 items-center justify-center rounded-md border border-slate-200 bg-white text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400',
                             !hasExportableData && 'cursor-not-allowed opacity-60'
                           )}
                         >
                           <Copy className="h-4 w-4" aria-hidden />
-                          <span className="sr-only">{csvCopied ? 'CSV copié !' : 'Copier CSV'}</span>
+                          <span className="sr-only">{csvCopied ? dictionary.raci.builder.exports.csv.copied : dictionary.raci.builder.exports.csv.copy}</span>
                         </button>
                         <button
                           type="button"
                           onClick={handleCopyMarkdown}
                           disabled={!hasExportableData}
-                          title={markdownCopied ? 'Markdown copié !' : 'Copier en Markdown'}
+                          title={
+                            markdownCopied
+                              ? dictionary.raci.builder.exports.markdown.copied
+                              : dictionary.raci.builder.exports.markdown.copy
+                          }
                           className={cn(
                             'inline-flex h-10 w-10 items-center justify-center rounded-md border border-slate-200 bg-white text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400',
                             !hasExportableData && 'cursor-not-allowed opacity-60'
                           )}
                         >
                           <Copy className="h-4 w-4" aria-hidden />
-                          <span className="sr-only">{markdownCopied ? 'Markdown copié !' : 'Copier en Markdown'}</span>
+                          <span className="sr-only">{markdownCopied ? dictionary.raci.builder.exports.markdown.copied : dictionary.raci.builder.exports.markdown.copy}</span>
                         </button>
                         <button
                           type="button"
                           onClick={handlePrintPdf}
                           disabled={!hasExportableData}
-                          title="Export PDF/Impression"
+                          title={dictionary.raci.builder.exports.pdf}
                           className={cn(
                             'inline-flex h-10 w-10 items-center justify-center rounded-md border border-slate-200 bg-white text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400',
                             !hasExportableData && 'cursor-not-allowed opacity-60'
                           )}
                         >
                           <FileText className="h-4 w-4" aria-hidden />
-                          <span className="sr-only">Export PDF/Impression</span>
+                          <span className="sr-only">{dictionary.raci.builder.exports.pdf}</span>
                         </button>
                       </div>
                     </div>
@@ -954,14 +948,14 @@ export function RaciBuilder() {
                           onClick={expandAllProcesses}
                           className="inline-flex items-center rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
                         >
-                          Tout développer
+                          {dictionary.raci.builder.processes.expandAll}
                         </button>
                         <button
                           type="button"
                           onClick={collapseAllProcesses}
                           className="inline-flex items-center rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
                         >
-                          Tout réduire
+                          {dictionary.raci.builder.processes.collapseAll}
                         </button>
                       </div>
                     ) : null}
@@ -972,17 +966,17 @@ export function RaciBuilder() {
                   {roleActionsQuery.isLoading ? (
                     <div className="flex items-center justify-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
                       <Loader2 className="h-4 w-4 animate-spin" />
-                      Analyse des actions en cours…
+                      {dictionary.raci.builder.mobile.loading}
                     </div>
                   ) : roleActionsQuery.isError ? (
                     <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
                       {roleActionsQuery.error instanceof ApiError && roleActionsQuery.error.status === 401
-                        ? 'Connectez-vous pour consulter les actions assignées à vos rôles.'
+                        ? dictionary.raci.builder.mobile.authError
                         : roleActionsQuery.error.message}
                     </div>
                   ) : showEmptyMatrixState ? (
                     <div className="rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 shadow-sm">
-                      Ajoutez des actions ou importez des processus pour générer la matrice RACI du département.
+                      {dictionary.raci.builder.mobile.empty}
                     </div>
                   ) : (
                     <div className="space-y-3">
@@ -1001,7 +995,9 @@ export function RaciBuilder() {
                                   : 'bg-slate-100 text-slate-700 ring-slate-200'
                               )}
                             >
-                              {action.source === 'aggregated' ? 'Action importée' : 'Action manuelle'}
+                              {action.source === 'aggregated'
+                                ? dictionary.raci.builder.badges.imported
+                                : dictionary.raci.builder.badges.manual}
                             </span>
                           </div>
                           <dl className="mt-3 space-y-2">
@@ -1021,7 +1017,9 @@ export function RaciBuilder() {
                                   </span>
                                   <div className="space-y-0.5">
                                     <p className="text-sm font-semibold text-slate-900">{raciDefinitions[value].short}</p>
-                                    <p className="text-xs text-slate-700">{hasRoles ? roles.join(', ') : 'Non attribué'}</p>
+                                    <p className="text-xs text-slate-700">
+                                      {hasRoles ? roles.join(', ') : dictionary.raci.builder.table.unassigned}
+                                    </p>
                                   </div>
                                 </div>
                               );
@@ -1047,7 +1045,7 @@ export function RaciBuilder() {
                           className="sticky left-0 top-0 z-40 w-64 border-b border-r border-slate-200 bg-white px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500"
                           scope="col"
                         >
-                          Actions
+                          {dictionary.raci.builder.table.heading}
                         </th>
                         {selectedDepartment.roles.map((role) => (
                           <th
@@ -1082,7 +1080,7 @@ export function RaciBuilder() {
                           >
                             <span className="flex items-center justify-center gap-2">
                               <Loader2 className="h-4 w-4 animate-spin" />
-                              Analyse des actions en cours…
+                              {dictionary.raci.builder.table.loading}
                             </span>
                           </td>
                         </tr>
@@ -1093,7 +1091,7 @@ export function RaciBuilder() {
                             className="px-6 py-4 text-sm text-red-600"
                           >
                             {roleActionsQuery.error instanceof ApiError && roleActionsQuery.error.status === 401
-                              ? 'Connectez-vous pour consulter les actions assignées à vos rôles.'
+                              ? dictionary.raci.builder.table.authError
                               : roleActionsQuery.error.message}
                           </td>
                         </tr>
@@ -1105,7 +1103,7 @@ export function RaciBuilder() {
                         ? departmentAggregatedProcesses.map((process) => {
                             const isCollapsed = collapsedProcesses[process.id] ?? false;
                             const actionCount = process.steps.length;
-                            const actionCountLabel = `${actionCount} action${actionCount > 1 ? 's' : ''}`;
+                            const actionCountLabel = formatCount(actionCount, dictionary.raci.builder.counts.actions);
 
                             return (
                               <Fragment key={`process-${process.id}`}>
@@ -1136,8 +1134,8 @@ export function RaciBuilder() {
                                         aria-expanded={!isCollapsed}
                                         aria-label={
                                           isCollapsed
-                                            ? 'Afficher les étapes du processus'
-                                            : 'Masquer les étapes du processus'
+                                            ? dictionary.raci.builder.processes.showSteps
+                                            : dictionary.raci.builder.processes.hideSteps
                                         }
                                       >
                                         <ChevronDown
@@ -1210,7 +1208,7 @@ export function RaciBuilder() {
                                                 ) : (
                                                   <span
                                                     className="inline-flex min-w-[2.5rem] items-center justify-center rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide text-transparent ring-1 ring-inset ring-slate-100 transition group-hover/cell:text-slate-400"
-                                                    aria-label="Non attribué"
+                                                    aria-label={dictionary.raci.builder.table.unassigned}
                                                   >
                                                     —
                                                   </span>
@@ -1298,7 +1296,11 @@ export function RaciBuilder() {
                                                 : 'bg-white text-transparent ring-slate-100 group-hover/cell:text-slate-400'
                                             )}
                                             title={isFilled ? raciDefinitions[currentValue as FilledRaciValue].tooltip : undefined}
-                                            aria-label={isFilled ? raciDefinitions[currentValue as FilledRaciValue].short : 'Non attribué'}
+                                            aria-label={
+                                              isFilled
+                                                ? raciDefinitions[currentValue as FilledRaciValue].short
+                                                : dictionary.raci.builder.table.unassigned
+                                            }
                                           >
                                             {isFilled ? currentValue : '—'}
                                           </span>
@@ -1343,7 +1345,7 @@ export function RaciBuilder() {
                             colSpan={selectedDepartment.roles.length + 1}
                             className="px-6 py-6 text-center text-sm text-slate-500"
                           >
-                            Aucune action n’est disponible pour ce département pour le moment.
+                            {dictionary.raci.builder.table.empty}
                           </td>
                         </tr>
                       ) : null}
@@ -1352,7 +1354,7 @@ export function RaciBuilder() {
                 </div>
                 {selectedDepartmentState.actions.length > 0 ? (
                   <div className="border-t border-slate-200 bg-white px-6 py-5">
-                    <h3 className="text-sm font-semibold text-slate-900">Synthèse par action</h3>
+                    <h3 className="text-sm font-semibold text-slate-900">{dictionary.raci.builder.summary.title}</h3>
                     <div className="mt-4 grid gap-4 lg:grid-cols-2">
                       {assignments.map(({ actionLabel, responsibilities }) => (
                         <div key={actionLabel} className="rounded-lg border border-slate-200 bg-slate-50 p-4">
@@ -1372,7 +1374,7 @@ export function RaciBuilder() {
                                   <span>{raciDefinitions[value].short}</span>
                                 </span>
                                 <span className="text-right text-slate-600">
-                                  {roles.length > 0 ? roles.join(', ') : 'Non attribué'}
+                                  {roles.length > 0 ? roles.join(', ') : dictionary.raci.builder.summary.unassigned}
                                 </span>
                               </li>
                             ))}
@@ -1385,7 +1387,7 @@ export function RaciBuilder() {
               </>
             ) : (
               <div className="flex h-full flex-col items-center justify-center rounded-xl border border-dashed border-slate-300 bg-slate-50 p-10 text-center text-sm text-slate-600">
-                <p>Sélectionnez un département pour générer sa matrice RACI.</p>
+                <p>{dictionary.raci.builder.emptySelection}</p>
               </div>
             )}
           </div>
@@ -1393,14 +1395,12 @@ export function RaciBuilder() {
           <aside className="flex flex-col gap-6 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
             <div className="space-y-2">
               <div className="flex items-center justify-between gap-2">
-                <h3 className="text-base font-semibold text-slate-900">Méthodologie RACI</h3>
+                <h3 className="text-base font-semibold text-slate-900">{dictionary.raci.builder.methodology.title}</h3>
                 <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-xs font-semibold text-slate-600 ring-1 ring-slate-200">
                   ?
                 </span>
               </div>
-              <p className="text-sm text-slate-600">
-                Survolez un rôle ou une cellule pour afficher un rappel rapide des responsabilités.
-              </p>
+              <p className="text-sm text-slate-600">{dictionary.raci.builder.methodology.description}</p>
             </div>
 
             <dl className="space-y-3">
