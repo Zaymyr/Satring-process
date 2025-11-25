@@ -345,9 +345,9 @@ export function JobDescriptionExplorer() {
   const hasError = departmentQuery.isError || roleActionQuery.isError;
 
   return (
-    <div className="h-full overflow-y-auto bg-slate-50">
-      <div className="flex h-full w-full flex-1 flex-col gap-6 px-4 py-10 lg:px-8">
-        <div className="grid h-full w-full gap-6 lg:grid-cols-[340px,minmax(0,1fr)] xl:grid-cols-[360px,minmax(0,1fr)]">
+    <div className="min-h-screen bg-slate-50">
+      <div className="flex w-full flex-1 flex-col gap-6 px-4 py-10 lg:px-8">
+        <div className="grid w-full gap-6 lg:grid-cols-[340px,minmax(0,1fr)] xl:grid-cols-[360px,minmax(0,1fr)]">
           <aside className="flex min-h-0 flex-col gap-5 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
             <div className="space-y-2">
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Départements & rôles</p>
@@ -457,7 +457,7 @@ export function JobDescriptionExplorer() {
               </div>
             </div>
           </aside>
-          <section className="flex min-h-0 flex-col overflow-hidden">
+          <section className="flex min-h-0 flex-col">
             <div className="flex h-full w-full flex-1 flex-col gap-6 py-2">
               {isLoading ? (
                 <div className="flex flex-1 flex-col items-center justify-center text-slate-500">
