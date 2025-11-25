@@ -3,7 +3,7 @@
 import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
-import { ChevronDown, Copy, Download, FileText, Loader2 } from 'lucide-react';
+import { ChevronDown, Copy, Download, Expand, FileText, Loader2, Shrink } from 'lucide-react';
 
 import { useI18n } from '@/components/providers/i18n-provider';
 import { cn } from '@/lib/utils/cn';
@@ -883,6 +883,28 @@ export function RaciBuilder() {
                         </div>
                       </div>
                       <div className="flex flex-wrap items-center justify-end gap-2">
+                        {hasAggregatedActions ? (
+                          <>
+                            <button
+                              type="button"
+                              onClick={expandAllProcesses}
+                              title={dictionary.raci.builder.processes.expandAll}
+                              className="inline-flex h-10 w-10 items-center justify-center rounded-md border border-slate-200 bg-white text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
+                            >
+                              <Expand className="h-4 w-4" aria-hidden />
+                              <span className="sr-only">{dictionary.raci.builder.processes.expandAll}</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={collapseAllProcesses}
+                              title={dictionary.raci.builder.processes.collapseAll}
+                              className="inline-flex h-10 w-10 items-center justify-center rounded-md border border-slate-200 bg-white text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
+                            >
+                              <Shrink className="h-4 w-4" aria-hidden />
+                              <span className="sr-only">{dictionary.raci.builder.processes.collapseAll}</span>
+                            </button>
+                          </>
+                        ) : null}
                         <button
                           type="button"
                           onClick={handleCsvDownload}
@@ -941,24 +963,6 @@ export function RaciBuilder() {
                         </button>
                       </div>
                     </div>
-                    {hasAggregatedActions ? (
-                      <div className="mt-4 flex flex-wrap items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={expandAllProcesses}
-                          className="inline-flex items-center rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
-                        >
-                          {dictionary.raci.builder.processes.expandAll}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={collapseAllProcesses}
-                          className="inline-flex items-center rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
-                        >
-                          {dictionary.raci.builder.processes.collapseAll}
-                        </button>
-                      </div>
-                    ) : null}
                   </div>
                 </div>
 
