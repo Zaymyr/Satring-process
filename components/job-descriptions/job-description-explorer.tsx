@@ -163,6 +163,7 @@ const formatUpdatedAt = (value: string) => {
 export function JobDescriptionExplorer() {
   const { dictionary } = useI18n();
   const sidebarTexts = dictionary.jobDescriptions.explorer.sidebar;
+  const actionTexts = dictionary.jobDescriptions.explorer.actions;
   const queryClient = useQueryClient();
   const departmentQuery = useQuery({
     queryKey: ['departments'],
@@ -540,33 +541,39 @@ export function JobDescriptionExplorer() {
                             disabled={!selectedRoleId || refreshDescriptionMutation.isPending}
                           >
                             <RotateCw
-                              className={cn('h-4 w-4', refreshDescriptionMutation.isPending && 'animate-spin')}
-                              aria-hidden="true"
-                            />
-                            {refreshDescriptionMutation.isPending ? 'Génération…' : 'Rafraîchir la fiche'}
-                          </button>
-                          <button
-                            type="button"
-                            className="inline-flex items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-500"
-                            onClick={() => downloadFile('doc')}
+                            className={cn('h-4 w-4', refreshDescriptionMutation.isPending && 'animate-spin')}
+                            aria-hidden="true"
+                          />
+                          {refreshDescriptionMutation.isPending
+                            ? actionTexts.refreshing
+                            : actionTexts.refresh}
+                        </button>
+                        <button
+                          type="button"
+                          className="inline-flex items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-500"
+                          onClick={() => downloadFile('doc')}
                             disabled={!jobDescription || Boolean(downloadFormat)}
                           >
                             {downloadFormat === 'doc' ? (
                               <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
                             ) : null}
-                            {downloadFormat === 'doc' ? 'Préparation…' : 'Télécharger (Word)'}
-                          </button>
-                          <button
-                            type="button"
-                            className="inline-flex items-center gap-2 rounded-md border border-slate-200 bg-slate-900 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-500"
-                            onClick={() => downloadFile('pdf')}
+                            {downloadFormat === 'doc'
+                              ? actionTexts.preparing
+                              : actionTexts.downloadDoc}
+                        </button>
+                        <button
+                          type="button"
+                          className="inline-flex items-center gap-2 rounded-md border border-slate-200 bg-slate-900 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-500"
+                          onClick={() => downloadFile('pdf')}
                             disabled={!jobDescription || Boolean(downloadFormat)}
                           >
                             {downloadFormat === 'pdf' ? (
                               <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
                             ) : null}
-                            {downloadFormat === 'pdf' ? 'Préparation…' : 'Télécharger (PDF)'}
-                          </button>
+                            {downloadFormat === 'pdf'
+                              ? actionTexts.preparing
+                              : actionTexts.downloadPdf}
+                        </button>
                         </div>
                         {downloadError ? <p className="max-w-md text-xs text-red-600">{downloadError}</p> : null}
                         {refreshDescriptionMutation.error ? (

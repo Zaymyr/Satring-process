@@ -214,6 +214,13 @@ export type Dictionary = {
         title: string;
         description: string;
       };
+      actions: {
+        refresh: string;
+        refreshing: string;
+        downloadDoc: string;
+        downloadPdf: string;
+        preparing: string;
+      };
     };
   };
   header: {
@@ -580,6 +587,13 @@ const dictionaries: Record<Locale, Dictionary> = {
         sidebar: {
           title: 'Departments & roles',
           description: 'Select a role to view its automatically generated job description.'
+        },
+        actions: {
+          refresh: 'Refresh job description',
+          refreshing: 'Generating…',
+          downloadDoc: 'Download (Word)',
+          downloadPdf: 'Download (PDF)',
+          preparing: 'Preparing…'
         }
       }
     },
@@ -947,6 +961,13 @@ const dictionaries: Record<Locale, Dictionary> = {
         sidebar: {
           title: 'Départements & rôles',
           description: 'Sélectionnez un rôle pour afficher sa fiche de poste générée automatiquement.'
+        },
+        actions: {
+          refresh: 'Rafraîchir la fiche',
+          refreshing: 'Génération…',
+          downloadDoc: 'Télécharger (Word)',
+          downloadPdf: 'Télécharger (PDF)',
+          preparing: 'Préparation…'
         }
       }
     },
