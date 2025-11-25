@@ -221,195 +221,202 @@ export function OrganizationMembers({
 
   return (
     <div className="space-y-4">
-      <div className="rounded-xl border border-slate-200 bg-white px-4 py-4 text-slate-900 shadow-sm">
-        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Plan actuel</p>
-        <p className="mt-1 text-lg font-semibold text-slate-900">{planName ?? 'Plan non attribué'}</p>
-        <dl className="mt-3 grid gap-3 text-sm text-slate-600 sm:grid-cols-3">
-          {planLimitSummaries.map((entry) => (
-            <div key={entry.role} className="rounded-lg bg-slate-50 px-3 py-2">
-              <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                {entry.label}
-              </dt>
-              <dd className="mt-1 text-sm font-semibold text-slate-900">
-                {typeof entry.limit === 'number'
-                  ? `${entry.limit} place${entry.limit > 1 ? 's' : ''} max`
-                  : 'Aucune limite'}
-              </dd>
+      <section className="space-y-4 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="space-y-1">
+          <h3 className="text-base font-semibold text-slate-900">Plan</h3>
+          <p className="text-sm text-slate-500">Nom du plan et capacité par rôle.</p>
+        </div>
+        <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-4 text-slate-900 shadow-sm">
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Plan actuel</p>
+          <p className="mt-1 text-lg font-semibold text-slate-900">{planName ?? 'Plan non attribué'}</p>
+          <dl className="mt-3 grid gap-3 text-sm text-slate-600 sm:grid-cols-3">
+            {planLimitSummaries.map((entry) => (
+              <div key={entry.role} className="rounded-lg bg-white px-3 py-2 shadow-sm">
+                <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  {entry.label}
+                </dt>
+                <dd className="mt-1 text-sm font-semibold text-slate-900">
+                  {typeof entry.limit === 'number'
+                    ? `${entry.limit} place${entry.limit > 1 ? 's' : ''} max`
+                    : 'Aucune limite'}
+                </dd>
+              </div>
+            ))}
+          </dl>
+          {hasExceededRoles ? (
+            <div
+              role="alert"
+              className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900"
+            >
+              Certaines limites sont dépassées. Pensez à mettre à jour votre plan pour ajouter plus de places.
+            </div>
+          ) : null}
+        </div>
+      </section>
+
+      <section className="space-y-4 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="space-y-1">
+          <h3 className="text-base font-semibold text-slate-900">Membres de l’organisation</h3>
+          <p className="text-sm text-slate-500">
+            Gérez les personnes qui ont accès à {organizationName} et leurs rôles.
+          </p>
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-3">
+          {roleSummaries.map((summary) => (
+            <div
+              key={summary.role}
+              className={`rounded-xl border px-4 py-3 text-slate-900 shadow-sm ${summary.isOverLimit
+                ? 'border-rose-200 bg-rose-50'
+                : summary.isAtOrAboveLimit
+                  ? 'border-amber-200 bg-amber-50'
+                  : 'border-slate-200 bg-slate-50'}`}
+            >
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{summary.label}</p>
+                {summary.limit !== null ? (
+                  <span
+                    className={`text-xs font-semibold ${summary.isOverLimit
+                      ? 'text-rose-700'
+                      : summary.isAtOrAboveLimit
+                        ? 'text-amber-600'
+                        : 'text-slate-500'}`}
+                  >
+                    {summary.count}/{summary.limit}
+                  </span>
+                ) : (
+                  <span className="text-xs font-semibold text-slate-400">—</span>
+                )}
+              </div>
+              <p className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">{summary.count}</p>
+              <p
+                className={`text-xs ${summary.isOverLimit
+                  ? 'text-rose-700'
+                  : summary.isAtOrAboveLimit
+                    ? 'text-amber-700'
+                    : 'text-slate-500'}`}
+              >
+                {summary.limit !== null
+                  ? summary.isOverLimit
+                    ? summary.overLimitLabel
+                    : summary.isAtOrAboveLimit
+                      ? 'Limite atteinte'
+                      : summary.remainingLabel ?? ''
+                  : 'Aucune limite configurée'}
+              </p>
             </div>
           ))}
-        </dl>
+        </div>
+
+        {membersQuery.isLoading ? (
+          <p className="text-sm text-slate-500">Chargement des membres…</p>
+        ) : null}
+
+        {membersQuery.isError ? (
+          <p className="text-sm text-red-600" role="alert">
+            {membersQuery.error instanceof Error
+              ? membersQuery.error.message
+              : "Impossible de récupérer les membres pour le moment."}
+          </p>
+        ) : null}
+
+        {successMessage ? <p className="text-sm text-emerald-600">{successMessage}</p> : null}
+        {serverError ? <p className="text-sm text-red-600">{serverError}</p> : null}
+
         {hasExceededRoles ? (
           <div
             role="alert"
-            className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900"
+            className="rounded-lg border border-rose-100 bg-rose-50 px-3 py-2 text-sm text-rose-900"
           >
-            Certaines limites sont dépassées. Pensez à mettre à jour votre plan pour ajouter plus de places.
+            La limite est dépassée pour :{' '}
+            {exceededRoles
+              .map((summary) => `${summary.label.toLowerCase()} (${summary.count}/${summary.limit})`)
+              .join(', ')}
+            . Les invitations restent possibles mais nécessitent une mise à niveau rapide du plan.
           </div>
         ) : null}
-      </div>
 
-      <div className="grid gap-3 sm:grid-cols-3">
-        {roleSummaries.map((summary) => (
-          <div
-            key={summary.role}
-            className={`rounded-xl border px-4 py-3 text-slate-900 shadow-sm ${summary.isOverLimit
-              ? 'border-rose-200 bg-rose-50'
-              : summary.isAtOrAboveLimit
-                ? 'border-amber-200 bg-amber-50'
-                : 'border-slate-200 bg-slate-50'}`}
-          >
-            <div className="flex items-center justify-between">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{summary.label}</p>
-              {summary.limit !== null ? (
-                <span
-                  className={`text-xs font-semibold ${summary.isOverLimit
-                    ? 'text-rose-700'
-                    : summary.isAtOrAboveLimit
-                      ? 'text-amber-600'
-                      : 'text-slate-500'}`}
-                >
-                  {summary.count}/{summary.limit}
-                </span>
-              ) : (
-                <span className="text-xs font-semibold text-slate-400">—</span>
-              )}
-            </div>
-            <p className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">{summary.count}</p>
-            <p
-              className={`text-xs ${summary.isOverLimit
-                ? 'text-rose-700'
-                : summary.isAtOrAboveLimit
-                  ? 'text-amber-700'
-                  : 'text-slate-500'}`}
-            >
-              {summary.limit !== null
-                ? summary.isOverLimit
-                  ? summary.overLimitLabel
-                  : summary.isAtOrAboveLimit
-                    ? 'Limite atteinte'
-                    : summary.remainingLabel ?? ''
-                : 'Aucune limite configurée'}
-            </p>
-          </div>
-        ))}
-      </div>
+        {!membersQuery.isLoading && members.length === 0 ? (
+          <p className="text-sm text-slate-500">Aucun membre trouvé pour cette organisation.</p>
+        ) : null}
 
-      <div className="space-y-1">
-        <h3 className="text-sm font-semibold text-slate-900">Membres de l’organisation</h3>
-        <p className="text-sm text-slate-500">
-          Gérez les personnes qui ont accès à {organizationName} et leurs rôles.
-        </p>
-      </div>
+        {members.length > 0 ? (
+          <ul className="space-y-3">
+            {ROLE_ORDER.map((role) => {
+              const roleMembers = membersByRole[role];
+              const isOpen = openRoles[role];
+              const panelId = `${organizationId}-${role}-members-panel`;
+              const summary = roleSummaryMap[role];
 
-      {membersQuery.isLoading ? (
-        <p className="text-sm text-slate-500">Chargement des membres…</p>
-      ) : null}
+              return (
+                <li key={role} className="rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
+                  <button
+                    type="button"
+                    className="flex w-full items-center justify-between text-left"
+                    onClick={() => toggleRoleSection(role)}
+                    aria-expanded={isOpen}
+                    aria-controls={panelId}
+                  >
+                    <div>
+                      <p className="text-sm font-semibold text-slate-900">{ROLE_LABELS[role]}</p>
+                      <p className="text-xs text-slate-500">
+                        {summary.limit !== null
+                          ? `${summary.count}/${summary.limit} membre${summary.count > 1 ? 's' : ''}`
+                          : `${summary.count} membre${summary.count > 1 ? 's' : ''}`}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm font-medium text-slate-500">
+                      {summary.overLimitLabel ? (
+                        <span className="text-rose-600">{summary.overLimitLabel}</span>
+                      ) : summary.remainingLabel && !summary.isAtOrAboveLimit ? (
+                        <span>{summary.remainingLabel}</span>
+                      ) : summary.isAtOrAboveLimit ? (
+                        <span className="text-amber-600">Limite atteinte</span>
+                      ) : null}
+                      {isOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                    </div>
+                  </button>
+                  {isOpen ? (
+                    <div id={panelId} className="mt-3 space-y-2">
+                      {roleMembers.length > 0 ? (
+                        roleMembers.map((member) => {
+                          const isRemoving = removeMutation.isPending && removalTarget === member.userId;
 
-      {membersQuery.isError ? (
-        <p className="text-sm text-red-600" role="alert">
-          {membersQuery.error instanceof Error
-            ? membersQuery.error.message
-            : "Impossible de récupérer les membres pour le moment."}
-        </p>
-      ) : null}
-
-      {successMessage ? <p className="text-sm text-emerald-600">{successMessage}</p> : null}
-      {serverError ? <p className="text-sm text-red-600">{serverError}</p> : null}
-
-      {hasExceededRoles ? (
-        <div
-          role="alert"
-          className="rounded-lg border border-rose-100 bg-rose-50 px-3 py-2 text-sm text-rose-900"
-        >
-          La limite est dépassée pour :{' '}
-          {exceededRoles
-            .map((summary) => `${summary.label.toLowerCase()} (${summary.count}/${summary.limit})`)
-            .join(', ')}
-          . Les invitations restent possibles mais nécessitent une mise à niveau rapide du plan.
-        </div>
-      ) : null}
-
-      {!membersQuery.isLoading && members.length === 0 ? (
-        <p className="text-sm text-slate-500">Aucun membre trouvé pour cette organisation.</p>
-      ) : null}
-
-      {members.length > 0 ? (
-        <ul className="space-y-3">
-          {ROLE_ORDER.map((role) => {
-            const roleMembers = membersByRole[role];
-            const isOpen = openRoles[role];
-            const panelId = `${organizationId}-${role}-members-panel`;
-            const summary = roleSummaryMap[role];
-
-            return (
-              <li key={role} className="rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
-                <button
-                  type="button"
-                  className="flex w-full items-center justify-between text-left"
-                  onClick={() => toggleRoleSection(role)}
-                  aria-expanded={isOpen}
-                  aria-controls={panelId}
-                >
-                  <div>
-                    <p className="text-sm font-semibold text-slate-900">{ROLE_LABELS[role]}</p>
-                    <p className="text-xs text-slate-500">
-                      {summary.limit !== null
-                        ? `${summary.count}/${summary.limit} membre${summary.count > 1 ? 's' : ''}`
-                        : `${summary.count} membre${summary.count > 1 ? 's' : ''}`}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm font-medium text-slate-500">
-                    {summary.overLimitLabel ? (
-                      <span className="text-rose-600">{summary.overLimitLabel}</span>
-                    ) : summary.remainingLabel && !summary.isAtOrAboveLimit ? (
-                      <span>{summary.remainingLabel}</span>
-                    ) : summary.isAtOrAboveLimit ? (
-                      <span className="text-amber-600">Limite atteinte</span>
-                    ) : null}
-                    {isOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                  </div>
-                </button>
-                {isOpen ? (
-                  <div id={panelId} className="mt-3 space-y-2">
-                    {roleMembers.length > 0 ? (
-                      roleMembers.map((member) => {
-                        const isRemoving = removeMutation.isPending && removalTarget === member.userId;
-
-                        return (
-                          <div
-                            key={member.userId}
-                            className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-100 px-3 py-3"
-                          >
-                            <div className="min-w-0">
-                              <p className="truncate text-sm font-medium text-slate-900">
-                                {member.username ?? member.email}
-                              </p>
-                              <p className="text-xs text-slate-500">{member.email}</p>
+                          return (
+                            <div
+                              key={member.userId}
+                              className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-100 px-3 py-3"
+                            >
+                              <div className="min-w-0">
+                                <p className="truncate text-sm font-medium text-slate-900">
+                                  {member.username ?? member.email}
+                                </p>
+                              </div>
+                              {canManage ? (
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  className="shrink-0 text-slate-900 hover:text-white"
+                                  onClick={() => removeMutation.mutate(member.userId)}
+                                  disabled={isRemoving}
+                                >
+                                  {isRemoving ? 'Suppression…' : 'Retirer'}
+                                </Button>
+                              ) : null}
                             </div>
-                            {canManage ? (
-                              <Button
-                                type="button"
-                                variant="outline"
-                                className="shrink-0 text-slate-900 hover:text-white"
-                                onClick={() => removeMutation.mutate(member.userId)}
-                                disabled={isRemoving}
-                              >
-                                {isRemoving ? 'Suppression…' : 'Retirer'}
-                              </Button>
-                            ) : null}
-                          </div>
-                        );
-                      })
-                    ) : (
-                      <p className="text-sm text-slate-500">Aucun membre assigné à ce rôle.</p>
-                    )}
-                  </div>
-                ) : null}
-              </li>
-            );
-          })}
-        </ul>
-      ) : null}
+                          );
+                        })
+                      ) : (
+                        <p className="text-sm text-slate-500">Aucun membre assigné à ce rôle.</p>
+                      )}
+                    </div>
+                  ) : null}
+                </li>
+              );
+            })}
+          </ul>
+        ) : null}
+      </section>
     </div>
   );
 }

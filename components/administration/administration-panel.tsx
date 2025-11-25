@@ -98,10 +98,9 @@ export function AdministrationPanel({ initialProfile }: AdministrationPanelProps
 
   return (
     <div className="mx-auto flex w-full flex-col gap-8 px-6 py-10 lg:px-8">
-      <div>
-        <h1 className="text-3xl font-semibold text-slate-900">Administration</h1>
+      <div className="flex flex-col">
         {profileQuery.isError ? (
-          <p className="mt-2 text-sm text-red-600" role="alert">
+          <p className="text-sm text-red-600" role="alert">
             {profileQuery.error instanceof Error
               ? profileQuery.error.message
               : 'Une erreur est survenue lors du rafraîchissement de vos données.'}

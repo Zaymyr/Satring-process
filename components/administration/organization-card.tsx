@@ -80,16 +80,15 @@ export function OrganizationCard({ organization, roleLabel }: OrganizationCardPr
   const isOwner = organization.role === 'owner';
 
   return (
-    <li className="rounded-lg border border-slate-200 px-4 py-4">
-      <div className="flex flex-col gap-6">
-        <div className="flex flex-col gap-1">
+    <li className="space-y-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+      <section className="space-y-3 rounded-lg border border-slate-200 bg-slate-50 p-4">
+        <div className="space-y-1">
           <p className="text-xs uppercase tracking-wide text-slate-500">{roleLabel}</p>
-          {!isOwner ? (
-            <p className="text-sm font-semibold text-slate-900">{organization.organizationName}</p>
-          ) : null}
+          <h3 className="text-base font-semibold text-slate-900">Organisation</h3>
         </div>
-
-        {isOwner ? (
+        {!isOwner ? (
+          <p className="text-sm font-semibold text-slate-900">{organization.organizationName}</p>
+        ) : (
           <form
             className="space-y-4"
             onSubmit={form.handleSubmit((values) => {
@@ -120,16 +119,16 @@ export function OrganizationCard({ organization, roleLabel }: OrganizationCardPr
               {serverError ? <p className="text-sm text-red-600">{serverError}</p> : null}
             </div>
           </form>
-        ) : null}
+        )}
+      </section>
 
-        <OrganizationMembers
-          organizationId={organization.organizationId}
-          organizationName={organization.organizationName}
-          canManage={organization.role === 'owner'}
-          planName={organization.planName}
-          roleLimits={organization.roleLimits}
-        />
-      </div>
+      <OrganizationMembers
+        organizationId={organization.organizationId}
+        organizationName={organization.organizationName}
+        canManage={organization.role === 'owner'}
+        planName={organization.planName}
+        roleLimits={organization.roleLimits}
+      />
     </li>
   );
 }
