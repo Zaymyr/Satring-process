@@ -42,6 +42,9 @@ const raciBadgeStyles: Record<FilledRaciValue, string> = {
   I: 'bg-slate-100 text-slate-700 ring-1 ring-inset ring-slate-200'
 } as const;
 
+const rowHighlightShadow = 'shadow-[0_0_0_1px_rgba(148,163,184,0.6)]';
+const cellHighlightShadow = 'shadow-[inset_0_0_0_1px_rgba(148,163,184,0.6)]';
+
 type FilledRaciValue = (typeof filledRaciValues)[number];
 type RaciValue = FilledRaciValue | '';
 
@@ -1057,8 +1060,9 @@ export function RaciBuilder() {
                             scope="col"
                             onMouseEnter={() => setHoveredRoleId(role.id)}
                             className={cn(
-                              'min-w-[6.5rem] max-w-[8rem] border-b border-slate-200 bg-white px-3 py-3 text-center text-xs font-semibold uppercase tracking-wide text-slate-500 transition-colors',
-                              hoveredRoleId === role.id && 'bg-sky-50'
+                              'min-w-[6.5rem] max-w-[8rem] border-b border-slate-200 bg-white px-3 py-3 text-center text-xs font-semibold uppercase tracking-wide text-slate-500 transition-shadow',
+                              hoveredRoleId === role.id && cellHighlightShadow,
+                              'hover:shadow-[inset_0_0_0_1px_rgba(148,163,184,0.45)]'
                             )}
                           >
                             <span className="flex flex-col items-center justify-center gap-1 text-center leading-tight">
@@ -1165,8 +1169,9 @@ export function RaciBuilder() {
                                           onMouseLeave={() => setHoveredActionId(null)}
                                           className={cn(
                                             rowBackground,
-                                            'odd:bg-white even:bg-slate-100 group transition-colors hover:bg-sky-50',
-                                            hoveredActionId === action.id && 'bg-sky-50'
+                                            'odd:bg-white even:bg-slate-100 group relative transition-shadow',
+                                            'hover:shadow-[0_0_0_1px_rgba(148,163,184,0.45)]',
+                                            hoveredActionId === action.id && rowHighlightShadow
                                           )}
                                         >
                                           <th
@@ -1174,8 +1179,7 @@ export function RaciBuilder() {
                                               className={cn(
                                                 'sticky left-0 z-20 px-5 py-3 pl-10 text-left align-top border-r border-slate-200',
                                                 'bg-inherit',
-                                                'text-sm font-semibold text-slate-900 hover:bg-sky-50 group-hover:bg-sky-50',
-                                                hoveredActionId === action.id && 'bg-sky-50'
+                                                'text-sm font-semibold text-slate-900'
                                               )}
                                           >
                                             <div>
@@ -1191,11 +1195,11 @@ export function RaciBuilder() {
                                               }}
                                               onMouseLeave={() => setHoveredCell(null)}
                                               className={cn(
-                                                'relative px-2.5 py-2 text-center text-sm align-middle transition-colors',
+                                                'relative px-2.5 py-2 text-center text-sm align-middle transition-shadow',
                                                 'bg-inherit',
-                                                hoveredRoleId === role.id && 'bg-sky-50',
-                                                hoveredActionId === action.id && 'bg-sky-50',
-                                                'hover:bg-sky-50 group-hover:bg-sky-50'
+                                                hoveredRoleId === role.id && cellHighlightShadow,
+                                                hoveredActionId === action.id && cellHighlightShadow,
+                                                'hover:shadow-[inset_0_0_0_1px_rgba(148,163,184,0.45)] group-hover:shadow-[inset_0_0_0_1px_rgba(148,163,184,0.45)]'
                                               )}
                                               >
                                                 <div className="group/cell relative inline-flex">
@@ -1253,8 +1257,9 @@ export function RaciBuilder() {
                                 onMouseLeave={() => setHoveredActionId(null)}
                                 className={cn(
                                   rowBackground,
-                                  'odd:bg-white even:bg-slate-100 group transition-colors hover:bg-sky-50',
-                                  hoveredActionId === action.id && 'bg-sky-50'
+                                  'odd:bg-white even:bg-slate-100 group relative transition-shadow',
+                                  'hover:shadow-[0_0_0_1px_rgba(148,163,184,0.45)]',
+                                  hoveredActionId === action.id && rowHighlightShadow
                                 )}
                               >
                                 <th
@@ -1262,8 +1267,7 @@ export function RaciBuilder() {
                                   className={cn(
                                     'sticky left-0 z-20 px-5 py-3 text-left align-top border-r border-slate-200',
                                     'bg-inherit',
-                                    'text-sm font-semibold text-slate-900 hover:bg-sky-50 group-hover:bg-sky-50',
-                                    hoveredActionId === action.id && 'bg-sky-50'
+                                    'text-sm font-semibold text-slate-900'
                                   )}
                                 >
                                   <div>
@@ -1283,11 +1287,11 @@ export function RaciBuilder() {
                                       }}
                                     onMouseLeave={() => setHoveredCell(null)}
                                   className={cn(
-                                      'relative px-2.5 py-2 text-sm align-middle transition-colors',
+                                      'relative px-2.5 py-2 text-sm align-middle transition-shadow',
                                       'bg-inherit',
-                                      hoveredRoleId === role.id && 'bg-sky-50',
-                                      hoveredActionId === action.id && 'bg-sky-50',
-                                      'hover:bg-sky-50 group-hover:bg-sky-50'
+                                      hoveredRoleId === role.id && cellHighlightShadow,
+                                      hoveredActionId === action.id && cellHighlightShadow,
+                                      'hover:shadow-[inset_0_0_0_1px_rgba(148,163,184,0.45)] group-hover:shadow-[inset_0_0_0_1px_rgba(148,163,184,0.45)]'
                                     )}
                                     >
                                       <div className="flex flex-col items-center gap-2">
