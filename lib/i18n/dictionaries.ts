@@ -208,6 +208,14 @@ export type Dictionary = {
       listRoleActionsFailed: string;
     };
   };
+  jobDescriptions: {
+    explorer: {
+      sidebar: {
+        title: string;
+        description: string;
+      };
+    };
+  };
   header: {
     localeToggle: {
       label: string;
@@ -567,6 +575,14 @@ const dictionaries: Record<Locale, Dictionary> = {
         listRoleActionsFailed: 'Unable to retrieve the role actions.'
       }
     },
+    jobDescriptions: {
+      explorer: {
+        sidebar: {
+          title: 'Departments & roles',
+          description: 'Select a role to view its automatically generated job description.'
+        }
+      }
+    },
     header: {
       localeToggle: {
         label: 'Language',
@@ -924,6 +940,14 @@ const dictionaries: Record<Locale, Dictionary> = {
         authRequired: 'Authentification requise',
         listDepartmentsFailed: 'Impossible de lister vos départements.',
         listRoleActionsFailed: 'Impossible de récupérer les actions des rôles.'
+      }
+    },
+    jobDescriptions: {
+      explorer: {
+        sidebar: {
+          title: 'Départements & rôles',
+          description: 'Sélectionnez un rôle pour afficher sa fiche de poste générée automatiquement.'
+        }
       }
     },
     header: {
