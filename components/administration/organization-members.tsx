@@ -387,12 +387,11 @@ export function OrganizationMembers({
                             key={member.userId}
                             className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-100 px-3 py-3"
                           >
-                            <div className="min-w-0">
-                              <p className="truncate text-sm font-medium text-slate-900">
-                                {member.username ?? member.email}
-                              </p>
-                              <p className="text-xs text-slate-500">{member.email}</p>
-                            </div>
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-medium text-slate-900">
+                              {member.username ?? member.email}
+                            </p>
+                          </div>
                             {canManage ? (
                               <Button
                                 type="button"
