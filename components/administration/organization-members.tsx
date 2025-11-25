@@ -220,8 +220,8 @@ export function OrganizationMembers({
   };
 
   return (
-    <div className="space-y-6">
-      <section className="space-y-3">
+    <div className="space-y-4">
+      <section className="space-y-4 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
         <div className="space-y-1">
           <h3 className="text-base font-semibold text-slate-900">Plan</h3>
           <p className="text-sm text-slate-500">Nom du plan et capacité par rôle.</p>
@@ -254,7 +254,7 @@ export function OrganizationMembers({
         </div>
       </section>
 
-      <section className="space-y-3">
+      <section className="space-y-4 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
         <div className="space-y-1">
           <h3 className="text-base font-semibold text-slate-900">Membres de l’organisation</h3>
           <p className="text-sm text-slate-500">
@@ -308,114 +308,114 @@ export function OrganizationMembers({
           ))}
         </div>
 
-      {membersQuery.isLoading ? (
-        <p className="text-sm text-slate-500">Chargement des membres…</p>
-      ) : null}
+        {membersQuery.isLoading ? (
+          <p className="text-sm text-slate-500">Chargement des membres…</p>
+        ) : null}
 
-      {membersQuery.isError ? (
-        <p className="text-sm text-red-600" role="alert">
-          {membersQuery.error instanceof Error
-            ? membersQuery.error.message
-            : "Impossible de récupérer les membres pour le moment."}
-        </p>
-      ) : null}
+        {membersQuery.isError ? (
+          <p className="text-sm text-red-600" role="alert">
+            {membersQuery.error instanceof Error
+              ? membersQuery.error.message
+              : "Impossible de récupérer les membres pour le moment."}
+          </p>
+        ) : null}
 
-      {successMessage ? <p className="text-sm text-emerald-600">{successMessage}</p> : null}
-      {serverError ? <p className="text-sm text-red-600">{serverError}</p> : null}
+        {successMessage ? <p className="text-sm text-emerald-600">{successMessage}</p> : null}
+        {serverError ? <p className="text-sm text-red-600">{serverError}</p> : null}
 
-      {hasExceededRoles ? (
-        <div
-          role="alert"
-          className="rounded-lg border border-rose-100 bg-rose-50 px-3 py-2 text-sm text-rose-900"
-        >
-          La limite est dépassée pour :{' '}
-          {exceededRoles
-            .map((summary) => `${summary.label.toLowerCase()} (${summary.count}/${summary.limit})`)
-            .join(', ')}
-          . Les invitations restent possibles mais nécessitent une mise à niveau rapide du plan.
-        </div>
-      ) : null}
+        {hasExceededRoles ? (
+          <div
+            role="alert"
+            className="rounded-lg border border-rose-100 bg-rose-50 px-3 py-2 text-sm text-rose-900"
+          >
+            La limite est dépassée pour :{' '}
+            {exceededRoles
+              .map((summary) => `${summary.label.toLowerCase()} (${summary.count}/${summary.limit})`)
+              .join(', ')}
+            . Les invitations restent possibles mais nécessitent une mise à niveau rapide du plan.
+          </div>
+        ) : null}
 
-      {!membersQuery.isLoading && members.length === 0 ? (
-        <p className="text-sm text-slate-500">Aucun membre trouvé pour cette organisation.</p>
-      ) : null}
+        {!membersQuery.isLoading && members.length === 0 ? (
+          <p className="text-sm text-slate-500">Aucun membre trouvé pour cette organisation.</p>
+        ) : null}
 
-      {members.length > 0 ? (
-        <ul className="space-y-3">
-          {ROLE_ORDER.map((role) => {
-            const roleMembers = membersByRole[role];
-            const isOpen = openRoles[role];
-            const panelId = `${organizationId}-${role}-members-panel`;
-            const summary = roleSummaryMap[role];
+        {members.length > 0 ? (
+          <ul className="space-y-3">
+            {ROLE_ORDER.map((role) => {
+              const roleMembers = membersByRole[role];
+              const isOpen = openRoles[role];
+              const panelId = `${organizationId}-${role}-members-panel`;
+              const summary = roleSummaryMap[role];
 
-            return (
-              <li key={role} className="rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
-                <button
-                  type="button"
-                  className="flex w-full items-center justify-between text-left"
-                  onClick={() => toggleRoleSection(role)}
-                  aria-expanded={isOpen}
-                  aria-controls={panelId}
-                >
-                  <div>
-                    <p className="text-sm font-semibold text-slate-900">{ROLE_LABELS[role]}</p>
-                    <p className="text-xs text-slate-500">
-                      {summary.limit !== null
-                        ? `${summary.count}/${summary.limit} membre${summary.count > 1 ? 's' : ''}`
-                        : `${summary.count} membre${summary.count > 1 ? 's' : ''}`}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm font-medium text-slate-500">
-                    {summary.overLimitLabel ? (
-                      <span className="text-rose-600">{summary.overLimitLabel}</span>
-                    ) : summary.remainingLabel && !summary.isAtOrAboveLimit ? (
-                      <span>{summary.remainingLabel}</span>
-                    ) : summary.isAtOrAboveLimit ? (
-                      <span className="text-amber-600">Limite atteinte</span>
-                    ) : null}
-                    {isOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                  </div>
-                </button>
-                {isOpen ? (
-                  <div id={panelId} className="mt-3 space-y-2">
-                    {roleMembers.length > 0 ? (
-                      roleMembers.map((member) => {
-                        const isRemoving = removeMutation.isPending && removalTarget === member.userId;
+              return (
+                <li key={role} className="rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
+                  <button
+                    type="button"
+                    className="flex w-full items-center justify-between text-left"
+                    onClick={() => toggleRoleSection(role)}
+                    aria-expanded={isOpen}
+                    aria-controls={panelId}
+                  >
+                    <div>
+                      <p className="text-sm font-semibold text-slate-900">{ROLE_LABELS[role]}</p>
+                      <p className="text-xs text-slate-500">
+                        {summary.limit !== null
+                          ? `${summary.count}/${summary.limit} membre${summary.count > 1 ? 's' : ''}`
+                          : `${summary.count} membre${summary.count > 1 ? 's' : ''}`}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm font-medium text-slate-500">
+                      {summary.overLimitLabel ? (
+                        <span className="text-rose-600">{summary.overLimitLabel}</span>
+                      ) : summary.remainingLabel && !summary.isAtOrAboveLimit ? (
+                        <span>{summary.remainingLabel}</span>
+                      ) : summary.isAtOrAboveLimit ? (
+                        <span className="text-amber-600">Limite atteinte</span>
+                      ) : null}
+                      {isOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                    </div>
+                  </button>
+                  {isOpen ? (
+                    <div id={panelId} className="mt-3 space-y-2">
+                      {roleMembers.length > 0 ? (
+                        roleMembers.map((member) => {
+                          const isRemoving = removeMutation.isPending && removalTarget === member.userId;
 
-                        return (
-                          <div
-                            key={member.userId}
-                            className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-100 px-3 py-3"
-                          >
-                          <div className="min-w-0">
-                            <p className="truncate text-sm font-medium text-slate-900">
-                              {member.username ?? member.email}
-                            </p>
-                          </div>
-                            {canManage ? (
-                              <Button
-                                type="button"
-                                variant="outline"
-                                className="shrink-0 text-slate-900 hover:text-white"
-                                onClick={() => removeMutation.mutate(member.userId)}
-                                disabled={isRemoving}
-                              >
-                                {isRemoving ? 'Suppression…' : 'Retirer'}
-                              </Button>
-                            ) : null}
-                          </div>
-                        );
-                      })
-                    ) : (
-                      <p className="text-sm text-slate-500">Aucun membre assigné à ce rôle.</p>
-                    )}
-                  </div>
-                ) : null}
-              </li>
-            );
-          })}
-        </ul>
-      ) : null}
+                          return (
+                            <div
+                              key={member.userId}
+                              className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-100 px-3 py-3"
+                            >
+                              <div className="min-w-0">
+                                <p className="truncate text-sm font-medium text-slate-900">
+                                  {member.username ?? member.email}
+                                </p>
+                              </div>
+                              {canManage ? (
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  className="shrink-0 text-slate-900 hover:text-white"
+                                  onClick={() => removeMutation.mutate(member.userId)}
+                                  disabled={isRemoving}
+                                >
+                                  {isRemoving ? 'Suppression…' : 'Retirer'}
+                                </Button>
+                              ) : null}
+                            </div>
+                          );
+                        })
+                      ) : (
+                        <p className="text-sm text-slate-500">Aucun membre assigné à ce rôle.</p>
+                      )}
+                    </div>
+                  ) : null}
+                </li>
+              );
+            })}
+          </ul>
+        ) : null}
       </section>
     </div>
   );

@@ -80,8 +80,8 @@ export function OrganizationCard({ organization, roleLabel }: OrganizationCardPr
   const isOwner = organization.role === 'owner';
 
   return (
-    <li className="space-y-6 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-      <section className="space-y-3">
+    <li className="space-y-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+      <section className="space-y-3 rounded-lg border border-slate-200 bg-slate-50 p-4">
         <div className="space-y-1">
           <p className="text-xs uppercase tracking-wide text-slate-500">{roleLabel}</p>
           <h3 className="text-base font-semibold text-slate-900">Organisation</h3>
