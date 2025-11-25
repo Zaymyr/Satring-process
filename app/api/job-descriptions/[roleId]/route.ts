@@ -11,7 +11,6 @@ import { stepSchema } from '@/lib/validation/process';
 import {
   jobDescriptionResponseSchema,
   jobDescriptionSchema,
-  jobDescriptionSectionsSchema,
   type JobDescription
 } from '@/lib/validation/job-description';
 
@@ -327,7 +326,12 @@ const buildPrompt = (params: {
   ];
 };
 
-const generationSchema = jobDescriptionSectionsSchema.extend({
+const generationSchema = z.object({
+  title: z.string().trim().min(1).optional(),
+  generalDescription: z.string().optional(),
+  responsibilities: z.array(z.string().trim().min(1)).default([]),
+  objectives: z.array(z.string().trim().min(1)).default([]),
+  collaboration: z.array(z.string().trim().min(1)).default([]),
   content: z.string().optional()
 });
 
