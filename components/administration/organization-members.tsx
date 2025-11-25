@@ -220,86 +220,93 @@ export function OrganizationMembers({
   };
 
   return (
-    <div className="space-y-4">
-      <div className="rounded-xl border border-slate-200 bg-white px-4 py-4 text-slate-900 shadow-sm">
-        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Plan actuel</p>
-        <p className="mt-1 text-lg font-semibold text-slate-900">{planName ?? 'Plan non attribué'}</p>
-        <dl className="mt-3 grid gap-3 text-sm text-slate-600 sm:grid-cols-3">
-          {planLimitSummaries.map((entry) => (
-            <div key={entry.role} className="rounded-lg bg-slate-50 px-3 py-2">
-              <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                {entry.label}
-              </dt>
-              <dd className="mt-1 text-sm font-semibold text-slate-900">
-                {typeof entry.limit === 'number'
-                  ? `${entry.limit} place${entry.limit > 1 ? 's' : ''} max`
-                  : 'Aucune limite'}
-              </dd>
+    <div className="space-y-6">
+      <section className="space-y-3">
+        <div className="space-y-1">
+          <h3 className="text-base font-semibold text-slate-900">Plan</h3>
+          <p className="text-sm text-slate-500">Nom du plan et capacité par rôle.</p>
+        </div>
+        <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-4 text-slate-900 shadow-sm">
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Plan actuel</p>
+          <p className="mt-1 text-lg font-semibold text-slate-900">{planName ?? 'Plan non attribué'}</p>
+          <dl className="mt-3 grid gap-3 text-sm text-slate-600 sm:grid-cols-3">
+            {planLimitSummaries.map((entry) => (
+              <div key={entry.role} className="rounded-lg bg-white px-3 py-2 shadow-sm">
+                <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  {entry.label}
+                </dt>
+                <dd className="mt-1 text-sm font-semibold text-slate-900">
+                  {typeof entry.limit === 'number'
+                    ? `${entry.limit} place${entry.limit > 1 ? 's' : ''} max`
+                    : 'Aucune limite'}
+                </dd>
+              </div>
+            ))}
+          </dl>
+          {hasExceededRoles ? (
+            <div
+              role="alert"
+              className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900"
+            >
+              Certaines limites sont dépassées. Pensez à mettre à jour votre plan pour ajouter plus de places.
+            </div>
+          ) : null}
+        </div>
+      </section>
+
+      <section className="space-y-3">
+        <div className="space-y-1">
+          <h3 className="text-base font-semibold text-slate-900">Membres de l’organisation</h3>
+          <p className="text-sm text-slate-500">
+            Gérez les personnes qui ont accès à {organizationName} et leurs rôles.
+          </p>
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-3">
+          {roleSummaries.map((summary) => (
+            <div
+              key={summary.role}
+              className={`rounded-xl border px-4 py-3 text-slate-900 shadow-sm ${summary.isOverLimit
+                ? 'border-rose-200 bg-rose-50'
+                : summary.isAtOrAboveLimit
+                  ? 'border-amber-200 bg-amber-50'
+                  : 'border-slate-200 bg-slate-50'}`}
+            >
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{summary.label}</p>
+                {summary.limit !== null ? (
+                  <span
+                    className={`text-xs font-semibold ${summary.isOverLimit
+                      ? 'text-rose-700'
+                      : summary.isAtOrAboveLimit
+                        ? 'text-amber-600'
+                        : 'text-slate-500'}`}
+                  >
+                    {summary.count}/{summary.limit}
+                  </span>
+                ) : (
+                  <span className="text-xs font-semibold text-slate-400">—</span>
+                )}
+              </div>
+              <p className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">{summary.count}</p>
+              <p
+                className={`text-xs ${summary.isOverLimit
+                  ? 'text-rose-700'
+                  : summary.isAtOrAboveLimit
+                    ? 'text-amber-700'
+                    : 'text-slate-500'}`}
+              >
+                {summary.limit !== null
+                  ? summary.isOverLimit
+                    ? summary.overLimitLabel
+                    : summary.isAtOrAboveLimit
+                      ? 'Limite atteinte'
+                      : summary.remainingLabel ?? ''
+                  : 'Aucune limite configurée'}
+              </p>
             </div>
           ))}
-        </dl>
-        {hasExceededRoles ? (
-          <div
-            role="alert"
-            className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900"
-          >
-            Certaines limites sont dépassées. Pensez à mettre à jour votre plan pour ajouter plus de places.
-          </div>
-        ) : null}
-      </div>
-
-      <div className="grid gap-3 sm:grid-cols-3">
-        {roleSummaries.map((summary) => (
-          <div
-            key={summary.role}
-            className={`rounded-xl border px-4 py-3 text-slate-900 shadow-sm ${summary.isOverLimit
-              ? 'border-rose-200 bg-rose-50'
-              : summary.isAtOrAboveLimit
-                ? 'border-amber-200 bg-amber-50'
-                : 'border-slate-200 bg-slate-50'}`}
-          >
-            <div className="flex items-center justify-between">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{summary.label}</p>
-              {summary.limit !== null ? (
-                <span
-                  className={`text-xs font-semibold ${summary.isOverLimit
-                    ? 'text-rose-700'
-                    : summary.isAtOrAboveLimit
-                      ? 'text-amber-600'
-                      : 'text-slate-500'}`}
-                >
-                  {summary.count}/{summary.limit}
-                </span>
-              ) : (
-                <span className="text-xs font-semibold text-slate-400">—</span>
-              )}
-            </div>
-            <p className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">{summary.count}</p>
-            <p
-              className={`text-xs ${summary.isOverLimit
-                ? 'text-rose-700'
-                : summary.isAtOrAboveLimit
-                  ? 'text-amber-700'
-                  : 'text-slate-500'}`}
-            >
-              {summary.limit !== null
-                ? summary.isOverLimit
-                  ? summary.overLimitLabel
-                  : summary.isAtOrAboveLimit
-                    ? 'Limite atteinte'
-                    : summary.remainingLabel ?? ''
-                : 'Aucune limite configurée'}
-            </p>
-          </div>
-        ))}
-      </div>
-
-      <div className="space-y-1">
-        <h3 className="text-sm font-semibold text-slate-900">Membres de l’organisation</h3>
-        <p className="text-sm text-slate-500">
-          Gérez les personnes qui ont accès à {organizationName} et leurs rôles.
-        </p>
-      </div>
+        </div>
 
       {membersQuery.isLoading ? (
         <p className="text-sm text-slate-500">Chargement des membres…</p>
@@ -410,6 +417,7 @@ export function OrganizationMembers({
           })}
         </ul>
       ) : null}
+      </section>
     </div>
   );
 }
