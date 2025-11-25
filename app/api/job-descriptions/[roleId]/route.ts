@@ -299,16 +299,33 @@ const buildPrompt = (params: {
   actions: ActionGroup[];
   existingDescription: JobDescription | null;
 }) => {
+  const hasActions = params.actions.length > 0;
+
   const responsibilities =
-    params.actions.length === 0
-      ? 'Aucune action documentée — propose des responsabilités standards adaptées au périmètre indiqué.'
-      : params.actions
+    hasActions
+      ? params.actions
           .map((action) => `- ${action.processTitle}: ${action.steps.join(', ')}`)
-          .join('\n');
+          .join('\n')
+      :
+        "Aucune action documentée — laisse les sections responsibilities, objectives et collaboration vides si aucune action n'est fournie.";
+
+  const processDetails = hasActions
+    ? params.actions
+        .map((action) => {
+          const actionSteps = action.steps.length > 0 ? action.steps.join(', ') : 'Aucune';
+          return [
+            `- Processus concernés: ${action.processTitle}`,
+            `  Départements impliqués: ${params.role.departmentName}`,
+            '  Rôles précédents/suivants: Non renseignés',
+            `  Actions du rôle: ${actionSteps}`
+          ].join('\n');
+        })
+        .join('\n\n')
+    : '- Aucun processus documenté pour ce rôle. Ne pas extrapoler les informations manquantes.';
 
   const baseContent = `Rôle: ${params.role.name}\nDépartement: ${params.role.departmentName}`;
 
-  const details = `${baseContent}\n\nResponsabilités connues:\n${responsibilities}`;
+  const details = `${baseContent}\n\nResponsabilités connues:\n${responsibilities}\n\nDétails des processus impactés (utilise uniquement les données fournies, sans extrapoler):\n${processDetails}`;
 
   const existing = params.existingDescription
     ? stringifySections(params.existingDescription.sections)
@@ -318,7 +335,7 @@ const buildPrompt = (params: {
     {
       role: 'system' as const,
       content:
-        "Tu es un expert RH. Rédige une fiche de poste concise en français. Réponds uniquement avec un JSON valide, sans texte supplémentaire ni markdown, avec les clés suivantes: title, generalDescription (2 phrases max), responsibilities (liste d'items), objectives (liste d'items), collaboration (liste d'items)."
+        "Tu es un expert RH. Rédige une fiche de poste concise en français. Réponds uniquement avec un JSON valide, sans texte supplémentaire ni markdown, avec les clés suivantes: title, generalDescription (2 phrases max), responsibilities (liste d'items), objectives (liste d'items), collaboration (liste d'items). Si aucune action n'est fournie, laisse les listes responsibilities, objectives et collaboration vides. Ne complète jamais avec des informations non fournies."
     },
     {
       role: 'user' as const,
