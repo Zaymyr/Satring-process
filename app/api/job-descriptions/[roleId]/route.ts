@@ -344,7 +344,11 @@ const buildPrompt = (params: {
   ];
 };
 
-const generationSchema = jobDescriptionSectionsSchema.extend({
+const generationSchema = z.object({
+  ...jobDescriptionSectionsSchema.shape,
+  responsibilities: jobDescriptionSectionsSchema.shape.responsibilities.min(0),
+  objectives: jobDescriptionSectionsSchema.shape.objectives.min(0),
+  collaboration: jobDescriptionSectionsSchema.shape.collaboration.min(0),
   content: z.string().optional()
 });
 
