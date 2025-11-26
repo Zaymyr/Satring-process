@@ -302,12 +302,10 @@ const buildPrompt = (params: {
 
   const responsibilities =
     params.actions.length === 0
-      ? "Aucune action documentée — laisse les responsabilités, objectifs et collaborations vides."
+      ? "Aucune action documentée — laisse les sections responsibilities, objectives et collaboration vides si aucune action n'est fournie."
       : params.actions
           .map((action) => `- ${action.processTitle}: ${action.steps.join(', ')}`)
-          .join('\n')
-      :
-        "Aucune action documentée — laisse les sections responsibilities, objectives et collaboration vides si aucune action n'est fournie.";
+          .join('\n');
 
   const processDetails = hasActions
     ? params.actions
