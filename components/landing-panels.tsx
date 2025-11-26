@@ -2774,7 +2774,9 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
   const secondaryWidth = isSecondaryCollapsed ? '3.5rem' : 'clamp(16rem, 22vw, 26rem)';
   const layoutStyle = useMemo<CSSProperties>(
     () => ({
-      gridTemplateColumns: `${primaryWidth} minmax(0, 1fr) ${secondaryWidth}`
+      ['--primary-width' as const]: primaryWidth,
+      ['--secondary-width' as const]: secondaryWidth,
+      gridTemplateColumns: `var(--primary-width) minmax(0, 1fr) var(--secondary-width)`
     }),
     [primaryWidth, secondaryWidth]
   );
@@ -2825,15 +2827,15 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
           </span>
         ) : null}
       </div>
-      <div className="pointer-events-none relative z-10 flex h-full min-h-0 w-full flex-col gap-3 px-2.5 py-4 lg:px-5 lg:py-6 xl:px-6">
-        <div
-          className="pointer-events-none flex min-h-0 flex-1 flex-col gap-4 lg:grid lg:[grid-template-rows:minmax(0,1fr)_auto] lg:items-stretch lg:gap-0"
-          style={layoutStyle}
-        >
-        <div
-          className="pointer-events-auto relative flex h-full min-h-0 shrink-0 items-stretch overflow-visible transition-[width] duration-300 ease-out lg:col-start-1 lg:row-start-1 lg:row-span-2 lg:h-full lg:min-h-0"
-          style={{ width: primaryWidth }}
-        >
+        <div className="pointer-events-none relative z-10 grid h-full min-h-0 w-full grid-cols-1 items-stretch gap-3 px-2.5 py-4 lg:grid-cols-1 lg:px-5 lg:py-6 xl:px-6">
+          <div
+            className="pointer-events-none grid min-h-0 flex-1 grid-cols-[var(--primary-width)_minmax(0,1fr)_var(--secondary-width)] grid-rows-[minmax(0,1fr)_auto] items-stretch gap-4 lg:gap-0"
+            style={layoutStyle}
+          >
+          <div
+            className="pointer-events-auto relative flex h-full min-h-0 shrink-0 items-stretch overflow-visible transition-[width] duration-300 ease-out lg:col-start-1 lg:row-start-1 lg:row-span-2 lg:h-full lg:min-h-0"
+            style={{ width: 'var(--primary-width)' }}
+          >
           <button
             type="button"
             onClick={() => setIsPrimaryCollapsed((prev) => !prev)}
@@ -3257,7 +3259,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
         </div>
         <div
           className="pointer-events-auto relative flex h-full min-h-0 shrink-0 items-stretch overflow-visible transition-[width] duration-300 ease-out lg:col-start-3 lg:row-start-1 lg:row-span-2 lg:h-full lg:min-h-0"
-          style={{ width: secondaryWidth }}
+          style={{ width: 'var(--secondary-width)' }}
         >
           <button
             type="button"
