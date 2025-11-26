@@ -213,7 +213,9 @@ const buildStructuredDataForGeneration = (params: {
   existingDescription: JobDescription | null;
 }) => {
   const resolveRoleNames = (roleIds: string[]) =>
-    uniqueStrings(roleIds.map((id) => params.lookups.roles[id] ?? '')).map((name) => `rôle ${name}`);
+    uniqueStrings(roleIds.map((id) => params.lookups.roles[id] ?? ''))
+      .filter((name) => name.length > 0)
+      .map((name) => `rôle ${name}`);
 
   const resolveDepartmentName = (departmentId: string | null) =>
     departmentId ? params.lookups.departments[departmentId] ?? 'Département non spécifié dans les données' : null;
@@ -226,7 +228,7 @@ const buildStructuredDataForGeneration = (params: {
       const interactions = uniqueStrings([...previousRoles, ...nextRoles]);
       const interactionLabel =
         interactions.length > 0
-          ? `Interactions : ${interactions.join(', ')}`
+          ? `Travaille avec ${interactions.join(', ')}`
           : null;
 
       return [
@@ -245,9 +247,10 @@ const buildStructuredDataForGeneration = (params: {
       .map((id) => params.lookups.roles[id])
       .filter((name) => typeof name === 'string'),
     ...params.roleProfile.interactions.directDepartments
+      .filter((id) => id && id !== params.roleProfile.role.departmentId)
       .map((id) => params.lookups.departments[id])
       .filter((name) => typeof name === 'string')
-  ]).map((name) => `Collabore avec ${name}`);
+  ]).filter((name) => name.length > 0);
 
   const responsibilities = (() => {
     const existing = params.existingDescription?.sections.responsibilities ?? [];
@@ -271,10 +274,10 @@ const buildStructuredDataForGeneration = (params: {
   const collaboration = (() => {
     const existing = params.existingDescription?.sections.collaboration ?? [];
     if (existing.length > 0) {
-      return existing.map(stripTechnicalIds);
+      return uniqueStrings(existing.map(stripTechnicalIds));
     }
     if (collaborationFromProfile.length > 0) {
-      return collaborationFromProfile;
+      return uniqueStrings(collaborationFromProfile);
     }
     return ['Non spécifié dans les données'];
   })();
@@ -322,6 +325,12 @@ const buildPrompt = (params: {
     '  2) Responsabilités principales',
     '  3) Objectifs et indicateurs',
     '  4) Collaboration attendue',
+    '- Reformule en français courant : phrases d’action, ton professionnel, sans lourdeur technique.',
+    '- Pour les responsabilités : reste factuel, décris ce que le rôle fait avec des verbes d’action,',
+    "  mentionne brièvement les collaborations utiles (ex : 'en collaboration avec l'Analyste qualité'),",
+    "  évite toute référence à des graphes ou notions comme 'précédé par/suivi par' et ne répète pas sans cesse 'dans le processus...'.",
+    "  Si toutes les responsabilités se rapportent au même processus, cite son nom une fois puis détaille les actions sans répétition inutile.",
+    '- Pour la collaboration attendue : liste courte des rôles ou départements clés, sans doublons ni département du rôle lui-même.',
     '- Reformule les listes pour les rendre naturelles mais reste fidèle aux données.',
     '- N’inclue aucun identifiant technique ou texte du type "ID:" dans le résultat.',
     '- Quand une information manque, écris exactement : "Non spécifié dans les données".',
