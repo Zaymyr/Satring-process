@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 import { DEFAULT_PROCESS_TITLE } from '@/lib/process/defaults';
 import { createServerClient } from '@/lib/supabase/server';
-import { stepSchema } from '@/lib/validation/process';
+import { stepSchema, type ProcessStep } from '@/lib/validation/process';
 
 export type RoleProfile = {
   role: {
@@ -96,6 +96,11 @@ const normalizeRole = (record: unknown) => {
 const unique = (values: Array<string | null | undefined>) =>
   Array.from(new Set(values.filter((value): value is string => typeof value === 'string' && value.length > 0)));
 
+const isActionOrDecision = (
+  step: ProcessStep
+): step is ProcessStep & { type: Exclude<ProcessStep['type'], 'start' | 'finish'> } =>
+  step.type === 'action' || step.type === 'decision';
+
 export async function buildRoleProfile(orgId: string, roleId: string): Promise<RoleProfile> {
   const supabase = createServerClient();
 
@@ -180,9 +185,7 @@ export async function buildRoleProfile(orgId: string, roleId: string): Promise<R
       continue;
     }
 
-    const actionableSteps = stepsResult.data.filter(
-      (step) => (step.type === 'action' || step.type === 'decision') && step.roleId === roleId
-    );
+    const actionableSteps = stepsResult.data.filter(isActionOrDecision).filter((step) => step.roleId === roleId);
 
     if (actionableSteps.length === 0) {
       continue;
