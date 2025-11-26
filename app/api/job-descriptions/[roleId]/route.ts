@@ -298,16 +298,34 @@ const buildPrompt = (params: {
   actions: ActionGroup[];
   existingDescription: JobDescription | null;
 }) => {
+  const hasActions = params.actions.length > 0;
+
   const responsibilities =
     params.actions.length === 0
       ? "Aucune action documentée — laisse les responsabilités, objectifs et collaborations vides."
       : params.actions
           .map((action) => `- ${action.processTitle}: ${action.steps.join(', ')}`)
-          .join('\n');
+          .join('\n')
+      :
+        "Aucune action documentée — laisse les sections responsibilities, objectives et collaboration vides si aucune action n'est fournie.";
+
+  const processDetails = hasActions
+    ? params.actions
+        .map((action) => {
+          const actionSteps = action.steps.length > 0 ? action.steps.join(', ') : 'Aucune';
+          return [
+            `- Processus concernés: ${action.processTitle}`,
+            `  Départements impliqués: ${params.role.departmentName}`,
+            '  Rôles précédents/suivants: Non renseignés',
+            `  Actions du rôle: ${actionSteps}`
+          ].join('\n');
+        })
+        .join('\n\n')
+    : '- Aucun processus documenté pour ce rôle. Ne pas extrapoler les informations manquantes.';
 
   const baseContent = `Rôle: ${params.role.name}\nDépartement: ${params.role.departmentName}`;
 
-  const details = `${baseContent}\n\nResponsabilités connues:\n${responsibilities}`;
+  const details = `${baseContent}\n\nResponsabilités connues:\n${responsibilities}\n\nDétails des processus impactés (utilise uniquement les données fournies, sans extrapoler):\n${processDetails}`;
 
   const existing = params.existingDescription
     ? stringifySections(params.existingDescription.sections)
