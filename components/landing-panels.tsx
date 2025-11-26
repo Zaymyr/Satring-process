@@ -667,6 +667,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
   const {
     formatting: { dateTime: dateTimeFormatOptions },
     landing: {
+      modeTabs,
       defaults: { departmentName: defaultDepartmentName, roleName: defaultRoleName },
       actions: { createLabel },
       primaryPanel,
@@ -731,6 +732,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
   const [renameDraft, setRenameDraft] = useState('');
   const renameInputRef = useRef<HTMLInputElement | null>(null);
   const appliedQueryProcessIdRef = useRef<string | null>(null);
+  const [activeModeTab, setActiveModeTab] = useState<'manual' | 'ai'>('manual');
   const [activeSecondaryTab, setActiveSecondaryTab] = useState<'processes' | 'departments'>('processes');
   const hasAppliedInviteTabRef = useRef(false);
   const [editingDepartmentId, setEditingDepartmentId] = useState<string | null>(null);
@@ -1058,6 +1060,37 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
     return map;
   }, [departments]);
 
+  const aiMessages = useMemo(
+    () => [
+      {
+        role: 'user' as const,
+        content:
+          locale === 'fr'
+            ? 'Peux-tu proposer un parcours d’onboarding simplifié ?'
+            : 'Can you propose a simplified onboarding journey?'
+      },
+      {
+        role: 'assistant' as const,
+        content:
+          locale === 'fr'
+            ? `Voici un flux pour ${processTitle.toLowerCase()} avec des validations clés.`
+            : `Here is a flow for ${processTitle.toLowerCase()} with key validations.`
+      },
+      {
+        role: 'assistant' as const,
+        content:
+          locale === 'fr'
+            ? 'J’ai ajouté des étapes de vérification et un suivi des décisions pour éviter les impasses.'
+            : 'I added verification steps and decision tracking to prevent dead ends.'
+      }
+    ],
+    [locale, processTitle]
+  );
+  const chatInputPlaceholder =
+    locale === 'fr'
+      ? 'Posez une question sur votre processus...'
+      : 'Ask a question about your process...';
+
   const roleLookup = useMemo(() => {
     const byId = new Map<string, RoleLookupEntry>();
     const byDepartment = new Map<string, RoleLookupEntry[]>();
@@ -1092,6 +1125,8 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
   }, [shouldUseDepartmentDemo]);
   const hasDepartments = departments.length > 0;
   const hasRoles = roleLookup.all.length > 0;
+  const isManualModeActive = activeModeTab === 'manual';
+  const isAiModeActive = activeModeTab === 'ai';
   const isProcessesTabActive = activeSecondaryTab === 'processes';
   const isDepartmentsTabActive = activeSecondaryTab === 'departments';
   const isDepartmentActionsDisabled = shouldUseDepartmentDemo;
@@ -2764,6 +2799,11 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
   );
 
   const diagramControlsContentId = useId();
+  const diagramContent = diagramSvg ? (
+    <div aria-hidden="true" dangerouslySetInnerHTML={{ __html: diagramSvg }} />
+  ) : (
+    fallbackDiagram
+  );
 
   return (
     <div className="relative flex h-full flex-col overflow-x-visible overflow-y-hidden bg-gradient-to-br from-slate-100 via-white to-slate-200 text-slate-900">
@@ -2790,14 +2830,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
               willChange: 'transform'
             }}
           >
-            {diagramSvg ? (
-              <div
-                aria-hidden="true"
-                dangerouslySetInnerHTML={{ __html: diagramSvg }}
-              />
-            ) : (
-              fallbackDiagram
-            )}
+            {diagramContent}
           </div>
         </div>
         {diagramError ? (
@@ -2807,10 +2840,62 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
         ) : null}
       </div>
       <div className="pointer-events-none relative z-10 flex h-full min-h-0 w-full flex-col gap-3 px-2.5 py-4 lg:px-5 lg:py-6 xl:px-6">
+        <div className="pointer-events-auto flex justify-center">
+          <div
+            role="tablist"
+            aria-label={modeTabs.ariaLabel}
+            className="flex items-center gap-1.5 rounded-2xl bg-slate-100 p-1.5 shadow-inner ring-1 ring-inset ring-slate-200"
+          >
+            <button
+              type="button"
+              id="manual-mode-tab"
+              role="tab"
+              aria-selected={isManualModeActive}
+              aria-controls="manual-mode-panel"
+              title={modeTabs.tooltip}
+              onClick={() => setActiveModeTab('manual')}
+              className={cn(
+                'flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400',
+                isManualModeActive
+                  ? 'bg-white text-slate-900 shadow'
+                  : 'text-slate-600 hover:bg-white/80'
+              )}
+            >
+              <GripVertical className="h-3.5 w-3.5" />
+              {modeTabs.manual}
+            </button>
+            <button
+              type="button"
+              id="ai-mode-tab"
+              role="tab"
+              aria-selected={isAiModeActive}
+              aria-controls="ai-mode-panel"
+              title={modeTabs.tooltip}
+              onClick={() => setActiveModeTab('ai')}
+              className={cn(
+                'flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400',
+                isAiModeActive ? 'bg-white text-slate-900 shadow' : 'text-slate-600 hover:bg-white/80'
+              )}
+            >
+              <Sparkles className="h-3.5 w-3.5" />
+              {modeTabs.ai}
+            </button>
+          </div>
+        </div>
         <div
-          className="pointer-events-none flex min-h-0 flex-1 flex-col gap-4 lg:grid lg:[grid-template-rows:minmax(0,1fr)_auto] lg:items-stretch lg:gap-0"
-          style={layoutStyle}
+          role="tabpanel"
+          id="manual-mode-panel"
+          aria-labelledby="manual-mode-tab"
+          hidden={!isManualModeActive}
+          className={cn(
+            'pointer-events-none flex min-h-0 flex-1 flex-col gap-4',
+            !isManualModeActive && 'hidden'
+          )}
         >
+          <div
+            className="pointer-events-none flex min-h-0 flex-1 flex-col gap-4 lg:grid lg:[grid-template-rows:minmax(0,1fr)_auto] lg:items-stretch lg:gap-0"
+            style={layoutStyle}
+          >
         <div
           className="pointer-events-auto relative flex h-full min-h-0 shrink-0 items-stretch overflow-visible transition-[width] duration-300 ease-out lg:col-start-1 lg:row-start-1 lg:row-span-2 lg:h-full lg:min-h-0"
           style={{ width: primaryWidth }}
@@ -3893,7 +3978,93 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
           </div>
         </div>
       </div>
+      <div
+        role="tabpanel"
+        id="ai-mode-panel"
+        aria-labelledby="ai-mode-tab"
+        hidden={!isAiModeActive}
+        className={cn(
+          'pointer-events-auto flex min-h-0 flex-1 flex-col gap-4',
+          !isAiModeActive && 'hidden'
+        )}
+      >
+        <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-[1.25fr_0.75fr]">
+          <Card className="flex min-h-0 flex-col border-slate-200 bg-white/90 shadow-[0_24px_96px_-48px_rgba(15,23,42,0.3)]">
+            <CardContent className="flex min-h-0 flex-1 flex-col gap-4 p-5">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2 text-slate-900">
+                  <Sparkles className="h-4 w-4" />
+                  <p className="text-sm font-semibold">{modeTabs.ai}</p>
+                </div>
+                <span className="rounded-full bg-emerald-100 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-emerald-700">
+                  {locale === 'fr' ? 'Actif' : 'Live'}
+                </span>
+              </div>
+              <div className="flex flex-1 flex-col gap-3 overflow-hidden">
+                <div className="flex flex-1 flex-col gap-2 overflow-y-auto rounded-xl border border-slate-200 bg-white/80 p-3">
+                  {aiMessages.map((message, index) => {
+                    const isUser = message.role === 'user';
+                    return (
+                      <div
+                        key={`${message.role}-${index}`}
+                        className={cn(
+                          'flex items-start gap-2 rounded-lg border border-slate-100 bg-white p-3 shadow-sm',
+                          !isUser && 'border-emerald-100 bg-emerald-50'
+                        )}
+                      >
+                        {isUser ? (
+                          <UserRound className="mt-0.5 h-4 w-4 text-slate-500" aria-hidden="true" />
+                        ) : (
+                          <Sparkles className="mt-0.5 h-4 w-4 text-emerald-600" aria-hidden="true" />
+                        )}
+                        <p className="text-sm text-slate-800">{message.content}</p>
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white/80 p-3 shadow-inner">
+                  <Input
+                    placeholder={chatInputPlaceholder}
+                    className="h-10 flex-1 rounded-md border-slate-300 bg-white text-sm"
+                    disabled
+                  />
+                  <Button type="button" size="sm" className="h-10" disabled>
+                    <Sparkles className="mr-2 h-4 w-4" />
+                    {locale === 'fr' ? 'Bientôt' : 'Soon'}
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="border-slate-200 bg-white/90 shadow-[0_24px_96px_-48px_rgba(15,23,42,0.3)]">
+            <CardContent className="flex flex-col gap-3 p-5">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 text-slate-900">
+                  <FolderTree className="h-4 w-4" />
+                  <p className="text-sm font-semibold">{processTitle}</p>
+                </div>
+                <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                  {locale === 'fr' ? 'Aperçu IA' : 'AI preview'}
+                </span>
+              </div>
+              <div className="overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
+                <div className="pointer-events-none grid place-items-center overflow-hidden p-4">
+                  <div className="max-h-80 max-w-full overflow-auto [&_svg]:h-auto [&_svg]:w-full">
+                    {diagramContent}
+                  </div>
+                </div>
+              </div>
+              <p className="text-xs text-slate-600">
+                {locale === 'fr'
+                  ? 'Le rendu suit le même flux que vos modifications manuelles. Les ajustements IA apparaîtront ici.'
+                  : 'The preview uses the same rendering path as manual edits. Upcoming AI adjustments will appear here.'}
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
     </div>
+  </div>
   </div>
   );
 }

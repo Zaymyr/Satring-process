@@ -9,6 +9,12 @@ export type Dictionary = {
     description: string;
   };
     landing: {
+      modeTabs: {
+        ariaLabel: string;
+        tooltip: string;
+        manual: string;
+        ai: string;
+      };
       defaults: {
         departmentName: string;
         roleName: string;
@@ -364,6 +370,12 @@ const dictionaries: Record<Locale, Dictionary> = {
       description: 'Unify your process in a clean interface: one workspace, two panels, zero distraction.'
     },
     landing: {
+      modeTabs: {
+        ariaLabel: 'Experience switcher',
+        tooltip: 'Choose between manual editing and AI assistance.',
+        manual: 'Manual',
+        ai: 'IA'
+      },
       defaults: {
         departmentName: 'New department',
         roleName: 'New role'
@@ -738,6 +750,12 @@ const dictionaries: Record<Locale, Dictionary> = {
         'Unifiez votre processus dans une interface épurée : un espace, deux panneaux, zéro distraction.'
     },
     landing: {
+      modeTabs: {
+        ariaLabel: 'Sélection du mode',
+        tooltip: 'Choisissez entre l’édition manuelle et l’aide IA.',
+        manual: 'Manuel',
+        ai: 'IA'
+      },
       defaults: {
         departmentName: 'Nouveau département',
         roleName: 'Nouveau rôle'
