@@ -5,22 +5,43 @@ type ChatMessage = {
   content: string;
 };
 
+type ResponseFormat =
+  | 'text'
+  | 'json_object'
+  | {
+      type: 'json_schema';
+      json_schema: {
+        name: string;
+        schema: Record<string, unknown>;
+        strict?: boolean;
+      };
+    };
+
 type ChatCompletionParams = {
   messages: ChatMessage[];
   model?: string;
   temperature?: number;
   maxTokens?: number;
+  responseFormat?: ResponseFormat;
 };
 
 export async function performChatCompletion({
   messages,
   model = 'gpt-4o-mini',
   temperature = 0.7,
-  maxTokens = 650
+  maxTokens = 650,
+  responseFormat = 'text'
 }: ChatCompletionParams): Promise<string> {
   if (!env.OPENAI_API_KEY) {
     throw new Error('OPENAI_API_KEY manquante pour la génération.');
   }
+
+  const responseFormatPayload =
+    responseFormat === 'text'
+      ? undefined
+      : typeof responseFormat === 'string'
+        ? { type: responseFormat }
+        : responseFormat;
 
   const response = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
@@ -33,7 +54,7 @@ export async function performChatCompletion({
       messages,
       temperature,
       max_tokens: maxTokens,
-      response_format: { type: 'text' }
+      response_format: responseFormatPayload
     })
   });
 

@@ -3,11 +3,10 @@ import { z } from 'zod';
 
 import { performChatCompletion } from '@/lib/ai/openai';
 import { ensureJobDescriptionSections, stringifySections, type JobDescriptionSections } from '@/lib/job-descriptions/format';
-import { DEFAULT_PROCESS_TITLE } from '@/lib/process/defaults';
+import { buildRoleProfile, fetchRoleAndDepartmentLookups, type RoleProfile } from '@/lib/job-descriptions/role-profile';
 import { createServerClient } from '@/lib/supabase/server';
 import { getServerUser } from '@/lib/supabase/auth';
 import { fetchUserOrganizations, getAccessibleOrganizationIds } from '@/lib/organization/memberships';
-import { stepSchema } from '@/lib/validation/process';
 import {
   jobDescriptionResponseSchema,
   jobDescriptionSchema,
@@ -23,25 +22,6 @@ const normalizeTimestamp = (value: unknown) => {
   }
 
   return date.toISOString();
-};
-
-const normalizeSteps = (value: unknown): unknown => {
-  if (Array.isArray(value)) {
-    return value;
-  }
-
-  if (typeof value === 'string') {
-    try {
-      const parsed = JSON.parse(value);
-      if (Array.isArray(parsed)) {
-        return parsed;
-      }
-    } catch (error) {
-      console.error('Impossible de parser les étapes du process', error);
-    }
-  }
-
-  return [];
 };
 
 const normalizeStringArray = (value: unknown): string[] => {
@@ -62,12 +42,6 @@ const normalizeStringArray = (value: unknown): string[] => {
   return [];
 };
 
-const normalizedProcessSchema = z.object({
-  id: z.string().uuid('Identifiant de process invalide.'),
-  title: z.string().min(1, 'Le titre du process est requis.'),
-  steps: z.array(stepSchema)
-});
-
 const roleContextSchema = z.object({
   id: z.string().uuid('Identifiant de rôle invalide.'),
   name: z.string().min(1, 'Le nom du rôle est requis.'),
@@ -76,8 +50,6 @@ const roleContextSchema = z.object({
 });
 
 type RoleContext = z.infer<typeof roleContextSchema>;
-
-type ActionGroup = { processTitle: string; steps: string[] };
 
 const normalizeJobDescriptionRecord = (record: {
   role_id: unknown;
@@ -230,117 +202,215 @@ const buildRoleContext = async (
   };
 };
 
-const fetchRoleActions = async (
-  supabase: ReturnType<typeof createServerClient>,
-  organizationId: string,
-  roleId: string
-): Promise<ActionGroup[]> => {
-  const { data: rawProcesses, error: processesError } = await supabase
-    .from('process_snapshots')
-    .select('id, title, steps')
-    .eq('organization_id', organizationId);
+const uniqueStrings = (values: Array<string | null | undefined>) =>
+  Array.from(new Set(values.filter((value): value is string => typeof value === 'string' && value.trim().length > 0)));
 
-  if (processesError) {
-    throw processesError;
-  }
+const stripTechnicalIds = (value: string) => value.replace(/\s*\(ID[:\s]*[^)]+\)/gi, '').trim();
 
-  const normalizedProcessesResult = z
-    .array(
-      z.object({
-        id: z.unknown(),
-        title: z.unknown(),
-        steps: z.unknown()
-      })
-    )
-    .safeParse(rawProcesses ?? []);
-
-  if (!normalizedProcessesResult.success) {
-    throw new Error('Process invalides pour la génération de fiche de poste.');
-  }
-
-  const normalized = normalizedProcessesResult.data.map((process) => ({
-    id: typeof process.id === 'string' ? process.id : String(process.id ?? ''),
-    title:
-      typeof process.title === 'string' && process.title.trim().length > 0
-        ? process.title.trim()
-        : DEFAULT_PROCESS_TITLE,
-    steps: normalizeSteps(process.steps)
-  }));
-
-  const parsedProcesses = z.array(normalizedProcessSchema).safeParse(normalized);
-
-  if (!parsedProcesses.success) {
-    throw new Error('Process normalisés invalides pour la génération de fiche de poste.');
-  }
-
-  const groups: ActionGroup[] = [];
-
-  for (const process of parsedProcesses.data) {
-    const stepsForRole = process.steps
-      .filter((step) => (step.type === 'action' || step.type === 'decision') && step.roleId === roleId)
-      .map((step) => step.label);
-
-    if (stepsForRole.length === 0) {
-      continue;
-    }
-
-    groups.push({
-      processTitle: process.title,
-      steps: Array.from(new Set(stepsForRole))
-    });
-  }
-
-  return groups;
-};
-
-const buildPrompt = (params: {
-  role: RoleContext;
-  actions: ActionGroup[];
-  existingDescription: JobDescription | null;
+const buildStructuredDataForGeneration = (params: {
+  roleProfile: RoleProfile;
+  lookups: {
+    roles: Record<string, string>;
+    roleDepartments: Record<string, string | null>;
+    departments: Record<string, string>;
+  };
 }) => {
-  const hasActions = params.actions.length > 0;
+  const resolveRoleNames = (roleIds: string[]) =>
+    uniqueStrings(roleIds.map((id) => params.lookups.roles[id] ?? ''))
+      .filter((name) => name.length > 0)
+      .map((name) => `rôle ${name}`);
 
-  const responsibilities =
-    params.actions.length === 0
-      ? "Aucune action documentée — laisse les sections responsibilities, objectives et collaboration vides si aucune action n'est fournie."
-      : params.actions
-          .map((action) => `- ${action.processTitle}: ${action.steps.join(', ')}`)
-          .join('\n');
+  const resolveDepartmentName = (departmentId: string | null) =>
+    departmentId ? params.lookups.departments[departmentId] ?? 'Département non spécifié dans les données' : null;
 
-  const processDetails = hasActions
-    ? params.actions
-        .map((action) => {
-          const actionSteps = action.steps.length > 0 ? action.steps.join(', ') : 'Aucune';
-          return [
-            `- Processus concernés: ${action.processTitle}`,
-            `  Départements impliqués: ${params.role.departmentName}`,
-            '  Rôles précédents/suivants: Non renseignés',
-            `  Actions du rôle: ${actionSteps}`
-          ].join('\n');
-        })
-        .join('\n\n')
-    : '- Aucun processus documenté pour ce rôle. Ne pas extrapoler les informations manquantes.';
+  const roleInteractionCounts = new Map<string, number>();
+  const departmentInteractionCounts = new Map<string, number>();
 
-  const baseContent = `Rôle: ${params.role.name}\nDépartement: ${params.role.departmentName}`;
+  const incrementCount = (map: Map<string, number>, key: string | null | undefined) => {
+    if (!key) return;
+    map.set(key, (map.get(key) ?? 0) + 1);
+  };
 
-  const details = `${baseContent}\n\nResponsabilités connues:\n${responsibilities}\n\nDétails des processus impactés (utilise uniquement les données fournies, sans extrapoler):\n${processDetails}`;
+  const processesForModel = params.roleProfile.processesInvolvedIn.map((process) => {
+    const steps = process.steps.map((step) => {
+      const neighboringRoleIds = uniqueStrings([...step.previousRoleIds, ...step.nextRoleIds]).filter(
+        (neighborId) => neighborId !== params.roleProfile.role.id
+      );
 
-  const existing = params.existingDescription
-    ? stringifySections(params.existingDescription.sections)
-    : 'Aucune fiche existante. Crée une version initiale.';
+      neighboringRoleIds.forEach((neighborId) => incrementCount(roleInteractionCounts, neighborId));
 
-  return [
-    {
-      role: 'system' as const,
-      content:
-        "Tu es un expert RH. Rédige une fiche de poste concise en français uniquement à partir des informations fournies, sans extrapoler ni inventer de KPI ou de chiffres. Utilise uniquement les actions listées; si aucune action n'est fournie, laisse les sections responsibilities, objectives et collaboration vides. Réponds uniquement avec un JSON valide, sans texte supplémentaire ni markdown, avec les clés suivantes: title, generalDescription (2 phrases max), responsibilities (liste d'items), objectives (liste d'items), collaboration (liste d'items)."
-    },
-    {
-      role: 'user' as const,
-      content: `${details}\n\nFiche actuelle (à améliorer si fournie):\n${existing}`
+      const neighborDepartments = neighboringRoleIds
+        .map((neighborId) => params.lookups.roleDepartments[neighborId] ?? null)
+        .filter(
+          (departmentId): departmentId is string =>
+            typeof departmentId === 'string' && departmentId !== params.roleProfile.role.departmentId
+        );
+
+      neighborDepartments.forEach((departmentId) => incrementCount(departmentInteractionCounts, departmentId));
+
+      if (step.departmentId && step.departmentId !== params.roleProfile.role.departmentId) {
+        incrementCount(departmentInteractionCounts, step.departmentId);
+      }
+
+      return {
+        id: step.nodeId,
+        label: step.label,
+        type: step.type,
+        departmentName: resolveDepartmentName(step.departmentId),
+        previousRoles: resolveRoleNames(step.previousRoleIds),
+        nextRoles: resolveRoleNames(step.nextRoleIds)
+      };
+    });
+
+    return {
+      id: process.processId,
+      name: process.processName,
+      steps
+    };
+  });
+
+  const responsibilitiesFromProfile = params.roleProfile.processesInvolvedIn.flatMap((process) =>
+    process.steps.map((step) => {
+      const interactions = uniqueStrings([...resolveRoleNames(step.previousRoleIds), ...resolveRoleNames(step.nextRoleIds)]);
+      const interactionLabel = interactions.length > 0 ? `Collaboration : ${interactions.join(', ')}` : null;
+      const processLabel = params.roleProfile.processesInvolvedIn.length > 1 ? `Processus : ${process.processName}` : null;
+
+      return [
+        `${step.type === 'action' ? 'Action' : 'Décision'} : ${step.label}`,
+        interactionLabel,
+        step.departmentId && step.departmentId !== params.roleProfile.role.departmentId
+          ? `Département associé : ${resolveDepartmentName(step.departmentId)}`
+          : null,
+        processLabel
+      ]
+        .filter(Boolean)
+        .join(' — ');
+    })
+  );
+
+  const collaboratorRoles = Array.from(roleInteractionCounts.entries())
+    .map(([id, count]) => ({ id, name: params.lookups.roles[id], count }))
+    .filter((item) => typeof item.name === 'string' && item.name.length > 0)
+    .sort((a, b) => b.count - a.count);
+
+  const collaboratorDepartments = Array.from(departmentInteractionCounts.entries())
+    .map(([id, count]) => ({ id, name: params.lookups.departments[id], count }))
+    .filter((item) => typeof item.name === 'string' && item.name.length > 0)
+    .sort((a, b) => b.count - a.count);
+
+  const frequentCollaborators = uniqueStrings([
+    ...collaboratorRoles.filter(({ count }) => count > 1).map((item) => item.name),
+    ...collaboratorDepartments
+      .filter(({ count }) => count > 1)
+      .map((item) => item.name)
+  ]).filter((name) => name.length > 0);
+
+  const fallbackCollaborators = uniqueStrings([
+    ...collaboratorRoles.map((item) => item.name),
+    ...collaboratorDepartments.map((item) => item.name)
+  ]).filter((name) => name.length > 0);
+
+  const collaborationFromProfile =
+    frequentCollaborators.length > 0
+      ? frequentCollaborators.slice(0, 6)
+      : fallbackCollaborators.length > 0
+        ? fallbackCollaborators.slice(0, 6)
+        : [];
+
+  const responsibilities = (() => {
+    if (responsibilitiesFromProfile.length > 0) {
+      return responsibilitiesFromProfile;
     }
-  ];
-};
+    return ['Non spécifié dans les données'];
+  })();
+
+  const objectives = (() => {
+    return ['Non spécifié dans les données'];
+  })();
+
+  const collaboration = (() => {
+    if (collaborationFromProfile.length > 0) {
+      return uniqueStrings(collaborationFromProfile);
+    }
+    return ['Non spécifié dans les données'];
+  })();
+
+  const summary = (() => {
+    if (responsibilitiesFromProfile.length > 0) {
+      const processLabels = uniqueStrings(params.roleProfile.processesInvolvedIn.map((p) => p.processName));
+      return `Rôle impliqué dans les processus : ${processLabels.join(', ')}.`;
+    }
+
+    return 'Non spécifié dans les données';
+  })();
+
+  const title = params.roleProfile.role.name || 'Non spécifié dans les données';
+
+  return {
+    role: params.roleProfile.role,
+    processes: processesForModel,
+    collaborators: {
+      frequentRoles: collaboratorRoles,
+      frequentDepartments: collaboratorDepartments
+    },
+    title,
+    summary,
+    responsibilities,
+    objectives,
+    collaboration
+  };
+  };
+
+  const buildPrompt = (params: {
+    roleProfile: RoleProfile;
+    lookups: {
+      roles: Record<string, string>;
+      roleDepartments: Record<string, string | null>;
+      departments: Record<string, string>;
+    };
+  }) => {
+    const structuredData = buildStructuredDataForGeneration(params);
+    const serializedData = JSON.stringify(structuredData, null, 2);
+
+    const instructions = [
+      'Tu es un expert RH. Génère en français une fiche de poste lisible et professionnelle à partir des données fournies.',
+      'Contraintes impératives :',
+      '- N’utilise que les informations de "donnees_role" (aucune invention).',
+      '- Réécris intégralement la fiche à chaque demande en reformulant tout le contenu, sans réutiliser textuellement une version précédente.',
+      '- Produit exactement 4 sections :',
+      '  1) Titre du poste & Résumé',
+      '  2) Responsabilités principales',
+      '  3) Objectifs et indicateurs',
+      '  4) Collaboration attendue',
+      '- Ton : professionnel, simple, naturel, sans jargon technique ni tournures mécaniques.',
+      '- Responsabilités : 3 à 5 puces maximum, phrases courtes et orientées action, sans répéter inutilement le même processus.',
+      '  Regroupe ou reformule des étapes proches pour rendre le texte fluide, sans ajouter de tâches nouvelles.',
+      "  Mentionne une collaboration uniquement si elle ressort clairement des données (ex : 'en lien avec l'Analyste qualité'), sans notions de graphe 'précédé/suivi'.",
+      '- Collaboration attendue : liste courte (3-6) des rôles ou départements qui ressortent le plus des interactions.',
+      "  Exclue le département du rôle si présent, supprime les doublons et évite les évidences ou redites.",
+      '- Appuie-toi sur les fréquences présentes dans "collaborators" de donnees_role pour mettre en avant les liens forts.',
+      '- Si une information manque, écris exactement : "Non spécifié dans les données".',
+      '- Retire toute mention d’identifiants techniques ou parenthèses de type "ID:".',
+      '- Réponds uniquement en JSON strictement valide (sans Markdown) avec les clés :',
+      '  { "title", "generalDescription", "responsibilities", "objectives", "collaboration", "content" }',
+      '- Champs JSON :',
+      '  * title : intitulé du poste.',
+      '  * generalDescription : résumé concis du rôle.',
+      '  * responsibilities : puces actionnables basées uniquement sur les données.',
+      '  * objectives : objectifs ou indicateurs déjà présents dans les données.',
+      '  * collaboration : noms de rôles ou départements clés, sans phrases longues.',
+      '  * content : texte complet structuré avec les 4 sections numérotées ci-dessus.',
+      '- Chaque liste (responsibilities, objectives, collaboration) doit contenir au moins un élément.',
+      '- Ne renvoie rien d’autre que le JSON demandé.'
+    ].join('\n');
+
+    const userContent = ['donnees_role:', serializedData].join('\n');
+
+    return [
+      { role: 'system' as const, content: instructions },
+      { role: 'user' as const, content: userContent }
+    ];
+  };
 
 const generationSchema = z.object({
   title: z.string().trim().min(1).optional(),
@@ -350,6 +420,24 @@ const generationSchema = z.object({
   collaboration: z.array(z.string().trim().min(1)).default([]),
   content: z.string().optional()
 });
+
+const generationJsonSchema = {
+  name: 'job_description_generation',
+  schema: {
+    type: 'object',
+    additionalProperties: false,
+    properties: {
+      title: { type: 'string' },
+      generalDescription: { type: 'string' },
+      responsibilities: { type: 'array', items: { type: 'string' }, minItems: 1 },
+      objectives: { type: 'array', items: { type: 'string' }, minItems: 1 },
+      collaboration: { type: 'array', items: { type: 'string' }, minItems: 1 },
+      content: { type: 'string' }
+    },
+    required: ['title', 'generalDescription', 'responsibilities', 'objectives', 'collaboration', 'content']
+  },
+  strict: true
+};
 
 const parseGeneratedSections = (raw: string) => {
   const trimmed = raw.trim();
@@ -369,35 +457,39 @@ const parseGeneratedSections = (raw: string) => {
       return null;
     }
 
+    const cleanText = (value: string | undefined) => stripTechnicalIds(value ?? '');
+
     const fallbackSections: JobDescriptionSections = {
-      title: validated.data.title?.trim() || 'Fiche de poste',
-      generalDescription: validated.data.generalDescription?.trim() || 'Description générale à préciser.',
+      title: cleanText(validated.data.title) || 'Non spécifié dans les données',
+      generalDescription: cleanText(validated.data.generalDescription) || 'Non spécifié dans les données',
       responsibilities:
         validated.data.responsibilities.length > 0
-          ? validated.data.responsibilities
-          : ['Responsabilités à préciser.'],
+          ? validated.data.responsibilities.map(stripTechnicalIds)
+          : ['Non spécifié dans les données'],
       objectives:
         validated.data.objectives.length > 0
-          ? validated.data.objectives
-          : ['Objectifs et indicateurs à préciser.'],
+          ? validated.data.objectives.map(stripTechnicalIds)
+          : ['Non spécifié dans les données'],
       collaboration:
         validated.data.collaboration.length > 0
-          ? validated.data.collaboration
-          : ['Collaborations attendues à préciser.']
+          ? validated.data.collaboration.map(stripTechnicalIds)
+          : ['Non spécifié dans les données']
     };
 
-    const contentSeed = validated.data.content ?? stringifySections(fallbackSections);
+    const contentSeed = stripTechnicalIds(validated.data.content ?? '') || stringifySections(fallbackSections);
 
     const sections = ensureJobDescriptionSections({
       content: contentSeed,
-      sections: validated.data
+      sections: fallbackSections
     });
 
-    const content = validated.data.content ?? stringifySections(sections);
+    const content = stripTechnicalIds(validated.data.content ?? '') || stringifySections(sections);
 
     return { sections, content };
   } catch (error) {
-    console.error('Impossible de parser la réponse IA pour la fiche de poste', error);
+    console.error('Impossible de parser la réponse IA pour la fiche de poste', error, {
+      raw: trimmed.slice(0, 500)
+    });
     return null;
   }
 };
@@ -509,28 +601,59 @@ export async function POST(
     );
   }
 
-  let actions: ActionGroup[] = [];
+  let roleProfile: RoleProfile | null = null;
+  let lookups:
+    | {
+        roles: Record<string, string>;
+        roleDepartments: Record<string, string | null>;
+        departments: Record<string, string>;
+      }
+    | null = null;
 
   try {
-    actions = await fetchRoleActions(supabase, context.role.organizationId, context.role.id);
-  } catch (actionError) {
-    console.error('Erreur lors de la récupération des actions du rôle', actionError);
+    roleProfile = await buildRoleProfile(context.role.organizationId, context.role.id);
+  } catch (roleProfileError) {
+    console.error('Erreur lors de la construction du profil de rôle', roleProfileError);
+    const message =
+      roleProfileError instanceof Error ? roleProfileError.message : 'Impossible de construire le profil de rôle.';
+
     return NextResponse.json(
-      { error: 'Impossible de récupérer les actions du rôle.' },
+      { error: message },
+      { status: 404, headers: NO_STORE_HEADERS }
+    );
+  }
+
+  try {
+    lookups = await fetchRoleAndDepartmentLookups(context.role.organizationId);
+  } catch (lookupError) {
+    console.error('Erreur lors de la récupération des correspondances rôles/départements', lookupError);
+    return NextResponse.json(
+      { error: 'Impossible de préparer les données du rôle pour la génération.' },
+      { status: 500, headers: NO_STORE_HEADERS }
+    );
+  }
+
+  if (!roleProfile || !lookups) {
+    return NextResponse.json(
+      { error: 'Impossible de préparer le profil du rôle.' },
       { status: 500, headers: NO_STORE_HEADERS }
     );
   }
 
   const messages = buildPrompt({
-    role: context.role,
-    actions,
-    existingDescription: null
+    roleProfile,
+    lookups
   });
 
   let generated: { content: string; sections: ReturnType<typeof ensureJobDescriptionSections> } | null = null;
 
   try {
-    const raw = await performChatCompletion({ messages, temperature: 0.7, maxTokens: 650 });
+    const raw = await performChatCompletion({
+      messages,
+      temperature: 0.7,
+      maxTokens: 650,
+      responseFormat: { type: 'json_schema', json_schema: generationJsonSchema }
+    });
     const parsed = parseGeneratedSections(raw);
     if (parsed) {
       generated = parsed;
