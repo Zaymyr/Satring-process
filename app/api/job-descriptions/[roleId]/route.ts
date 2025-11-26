@@ -202,58 +202,143 @@ const buildRoleContext = async (
   };
 };
 
+const uniqueStrings = (values: Array<string | null | undefined>) =>
+  Array.from(new Set(values.filter((value): value is string => typeof value === 'string' && value.trim().length > 0)));
+
+const stripTechnicalIds = (value: string) => value.replace(/\s*\(ID[:\s]*[^)]+\)/gi, '').trim();
+
+const buildStructuredDataForGeneration = (params: {
+  roleProfile: RoleProfile;
+  lookups: { roles: Record<string, string>; departments: Record<string, string> };
+  existingDescription: JobDescription | null;
+}) => {
+  const resolveRoleNames = (roleIds: string[]) =>
+    uniqueStrings(roleIds.map((id) => params.lookups.roles[id] ?? '')).map((name) => `rôle ${name}`);
+
+  const resolveDepartmentName = (departmentId: string | null) =>
+    departmentId ? params.lookups.departments[departmentId] ?? 'Département non spécifié dans les données' : null;
+
+  const responsibilitiesFromProfile = params.roleProfile.processesInvolvedIn.flatMap((process) =>
+    process.steps.map((step) => {
+      const departmentName = resolveDepartmentName(step.departmentId);
+      const previousRoles = resolveRoleNames(step.previousRoleIds);
+      const nextRoles = resolveRoleNames(step.nextRoleIds);
+      const interactions = uniqueStrings([...previousRoles, ...nextRoles]);
+      const interactionLabel =
+        interactions.length > 0
+          ? `Interactions : ${interactions.join(', ')}`
+          : null;
+
+      return [
+        `Processus "${process.processName}"`,
+        `${step.type === 'action' ? 'Action' : 'Décision'} : ${step.label}`,
+        departmentName ? `Département : ${departmentName}` : null,
+        interactionLabel
+      ]
+        .filter(Boolean)
+        .join(' — ');
+    })
+  );
+
+  const collaborationFromProfile = uniqueStrings([
+    ...params.roleProfile.interactions.directRoles
+      .map((id) => params.lookups.roles[id])
+      .filter((name) => typeof name === 'string'),
+    ...params.roleProfile.interactions.directDepartments
+      .map((id) => params.lookups.departments[id])
+      .filter((name) => typeof name === 'string')
+  ]).map((name) => `Collabore avec ${name}`);
+
+  const responsibilities = (() => {
+    const existing = params.existingDescription?.sections.responsibilities ?? [];
+    if (existing.length > 0) {
+      return existing.map(stripTechnicalIds);
+    }
+    if (responsibilitiesFromProfile.length > 0) {
+      return responsibilitiesFromProfile;
+    }
+    return ['Non spécifié dans les données'];
+  })();
+
+  const objectives = (() => {
+    const existing = params.existingDescription?.sections.objectives ?? [];
+    if (existing.length > 0) {
+      return existing.map(stripTechnicalIds);
+    }
+    return ['Non spécifié dans les données'];
+  })();
+
+  const collaboration = (() => {
+    const existing = params.existingDescription?.sections.collaboration ?? [];
+    if (existing.length > 0) {
+      return existing.map(stripTechnicalIds);
+    }
+    if (collaborationFromProfile.length > 0) {
+      return collaborationFromProfile;
+    }
+    return ['Non spécifié dans les données'];
+  })();
+
+  const summary = (() => {
+    const existing = params.existingDescription?.sections.generalDescription;
+    if (existing && existing.trim().length > 0) {
+      return stripTechnicalIds(existing);
+    }
+
+    if (responsibilitiesFromProfile.length > 0) {
+      const processLabels = uniqueStrings(params.roleProfile.processesInvolvedIn.map((p) => p.processName));
+      return `Rôle impliqué dans les processus : ${processLabels.join(', ')}.`;
+    }
+
+    return 'Non spécifié dans les données';
+  })();
+
+  const title = params.existingDescription?.sections.title?.trim() || params.roleProfile.role.name || 'Non spécifié dans les données';
+
+  return {
+    role: params.roleProfile.role,
+    title,
+    summary,
+    responsibilities,
+    objectives,
+    collaboration
+  };
+};
+
 const buildPrompt = (params: {
   roleProfile: RoleProfile;
   lookups: { roles: Record<string, string>; departments: Record<string, string> };
   existingDescription: JobDescription | null;
 }) => {
-  const existing = params.existingDescription
-    ? stringifySections(params.existingDescription.sections)
-    : 'Aucune fiche existante.';
-
-  const serializedProfile = JSON.stringify(params.roleProfile, null, 2);
-  const serializedLookups = JSON.stringify(params.lookups, null, 2);
+  const structuredData = buildStructuredDataForGeneration(params);
+  const serializedData = JSON.stringify(structuredData, null, 2);
 
   const instructions = [
-    'Tu es un expert RH. Génère une fiche de poste en français en respectant impérativement les règles suivantes :',
-    '- Utilise UNIQUEMENT les informations fournies dans role_profile, roles et departments.',
-    "- N'invente ni missions, ni compétences, ni contexte en dehors de ces données.",
-    '- Quand une information est absente, écris exactement : "Non spécifié dans les données".',
-    '- Réponds uniquement avec un JSON strictement valide (aucun texte ou markdown autour) avec les clés suivantes :',
-    '  {',
-    '    "title": "Intitulé du poste",',
-    '    "generalDescription": "Mission principale",',
-    '    "responsibilities": ["Responsabilités clés avec traçabilité"],',
-    '    "objectives": ["Compétences ou objectifs issus des données"],',
-    '    "collaboration": ["Interactions (autres rôles et départements)"],',
-    '    "content": "Texte multiligne structuré avec les 6 sections"',
-    '  }',
-    '- Détaille chaque champ :',
-    "  * title : Intitulé du poste (reprends le nom du rôle si présent, sinon 'Non spécifié dans les données').",
-    '  * generalDescription : Mission principale dérivée uniquement des étapes où le rôle apparaît.',
-    "  * responsibilities : pour chaque étape (type action/décision) du role_profile, rédige une phrase claire incluant le nom du process, le libellé de l'étape, son type, l'identifiant de l'étape, le département associé et les rôles précédents/suivants quand ils existent.",
-    "  * objectives : liste des compétences ou objectifs explicitement présents dans les données. Si aucune compétence n'apparaît, fournis une seule entrée 'Non spécifié dans les données'.",
-    "  * collaboration : interactions directes avec d'autres rôles ou départements, en utilisant les identifiants et noms fournis par roles et departments. S'il n'y en a pas, mets 'Non spécifié dans les données'.",
-    '  * content : un texte unique structuré avec les sections numérotées :',
-    '    1) Intitulé du poste',
-    '    2) Mission principale',
-    "    3) Responsabilités clés (liées aux étapes des processus, mentionne pour chaque responsabilité le nom du process et l'id de l'étape)",
-    '    4) Interactions (autres rôles et départements)',
-    '    5) Compétences requises',
-    '    6) Traçabilité (liste récapitulative des responsabilités avec id des étapes et nom du process)',
+    'Tu es un expert RH. Génère une fiche de poste en français qui soit lisible, professionnelle et humaine.',
+    'Respecte impérativement les règles suivantes :',
+    '- Utilise uniquement les informations fournies dans "donnees_role" (aucune invention).',
+    '- Garde exactement 4 sections et rien d’autre :',
+    '  1) Titre du poste & Résumé',
+    '  2) Responsabilités principales',
+    '  3) Objectifs et indicateurs',
+    '  4) Collaboration attendue',
+    '- Reformule les listes pour les rendre naturelles mais reste fidèle aux données.',
+    '- N’inclue aucun identifiant technique ou texte du type "ID:" dans le résultat.',
+    '- Quand une information manque, écris exactement : "Non spécifié dans les données".',
+    '- Réponds uniquement en JSON strictement valide (sans Markdown) avec les clés :',
+    '  { "title", "generalDescription", "responsibilities", "objectives", "collaboration", "content" }',
+    '- Les champs du JSON :',
+    '  * title : intitulé du poste.',
+    '  * generalDescription : court résumé du rôle.',
+    '  * responsibilities : phrases synthétiques listant les responsabilités à partir des données fournies.',
+    '  * objectives : objectifs ou indicateurs présents dans les données.',
+    '  * collaboration : partenaires ou équipes mentionnés.',
+    '  * content : un texte complet structuré avec les 4 sections numérotées ci-dessus.',
     '- Chaque liste (responsibilities, objectives, collaboration) doit contenir au moins un élément.',
-    '- Ne fournis aucune donnée absente ou estimée et utilise uniquement role_profile, roles et departments.',
     '- Ne renvoie rien d’autre que le JSON demandé.'
   ].join('\n');
 
-  const userContent = [
-    'role_profile:',
-    serializedProfile,
-    '\nroles_departments_lookup:',
-    serializedLookups,
-    '\nFiche actuelle (si présente, sinon indique les éléments manquants) :',
-    existing
-  ].join('\n');
+  const userContent = ['donnees_role:', serializedData].join('\n');
 
   return [
     { role: 'system' as const, content: instructions },
@@ -306,32 +391,33 @@ const parseGeneratedSections = (raw: string) => {
       return null;
     }
 
+    const cleanText = (value: string | undefined) => stripTechnicalIds(value ?? '');
+
     const fallbackSections: JobDescriptionSections = {
-      title: validated.data.title?.trim() || 'Non spécifié dans les données',
-      generalDescription:
-        validated.data.generalDescription?.trim() || 'Non spécifié dans les données',
+      title: cleanText(validated.data.title) || 'Non spécifié dans les données',
+      generalDescription: cleanText(validated.data.generalDescription) || 'Non spécifié dans les données',
       responsibilities:
         validated.data.responsibilities.length > 0
-          ? validated.data.responsibilities
+          ? validated.data.responsibilities.map(stripTechnicalIds)
           : ['Non spécifié dans les données'],
       objectives:
         validated.data.objectives.length > 0
-          ? validated.data.objectives
+          ? validated.data.objectives.map(stripTechnicalIds)
           : ['Non spécifié dans les données'],
       collaboration:
         validated.data.collaboration.length > 0
-          ? validated.data.collaboration
+          ? validated.data.collaboration.map(stripTechnicalIds)
           : ['Non spécifié dans les données']
     };
 
-    const contentSeed = validated.data.content ?? stringifySections(fallbackSections);
+    const contentSeed = stripTechnicalIds(validated.data.content ?? '') || stringifySections(fallbackSections);
 
     const sections = ensureJobDescriptionSections({
       content: contentSeed,
-      sections: validated.data
+      sections: fallbackSections
     });
 
-    const content = validated.data.content ?? stringifySections(sections);
+    const content = stripTechnicalIds(validated.data.content ?? '') || stringifySections(sections);
 
     return { sections, content };
   } catch (error) {
