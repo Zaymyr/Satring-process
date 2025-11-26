@@ -215,21 +215,35 @@ const buildPrompt = (params: {
   const serializedLookups = JSON.stringify(params.lookups, null, 2);
 
   const instructions = [
-    'Tu es un expert RH. Génére une fiche de poste en français en respectant impérativement les règles suivantes :',
+    'Tu es un expert RH. Génère une fiche de poste en français en respectant impérativement les règles suivantes :',
     '- Utilise UNIQUEMENT les informations fournies dans role_profile, roles et departments.',
     "- N'invente ni missions, ni compétences, ni contexte en dehors de ces données.",
     '- Quand une information est absente, écris exactement : "Non spécifié dans les données".',
-    '- Structure le contenu avec les sections :',
-    '  1) Intitulé du poste',
-    '  2) Mission principale',
-    '  3) Responsabilités clés (liées aux étapes des processus)',
-    '  4) Interactions (autres rôles et départements)',
-    '  5) Compétences requises (uniquement si présentes dans les données)',
-    '  6) Traçabilité (indiquer pour chaque responsabilité les id des étapes et le nom du process)',
-    "- Réponds uniquement avec un JSON valide sans texte supplémentaire ni markdown, avec les clés : title (Intitulé du poste), generalDescription (Mission principale), responsibilities (liste de responsabilités incluant la traçabilité), objectives (utilise cette liste pour les compétences, vide si non spécifiées), collaboration (Interactions), content (texte complet structuré avec les 6 sections).",
-    '- Pour les responsabilités, associe explicitement les ids des étapes et les noms des processus à chaque item.',
-    '- Pour les interactions, utilise les identifiants et noms fournis dans roles et departments pour citer les acteurs concernés.',
-    '- Ne fournis aucune donnée absente ou estimée.'
+    '- Réponds uniquement avec un JSON strictement valide (aucun texte ou markdown autour) avec les clés suivantes :',
+    '  {',
+    '    "title": "Intitulé du poste",',
+    '    "generalDescription": "Mission principale",',
+    '    "responsibilities": ["Responsabilités clés avec traçabilité"],',
+    '    "objectives": ["Compétences ou objectifs issus des données"],',
+    '    "collaboration": ["Interactions (autres rôles et départements)"],',
+    '    "content": "Texte multiligne structuré avec les 6 sections"',
+    '  }',
+    '- Détaille chaque champ :',
+    "  * title : Intitulé du poste (reprends le nom du rôle si présent, sinon 'Non spécifié dans les données').",
+    '  * generalDescription : Mission principale dérivée uniquement des étapes où le rôle apparaît.',
+    "  * responsibilities : pour chaque étape (type action/décision) du role_profile, rédige une phrase claire incluant le nom du process, le libellé de l'étape, son type, l'identifiant de l'étape, le département associé et les rôles précédents/suivants quand ils existent.",
+    "  * objectives : liste des compétences ou objectifs explicitement présents dans les données. Si aucune compétence n'apparaît, fournis une seule entrée 'Non spécifié dans les données'.",
+    "  * collaboration : interactions directes avec d'autres rôles ou départements, en utilisant les identifiants et noms fournis par roles et departments. S'il n'y en a pas, mets 'Non spécifié dans les données'.",
+    '  * content : un texte unique structuré avec les sections numérotées :',
+    '    1) Intitulé du poste',
+    '    2) Mission principale',
+    "    3) Responsabilités clés (liées aux étapes des processus, mentionne pour chaque responsabilité le nom du process et l'id de l'étape)",
+    '    4) Interactions (autres rôles et départements)',
+    '    5) Compétences requises',
+    '    6) Traçabilité (liste récapitulative des responsabilités avec id des étapes et nom du process)',
+    '- Chaque liste (responsibilities, objectives, collaboration) doit contenir au moins un élément.',
+    '- Ne fournis aucune donnée absente ou estimée et utilise uniquement role_profile, roles et departments.',
+    '- Ne renvoie rien d’autre que le JSON demandé.'
   ].join('\n');
 
   const userContent = [
@@ -264,9 +278,9 @@ const generationJsonSchema = {
     properties: {
       title: { type: 'string' },
       generalDescription: { type: 'string' },
-      responsibilities: { type: 'array', items: { type: 'string' } },
-      objectives: { type: 'array', items: { type: 'string' } },
-      collaboration: { type: 'array', items: { type: 'string' } },
+      responsibilities: { type: 'array', items: { type: 'string' }, minItems: 1 },
+      objectives: { type: 'array', items: { type: 'string' }, minItems: 1 },
+      collaboration: { type: 'array', items: { type: 'string' }, minItems: 1 },
       content: { type: 'string' }
     },
     required: ['title', 'generalDescription', 'responsibilities', 'objectives', 'collaboration', 'content']
@@ -293,20 +307,21 @@ const parseGeneratedSections = (raw: string) => {
     }
 
     const fallbackSections: JobDescriptionSections = {
-      title: validated.data.title?.trim() || 'Fiche de poste',
-      generalDescription: validated.data.generalDescription?.trim() || 'Description générale à préciser.',
+      title: validated.data.title?.trim() || 'Non spécifié dans les données',
+      generalDescription:
+        validated.data.generalDescription?.trim() || 'Non spécifié dans les données',
       responsibilities:
         validated.data.responsibilities.length > 0
           ? validated.data.responsibilities
-          : ['Responsabilités à préciser.'],
+          : ['Non spécifié dans les données'],
       objectives:
         validated.data.objectives.length > 0
           ? validated.data.objectives
-          : ['Objectifs et indicateurs à préciser.'],
+          : ['Non spécifié dans les données'],
       collaboration:
         validated.data.collaboration.length > 0
           ? validated.data.collaboration
-          : ['Collaborations attendues à préciser.']
+          : ['Non spécifié dans les données']
     };
 
     const contentSeed = validated.data.content ?? stringifySections(fallbackSections);
