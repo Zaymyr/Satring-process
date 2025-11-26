@@ -259,12 +259,13 @@ export async function buildRoleProfile(orgId: string, roleId: string): Promise<R
 
 export async function fetchRoleAndDepartmentLookups(orgId: string): Promise<{
   roles: Record<string, string>;
+  roleDepartments: Record<string, string | null>;
   departments: Record<string, string>;
 }> {
   const supabase = createServerClient();
 
   const [{ data: rawRoles, error: rolesError }, { data: rawDepartments, error: departmentsError }] = await Promise.all([
-    supabase.from('roles').select('id, name').eq('organization_id', orgId),
+    supabase.from('roles').select('id, name, department_id').eq('organization_id', orgId),
     supabase.from('departments').select('id, name').eq('organization_id', orgId)
   ]);
 
@@ -294,6 +295,13 @@ export async function fetchRoleAndDepartmentLookups(orgId: string): Promise<{
     return lookup;
   }, {});
 
+  const roleDepartments = parsedRoles.data.reduce<Record<string, string | null>>((lookup, role) => {
+    const id = typeof role.id === 'string' ? role.id : String(role.id ?? '');
+    const departmentId = typeof role.department_id === 'string' ? role.department_id : null;
+    lookup[id] = departmentId;
+    return lookup;
+  }, {});
+
   const departments = parsedDepartments.data.reduce<Record<string, string>>((lookup, department) => {
     const id = typeof department.id === 'string' ? department.id : String(department.id ?? '');
     const name =
@@ -302,5 +310,5 @@ export async function fetchRoleAndDepartmentLookups(orgId: string): Promise<{
     return lookup;
   }, {});
 
-  return { roles, departments };
+  return { roles, roleDepartments, departments };
 }
