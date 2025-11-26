@@ -31,6 +31,17 @@ export type Dictionary = {
           noDepartmentRoles: string;
           chooseRoleForDepartment: string;
         };
+        tabs: {
+          ariaLabel: string;
+          manual: string;
+          ai: string;
+        };
+        assistant: {
+          emptyState: string;
+          inputLabel: string;
+          placeholder: string;
+          sendLabel: string;
+        };
       };
       secondaryPanel: {
         title: {
@@ -385,6 +396,17 @@ const dictionaries: Record<Locale, Dictionary> = {
           addRole: 'Add a role to associate it with this step.',
           noDepartmentRoles: 'No roles are available for this department.',
           chooseRoleForDepartment: 'Choose a role to automatically populate the department.'
+        },
+        tabs: {
+          ariaLabel: 'Primary panel tabs',
+          manual: 'Manual',
+          ai: 'AI'
+        },
+        assistant: {
+          emptyState: 'Start a conversation about this process. Your assistant will appear here.',
+          inputLabel: 'Send a message to the assistant',
+          placeholder: 'Share context or ask a question…',
+          sendLabel: 'Send'
         }
       },
       secondaryPanel: {
@@ -759,6 +781,17 @@ const dictionaries: Record<Locale, Dictionary> = {
           addRole: 'Ajoutez un rôle pour l’associer à cette étape.',
           noDepartmentRoles: 'Aucun rôle disponible pour ce département.',
           chooseRoleForDepartment: 'Choisissez un rôle pour renseigner automatiquement le département.'
+        },
+        tabs: {
+          ariaLabel: 'Onglets du panneau principal',
+          manual: 'Manuel',
+          ai: 'IA'
+        },
+        assistant: {
+          emptyState: 'Démarrez une conversation sur ce process. Votre assistant apparaîtra ici.',
+          inputLabel: 'Envoyer un message à l’assistant',
+          placeholder: 'Partagez du contexte ou posez une question…',
+          sendLabel: 'Envoyer'
         }
       },
       secondaryPanel: {

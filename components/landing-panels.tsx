@@ -8,6 +8,7 @@ import {
   useState,
   useId,
   type CSSProperties,
+  type FormEvent,
   type ReactNode
 } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -705,12 +706,14 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
   const [isPrimaryCollapsed, setIsPrimaryCollapsed] = useState(false);
   const [isSecondaryCollapsed, setIsSecondaryCollapsed] = useState(false);
   const [isBottomCollapsed, setIsBottomCollapsed] = useState(false);
+  const [activePrimaryTab, setActivePrimaryTab] = useState<'manual' | 'ai'>('manual');
   const [areDepartmentsVisible, setAreDepartmentsVisible] = useState(true);
   const [diagramDirection, setDiagramDirection] = useState<'TD' | 'LR'>('TD');
   const [selectedProcessId, setSelectedProcessId] = useState<string | null>(null);
   const [processTitle, setProcessTitle] = useState(DEFAULT_PROCESS_TITLE);
   const [steps, setSteps] = useState<ProcessStep[]>(() => cloneSteps(DEFAULT_PROCESS_STEPS));
   const [selectedStepId, setSelectedStepId] = useState<string | null>(null);
+  const [assistantMessage, setAssistantMessage] = useState('');
   const baselineStepsRef = useRef<ProcessStep[]>(cloneSteps(DEFAULT_PROCESS_STEPS));
   const hasResetForUnauthorizedRef = useRef(false);
   const hasResetDepartmentEditorRef = useRef(false);
@@ -2490,6 +2493,19 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
     );
   };
 
+  const handleAssistantSubmit = useCallback(
+    (event: FormEvent<HTMLFormElement>) => {
+      event.preventDefault();
+
+      if (!assistantMessage.trim()) {
+        return;
+      }
+
+      setAssistantMessage('');
+    },
+    [assistantMessage]
+  );
+
   const removeStep = (id: string) => {
     if (isProcessEditorReadOnly) {
       return;
@@ -2763,6 +2779,9 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
     [primaryWidth, secondaryWidth]
   );
 
+  const isManualTabActive = activePrimaryTab === 'manual';
+  const isAiTabActive = activePrimaryTab === 'ai';
+
   const diagramControlsContentId = useId();
 
   return (
@@ -2829,39 +2848,101 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
           </button>
           <div
             id="primary-panel"
-            className={cn(
-              'flex h-full w-full flex-col gap-6 overflow-hidden rounded-3xl border border-slate-200 bg-white/85 px-5 py-6 shadow-[0_30px_120px_-50px_rgba(15,23,42,0.35)] backdrop-blur transition-all duration-300 ease-out sm:px-6',
-              isPrimaryCollapsed
-                ? 'pointer-events-none opacity-0 lg:-translate-x-[110%]'
-                : 'pointer-events-auto opacity-100 lg:translate-x-0'
-            )}
-          >
-            <div className="grid grid-cols-2 gap-2 sm:gap-3">
-              <div className="col-span-2 row-span-2 flex items-center sm:col-span-1 sm:row-span-2">
-                <h1 className="text-base font-semibold text-slate-900">{processTitle}</h1>
+          className={cn(
+            'flex h-full w-full flex-col gap-6 overflow-hidden rounded-3xl border border-slate-200 bg-white/85 px-5 py-6 shadow-[0_30px_120px_-50px_rgba(15,23,42,0.35)] backdrop-blur transition-all duration-300 ease-out sm:px-6',
+            isPrimaryCollapsed
+              ? 'pointer-events-none opacity-0 lg:-translate-x-[110%]'
+              : 'pointer-events-auto opacity-100 lg:translate-x-0'
+          )}
+        >
+            <div className="flex items-center justify-between">
+              <div
+                className="inline-flex items-center gap-1.5 rounded-2xl bg-slate-100 p-1.5 shadow-inner ring-1 ring-inset ring-slate-200"
+                role="tablist"
+                aria-label={primaryPanel.tabs.ariaLabel}
+              >
+                <button
+                  type="button"
+                  id="manual-primary-tab"
+                  role="tab"
+                  aria-selected={isManualTabActive}
+                  aria-controls="manual-primary-panel"
+                  onClick={() => setActivePrimaryTab('manual')}
+                  className={cn(
+                    'group relative flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400',
+                    isManualTabActive
+                      ? 'bg-white text-slate-900 shadow-sm ring-1 ring-inset ring-slate-200'
+                      : 'text-slate-600 hover:bg-white/70'
+                  )}
+                >
+                  {primaryPanel.tabs.manual}
+                  <span
+                    aria-hidden="true"
+                    className={cn(
+                      'pointer-events-none absolute inset-x-3 -bottom-1 h-0.5 rounded-full bg-slate-900 transition-opacity',
+                      isManualTabActive ? 'opacity-100' : 'opacity-0'
+                    )}
+                  />
+                </button>
+                <button
+                  type="button"
+                  id="ai-primary-tab"
+                  role="tab"
+                  aria-selected={isAiTabActive}
+                  aria-controls="ai-primary-panel"
+                  onClick={() => setActivePrimaryTab('ai')}
+                  className={cn(
+                    'group relative flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400',
+                    isAiTabActive
+                      ? 'bg-white text-slate-900 shadow-sm ring-1 ring-inset ring-slate-200'
+                      : 'text-slate-600 hover:bg-white/70'
+                  )}
+                >
+                  {primaryPanel.tabs.ai}
+                  <span
+                    aria-hidden="true"
+                    className={cn(
+                      'pointer-events-none absolute inset-x-3 -bottom-1 h-0.5 rounded-full bg-slate-900 transition-opacity',
+                      isAiTabActive ? 'opacity-100' : 'opacity-0'
+                    )}
+                  />
+                </button>
               </div>
-              <Button
-                type="button"
-                onClick={() => addStep('action')}
-                disabled={isProcessEditorReadOnly}
-                className="h-10 w-full rounded-md bg-slate-900 px-3 text-sm text-white hover:bg-slate-800"
-              >
-                <Plus className="mr-2 h-3.5 w-3.5" />
-                {primaryPanel.addAction}
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => addStep('decision')}
-                disabled={isProcessEditorReadOnly}
-                className="h-10 w-full rounded-md border-slate-300 bg-white px-3 text-sm text-slate-900 hover:bg-slate-50"
-              >
-                <GitBranch className="mr-2 h-3.5 w-3.5" />
-                {primaryPanel.addDecision}
-              </Button>
             </div>
             <div className="flex-1 min-h-0 overflow-hidden">
-              <div className="h-full space-y-3 overflow-y-auto rounded-2xl border border-slate-200 bg-white/75 p-3 pr-1 shadow-inner sm:pr-1.5">
+              <div
+                role="tabpanel"
+                id="manual-primary-panel"
+                aria-labelledby="manual-primary-tab"
+                hidden={!isManualTabActive}
+                className={cn('flex h-full flex-col gap-6', !isManualTabActive && 'hidden')}
+              >
+                <div className="grid grid-cols-2 gap-2 sm:gap-3">
+                  <div className="col-span-2 row-span-2 flex items-center sm:col-span-1 sm:row-span-2">
+                    <h1 className="text-base font-semibold text-slate-900">{processTitle}</h1>
+                  </div>
+                  <Button
+                    type="button"
+                    onClick={() => addStep('action')}
+                    disabled={isProcessEditorReadOnly}
+                    className="h-10 w-full rounded-md bg-slate-900 px-3 text-sm text-white hover:bg-slate-800"
+                  >
+                    <Plus className="mr-2 h-3.5 w-3.5" />
+                    {primaryPanel.addAction}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => addStep('decision')}
+                    disabled={isProcessEditorReadOnly}
+                    className="h-10 w-full rounded-md border-slate-300 bg-white px-3 text-sm text-slate-900 hover:bg-slate-50"
+                  >
+                    <GitBranch className="mr-2 h-3.5 w-3.5" />
+                    {primaryPanel.addDecision}
+                  </Button>
+                </div>
+                <div className="flex-1 min-h-0 overflow-hidden">
+                  <div className="h-full space-y-3 overflow-y-auto rounded-2xl border border-slate-200 bg-white/75 p-3 pr-1 shadow-inner sm:pr-1.5">
                 <div className="space-y-2.5">
                   {steps.map((step, index) => {
                     const isRemovable = step.type === 'action' || step.type === 'decision';
@@ -3135,6 +3216,42 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
               <p className={cn('text-[11px] leading-5', statusToneClass)} aria-live="polite">
                 {statusMessage}
               </p>
+            </div>
+          </div>
+          <div
+            role="tabpanel"
+            id="ai-primary-panel"
+            aria-labelledby="ai-primary-tab"
+            hidden={!isAiTabActive}
+            className={cn('flex h-full flex-col gap-4', !isAiTabActive && 'hidden')}
+          >
+            <div className="flex items-center">
+              <h1 className="truncate text-base font-semibold text-slate-900" title={processTitle}>
+                {processTitle}
+              </h1>
+            </div>
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white/75 shadow-inner">
+              <div className="flex-1 overflow-y-auto p-4 text-sm text-slate-600">
+                <p>{primaryPanel.assistant.emptyState}</p>
+              </div>
+              <form
+                className="flex items-center gap-2 border-t border-slate-200 bg-white/85 p-3"
+                onSubmit={handleAssistantSubmit}
+              >
+                <label className="sr-only" htmlFor="assistant-message">
+                  {primaryPanel.assistant.inputLabel}
+                </label>
+                <Input
+                  id="assistant-message"
+                  value={assistantMessage}
+                  onChange={(event) => setAssistantMessage(event.target.value)}
+                  placeholder={primaryPanel.assistant.placeholder}
+                  className="h-10 flex-1"
+                />
+                <Button type="submit" className="h-10 px-4" disabled={!assistantMessage.trim()}>
+                  {primaryPanel.assistant.sendLabel}
+                </Button>
+              </form>
             </div>
           </div>
         </div>
@@ -3894,6 +4011,8 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
         </div>
       </div>
     </div>
+    </div>
   </div>
+</div>
   );
 }
