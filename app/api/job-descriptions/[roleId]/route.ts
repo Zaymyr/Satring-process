@@ -456,7 +456,12 @@ export async function POST(
   let generated: { content: string; sections: ReturnType<typeof ensureJobDescriptionSections> } | null = null;
 
   try {
-    const raw = await performChatCompletion({ messages, temperature: 0.7, maxTokens: 650 });
+    const raw = await performChatCompletion({
+      messages,
+      temperature: 0.7,
+      maxTokens: 650,
+      responseFormat: 'json_object'
+    });
     const parsed = parseGeneratedSections(raw);
     if (parsed) {
       generated = parsed;

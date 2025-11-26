@@ -10,13 +10,15 @@ type ChatCompletionParams = {
   model?: string;
   temperature?: number;
   maxTokens?: number;
+  responseFormat?: 'text' | 'json_object';
 };
 
 export async function performChatCompletion({
   messages,
   model = 'gpt-4o-mini',
   temperature = 0.7,
-  maxTokens = 650
+  maxTokens = 650,
+  responseFormat = 'text'
 }: ChatCompletionParams): Promise<string> {
   if (!env.OPENAI_API_KEY) {
     throw new Error('OPENAI_API_KEY manquante pour la génération.');
@@ -33,7 +35,7 @@ export async function performChatCompletion({
       messages,
       temperature,
       max_tokens: maxTokens,
-      response_format: { type: 'text' }
+      response_format: { type: responseFormat }
     })
   });
 
