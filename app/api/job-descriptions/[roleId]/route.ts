@@ -3,11 +3,10 @@ import { z } from 'zod';
 
 import { performChatCompletion } from '@/lib/ai/openai';
 import { ensureJobDescriptionSections, stringifySections, type JobDescriptionSections } from '@/lib/job-descriptions/format';
-import { DEFAULT_PROCESS_TITLE } from '@/lib/process/defaults';
+import { buildRoleProfile, fetchRoleAndDepartmentLookups, type RoleProfile } from '@/lib/job-descriptions/role-profile';
 import { createServerClient } from '@/lib/supabase/server';
 import { getServerUser } from '@/lib/supabase/auth';
 import { fetchUserOrganizations, getAccessibleOrganizationIds } from '@/lib/organization/memberships';
-import { stepSchema } from '@/lib/validation/process';
 import {
   jobDescriptionResponseSchema,
   jobDescriptionSchema,
@@ -23,25 +22,6 @@ const normalizeTimestamp = (value: unknown) => {
   }
 
   return date.toISOString();
-};
-
-const normalizeSteps = (value: unknown): unknown => {
-  if (Array.isArray(value)) {
-    return value;
-  }
-
-  if (typeof value === 'string') {
-    try {
-      const parsed = JSON.parse(value);
-      if (Array.isArray(parsed)) {
-        return parsed;
-      }
-    } catch (error) {
-      console.error('Impossible de parser les étapes du process', error);
-    }
-  }
-
-  return [];
 };
 
 const normalizeStringArray = (value: unknown): string[] => {
@@ -62,12 +42,6 @@ const normalizeStringArray = (value: unknown): string[] => {
   return [];
 };
 
-const normalizedProcessSchema = z.object({
-  id: z.string().uuid('Identifiant de process invalide.'),
-  title: z.string().min(1, 'Le titre du process est requis.'),
-  steps: z.array(stepSchema)
-});
-
 const roleContextSchema = z.object({
   id: z.string().uuid('Identifiant de rôle invalide.'),
   name: z.string().min(1, 'Le nom du rôle est requis.'),
@@ -76,8 +50,6 @@ const roleContextSchema = z.object({
 });
 
 type RoleContext = z.infer<typeof roleContextSchema>;
-
-type ActionGroup = { processTitle: string; steps: string[] };
 
 const normalizeJobDescriptionRecord = (record: {
   role_id: unknown;
@@ -230,115 +202,48 @@ const buildRoleContext = async (
   };
 };
 
-const fetchRoleActions = async (
-  supabase: ReturnType<typeof createServerClient>,
-  organizationId: string,
-  roleId: string
-): Promise<ActionGroup[]> => {
-  const { data: rawProcesses, error: processesError } = await supabase
-    .from('process_snapshots')
-    .select('id, title, steps')
-    .eq('organization_id', organizationId);
-
-  if (processesError) {
-    throw processesError;
-  }
-
-  const normalizedProcessesResult = z
-    .array(
-      z.object({
-        id: z.unknown(),
-        title: z.unknown(),
-        steps: z.unknown()
-      })
-    )
-    .safeParse(rawProcesses ?? []);
-
-  if (!normalizedProcessesResult.success) {
-    throw new Error('Process invalides pour la génération de fiche de poste.');
-  }
-
-  const normalized = normalizedProcessesResult.data.map((process) => ({
-    id: typeof process.id === 'string' ? process.id : String(process.id ?? ''),
-    title:
-      typeof process.title === 'string' && process.title.trim().length > 0
-        ? process.title.trim()
-        : DEFAULT_PROCESS_TITLE,
-    steps: normalizeSteps(process.steps)
-  }));
-
-  const parsedProcesses = z.array(normalizedProcessSchema).safeParse(normalized);
-
-  if (!parsedProcesses.success) {
-    throw new Error('Process normalisés invalides pour la génération de fiche de poste.');
-  }
-
-  const groups: ActionGroup[] = [];
-
-  for (const process of parsedProcesses.data) {
-    const stepsForRole = process.steps
-      .filter((step) => (step.type === 'action' || step.type === 'decision') && step.roleId === roleId)
-      .map((step) => step.label);
-
-    if (stepsForRole.length === 0) {
-      continue;
-    }
-
-    groups.push({
-      processTitle: process.title,
-      steps: Array.from(new Set(stepsForRole))
-    });
-  }
-
-  return groups;
-};
-
 const buildPrompt = (params: {
-  role: RoleContext;
-  actions: ActionGroup[];
+  roleProfile: RoleProfile;
+  lookups: { roles: Record<string, string>; departments: Record<string, string> };
   existingDescription: JobDescription | null;
 }) => {
-  const hasActions = params.actions.length > 0;
-
-  const responsibilities =
-    params.actions.length === 0
-      ? "Aucune action documentée — laisse les sections responsibilities, objectives et collaboration vides si aucune action n'est fournie."
-      : params.actions
-          .map((action) => `- ${action.processTitle}: ${action.steps.join(', ')}`)
-          .join('\n');
-
-  const processDetails = hasActions
-    ? params.actions
-        .map((action) => {
-          const actionSteps = action.steps.length > 0 ? action.steps.join(', ') : 'Aucune';
-          return [
-            `- Processus concernés: ${action.processTitle}`,
-            `  Départements impliqués: ${params.role.departmentName}`,
-            '  Rôles précédents/suivants: Non renseignés',
-            `  Actions du rôle: ${actionSteps}`
-          ].join('\n');
-        })
-        .join('\n\n')
-    : '- Aucun processus documenté pour ce rôle. Ne pas extrapoler les informations manquantes.';
-
-  const baseContent = `Rôle: ${params.role.name}\nDépartement: ${params.role.departmentName}`;
-
-  const details = `${baseContent}\n\nResponsabilités connues:\n${responsibilities}\n\nDétails des processus impactés (utilise uniquement les données fournies, sans extrapoler):\n${processDetails}`;
-
   const existing = params.existingDescription
     ? stringifySections(params.existingDescription.sections)
-    : 'Aucune fiche existante. Crée une version initiale.';
+    : 'Aucune fiche existante.';
+
+  const serializedProfile = JSON.stringify(params.roleProfile, null, 2);
+  const serializedLookups = JSON.stringify(params.lookups, null, 2);
+
+  const instructions = [
+    'Tu es un expert RH. Génére une fiche de poste en français en respectant impérativement les règles suivantes :',
+    '- Utilise UNIQUEMENT les informations fournies dans role_profile, roles et departments.',
+    "- N'invente ni missions, ni compétences, ni contexte en dehors de ces données.",
+    '- Quand une information est absente, écris exactement : "Non spécifié dans les données".',
+    '- Structure le contenu avec les sections :',
+    '  1) Intitulé du poste',
+    '  2) Mission principale',
+    '  3) Responsabilités clés (liées aux étapes des processus)',
+    '  4) Interactions (autres rôles et départements)',
+    '  5) Compétences requises (uniquement si présentes dans les données)',
+    '  6) Traçabilité (indiquer pour chaque responsabilité les id des étapes et le nom du process)',
+    "- Réponds uniquement avec un JSON valide sans texte supplémentaire ni markdown, avec les clés : title (Intitulé du poste), generalDescription (Mission principale), responsibilities (liste de responsabilités incluant la traçabilité), objectives (utilise cette liste pour les compétences, vide si non spécifiées), collaboration (Interactions), content (texte complet structuré avec les 6 sections).",
+    '- Pour les responsabilités, associe explicitement les ids des étapes et les noms des processus à chaque item.',
+    '- Pour les interactions, utilise les identifiants et noms fournis dans roles et departments pour citer les acteurs concernés.',
+    '- Ne fournis aucune donnée absente ou estimée.'
+  ].join('\n');
+
+  const userContent = [
+    'role_profile:',
+    serializedProfile,
+    '\nroles_departments_lookup:',
+    serializedLookups,
+    '\nFiche actuelle (si présente, sinon indique les éléments manquants) :',
+    existing
+  ].join('\n');
 
   return [
-    {
-      role: 'system' as const,
-      content:
-        "Tu es un expert RH. Rédige une fiche de poste concise en français uniquement à partir des informations fournies, sans extrapoler ni inventer de KPI ou de chiffres. Utilise uniquement les actions listées; si aucune action n'est fournie, laisse les sections responsibilities, objectives et collaboration vides. Réponds uniquement avec un JSON valide, sans texte supplémentaire ni markdown, avec les clés suivantes: title, generalDescription (2 phrases max), responsibilities (liste d'items), objectives (liste d'items), collaboration (liste d'items)."
-    },
-    {
-      role: 'user' as const,
-      content: `${details}\n\nFiche actuelle (à améliorer si fournie):\n${existing}`
-    }
+    { role: 'system' as const, content: instructions },
+    { role: 'user' as const, content: userContent }
   ];
 };
 
@@ -509,22 +414,43 @@ export async function POST(
     );
   }
 
-  let actions: ActionGroup[] = [];
+  let roleProfile: RoleProfile | null = null;
+  let lookups: { roles: Record<string, string>; departments: Record<string, string> } | null = null;
 
   try {
-    actions = await fetchRoleActions(supabase, context.role.organizationId, context.role.id);
-  } catch (actionError) {
-    console.error('Erreur lors de la récupération des actions du rôle', actionError);
+    roleProfile = await buildRoleProfile(context.role.organizationId, context.role.id);
+  } catch (roleProfileError) {
+    console.error('Erreur lors de la construction du profil de rôle', roleProfileError);
+    const message =
+      roleProfileError instanceof Error ? roleProfileError.message : 'Impossible de construire le profil de rôle.';
+
     return NextResponse.json(
-      { error: 'Impossible de récupérer les actions du rôle.' },
+      { error: message },
+      { status: 404, headers: NO_STORE_HEADERS }
+    );
+  }
+
+  try {
+    lookups = await fetchRoleAndDepartmentLookups(context.role.organizationId);
+  } catch (lookupError) {
+    console.error('Erreur lors de la récupération des correspondances rôles/départements', lookupError);
+    return NextResponse.json(
+      { error: 'Impossible de préparer les données du rôle pour la génération.' },
+      { status: 500, headers: NO_STORE_HEADERS }
+    );
+  }
+
+  if (!roleProfile || !lookups) {
+    return NextResponse.json(
+      { error: 'Impossible de préparer le profil du rôle.' },
       { status: 500, headers: NO_STORE_HEADERS }
     );
   }
 
   const messages = buildPrompt({
-    role: context.role,
-    actions,
-    existingDescription: null
+    roleProfile,
+    lookups,
+    existingDescription: context.description
   });
 
   let generated: { content: string; sections: ReturnType<typeof ensureJobDescriptionSections> } | null = null;
