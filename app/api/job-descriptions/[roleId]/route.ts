@@ -256,6 +256,24 @@ const generationSchema = z.object({
   content: z.string().optional()
 });
 
+const generationJsonSchema = {
+  name: 'job_description_generation',
+  schema: {
+    type: 'object',
+    additionalProperties: false,
+    properties: {
+      title: { type: 'string' },
+      generalDescription: { type: 'string' },
+      responsibilities: { type: 'array', items: { type: 'string' } },
+      objectives: { type: 'array', items: { type: 'string' } },
+      collaboration: { type: 'array', items: { type: 'string' } },
+      content: { type: 'string' }
+    },
+    required: ['title', 'generalDescription', 'responsibilities', 'objectives', 'collaboration', 'content']
+  },
+  strict: true
+};
+
 const parseGeneratedSections = (raw: string) => {
   const trimmed = raw.trim();
   const jsonCandidate = (() => {
@@ -302,7 +320,9 @@ const parseGeneratedSections = (raw: string) => {
 
     return { sections, content };
   } catch (error) {
-    console.error('Impossible de parser la réponse IA pour la fiche de poste', error);
+    console.error('Impossible de parser la réponse IA pour la fiche de poste', error, {
+      raw: trimmed.slice(0, 500)
+    });
     return null;
   }
 };
@@ -460,7 +480,7 @@ export async function POST(
       messages,
       temperature: 0.7,
       maxTokens: 650,
-      responseFormat: 'json_object'
+      responseFormat: { type: 'json_schema', json_schema: generationJsonSchema }
     });
     const parsed = parseGeneratedSections(raw);
     if (parsed) {
