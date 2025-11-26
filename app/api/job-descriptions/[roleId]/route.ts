@@ -214,7 +214,6 @@ const buildStructuredDataForGeneration = (params: {
     roleDepartments: Record<string, string | null>;
     departments: Record<string, string>;
   };
-  existingDescription: JobDescription | null;
 }) => {
   const resolveRoleNames = (roleIds: string[]) =>
     uniqueStrings(roleIds.map((id) => params.lookups.roles[id] ?? ''))
@@ -319,10 +318,6 @@ const buildStructuredDataForGeneration = (params: {
         : [];
 
   const responsibilities = (() => {
-    const existing = params.existingDescription?.sections.responsibilities ?? [];
-    if (existing.length > 0) {
-      return existing.map(stripTechnicalIds);
-    }
     if (responsibilitiesFromProfile.length > 0) {
       return responsibilitiesFromProfile;
     }
@@ -330,18 +325,10 @@ const buildStructuredDataForGeneration = (params: {
   })();
 
   const objectives = (() => {
-    const existing = params.existingDescription?.sections.objectives ?? [];
-    if (existing.length > 0) {
-      return existing.map(stripTechnicalIds);
-    }
     return ['Non spécifié dans les données'];
   })();
 
   const collaboration = (() => {
-    const existing = params.existingDescription?.sections.collaboration ?? [];
-    if (existing.length > 0) {
-      return uniqueStrings(existing.map(stripTechnicalIds));
-    }
     if (collaborationFromProfile.length > 0) {
       return uniqueStrings(collaborationFromProfile);
     }
@@ -349,11 +336,6 @@ const buildStructuredDataForGeneration = (params: {
   })();
 
   const summary = (() => {
-    const existing = params.existingDescription?.sections.generalDescription;
-    if (existing && existing.trim().length > 0) {
-      return stripTechnicalIds(existing);
-    }
-
     if (responsibilitiesFromProfile.length > 0) {
       const processLabels = uniqueStrings(params.roleProfile.processesInvolvedIn.map((p) => p.processName));
       return `Rôle impliqué dans les processus : ${processLabels.join(', ')}.`;
@@ -362,22 +344,21 @@ const buildStructuredDataForGeneration = (params: {
     return 'Non spécifié dans les données';
   })();
 
-    const title =
-      params.existingDescription?.sections.title?.trim() || params.roleProfile.role.name || 'Non spécifié dans les données';
+  const title = params.roleProfile.role.name || 'Non spécifié dans les données';
 
-    return {
-      role: params.roleProfile.role,
-      processes: processesForModel,
-      collaborators: {
-        frequentRoles: collaboratorRoles,
-        frequentDepartments: collaboratorDepartments
-      },
-      title,
-      summary,
-      responsibilities,
-      objectives,
-      collaboration
-    };
+  return {
+    role: params.roleProfile.role,
+    processes: processesForModel,
+    collaborators: {
+      frequentRoles: collaboratorRoles,
+      frequentDepartments: collaboratorDepartments
+    },
+    title,
+    summary,
+    responsibilities,
+    objectives,
+    collaboration
+  };
   };
 
   const buildPrompt = (params: {
@@ -387,7 +368,6 @@ const buildStructuredDataForGeneration = (params: {
       roleDepartments: Record<string, string | null>;
       departments: Record<string, string>;
     };
-    existingDescription: JobDescription | null;
   }) => {
     const structuredData = buildStructuredDataForGeneration(params);
     const serializedData = JSON.stringify(structuredData, null, 2);
@@ -396,6 +376,7 @@ const buildStructuredDataForGeneration = (params: {
       'Tu es un expert RH. Génère en français une fiche de poste lisible et professionnelle à partir des données fournies.',
       'Contraintes impératives :',
       '- N’utilise que les informations de "donnees_role" (aucune invention).',
+      '- Réécris intégralement la fiche à chaque demande en reformulant tout le contenu, sans réutiliser textuellement une version précédente.',
       '- Produit exactement 4 sections :',
       '  1) Titre du poste & Résumé',
       '  2) Responsabilités principales',
@@ -661,8 +642,7 @@ export async function POST(
 
   const messages = buildPrompt({
     roleProfile,
-    lookups,
-    existingDescription: context.description
+    lookups
   });
 
   let generated: { content: string; sections: ReturnType<typeof ensureJobDescriptionSections> } | null = null;
