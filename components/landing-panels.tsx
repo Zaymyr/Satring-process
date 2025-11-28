@@ -31,11 +31,8 @@ import {
   Plus,
   GripVertical,
   Save,
-  ShieldCheck,
-  Sparkles,
   Trash2,
-  UserRound,
-  type LucideIcon
+  UserRound
 } from 'lucide-react';
 import { Controller, useFieldArray, useForm } from 'react-hook-form';
 
@@ -43,6 +40,7 @@ import { useI18n } from '@/components/providers/i18n-provider';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { HighlightsGrid, type Highlight as HighlightsGridHighlight } from '@/components/landing/LandingPanels/HighlightsGrid';
 import { DEFAULT_PROCESS_STEPS, DEFAULT_PROCESS_TITLE } from '@/lib/process/defaults';
 import { processSummariesSchema } from '@/lib/process/schema';
 import {
@@ -82,11 +80,6 @@ import {
   type RoleCreateInput,
   type RoleUpdateInput
 } from '@/lib/validation/role';
-
-const highlightIcons = {
-  sparkles: Sparkles,
-  shield: ShieldCheck
-} as const satisfies Record<string, LucideIcon>;
 
 const ROLE_ID_REGEX = /^[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}$/i;
 const HEX_COLOR_REGEX = /^#[0-9A-F]{6}$/;
@@ -133,11 +126,7 @@ const getClusterStyleDeclaration = (clusterId: string, color: string) => {
   return `style ${clusterId} fill:${normalized},stroke:${normalized},color:${CLUSTER_STYLE_TEXT_COLOR},stroke-width:2px,fill-opacity:${CLUSTER_FILL_OPACITY};`;
 };
 
-type Highlight = {
-  title: string;
-  description: string;
-  icon: keyof typeof highlightIcons;
-};
+type Highlight = HighlightsGridHighlight;
 
 class ApiError extends Error {
   constructor(message: string, public status: number) {
@@ -3694,23 +3683,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
                 </div>
               </div>
             </div>
-            {highlights.length > 0 ? (
-              <div className="grid gap-3.5 sm:grid-cols-2">
-                {highlights.map((item) => {
-                  const Icon = highlightIcons[item.icon];
-
-                  return (
-                    <Card key={item.title} className="border-slate-200 bg-white/90 shadow-sm">
-                      <CardContent className="flex flex-col gap-1.5 p-4">
-                        <Icon className="h-4 w-4 text-slate-500" />
-                        <p className="text-xs font-medium text-slate-900">{item.title}</p>
-                        <p className="text-xs text-slate-600">{item.description}</p>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
-              </div>
-            ) : null}
+            <HighlightsGrid items={highlights} />
           </aside>
         </div>
         <div className="pointer-events-auto flex w-full justify-center lg:col-start-2 lg:row-start-2">
