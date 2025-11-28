@@ -48,6 +48,7 @@ import { getInviteDemoDepartments } from '@/lib/department/demo';
 import { cn } from '@/lib/utils/cn';
 import { DEFAULT_LOCALE, getDictionary, type Dictionary } from '@/lib/i18n/dictionaries';
 import { createDateTimeFormatter } from '@/lib/i18n/format';
+import { loadMermaid, type MermaidAPI } from '@/lib/mermaid';
 import {
   processResponseSchema,
   processSummarySchema,
@@ -149,72 +150,6 @@ type DiagramDragState = {
   hasCapture: boolean;
 };
 
-type MermaidAPI = {
-  initialize: (config: Record<string, unknown>) => void;
-  render: (id: string, definition: string) => Promise<{ svg: string }>;
-};
-
-declare global {
-  interface Window {
-    mermaid?: MermaidAPI;
-  }
-}
-
-let mermaidLoader: Promise<MermaidAPI> | null = null;
-
-function loadMermaid(messages: MermaidErrorMessages): Promise<MermaidAPI> {
-  if (typeof window === 'undefined') {
-    return Promise.reject(new Error(messages.browserOnly));
-  }
-
-  if (window.mermaid) {
-    return Promise.resolve(window.mermaid);
-  }
-
-  if (!mermaidLoader) {
-    mermaidLoader = new Promise((resolve, reject) => {
-      const existingScript = document.querySelector<HTMLScriptElement>('script[data-mermaid]');
-
-      if (existingScript) {
-        existingScript.addEventListener('load', () => {
-          if (window.mermaid) {
-            resolve(window.mermaid);
-          } else {
-            mermaidLoader = null;
-            reject(new Error(messages.missingAfterLoad));
-          }
-        });
-        existingScript.addEventListener('error', () => {
-          mermaidLoader = null;
-          reject(new Error(messages.scriptLoadFailed));
-        });
-        return;
-      }
-
-      const script = document.createElement('script');
-      script.src = 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js';
-      script.async = true;
-      script.crossOrigin = 'anonymous';
-      script.dataset.mermaid = 'true';
-      script.addEventListener('load', () => {
-        if (window.mermaid) {
-          resolve(window.mermaid);
-        } else {
-          mermaidLoader = null;
-          reject(new Error(messages.missingAfterLoad));
-        }
-      });
-      script.addEventListener('error', () => {
-        mermaidLoader = null;
-        reject(new Error(messages.scriptLoadFailed));
-      });
-      document.head.appendChild(script);
-    });
-  }
-
-  return mermaidLoader;
-}
-
 class ApiError extends Error {
   constructor(message: string, public status: number) {
     super(message);
@@ -223,7 +158,6 @@ class ApiError extends Error {
 }
 
 type ProcessErrorMessages = Dictionary['landing']['errors'];
-type MermaidErrorMessages = Dictionary['landing']['errors']['mermaid'];
 
 const parseErrorPayload = (raw: string, fallback: string) => {
   if (!raw) {
