@@ -1,0 +1,156 @@
+'use client';
+
+import { useMemo, useState, type CSSProperties, type ReactNode } from 'react';
+import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp } from 'lucide-react';
+
+import type { ProcessErrorMessages } from '@/lib/process/types';
+import { cn } from '@/lib/utils/cn';
+
+import { ProcessCanvas } from './ProcessCanvas';
+
+type ProcessShellProps = {
+  diagramDefinition: string;
+  fallbackDiagram: string;
+  mermaidErrorMessages: ProcessErrorMessages['mermaid'];
+  diagramDirection: 'TD' | 'LR';
+  diagramElementId: string;
+  primaryPanel: ReactNode;
+  secondaryPanel: ReactNode;
+  renderBottomPanel: (options: { isCollapsed: boolean }) => ReactNode;
+  primaryToggleLabel: string;
+  secondaryToggleLabel: string;
+  bottomToggleLabel: string;
+};
+
+export function ProcessShell({
+  diagramDefinition,
+  fallbackDiagram,
+  mermaidErrorMessages,
+  diagramDirection,
+  diagramElementId,
+  primaryPanel,
+  secondaryPanel,
+  renderBottomPanel,
+  primaryToggleLabel,
+  secondaryToggleLabel,
+  bottomToggleLabel
+}: ProcessShellProps) {
+  const [isPrimaryCollapsed, setIsPrimaryCollapsed] = useState(false);
+  const [isSecondaryCollapsed, setIsSecondaryCollapsed] = useState(false);
+  const [isBottomCollapsed, setIsBottomCollapsed] = useState(false);
+
+  const primaryWidth = isPrimaryCollapsed ? '3.5rem' : 'clamp(13.5rem, 21vw, 25.5rem)';
+  const secondaryWidth = isSecondaryCollapsed ? '3.5rem' : 'clamp(16rem, 22vw, 26rem)';
+  const layoutStyle = useMemo<CSSProperties>(
+    () => ({
+      gridTemplateColumns: `${primaryWidth} minmax(0, 1fr) ${secondaryWidth}`
+    }),
+    [primaryWidth, secondaryWidth]
+  );
+
+  return (
+    <div className="relative flex h-full flex-col overflow-x-visible overflow-y-hidden bg-gradient-to-br from-slate-100 via-white to-slate-200 text-slate-900">
+      <ProcessCanvas
+        diagramDefinition={diagramDefinition}
+        fallbackDiagram={fallbackDiagram}
+        mermaidErrorMessages={mermaidErrorMessages}
+        diagramDirection={diagramDirection}
+        diagramElementId={diagramElementId}
+      />
+      <div className="pointer-events-none relative z-10 flex h-full min-h-0 w-full flex-col gap-3 px-2.5 py-4 lg:px-5 lg:py-6 xl:px-6">
+        <div
+          className="pointer-events-none flex min-h-0 flex-1 flex-col gap-4 lg:grid lg:[grid-template-rows:minmax(0,1fr)_auto] lg:items-stretch lg:gap-0"
+          style={layoutStyle}
+        >
+          <div
+            className="pointer-events-auto relative flex h-full min-h-0 shrink-0 items-stretch overflow-visible transition-[width] duration-300 ease-out lg:col-start-1 lg:row-start-1 lg:row-span-2 lg:h-full lg:min-h-0"
+            style={{ width: primaryWidth }}
+          >
+            <button
+              type="button"
+              onClick={() => setIsPrimaryCollapsed((prev) => !prev)}
+              aria-expanded={!isPrimaryCollapsed}
+              aria-controls="primary-panel"
+              className={cn(
+                'absolute right-0 top-1/2 z-20 flex h-10 w-10 -translate-y-1/2 translate-x-1/2 items-center justify-center rounded-full border border-slate-200 bg-white/90 text-slate-600 shadow-sm transition hover:bg-white'
+              )}
+            >
+              {isPrimaryCollapsed ? <ChevronRight className="h-5 w-5" /> : <ChevronLeft className="h-5 w-5" />}
+              <span className="sr-only">{primaryToggleLabel}</span>
+            </button>
+            <div
+              id="primary-panel"
+              className={cn(
+                'flex h-full w-full flex-col gap-6 overflow-hidden rounded-3xl border border-slate-200 bg-white/85 px-5 py-6 shadow-[0_30px_120px_-50px_rgba(15,23,42,0.35)] backdrop-blur transition-all duration-300 ease-out sm:px-6',
+                isPrimaryCollapsed
+                  ? 'pointer-events-none opacity-0 lg:-translate-x-[110%]'
+                  : 'pointer-events-auto opacity-100 lg:translate-x-0'
+              )}
+            >
+              {primaryPanel}
+            </div>
+          </div>
+          <div
+            className="pointer-events-auto relative flex h-full min-h-0 shrink-0 items-stretch overflow-visible transition-[width] duration-300 ease-out lg:col-start-3 lg:row-start-1 lg:row-span-2 lg:h-full lg:min-h-0"
+            style={{ width: secondaryWidth }}
+          >
+            <button
+              type="button"
+              onClick={() => setIsSecondaryCollapsed((prev) => !prev)}
+              aria-expanded={!isSecondaryCollapsed}
+              aria-controls="secondary-panel"
+              className={cn(
+                'absolute left-0 top-1/2 z-20 flex h-10 w-10 -translate-y-1/2 -translate-x-1/2 items-center justify-center rounded-full border border-slate-200 bg-white/90 text-slate-600 shadow-sm transition hover:bg-white'
+              )}
+            >
+              {isSecondaryCollapsed ? <ChevronLeft className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
+              <span className="sr-only">{secondaryToggleLabel}</span>
+            </button>
+            <aside
+              id="secondary-panel"
+              className={cn(
+                'flex h-full w-full flex-col gap-5 overflow-hidden rounded-3xl border border-slate-200 bg-white/80 p-6 shadow-[0_30px_120px_-50px_rgba(15,23,42,0.35)] backdrop-blur transition-all duration-300 ease-out',
+                isSecondaryCollapsed
+                  ? 'pointer-events-none opacity-0 lg:translate-x-[110%]'
+                  : 'pointer-events-auto opacity-100 lg:translate-x-0'
+              )}
+            >
+              {secondaryPanel}
+            </aside>
+          </div>
+        </div>
+        <div className="pointer-events-auto flex w-full justify-center lg:col-start-2 lg:row-start-2">
+          <div className="relative w-full max-w-3xl pt-2 lg:max-w-2xl">
+            <button
+              type="button"
+              onClick={() => setIsBottomCollapsed((previous) => !previous)}
+              aria-expanded={!isBottomCollapsed}
+              aria-controls="diagram-controls-panel"
+              className={cn(
+                'z-30 flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white/90 text-slate-600 shadow-sm transition hover:bg-white',
+                isBottomCollapsed
+                  ? 'fixed bottom-6 left-1/2 -translate-x-1/2'
+                  : 'absolute left-1/2 top-0 -translate-x-1/2 -translate-y-1/2'
+              )}
+            >
+              {isBottomCollapsed ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
+              <span className="sr-only">{bottomToggleLabel}</span>
+            </button>
+            <section
+              id="diagram-controls-panel"
+              aria-hidden={isBottomCollapsed}
+              className={cn(
+                'w-full rounded-2xl border border-slate-200 bg-white/85 p-4 pt-6 shadow-[0_24px_96px_-48px_rgba(15,23,42,0.3)] backdrop-blur transition-all duration-300 ease-out',
+                isBottomCollapsed
+                  ? 'pointer-events-none -translate-y-2 opacity-0'
+                  : 'pointer-events-auto translate-y-0 opacity-100'
+              )}
+            >
+              {renderBottomPanel({ isCollapsed: isBottomCollapsed })}
+            </section>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
