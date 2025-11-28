@@ -44,9 +44,16 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { DEFAULT_PROCESS_STEPS, DEFAULT_PROCESS_TITLE } from '@/lib/process/defaults';
+import { processSummariesSchema } from '@/lib/process/schema';
+import {
+  type DiagramDragState,
+  type ProcessErrorMessages,
+  type RoleLookupEntry,
+  type Step
+} from '@/lib/process/types';
 import { getInviteDemoDepartments } from '@/lib/department/demo';
 import { cn } from '@/lib/utils/cn';
-import { DEFAULT_LOCALE, getDictionary, type Dictionary } from '@/lib/i18n/dictionaries';
+import { DEFAULT_LOCALE, getDictionary } from '@/lib/i18n/dictionaries';
 import { createDateTimeFormatter } from '@/lib/i18n/format';
 import { loadMermaid, type MermaidAPI } from '@/lib/mermaid';
 import {
@@ -132,32 +139,12 @@ type Highlight = {
   icon: keyof typeof highlightIcons;
 };
 
-type Step = ProcessStep;
-
-type RoleLookupEntry = {
-  role: Role;
-  departmentId: string;
-  departmentName: string;
-};
-
-type DiagramDragState = {
-  pointerId: number;
-  originX: number;
-  originY: number;
-  startX: number;
-  startY: number;
-  target: HTMLDivElement | null;
-  hasCapture: boolean;
-};
-
 class ApiError extends Error {
   constructor(message: string, public status: number) {
     super(message);
     this.name = 'ApiError';
   }
 }
-
-type ProcessErrorMessages = Dictionary['landing']['errors'];
 
 const parseErrorPayload = (raw: string, fallback: string) => {
   if (!raw) {
@@ -339,8 +326,6 @@ const requestProcess = async (
   const json = await response.json();
   return processResponseSchema.parse(json);
 };
-
-const processSummariesSchema = processSummarySchema.array();
 
 const requestProcessSummaries = async (
   messages: ProcessErrorMessages
