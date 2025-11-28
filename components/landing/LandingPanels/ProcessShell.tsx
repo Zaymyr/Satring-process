@@ -10,7 +10,7 @@ import { ProcessCanvas } from './ProcessCanvas';
 
 type ProcessShellProps = {
   diagramDefinition: string;
-  fallbackDiagram: string;
+  fallbackDiagram: ReactNode;
   mermaidErrorMessages: ProcessErrorMessages['mermaid'];
   diagramDirection: 'TD' | 'LR';
   diagramElementId: string;
