@@ -14,15 +14,12 @@ type ProcessIaChatProps = {
   isLoading: boolean;
   inputError: string | null;
   errorMessage: string | null;
-  followUpContent: string;
   labels: {
     title: string;
     placeholder: string;
     send: string;
     loading: string;
-    helper: string;
     errorLabel: string;
-    followUpNote: string;
   };
   disabled: boolean;
 };
@@ -33,7 +30,6 @@ export function ProcessIaChat({
   isLoading,
   inputError,
   errorMessage,
-  followUpContent,
   labels,
   disabled
 }: ProcessIaChatProps) {
@@ -54,16 +50,8 @@ export function ProcessIaChat({
           <Sparkles className="h-4 w-4" aria-hidden="true" />
           <span>{labels.title}</span>
         </div>
-        {followUpContent ? (
-          <div className="rounded-xl bg-slate-900/5 p-3 text-xs leading-relaxed text-slate-800">
-            <p className="mb-1 font-semibold text-slate-900">{labels.followUpNote}</p>
-            <pre className="whitespace-pre-wrap break-words font-mono text-[11px] text-slate-700">{followUpContent}</pre>
-          </div>
-        ) : null}
         <div className="max-h-64 space-y-2 overflow-y-auto rounded-xl bg-slate-50 p-2" aria-live="polite">
-          {messages.length === 0 ? (
-            <p className="text-sm text-slate-500">{labels.helper}</p>
-          ) : (
+          {messages.length === 0 ? null : (
             messages.map((message) => {
               const isUser = message.role === 'user';
               return (
@@ -112,7 +100,6 @@ export function ProcessIaChat({
           </Button>
         </div>
       </form>
-      <p className="text-xs text-slate-500">{labels.helper}</p>
     </div>
   );
 }

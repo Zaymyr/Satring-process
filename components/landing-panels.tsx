@@ -2405,15 +2405,12 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
       isLoading={iaChat.isLoading}
       inputError={iaChat.inputError}
       errorMessage={iaChat.errorMessage}
-      followUpContent={iaChat.followUpContent}
       labels={{
         title: iaPanel.title,
         placeholder: iaPanel.placeholder,
         send: iaPanel.send,
         loading: iaPanel.loading,
-        helper: iaPanel.helper,
-        errorLabel: iaPanel.errorLabel,
-        followUpNote: iaPanel.followUpNote
+        errorLabel: iaPanel.errorLabel
       }}
       disabled={!currentProcessId || isProcessEditorReadOnly}
     />
