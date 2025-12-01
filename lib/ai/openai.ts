@@ -1,6 +1,33 @@
+import { env } from '@/lib/utils/env';
+
+type ChatMessage = {
+  role: 'system' | 'user' | 'assistant';
+  content: string;
+};
+
+type ResponseFormat =
+  | 'text'
+  | 'json_object'
+  | {
+      type: 'json_schema';
+      json_schema: {
+        name: string;
+        schema: Record<string, unknown>;
+        strict?: boolean;
+      };
+    };
+
+type ChatCompletionParams = {
+  messages: ChatMessage[];
+  model?: string;
+  temperature?: number;
+  maxTokens?: number;
+  responseFormat?: ResponseFormat;
+};
+
 export async function performChatCompletion({
   messages,
-  model = 'gpt-5-mini',
+  model = 'gpt-5-mini', // ✅ cohérent avec ton route
   temperature = 1,
   maxTokens = 650,
   responseFormat = 'text'
@@ -26,7 +53,7 @@ export async function performChatCompletion({
       model,
       messages,
       temperature,
-      // ✅ GPT-5 / GPT-4.1 → param correct
+      // ✅ GPT-4.1 / GPT-5 => max_completion_tokens
       max_completion_tokens: maxTokens,
       ...(responseFormatPayload ? { response_format: responseFormatPayload } : {})
     })
