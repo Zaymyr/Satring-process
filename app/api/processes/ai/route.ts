@@ -8,6 +8,12 @@ import { getServerUser } from '@/lib/supabase/auth';
 import { createServerClient } from '@/lib/supabase/server';
 import { processPayloadSchema, processResponseSchema, stepTypeValues, type ProcessPayload } from '@/lib/validation/process';
 
+type DepartmentWithRoles = {
+  id: string;
+  name: string;
+  roles: { id: string; name: string }[] | null;
+};
+
 const RESPONSE_HEADERS = {
   'Cache-Control': 'no-store, max-age=0, must-revalidate',
   'Content-Security-Policy': "default-src 'none'"
@@ -16,6 +22,22 @@ const RESPONSE_HEADERS = {
 const RATE_LIMIT_WINDOW_MS = 60_000;
 const RATE_LIMIT_MAX = 10;
 const rateLimitCache = new Map<string, { count: number; expires: number }>();
+
+const formatDepartmentsContext = (departments: DepartmentWithRoles[]): string => {
+  if (departments.length === 0) {
+    return 'Aucun département ni rôle enregistré pour cette organisation.';
+  }
+
+  return departments
+    .map((department) => {
+      const roleSummary = department.roles?.length
+        ? department.roles.map((role) => `  - ${role.name} (id: ${role.id})`).join('\n')
+        : '  - Aucun rôle enregistré.';
+
+      return [`- ${department.name} (id: ${department.id})`, roleSummary].join('\n');
+    })
+    .join('\n');
+};
 
 const requestSchema = z.object({
   processId: z.string().uuid("Identifiant de process invalide."),
@@ -106,8 +128,20 @@ const aiResponseSchema = {
               id: { type: 'string', minLength: 1 },
               label: { type: 'string' },
               type: { type: 'string', enum: stepTypeValues },
-              departmentId: { anyOf: [{ type: 'string', format: 'uuid' }, { type: 'null' }] },
-              roleId: { anyOf: [{ type: 'string', format: 'uuid' }, { type: 'null' }] },
+              departmentId: {
+                anyOf: [
+                  { type: 'string', format: 'uuid' },
+                  { type: 'string', pattern: '^new:[A-Za-z0-9][A-Za-z0-9._-]*$' },
+                  { type: 'null' }
+                ]
+              },
+              roleId: {
+                anyOf: [
+                  { type: 'string', format: 'uuid' },
+                  { type: 'string', pattern: '^new:[A-Za-z0-9][A-Za-z0-9._-]*$' },
+                  { type: 'null' }
+                ]
+              },
               yesTargetId: { anyOf: [{ type: 'string', minLength: 1 }, { type: 'null' }] },
               noTargetId: { anyOf: [{ type: 'string', minLength: 1 }, { type: 'null' }] }
             },
@@ -221,6 +255,24 @@ export async function POST(request: Request) {
     );
   }
 
+  const { data: departmentRows, error: departmentsError } = await supabase
+    .from('departments')
+    .select('id, name, roles:roles(id, name)')
+    .eq('organization_id', processRecord.organization_id)
+    .order('name', { ascending: true })
+    .order('name', { referencedTable: 'roles', ascending: true });
+
+  if (departmentsError) {
+    console.error('Erreur lors de la récupération des départements pour IA', departmentsError);
+    return NextResponse.json(
+      { error: 'Impossible de récupérer les départements et rôles.' },
+      { status: 500, headers: RESPONSE_HEADERS }
+    );
+  }
+
+  const departmentsWithRoles: DepartmentWithRoles[] = (departmentRows ?? []) as DepartmentWithRoles[];
+  const departmentsContext = formatDepartmentsContext(departmentsWithRoles);
+
   const grounding = JSON.stringify(
     {
       id: parsedProcess.data.id,
@@ -239,18 +291,25 @@ export async function POST(request: Request) {
         {
           role: 'system',
           content:
-            "Tu es un expert en cartographie de processus (bilingue français/anglais). A partir du processus fourni, propose une version améliorée en respectant strictement le schéma JSON indiqué. La sortie doit uniquement contenir l'objet JSON final (aucun texte libre) avec deux clés obligatoires : process (processus à jour conforme au schéma) et reply (message concis destiné à l'utilisateur)."
+            [
+              'Tu es un expert en cartographie de processus (bilingue français/anglais).',
+              'A partir du processus fourni, propose une version améliorée en respectant strictement le schéma JSON indiqué.',
+              "Réutilise les identifiants existants des départements et rôles fournis dans le contexte ; si tu proposes un nouvel élément, utilise un identifiant provisoire au format \"new:<slug>\" en indiquant clairement qu'il devra être créé.",
+              "La sortie doit uniquement contenir l'objet JSON final (aucun texte libre) avec deux clés obligatoires : process (processus à jour conforme au schéma) et reply (message concis destiné à l'utilisateur)."
+            ].join('\n')
         },
         {
           role: 'user',
           content: [
+            'Référentiel des départements et rôles autorisés :',
+            departmentsContext,
             'Processus actuel :',
             grounding,
             'Contexte supplémentaire :',
             parsedBody.data.context || 'Aucun contexte fourni.',
             'Demande utilisateur :',
             parsedBody.data.prompt,
-            "Utilise l'identifiant existant et retourne un objet JSON conforme au schéma. Le champ reply doit :",
+            "Utilise exclusivement les identifiants ci-dessus ou un identifiant provisoire \"new:<slug>\" pour les nouveaux éléments à créer, et retourne un objet JSON conforme au schéma. Le champ reply doit :",
             '- résumer brièvement la proposition (2 phrases max) ;',
             "- poser une question de clarification si des informations manquent (1 question courte maximum)."
           ].join('\n\n')
