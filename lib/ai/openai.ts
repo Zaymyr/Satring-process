@@ -53,7 +53,7 @@ export async function performChatCompletion({
       model,
       messages,
       temperature,
-      max_tokens: maxTokens,
+      max_completion_tokens: maxTokens,
       response_format: responseFormatPayload
     })
   });
