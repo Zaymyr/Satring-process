@@ -25,6 +25,41 @@ type ChatCompletionParams = {
   responseFormat?: ResponseFormat;
 };
 
+type ChatMessageContentBlock =
+  | { type: 'text'; text: string }
+  | { type: 'input_text'; input_text: { content: string } };
+
+const extractContent = (content: unknown): string | null => {
+  if (typeof content === 'string') {
+    const trimmed = content.trim();
+    return trimmed.length > 0 ? trimmed : null;
+  }
+
+  if (Array.isArray(content)) {
+    const text = content
+      .map((block) => {
+        const textBlock = block as ChatMessageContentBlock;
+
+        if (textBlock.type === 'text') {
+          return textBlock.text;
+        }
+
+        if (textBlock.type === 'input_text') {
+          return textBlock.input_text.content;
+        }
+
+        return '';
+      })
+      .filter(Boolean)
+      .join('\n')
+      .trim();
+
+    return text.length > 0 ? text : null;
+  }
+
+  return null;
+};
+
 export async function performChatCompletion({
   messages,
   model = 'gpt-4o-mini',
@@ -64,10 +99,17 @@ export async function performChatCompletion({
   }
 
   const payload = (await response.json()) as {
-    choices?: Array<{ message?: { content?: string | null } | null } | null>;
+    choices?: Array<
+      | {
+          message?: {
+            content?: string | ChatMessageContentBlock[] | null;
+          } | null;
+        }
+      | null
+    >;
   };
 
-  const content = payload.choices?.[0]?.message?.content?.trim();
+  const content = extractContent(payload.choices?.[0]?.message?.content);
 
   if (!content) {
     throw new Error('Réponse OpenAI vide.');
