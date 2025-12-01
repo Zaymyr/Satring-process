@@ -137,6 +137,25 @@ export type Dictionary = {
         showDepartments: string;
         collapseLabel: string;
       };
+      ia: {
+        title: string;
+        placeholder: string;
+        send: string;
+        loading: string;
+        helper: string;
+        errorLabel: string;
+        followUpNote: string;
+        intro: string;
+        followUpHeading: string;
+        missingDepartmentsHeading: string;
+        missingRolesHeading: string;
+        languageInstruction: string;
+        modelInstruction: string;
+        missingProcess: string;
+        validation: string;
+        responseTitle: string;
+        applyNotice: string;
+      };
   };
   raci: {
     metadata: {
@@ -390,7 +409,8 @@ const dictionaries: Record<Locale, Dictionary> = {
       secondaryPanel: {
         title: {
           processes: 'My processes',
-          departments: 'My departments'
+          departments: 'My departments',
+          ia: 'IA assistant'
         },
         description: {
           processes: 'Manage your saved journeys and rename them directly from this list.',
@@ -404,7 +424,8 @@ const dictionaries: Record<Locale, Dictionary> = {
           ariaLabel: 'List navigation',
           tooltip: 'Select a tab to display the related content below.',
           processes: 'Processes',
-          departments: 'Departments'
+          departments: 'Departments',
+          ia: 'IA'
         },
         processes: {
           loading: 'Loading processes…',
@@ -491,6 +512,25 @@ const dictionaries: Record<Locale, Dictionary> = {
         hideDepartments: 'Hide departments',
         showDepartments: 'Show departments',
         collapseLabel: 'Collapse diagram options'
+      },
+      ia: {
+        title: 'AI copilot',
+        placeholder: 'Ask the assistant to improve or rewrite this process…',
+        send: 'Send',
+        loading: 'Generating with GPT-5-mini…',
+        helper: 'The assistant can rebuild the process from the current diagram and fill in missing roles or departments.',
+        errorLabel: 'AI generation failed',
+        followUpNote: 'Share details for the missing roles/departments:',
+        intro: 'Describe what should change or which gaps to address in the process.',
+        followUpHeading: 'Ask these follow-ups about missing details:',
+        missingDepartmentsHeading: 'Steps without a department:',
+        missingRolesHeading: 'Steps without a role:',
+        languageInstruction: 'Respond in English and keep the tone concise.',
+        modelInstruction: 'Use GPT-5-mini and return a valid process JSON only.',
+        missingProcess: 'Select or create a process before using the assistant.',
+        validation: 'Write a message before sending.',
+        responseTitle: 'AI suggestion',
+        applyNotice: 'Steps updated in the editor. Review and save to persist.'
       }
     },
     raci: {
@@ -764,7 +804,8 @@ const dictionaries: Record<Locale, Dictionary> = {
       secondaryPanel: {
         title: {
           processes: 'Mes process',
-          departments: 'Mes départements'
+          departments: 'Mes départements',
+          ia: 'Assistant IA'
         },
         description: {
           processes: 'Gérez vos parcours enregistrés et renommez-les directement depuis cette liste.',
@@ -778,7 +819,8 @@ const dictionaries: Record<Locale, Dictionary> = {
           ariaLabel: 'Navigation des listes',
           tooltip: 'Sélectionnez un onglet pour afficher le contenu associé juste en dessous.',
           processes: 'Process',
-          departments: 'Départements'
+          departments: 'Départements',
+          ia: 'IA'
         },
         processes: {
           loading: 'Chargement des process…',
@@ -865,6 +907,26 @@ const dictionaries: Record<Locale, Dictionary> = {
         hideDepartments: 'Masquer les départements',
         showDepartments: 'Afficher les départements',
         collapseLabel: 'Replier les options du diagramme'
+      },
+      ia: {
+        title: 'Copilote IA',
+        placeholder: 'Demandez à l’assistant d’améliorer ou de réécrire ce process…',
+        send: 'Envoyer',
+        loading: 'Génération avec GPT-5-mini…',
+        helper:
+          'L’assistant peut reconstruire le process à partir du diagramme actuel et combler les rôles ou départements manquants.',
+        errorLabel: 'La génération IA a échoué',
+        followUpNote: 'Précisez les rôles/départements manquants :',
+        intro: 'Expliquez ce qui doit changer ou être complété dans le process.',
+        followUpHeading: 'Pose ces questions complémentaires avant de proposer le flux :',
+        missingDepartmentsHeading: 'Étapes sans département :',
+        missingRolesHeading: 'Étapes sans rôle :',
+        languageInstruction: 'Réponds en français avec un ton concis.',
+        modelInstruction: 'Utilise GPT-5-mini et retourne uniquement le JSON valide du process.',
+        missingProcess: 'Sélectionnez ou créez un process avant d’utiliser l’assistant.',
+        validation: 'Saisissez un message avant d’envoyer.',
+        responseTitle: 'Proposition IA',
+        applyNotice: 'Étapes mises à jour dans l’éditeur. Relisez puis sauvegardez pour conserver.'
       }
     },
     raci: {
