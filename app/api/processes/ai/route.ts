@@ -247,7 +247,7 @@ export async function POST(request: Request) {
         }
       ],
       model: 'gpt-5-mini',
-      temperature: 0.35,
+      temperature: 1,
       maxTokens: 900,
       responseFormat: { type: 'json_schema', json_schema: { name: 'process_payload', schema: aiResponseSchema } }
     });
