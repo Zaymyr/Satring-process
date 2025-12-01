@@ -36,6 +36,7 @@ type TooltipLabels = {
 type PrimaryPanelProps = {
   processTitle: string;
   primaryPanel: PrimaryPanelLabels;
+  iaPanel: ReactNode;
   addStep: (type: Extract<StepType, 'action' | 'decision'>) => void;
   isProcessEditorReadOnly: boolean;
   steps: ProcessStep[];
@@ -110,7 +111,8 @@ export function PrimaryPanel({
   isSaveDisabled,
   saveButtonLabel,
   statusToneClass,
-  statusMessage
+  statusMessage,
+  iaPanel
 }: PrimaryPanelProps) {
   const tabsListId = useId();
   const [activeTab, setActiveTab] = useState<'ia' | 'manual'>('manual');
@@ -484,6 +486,7 @@ export function PrimaryPanel({
             <span className="text-xs font-medium uppercase tracking-wide text-slate-500">IA</span>
           </div>
           <p className="text-sm text-slate-700">{primaryPanel.iaDescription}</p>
+          <div className="flex-1 min-h-0 overflow-y-auto">{iaPanel}</div>
         </section>
       </div>
     </div>
