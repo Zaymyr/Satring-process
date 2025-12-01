@@ -1524,29 +1524,6 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
     saveButtonLabels
   ]);
 
-  const isSaveDisabled = isProcessEditorReadOnly || isSaving || !isDirty || !currentProcessId;
-
-  const handleSave = () => {
-    if (isSaveDisabled || !currentProcessId) {
-      return;
-    }
-
-      const payloadSteps = steps.map((step) => ({
-        ...step,
-        label: step.label.trim(),
-        departmentId: normalizeDepartmentId(step.departmentId),
-        roleId: normalizeRoleId(step.roleId),
-        yesTargetId: normalizeBranchTarget(step.yesTargetId),
-        noTargetId: normalizeBranchTarget(step.noTargetId)
-      }));
-    const payload: ProcessPayload = {
-      id: currentProcessId,
-      title: normalizeProcessTitle(processTitle),
-      steps: payloadSteps
-    };
-    saveMutation.mutate(payload);
-  };
-
   const stepPositions = useMemo(
     () => new Map(steps.map((step, index) => [step.id, index + 1] as const)),
     [steps]
@@ -2224,6 +2201,30 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
     },
     onProcessUpdate: handleProcessUpdateFromIa
   });
+
+  const isSaveDisabled =
+    isProcessEditorReadOnly || isSaving || !isDirty || !currentProcessId || iaChat.isLoading;
+
+  const handleSave = () => {
+    if (isSaveDisabled || !currentProcessId) {
+      return;
+    }
+
+    const payloadSteps = steps.map((step) => ({
+      ...step,
+      label: step.label.trim(),
+      departmentId: normalizeDepartmentId(step.departmentId),
+      roleId: normalizeRoleId(step.roleId),
+      yesTargetId: normalizeBranchTarget(step.yesTargetId),
+      noTargetId: normalizeBranchTarget(step.noTargetId)
+    }));
+    const payload: ProcessPayload = {
+      id: currentProcessId,
+      title: normalizeProcessTitle(processTitle),
+      steps: payloadSteps
+    };
+    saveMutation.mutate(payload);
+  };
 
   const addStep = (type: Extract<StepType, 'action' | 'decision'>) => {
     if (isProcessEditorReadOnly) {
