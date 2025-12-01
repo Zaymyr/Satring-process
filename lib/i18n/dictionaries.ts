@@ -20,6 +20,12 @@ export type Dictionary = {
         toggleLabel: string;
         addAction: string;
         addDecision: string;
+        iaDescription: string;
+        tabs: {
+          ariaLabel: string;
+          ia: string;
+          manual: string;
+        };
         stepLabels: {
           start: string;
           action: string;
@@ -375,6 +381,12 @@ const dictionaries: Record<Locale, Dictionary> = {
         toggleLabel: 'Toggle primary panel',
         addAction: 'Add action',
         addDecision: 'Add decision',
+        iaDescription: 'Use the conversational IA assistant to build processes collaboratively.',
+        tabs: {
+          ariaLabel: 'Primary panel modes',
+          ia: 'IA',
+          manual: 'Manual'
+        },
         stepLabels: {
           start: 'Start',
           action: 'Action',
@@ -749,6 +761,12 @@ const dictionaries: Record<Locale, Dictionary> = {
         toggleLabel: 'Basculer le panneau principal',
         addAction: 'Ajouter une action',
         addDecision: 'Ajouter une décision',
+        iaDescription: "Utilisez l’assistant conversationnel IA pour construire vos process ensemble.",
+        tabs: {
+          ariaLabel: 'Modes du panneau principal',
+          ia: 'IA',
+          manual: 'Manuel'
+        },
         stepLabels: {
           start: 'Début',
           action: 'Action',
