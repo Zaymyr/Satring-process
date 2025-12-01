@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils/cn';
+import type { ApiError } from '@/components/landing-panels';
 import type { Department, DepartmentCascadeForm } from '@/lib/validation/department';
 import type { ProcessSummary } from '@/lib/validation/process';
 import { DEFAULT_ROLE_COLOR, type Role } from '@/lib/validation/role';
@@ -85,7 +86,7 @@ type SecondaryPanelProps = {
   deleteProcessMutation: UseMutationResult<void, Error, string>;
   handleDeleteProcess: (processId: string) => void;
   shouldUseDepartmentDemo: boolean;
-  createDepartmentMutation: UseMutationResult<Department, Error, void>;
+  createDepartmentMutation: UseMutationResult<Department, ApiError, void>;
   departmentsQuery: UseQueryResult<Department[], Error>;
   departments: Department[];
   editingDepartmentId: string | null;
@@ -99,13 +100,13 @@ type SecondaryPanelProps = {
   departmentRoleFields: UseFieldArrayReturn<DepartmentCascadeForm, 'roles', 'id'>;
   isAddingDepartmentRole: boolean;
   handleAddRole: () => void;
-  createDepartmentRoleMutation: UseMutationResult<Role, Error, { departmentId: string }>;
+  createDepartmentRoleMutation: UseMutationResult<Role, ApiError, { departmentId: string }>;
   saveDepartmentMutation: UseMutationResult<
-    Department,
-    Error,
+    Department[],
+    ApiError,
     { departmentId: string; values: DepartmentCascadeForm }
   >;
-  deleteDepartmentMutation: UseMutationResult<void, Error, { id: string }>;
+  deleteDepartmentMutation: UseMutationResult<void, ApiError, { id: string }>;
   startEditingDepartment: (department: Department) => void;
   formatTemplateText: (template: string, value: string | null, token?: string) => string | null;
 };
