@@ -11,6 +11,7 @@ import { useI18n } from '@/components/providers/i18n-provider';
 import { BottomPanel } from '@/components/landing/LandingPanels/BottomPanel';
 import type { Highlight as HighlightsGridHighlight } from '@/components/landing/LandingPanels/HighlightsGrid';
 import { PrimaryPanel } from '@/components/landing/LandingPanels/PrimaryPanel';
+import { ProcessIaChat } from '@/components/landing/LandingPanels/ProcessIaChat';
 import { SecondaryPanel } from '@/components/landing/LandingPanels/SecondaryPanel';
 import { ProcessShell } from '@/components/landing/LandingPanels/ProcessShell';
 import { DEFAULT_PROCESS_STEPS, DEFAULT_PROCESS_TITLE } from '@/lib/process/defaults';
@@ -28,6 +29,7 @@ import {
   type ProcessSummary,
   type StepType
 } from '@/lib/validation/process';
+import { useProcessIaChat } from '@/lib/process/use-process-ia-chat';
 import { profileResponseSchema, type ProfileResponse } from '@/lib/validation/profile';
 import {
   DEFAULT_DEPARTMENT_COLOR,
@@ -542,7 +544,8 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
       errors: landingErrorMessages,
       status: statusMessages,
       saveButton: saveButtonLabels,
-      diagramControls
+      diagramControls,
+      ia: iaPanel
     }
   } = dictionary;
   const stepTypeLabels = primaryPanel.stepLabels;
@@ -587,7 +590,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
   const [renameDraft, setRenameDraft] = useState('');
   const renameInputRef = useRef<HTMLInputElement | null>(null);
   const appliedQueryProcessIdRef = useRef<string | null>(null);
-  const [activeSecondaryTab, setActiveSecondaryTab] = useState<'processes' | 'departments'>('processes');
+  const [activeSecondaryTab, setActiveSecondaryTab] = useState<'processes' | 'departments' | 'ia'>('processes');
   const hasAppliedInviteTabRef = useRef(false);
   const [editingDepartmentId, setEditingDepartmentId] = useState<string | null>(null);
   const [deleteDepartmentId, setDeleteDepartmentId] = useState<string | null>(null);
@@ -950,14 +953,17 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
   const hasRoles = roleLookup.all.length > 0;
   const isProcessesTabActive = activeSecondaryTab === 'processes';
   const isDepartmentsTabActive = activeSecondaryTab === 'departments';
+  const isIaTabActive = activeSecondaryTab === 'ia';
   const isDepartmentActionsDisabled = shouldUseDepartmentDemo;
   const isCreatingDepartment = createDepartmentMutation.isPending;
   const isSavingDepartment = saveDepartmentMutation.isPending;
   const isAddingDepartmentRole = createDepartmentRoleMutation.isPending;
   const isDeletingDepartment = deleteDepartmentMutation.isPending;
-  const secondaryPanelTitle = isDepartmentsTabActive
-    ? secondaryPanel.title.departments
-    : secondaryPanel.title.processes;
+  const secondaryPanelTitle = isIaTabActive
+    ? secondaryPanel.title.ia
+    : isDepartmentsTabActive
+      ? secondaryPanel.title.departments
+      : secondaryPanel.title.processes;
   const formatTemplateText = useCallback(
     (template: string, value: string | null, token = '{timestamp}') =>
       value ? template.replace(token, value) : null,
@@ -2132,6 +2138,73 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
     );
   }, [areDepartmentsVisible, departments, getStepDisplayLabel, steps]);
 
+  const mermaidJson = useMemo(
+    () =>
+      JSON.stringify(
+        { title: processTitle || DEFAULT_PROCESS_TITLE, definition: diagramDefinition, steps },
+        null,
+        2
+      ),
+    [diagramDefinition, processTitle, steps]
+  );
+
+  const missingDepartments = useMemo(
+    () => steps.filter((step) => !step.departmentId).map((step) => getStepDisplayLabel(step)),
+    [getStepDisplayLabel, steps]
+  );
+
+  const missingRoles = useMemo(
+    () => steps.filter((step) => !step.roleId).map((step) => getStepDisplayLabel(step)),
+    [getStepDisplayLabel, steps]
+  );
+
+  const handleProcessUpdateFromIa = useCallback(
+    (payload: ProcessPayload) => {
+      const targetProcessId = payload.id ?? currentProcessId;
+
+      if (!targetProcessId) {
+        return;
+      }
+
+      const sanitizedSteps = cloneSteps(payload.steps);
+      const normalizedTitle = normalizeProcessTitle(payload.title);
+
+      setSteps(sanitizedSteps);
+      setSelectedStepId(null);
+      setProcessTitle(normalizedTitle);
+      queryClient.setQueryData(['process', targetProcessId], (previous: ProcessResponse | undefined) => {
+        const nextUpdatedAt = previous?.updatedAt ?? null;
+
+        return previous
+          ? { ...previous, steps: sanitizedSteps, title: normalizedTitle, updatedAt: nextUpdatedAt }
+          : { id: targetProcessId, title: normalizedTitle, steps: sanitizedSteps, updatedAt: nextUpdatedAt };
+      });
+    },
+    [currentProcessId, queryClient]
+  );
+
+  const iaChat = useProcessIaChat({
+    processId: currentProcessId,
+    locale,
+    processTitle,
+    mermaidJson,
+    missingDepartments,
+    missingRoles,
+    copy: {
+      intro: iaPanel.intro,
+      followUpHeading: iaPanel.followUpHeading,
+      missingDepartmentsHeading: iaPanel.missingDepartmentsHeading,
+      missingRolesHeading: iaPanel.missingRolesHeading,
+      languageInstruction: iaPanel.languageInstruction,
+      modelInstruction: iaPanel.modelInstruction,
+      missingProcess: iaPanel.missingProcess,
+      validation: iaPanel.validation,
+      responseTitle: iaPanel.responseTitle,
+      applyNotice: iaPanel.applyNotice
+    },
+    onProcessUpdate: handleProcessUpdateFromIa
+  });
+
   const addStep = (type: Extract<StepType, 'action' | 'decision'>) => {
     if (isProcessEditorReadOnly) {
       return;
@@ -2344,12 +2417,34 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
     />
   );
 
+  const iaPanelContent = (
+    <ProcessIaChat
+      messages={iaChat.messages}
+      onSend={iaChat.sendMessage}
+      isLoading={iaChat.isLoading}
+      inputError={iaChat.inputError}
+      errorMessage={iaChat.errorMessage}
+      followUpContent={iaChat.followUpContent}
+      labels={{
+        title: iaPanel.title,
+        placeholder: iaPanel.placeholder,
+        send: iaPanel.send,
+        loading: iaPanel.loading,
+        helper: iaPanel.helper,
+        errorLabel: iaPanel.errorLabel,
+        followUpNote: iaPanel.followUpNote
+      }}
+      disabled={!currentProcessId || isProcessEditorReadOnly}
+    />
+  );
+
   const secondaryPanelContent = (
     <SecondaryPanel
       highlights={highlights}
       secondaryPanelTitle={secondaryPanelTitle}
       isProcessesTabActive={isProcessesTabActive}
       isDepartmentsTabActive={isDepartmentsTabActive}
+      isIaTabActive={isIaTabActive}
       createLabel={createLabel}
       handleCreateProcess={handleCreateProcess}
       handleCreateDepartment={handleCreateDepartment}
@@ -2397,6 +2492,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
       deleteDepartmentMutation={deleteDepartmentMutation}
       startEditingDepartment={startEditingDepartment}
       formatTemplateText={formatTemplateText}
+      iaPanel={iaPanelContent}
     />
   );
 

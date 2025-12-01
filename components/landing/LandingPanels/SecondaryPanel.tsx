@@ -1,5 +1,5 @@
-import type { Dispatch, MutableRefObject, SetStateAction } from 'react';
-import { Building2, FolderTree, Loader2, Pencil, Plus, Save, Trash2, UserRound } from 'lucide-react';
+import type { Dispatch, MutableRefObject, ReactNode, SetStateAction } from 'react';
+import { Building2, FolderTree, Loader2, Pencil, Plus, Save, Sparkles, Trash2, UserRound } from 'lucide-react';
 import type { UseMutationResult, UseQueryResult } from '@tanstack/react-query';
 import { Controller, type UseFieldArrayReturn, type UseFormReturn } from 'react-hook-form';
 
@@ -14,8 +14,8 @@ import type { ProcessSummary } from '@/lib/validation/process';
 import { DEFAULT_ROLE_COLOR, type Role } from '@/lib/validation/role';
 
 export type SecondaryPanelLabels = {
-  title: { processes: string; departments: string };
-  tabs: { ariaLabel: string; tooltip: string; processes: string; departments: string };
+  title: { processes: string; departments: string; ia: string };
+  tabs: { ariaLabel: string; tooltip: string; processes: string; departments: string; ia: string };
   processes: {
     loading: string;
     listAriaLabel: string;
@@ -68,7 +68,7 @@ type SecondaryPanelProps = {
   isProcessManagementRestricted: boolean;
   statusMessages: StatusMessages;
   secondaryPanel: SecondaryPanelLabels;
-  setActiveSecondaryTab: Dispatch<SetStateAction<'processes' | 'departments'>>;
+  setActiveSecondaryTab: Dispatch<SetStateAction<'processes' | 'departments' | 'ia'>>;
   isProcessListUnauthorized: boolean;
   landingErrorMessages: LandingErrorMessages;
   processSummariesQuery: UseQueryResult<ProcessSummary[], Error>;
@@ -109,6 +109,8 @@ type SecondaryPanelProps = {
   deleteDepartmentMutation: UseMutationResult<void, ApiError, { id: string }>;
   startEditingDepartment: (department: Department) => void;
   formatTemplateText: (template: string, value: string | null, token?: string) => string | null;
+  isIaTabActive: boolean;
+  iaPanel: ReactNode;
 };
 
 export function SecondaryPanel({
@@ -162,7 +164,9 @@ export function SecondaryPanel({
   saveDepartmentMutation,
   deleteDepartmentMutation,
   startEditingDepartment,
-  formatTemplateText
+  formatTemplateText,
+  isIaTabActive,
+  iaPanel
 }: SecondaryPanelProps) {
   return (
     <>
@@ -255,6 +259,29 @@ export function SecondaryPanel({
                 className={cn(
                   'pointer-events-none absolute inset-x-3 -bottom-1 h-0.5 rounded-full bg-slate-900 transition-opacity',
                   isDepartmentsTabActive ? 'opacity-100' : 'opacity-0'
+                )}
+              />
+            </button>
+            <button
+              type="button"
+              id="ia-tab"
+              role="tab"
+              aria-selected={isIaTabActive}
+              aria-controls="ia-panel"
+              onClick={() => setActiveSecondaryTab('ia')}
+              title={secondaryPanel.tabs.tooltip}
+              className={cn(
+                'group relative flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400',
+                isIaTabActive ? 'bg-white text-slate-900 shadow-sm ring-1 ring-inset ring-slate-200' : 'text-slate-600 hover:bg-white/70'
+              )}
+            >
+              <Sparkles className="h-3.5 w-3.5" />
+              {secondaryPanel.tabs.ia}
+              <span
+                aria-hidden="true"
+                className={cn(
+                  'pointer-events-none absolute inset-x-3 -bottom-1 h-0.5 rounded-full bg-slate-900 transition-opacity',
+                  isIaTabActive ? 'opacity-100' : 'opacity-0'
                 )}
               />
             </button>
@@ -409,6 +436,15 @@ export function SecondaryPanel({
                   {isProcessManagementRestricted ? statusMessages.readerRestriction : statusMessages.createPrompt}
                 </p>
               )}
+            </div>
+            <div
+              role="tabpanel"
+              id="ia-panel"
+              aria-labelledby="ia-tab"
+              hidden={!isIaTabActive}
+              className={cn('h-full', !isIaTabActive && 'hidden')}
+            >
+              {iaPanel}
             </div>
             <div
               role="tabpanel"
