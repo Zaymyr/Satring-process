@@ -2447,6 +2447,13 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
       saveButtonLabel={saveButtonLabel}
       statusToneClass={statusToneClass}
       statusMessage={statusMessage}
+      missingAssignments={{
+        departmentsLabel: iaPanel.missingDepartmentsHeading,
+        rolesLabel: iaPanel.missingRolesHeading,
+        departments: missingDepartments,
+        roles: missingRoles
+      }}
+      isDirty={isDirty}
     />
   );
 
