@@ -283,12 +283,18 @@ export async function POST(request: Request) {
     );
   }
 
-  const aiProcess = (aiPayload as Record<string, unknown>)?.process as
-    | Record<string, unknown>
-    | undefined;
-  const reply = typeof (aiPayload as Record<string, unknown>)?.reply === 'string'
-    ? (aiPayload as Record<string, unknown>).reply.trim()
-    : '';
+  if (!aiPayload || typeof aiPayload !== 'object') {
+    console.error('Réponse IA invalide : payload non structuré');
+    return NextResponse.json(
+      { error: 'Le format de la réponse générée est invalide.' },
+      { status: 502, headers: RESPONSE_HEADERS }
+    );
+  }
+
+  const aiPayloadRecord = aiPayload as Record<string, unknown>;
+
+  const aiProcess = aiPayloadRecord.process as Record<string, unknown> | undefined;
+  const reply = typeof aiPayloadRecord.reply === 'string' ? aiPayloadRecord.reply.trim() : '';
 
   const parsedPayload = processPayloadSchema.safeParse({
     id: parsedProcess.data.id,
