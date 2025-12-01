@@ -1,52 +1,23 @@
 'use client';
 
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  useId,
-  type CSSProperties,
-  type ReactNode
-} from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, useId, type ReactNode } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import {
-  ArrowLeftRight,
-  ArrowUpDown,
-  Building2,
-  ChevronDown,
-  ChevronLeft,
-  ChevronRight,
-  ChevronUp,
-  Eye,
-  EyeOff,
-  FolderTree,
-  GitBranch,
-  Loader2,
-  Pencil,
-  Plus,
-  GripVertical,
-  Save,
-  ShieldCheck,
-  Sparkles,
-  Trash2,
-  UserRound,
-  type LucideIcon
-} from 'lucide-react';
-import { Controller, useFieldArray, useForm } from 'react-hook-form';
+import { useFieldArray, useForm } from 'react-hook-form';
 
 import { useI18n } from '@/components/providers/i18n-provider';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
+import { BottomPanel } from '@/components/landing/LandingPanels/BottomPanel';
+import type { Highlight as HighlightsGridHighlight } from '@/components/landing/LandingPanels/HighlightsGrid';
+import { PrimaryPanel } from '@/components/landing/LandingPanels/PrimaryPanel';
+import { SecondaryPanel } from '@/components/landing/LandingPanels/SecondaryPanel';
+import { ProcessShell } from '@/components/landing/LandingPanels/ProcessShell';
 import { DEFAULT_PROCESS_STEPS, DEFAULT_PROCESS_TITLE } from '@/lib/process/defaults';
+import { processSummariesSchema } from '@/lib/process/schema';
+import { type ProcessErrorMessages, type RoleLookupEntry, type Step } from '@/lib/process/types';
 import { getInviteDemoDepartments } from '@/lib/department/demo';
-import { cn } from '@/lib/utils/cn';
-import { DEFAULT_LOCALE, getDictionary, type Dictionary } from '@/lib/i18n/dictionaries';
+import { DEFAULT_LOCALE, getDictionary } from '@/lib/i18n/dictionaries';
 import { createDateTimeFormatter } from '@/lib/i18n/format';
 import {
   processResponseSchema,
@@ -74,11 +45,6 @@ import {
   type RoleCreateInput,
   type RoleUpdateInput
 } from '@/lib/validation/role';
-
-const highlightIcons = {
-  sparkles: Sparkles,
-  shield: ShieldCheck
-} as const satisfies Record<string, LucideIcon>;
 
 const ROLE_ID_REGEX = /^[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}$/i;
 const HEX_COLOR_REGEX = /^#[0-9A-F]{6}$/;
@@ -125,105 +91,14 @@ const getClusterStyleDeclaration = (clusterId: string, color: string) => {
   return `style ${clusterId} fill:${normalized},stroke:${normalized},color:${CLUSTER_STYLE_TEXT_COLOR},stroke-width:2px,fill-opacity:${CLUSTER_FILL_OPACITY};`;
 };
 
-type Highlight = {
-  title: string;
-  description: string;
-  icon: keyof typeof highlightIcons;
-};
+type Highlight = HighlightsGridHighlight;
 
-type Step = ProcessStep;
-
-type RoleLookupEntry = {
-  role: Role;
-  departmentId: string;
-  departmentName: string;
-};
-
-type DiagramDragState = {
-  pointerId: number;
-  originX: number;
-  originY: number;
-  startX: number;
-  startY: number;
-  target: HTMLDivElement | null;
-  hasCapture: boolean;
-};
-
-type MermaidAPI = {
-  initialize: (config: Record<string, unknown>) => void;
-  render: (id: string, definition: string) => Promise<{ svg: string }>;
-};
-
-declare global {
-  interface Window {
-    mermaid?: MermaidAPI;
-  }
-}
-
-let mermaidLoader: Promise<MermaidAPI> | null = null;
-
-function loadMermaid(messages: MermaidErrorMessages): Promise<MermaidAPI> {
-  if (typeof window === 'undefined') {
-    return Promise.reject(new Error(messages.browserOnly));
-  }
-
-  if (window.mermaid) {
-    return Promise.resolve(window.mermaid);
-  }
-
-  if (!mermaidLoader) {
-    mermaidLoader = new Promise((resolve, reject) => {
-      const existingScript = document.querySelector<HTMLScriptElement>('script[data-mermaid]');
-
-      if (existingScript) {
-        existingScript.addEventListener('load', () => {
-          if (window.mermaid) {
-            resolve(window.mermaid);
-          } else {
-            mermaidLoader = null;
-            reject(new Error(messages.missingAfterLoad));
-          }
-        });
-        existingScript.addEventListener('error', () => {
-          mermaidLoader = null;
-          reject(new Error(messages.scriptLoadFailed));
-        });
-        return;
-      }
-
-      const script = document.createElement('script');
-      script.src = 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js';
-      script.async = true;
-      script.crossOrigin = 'anonymous';
-      script.dataset.mermaid = 'true';
-      script.addEventListener('load', () => {
-        if (window.mermaid) {
-          resolve(window.mermaid);
-        } else {
-          mermaidLoader = null;
-          reject(new Error(messages.missingAfterLoad));
-        }
-      });
-      script.addEventListener('error', () => {
-        mermaidLoader = null;
-        reject(new Error(messages.scriptLoadFailed));
-      });
-      document.head.appendChild(script);
-    });
-  }
-
-  return mermaidLoader;
-}
-
-class ApiError extends Error {
+export class ApiError extends Error {
   constructor(message: string, public status: number) {
     super(message);
     this.name = 'ApiError';
   }
 }
-
-type ProcessErrorMessages = Dictionary['landing']['errors'];
-type MermaidErrorMessages = Dictionary['landing']['errors']['mermaid'];
 
 const parseErrorPayload = (raw: string, fallback: string) => {
   if (!raw) {
@@ -343,11 +218,6 @@ const formatDepartmentClusterLabel = (value: string) => {
   return escaped.replace(/&quot;/g, '\\"');
 };
 
-const clampValue = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
-
-const DIAGRAM_SCALE_MIN = 0.35;
-const DIAGRAM_SCALE_MAX = 5;
-
 const areStepsEqual = (a: readonly ProcessStep[], b: readonly ProcessStep[]) => {
   if (a.length !== b.length) {
     return false;
@@ -405,8 +275,6 @@ const requestProcess = async (
   const json = await response.json();
   return processResponseSchema.parse(json);
 };
-
-const processSummariesSchema = processSummarySchema.array();
 
 const requestProcessSummaries = async (
   messages: ProcessErrorMessages
@@ -702,9 +570,6 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
     },
     [stepTypeLabels]
   );
-  const [isPrimaryCollapsed, setIsPrimaryCollapsed] = useState(false);
-  const [isSecondaryCollapsed, setIsSecondaryCollapsed] = useState(false);
-  const [isBottomCollapsed, setIsBottomCollapsed] = useState(false);
   const [areDepartmentsVisible, setAreDepartmentsVisible] = useState(true);
   const [diagramDirection, setDiagramDirection] = useState<'TD' | 'LR'>('TD');
   const [selectedProcessId, setSelectedProcessId] = useState<string | null>(null);
@@ -717,15 +582,6 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
   const draggedStepIdRef = useRef<string | null>(null);
   const [draggedStepId, setDraggedStepId] = useState<string | null>(null);
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
-  const [diagramSvg, setDiagramSvg] = useState('');
-  const [diagramError, setDiagramError] = useState<string | null>(null);
-  const [diagramUserOffset, setDiagramUserOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
-  const [diagramScale, setDiagramScale] = useState(1);
-  const [isDiagramDragging, setIsDiagramDragging] = useState(false);
-  const diagramDragStateRef = useRef<DiagramDragState | null>(null);
-  const diagramViewportRef = useRef<HTMLDivElement | null>(null);
-  const [isMermaidReady, setIsMermaidReady] = useState(false);
-  const mermaidAPIRef = useRef<MermaidAPI | null>(null);
   const diagramElementId = useMemo(() => `process-diagram-${generateStepId()}`, []);
   const [editingProcessId, setEditingProcessId] = useState<string | null>(null);
   const [renameDraft, setRenameDraft] = useState('');
@@ -2023,13 +1879,6 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
     ].join('\n');
   }, [areDepartmentsVisible, departments, diagramDirection, getStepDisplayLabel, steps]);
 
-  useEffect(() => {
-    setDiagramUserOffset((previous) =>
-      previous.x === 0 && previous.y === 0 ? previous : { x: 0, y: 0 }
-    );
-    setDiagramScale((previous) => (previous === 1 ? previous : 1));
-  }, [diagramDirection]);
-
   const fallbackDiagram = useMemo(() => {
     if (steps.length === 0) {
       return null;
@@ -2283,82 +2132,6 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
     );
   }, [areDepartmentsVisible, departments, getStepDisplayLabel, steps]);
 
-  useEffect(() => {
-    let isActive = true;
-
-    loadMermaid(mermaidErrorMessages)
-      .then((mermaid) => {
-        if (!isActive) {
-          return;
-        }
-        mermaid.initialize({
-          startOnLoad: false,
-          securityLevel: 'loose',
-          theme: 'neutral',
-          themeVariables: {
-            fontFamily:
-              'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-            primaryColor: '#ffffff',
-            primaryTextColor: '#0f172a',
-            primaryBorderColor: '#0f172a',
-            lineColor: '#0f172a',
-            tertiaryColor: '#e2e8f0',
-            clusterBkg: '#f8fafc',
-            clusterBorder: '#94a3b8'
-          }
-        });
-        mermaidAPIRef.current = mermaid;
-        setDiagramError(null);
-        setIsMermaidReady(true);
-      })
-      .catch((error) => {
-        if (!isActive) {
-          return;
-        }
-        console.error('Erreur lors du chargement de Mermaid', error);
-        setDiagramError('Impossible de charger le diagramme.');
-      });
-
-    return () => {
-      isActive = false;
-    };
-  }, [mermaidErrorMessages]);
-
-  useEffect(() => {
-    const mermaid = mermaidAPIRef.current;
-    if (!isMermaidReady || !mermaid) {
-      return;
-    }
-
-    let isCurrent = true;
-
-    const renderDiagram = async () => {
-      try {
-        const { svg } = await mermaid.render(diagramElementId, diagramDefinition);
-        if (!isCurrent) {
-          return;
-        }
-        setDiagramError(null);
-        setDiagramSvg(svg);
-      } catch (error) {
-        if (!isCurrent) {
-          return;
-        }
-        console.error('Erreur lors du rendu Mermaid', error);
-        setDiagramSvg('');
-        setDiagramError("Impossible de générer le diagramme pour l'instant.");
-      }
-    };
-
-    setDiagramSvg('');
-    setDiagramError(null);
-    void renderDiagram();
-
-    return () => {
-      isCurrent = false;
-    };
-  }, [diagramDefinition, diagramElementId, isMermaidReady]);
-
   const addStep = (type: Extract<StepType, 'action' | 'decision'>) => {
     if (isProcessEditorReadOnly) {
       return;
@@ -2529,1371 +2302,129 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
     setSelectedStepId(nextSelectedId ?? null);
   };
 
-  const applyDiagramWheelZoom = useCallback((event: WheelEvent, viewportRect: DOMRect) => {
-    event.preventDefault();
-    event.stopPropagation();
-
-    const pointerX = event.clientX - (viewportRect.left + viewportRect.width / 2);
-    const pointerY = event.clientY - (viewportRect.top + viewportRect.height / 2);
-
-    let normalizedDeltaY = event.deltaY;
-
-    if (event.deltaMode === 1) {
-      normalizedDeltaY *= 32;
-    } else if (event.deltaMode === 2) {
-      normalizedDeltaY *= viewportRect.height;
-    }
-
-    if (!Number.isFinite(normalizedDeltaY)) {
-      return;
-    }
-
-    const limitedDelta = clampValue(normalizedDeltaY, -480, 480);
-
-    if (Math.abs(limitedDelta) < 0.01) {
-      return;
-    }
-
-    const direction = Math.sign(limitedDelta) || 1;
-    const distance = Math.min(Math.abs(limitedDelta), 480);
-    const baseStep = event.ctrlKey || event.metaKey ? 0.35 : 0.22;
-    const magnitude = Math.max(distance / 160, 0.2);
-    const scaleStep = 1 + baseStep * magnitude;
-
-    if (!Number.isFinite(scaleStep) || scaleStep <= 0) {
-      return;
-    }
-
-    setDiagramScale((previousScale) => {
-      const proposedScale =
-        direction < 0
-          ? previousScale * scaleStep
-          : previousScale / scaleStep;
-
-      const nextScale = clampValue(proposedScale, DIAGRAM_SCALE_MIN, DIAGRAM_SCALE_MAX);
-
-      if (nextScale === previousScale) {
-        return previousScale;
-      }
-
-      setDiagramUserOffset((previousOffset) => {
-        const scaleRatio = nextScale / previousScale;
-        return {
-          x: pointerX - scaleRatio * (pointerX - previousOffset.x),
-          y: pointerY - scaleRatio * (pointerY - previousOffset.y)
-        };
-      });
-
-      return nextScale;
-    });
-  }, []);
-
-  useEffect(() => {
-    const handleWheel = (event: WheelEvent) => {
-      const viewport = diagramViewportRef.current;
-
-      if (!viewport) {
-        return;
-      }
-
-      const composedPath = typeof event.composedPath === 'function' ? event.composedPath() : [];
-      const eventTarget = (event.target as Node | null) ?? null;
-      const isEventWithinViewport =
-        (Array.isArray(composedPath) && composedPath.includes(viewport)) ||
-        (eventTarget ? viewport.contains(eventTarget) : false);
-
-      if (!isEventWithinViewport) {
-        return;
-      }
-
-      const rect = viewport.getBoundingClientRect();
-      const isWithinHorizontalBounds = event.clientX >= rect.left && event.clientX <= rect.right;
-      const isWithinVerticalBounds = event.clientY >= rect.top && event.clientY <= rect.bottom;
-
-      if (!isWithinHorizontalBounds || !isWithinVerticalBounds) {
-        return;
-      }
-
-      applyDiagramWheelZoom(event, rect);
-    };
-
-    const listenerOptions: AddEventListenerOptions = { passive: false, capture: true };
-    window.addEventListener('wheel', handleWheel, listenerOptions);
-
-    return () => {
-      window.removeEventListener('wheel', handleWheel, listenerOptions);
-    };
-  }, [applyDiagramWheelZoom]);
-
-  const updateDiagramDrag = useCallback((pointerId: number, clientX: number, clientY: number) => {
-    const dragState = diagramDragStateRef.current;
-
-    if (!dragState || dragState.pointerId !== pointerId) {
-      return;
-    }
-
-    const deltaX = clientX - dragState.startX;
-    const deltaY = clientY - dragState.startY;
-
-    setDiagramUserOffset({
-      x: dragState.originX + deltaX,
-      y: dragState.originY + deltaY
-    });
-  }, []);
-
-  const endDiagramDrag = useCallback((pointerId: number) => {
-    const dragState = diagramDragStateRef.current;
-
-    if (!dragState || dragState.pointerId !== pointerId) {
-      return;
-    }
-
-    if (dragState.hasCapture && dragState.target?.hasPointerCapture?.(pointerId)) {
-      try {
-        dragState.target.releasePointerCapture(pointerId);
-      } catch {
-        // ignore pointer capture release errors
-      }
-    }
-
-    diagramDragStateRef.current = null;
-    setIsDiagramDragging(false);
-  }, []);
-
-  const handleDiagramPointerMove = useCallback(
-    (event: React.PointerEvent<HTMLDivElement>) => {
-      event.preventDefault();
-      updateDiagramDrag(event.pointerId, event.clientX, event.clientY);
-    },
-    [updateDiagramDrag]
-  );
-
-  const handleDiagramPointerEnd = useCallback(
-    (event: React.PointerEvent<HTMLDivElement>) => {
-      endDiagramDrag(event.pointerId);
-    },
-    [endDiagramDrag]
-  );
-
-  useEffect(() => {
-    if (!isDiagramDragging) {
-      return;
-    }
-
-    const dragState = diagramDragStateRef.current;
-
-    if (!dragState || dragState.hasCapture) {
-      return;
-    }
-
-    const handlePointerMove = (event: PointerEvent) => {
-      if (diagramDragStateRef.current?.pointerId !== event.pointerId) {
-        return;
-      }
-
-      event.preventDefault();
-      updateDiagramDrag(event.pointerId, event.clientX, event.clientY);
-    };
-
-    const handlePointerEnd = (event: PointerEvent) => {
-      if (event.type === 'pointerout' && event.relatedTarget) {
-        return;
-      }
-
-      if (diagramDragStateRef.current?.pointerId !== event.pointerId) {
-        return;
-      }
-
-      endDiagramDrag(event.pointerId);
-    };
-
-    window.addEventListener('pointermove', handlePointerMove, { passive: false });
-    window.addEventListener('pointerup', handlePointerEnd);
-    window.addEventListener('pointercancel', handlePointerEnd);
-    window.addEventListener('pointerout', handlePointerEnd);
-
-    return () => {
-      window.removeEventListener('pointermove', handlePointerMove);
-      window.removeEventListener('pointerup', handlePointerEnd);
-      window.removeEventListener('pointercancel', handlePointerEnd);
-      window.removeEventListener('pointerout', handlePointerEnd);
-    };
-  }, [endDiagramDrag, isDiagramDragging, updateDiagramDrag]);
-
-  const handleDiagramPointerDown = useCallback(
-    (event: React.PointerEvent<HTMLDivElement>) => {
-      if (event.button !== 0 && event.pointerType !== 'touch') {
-        return;
-      }
-
-      event.preventDefault();
-      event.stopPropagation();
-
-      const target = event.currentTarget;
-      let hasCapture = false;
-
-      try {
-        target.setPointerCapture(event.pointerId);
-        hasCapture = target.hasPointerCapture?.(event.pointerId) ?? false;
-      } catch {
-        // ignore pointer capture errors on unsupported browsers
-      }
-
-      diagramDragStateRef.current = {
-        pointerId: event.pointerId,
-        originX: diagramUserOffset.x,
-        originY: diagramUserOffset.y,
-        startX: event.clientX,
-        startY: event.clientY,
-        target,
-        hasCapture
-      };
-
-      setIsDiagramDragging(true);
-    },
-    [diagramUserOffset.x, diagramUserOffset.y]
-  );
-
-  const primaryWidth = isPrimaryCollapsed ? '3.5rem' : 'clamp(13.5rem, 21vw, 25.5rem)';
-  const secondaryWidth = isSecondaryCollapsed ? '3.5rem' : 'clamp(16rem, 22vw, 26rem)';
-  const layoutStyle = useMemo<CSSProperties>(
-    () => ({
-      gridTemplateColumns: `${primaryWidth} minmax(0, 1fr) ${secondaryWidth}`
-    }),
-    [primaryWidth, secondaryWidth]
-  );
-
   const diagramControlsContentId = useId();
 
+  const primaryPanelContent = (
+    <PrimaryPanel
+      processTitle={processTitle}
+      primaryPanel={primaryPanel}
+      addStep={addStep}
+      isProcessEditorReadOnly={isProcessEditorReadOnly}
+      steps={steps}
+      draggedStepId={draggedStepId}
+      selectedStepId={selectedStepId}
+      setSelectedStepId={setSelectedStepId}
+      getStepDisplayLabel={getStepDisplayLabel}
+      roleLookup={roleLookup}
+      departmentNameById={departmentNameById}
+      defaultDepartmentName={defaultDepartmentName}
+      defaultRoleName={defaultRoleName}
+      tooltipLabels={tooltipLabels}
+      stepTypeLabels={stepTypeLabels}
+      hasRoles={hasRoles}
+      rolePickerMessages={rolePickerMessages}
+      hasDepartments={hasDepartments}
+      departments={departments}
+      updateStepLabel={updateStepLabel}
+      updateStepDepartment={updateStepDepartment}
+      updateStepRole={updateStepRole}
+      stepPositions={stepPositions}
+      updateDecisionBranch={updateDecisionBranch}
+      handleStepDragOver={handleStepDragOver}
+      handleStepDrop={handleStepDrop}
+      handleStepDragStart={handleStepDragStart}
+      handleStepDragEnd={handleStepDragEnd}
+      handleStepListDragOverEnd={handleStepListDragOverEnd}
+      removeStep={removeStep}
+      handleSave={handleSave}
+      isSaveDisabled={isSaveDisabled}
+      saveButtonLabel={saveButtonLabel}
+      statusToneClass={statusToneClass}
+      statusMessage={statusMessage}
+    />
+  );
+
+  const secondaryPanelContent = (
+    <SecondaryPanel
+      highlights={highlights}
+      secondaryPanelTitle={secondaryPanelTitle}
+      isProcessesTabActive={isProcessesTabActive}
+      isDepartmentsTabActive={isDepartmentsTabActive}
+      createLabel={createLabel}
+      handleCreateProcess={handleCreateProcess}
+      handleCreateDepartment={handleCreateDepartment}
+      isProcessEditorReadOnly={isProcessEditorReadOnly}
+      isCreating={isCreating}
+      isDepartmentActionsDisabled={isDepartmentActionsDisabled}
+      isCreatingDepartment={isCreatingDepartment}
+      isProcessManagementRestricted={isProcessManagementRestricted}
+      statusMessages={statusMessages}
+      secondaryPanel={secondaryPanel}
+      setActiveSecondaryTab={setActiveSecondaryTab}
+      isProcessListUnauthorized={isProcessListUnauthorized}
+      landingErrorMessages={landingErrorMessages}
+      processSummariesQuery={processSummariesQuery}
+      hasProcesses={hasProcesses}
+      processSummaries={processSummaries}
+      currentProcessId={currentProcessId}
+      editingProcessId={editingProcessId}
+      setSelectedProcessId={setSelectedProcessId}
+      startEditingProcess={startEditingProcess}
+      renameInputRef={renameInputRef}
+      renameDraft={renameDraft}
+      setRenameDraft={setRenameDraft}
+      confirmRenameProcess={confirmRenameProcess}
+      cancelEditingProcess={cancelEditingProcess}
+      deleteProcessMutation={deleteProcessMutation}
+      handleDeleteProcess={handleDeleteProcess}
+      shouldUseDepartmentDemo={shouldUseDepartmentDemo}
+      createDepartmentMutation={createDepartmentMutation}
+      departmentsQuery={departmentsQuery}
+      departments={departments}
+      editingDepartmentId={editingDepartmentId}
+      isDeletingDepartment={isDeletingDepartment}
+      deleteDepartmentId={deleteDepartmentId}
+      formatDateTime={formatDateTime}
+      departmentEditForm={departmentEditForm}
+      handleSaveDepartment={handleSaveDepartment}
+      handleDeleteDepartment={handleDeleteDepartment}
+      isSavingDepartment={isSavingDepartment}
+      departmentRoleFields={departmentRoleFields}
+      isAddingDepartmentRole={isAddingDepartmentRole}
+      handleAddRole={handleAddRole}
+      createDepartmentRoleMutation={createDepartmentRoleMutation}
+      saveDepartmentMutation={saveDepartmentMutation}
+      deleteDepartmentMutation={deleteDepartmentMutation}
+      startEditingDepartment={startEditingDepartment}
+      formatTemplateText={formatTemplateText}
+    />
+  );
+
+  const renderBottomPanel = ({ isCollapsed }: { isCollapsed: boolean }) => (
+    <BottomPanel
+      diagramControls={diagramControls}
+      diagramDirection={diagramDirection}
+      setDiagramDirection={setDiagramDirection}
+      areDepartmentsVisible={areDepartmentsVisible}
+      setAreDepartmentsVisible={setAreDepartmentsVisible}
+      diagramControlsContentId={diagramControlsContentId}
+      isCollapsed={isCollapsed}
+    />
+  );
+
   return (
-    <div className="relative flex h-full flex-col overflow-x-visible overflow-y-hidden bg-gradient-to-br from-slate-100 via-white to-slate-200 text-slate-900">
-      <div className="absolute inset-0 z-0 flex items-center justify-center overflow-visible">
-        <div
-          ref={diagramViewportRef}
-          className={cn(
-            'pointer-events-auto relative flex h-full w-full select-none touch-none items-center justify-center',
-            isDiagramDragging ? 'cursor-grabbing' : 'cursor-grab'
-          )}
-          onPointerDown={handleDiagramPointerDown}
-          onPointerMove={handleDiagramPointerMove}
-          onPointerUp={handleDiagramPointerEnd}
-          onPointerCancel={handleDiagramPointerEnd}
-          onLostPointerCapture={handleDiagramPointerEnd}
-        >
-          <div
-            className={cn(
-              'pointer-events-auto absolute left-1/2 top-1/2 h-auto w-auto max-h-none max-w-none opacity-90 transition-transform [filter:drop-shadow(0_25px_65px_rgba(15,23,42,0.22))] [&_svg]:h-auto [&_svg]:max-h-none [&_svg]:max-w-none [&_.node rect]:stroke-slate-900 [&_.node rect]:stroke-[1.5px] [&_.node polygon]:stroke-slate-900 [&_.node polygon]:stroke-[1.5px] [&_.node circle]:stroke-slate-900 [&_.node circle]:stroke-[1.5px] [&_.node ellipse]:stroke-slate-900 [&_.node ellipse]:stroke-[1.5px] [&_.edgePath path]:stroke-slate-900 [&_.edgePath path]:stroke-[1.5px] [&_.edgeLabel]:text-slate-900'
-            )}
-            style={{
-              transform: `translate(-50%, -50%) translate3d(${diagramUserOffset.x}px, ${diagramUserOffset.y}px, 0) scale(${diagramScale})`,
-              transformOrigin: 'center center',
-              willChange: 'transform'
-            }}
-          >
-            {diagramSvg ? (
-              <div
-                aria-hidden="true"
-                dangerouslySetInnerHTML={{ __html: diagramSvg }}
-              />
-            ) : (
-              fallbackDiagram
-            )}
-          </div>
-        </div>
-        {diagramError ? (
-          <span role="status" aria-live="polite" className="sr-only">
-            {diagramError}
-          </span>
-        ) : null}
-      </div>
-      <div className="pointer-events-none relative z-10 flex h-full min-h-0 w-full flex-col gap-3 px-2.5 py-4 lg:px-5 lg:py-6 xl:px-6">
-        <div
-          className="pointer-events-none flex min-h-0 flex-1 flex-col gap-4 lg:grid lg:[grid-template-rows:minmax(0,1fr)_auto] lg:items-stretch lg:gap-0"
-          style={layoutStyle}
-        >
-        <div
-          className="pointer-events-auto relative flex h-full min-h-0 shrink-0 items-stretch overflow-visible transition-[width] duration-300 ease-out lg:col-start-1 lg:row-start-1 lg:row-span-2 lg:h-full lg:min-h-0"
-          style={{ width: primaryWidth }}
-        >
-          <button
-            type="button"
-            onClick={() => setIsPrimaryCollapsed((prev) => !prev)}
-            aria-expanded={!isPrimaryCollapsed}
-            aria-controls="primary-panel"
-            className={cn(
-              'absolute right-0 top-1/2 z-20 flex h-10 w-10 -translate-y-1/2 translate-x-1/2 items-center justify-center rounded-full border border-slate-200 bg-white/90 text-slate-600 shadow-sm transition hover:bg-white'
-            )}
-          >
-            {isPrimaryCollapsed ? <ChevronRight className="h-5 w-5" /> : <ChevronLeft className="h-5 w-5" />}
-            <span className="sr-only">{primaryPanel.toggleLabel}</span>
-          </button>
-          <div
-            id="primary-panel"
-            className={cn(
-              'flex h-full w-full flex-col gap-6 overflow-hidden rounded-3xl border border-slate-200 bg-white/85 px-5 py-6 shadow-[0_30px_120px_-50px_rgba(15,23,42,0.35)] backdrop-blur transition-all duration-300 ease-out sm:px-6',
-              isPrimaryCollapsed
-                ? 'pointer-events-none opacity-0 lg:-translate-x-[110%]'
-                : 'pointer-events-auto opacity-100 lg:translate-x-0'
-            )}
-          >
-            <div className="grid grid-cols-2 gap-2 sm:gap-3">
-              <div className="col-span-2 row-span-2 flex items-center sm:col-span-1 sm:row-span-2">
-                <h1 className="text-base font-semibold text-slate-900">{processTitle}</h1>
-              </div>
-              <Button
-                type="button"
-                onClick={() => addStep('action')}
-                disabled={isProcessEditorReadOnly}
-                className="h-10 w-full rounded-md bg-slate-900 px-3 text-sm text-white hover:bg-slate-800"
-              >
-                <Plus className="mr-2 h-3.5 w-3.5" />
-                {primaryPanel.addAction}
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => addStep('decision')}
-                disabled={isProcessEditorReadOnly}
-                className="h-10 w-full rounded-md border-slate-300 bg-white px-3 text-sm text-slate-900 hover:bg-slate-50"
-              >
-                <GitBranch className="mr-2 h-3.5 w-3.5" />
-                {primaryPanel.addDecision}
-              </Button>
-            </div>
-            <div className="flex-1 min-h-0 overflow-hidden">
-              <div className="h-full space-y-3 overflow-y-auto rounded-2xl border border-slate-200 bg-white/75 p-3 pr-1 shadow-inner sm:pr-1.5">
-                <div className="space-y-2.5">
-                  {steps.map((step, index) => {
-                    const isRemovable = step.type === 'action' || step.type === 'decision';
-                    const stepPosition = index + 1;
-                    const availableTargets = steps.filter((candidate) => candidate.id !== step.id);
-                    const isDragging = draggedStepId === step.id;
-                    const isFixedStep = step.type === 'start' || step.type === 'finish';
-                    const canReorderStep = !isFixedStep && !isProcessEditorReadOnly;
-                    const isSelectedStep = selectedStepId === step.id;
-                    const displayLabel = getStepDisplayLabel(step);
-                    const roleEntry = step.roleId ? roleLookup.byId.get(step.roleId) ?? null : null;
-                    const departmentName =
-                      (step.departmentId
-                        ? departmentNameById.get(step.departmentId)
-                        : roleEntry?.departmentName) ?? defaultDepartmentName;
-                    const roleName = roleEntry?.role.name ?? defaultRoleName;
-                    const tooltipTitle = `${tooltipLabels.type}: ${stepTypeLabels[step.type]}\n${tooltipLabels.department}: ${departmentName}\n${tooltipLabels.role}: ${roleName}`;
-                    const availableRoleEntries =
-                      step.departmentId !== null
-                        ? roleLookup.byDepartment.get(step.departmentId) ?? []
-                        : roleLookup.all;
-                    const roleHelperText = (() => {
-                      if (!hasRoles) {
-                        return rolePickerMessages.addRole;
-                      }
-
-                      if (step.departmentId && availableRoleEntries.length === 0) {
-                        return rolePickerMessages.noDepartmentRoles;
-                      }
-
-                      if (!step.departmentId && hasRoles) {
-                        return rolePickerMessages.chooseRoleForDepartment;
-                      }
-
-                      return null;
-                    })();
-
-                    return (
-                      <Card
-                        key={step.id}
-                        title={tooltipTitle}
-                        className={cn(
-                          'border-slate-200 bg-white/90 shadow-sm transition',
-                          isDragging
-                            ? 'opacity-70 ring-2 ring-slate-300'
-                            : isSelectedStep
-                            ? 'border-slate-900 ring-2 ring-slate-900/20'
-                            : 'hover:border-slate-300'
-                        )}
-                        onDragOver={(event) => handleStepDragOver(event, step.id)}
-                        onDrop={handleStepDrop}
-                        onClick={() => setSelectedStepId(step.id)}
-                        onFocusCapture={() => setSelectedStepId(step.id)}
-                        aria-selected={isSelectedStep}
-                      >
-                        <CardContent
-                          className={cn(
-                            'relative flex gap-2 p-2.5',
-                            isSelectedStep ? 'items-start' : 'items-center gap-1.5 p-2'
-                          )}
-                        >
-                        <div
-                          className={cn(
-                            'flex items-center',
-                            isSelectedStep ? 'flex-col gap-2 pt-0.5' : 'flex-row gap-2'
-                          )}
-                        >
-                          <span
-                            className={cn(
-                              'flex h-7 w-7 items-center justify-center rounded-full text-[0.65rem] font-semibold transition-colors',
-                              isSelectedStep ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600'
-                            )}
-                          >
-                            {stepPosition}
-                          </span>
-                          <button
-                            type="button"
-                            className={cn(
-                              'flex h-7 w-7 items-center justify-center rounded-full border border-transparent bg-slate-100 text-slate-500 transition',
-                              canReorderStep ? 'hover:border-slate-300 hover:bg-white' : 'cursor-not-allowed opacity-60'
-                            )}
-                            draggable={canReorderStep}
-                            onDragStart={(event) => {
-                              if (!canReorderStep) {
-                                event.preventDefault();
-                                return;
-                              }
-                              handleStepDragStart(event, step.id);
-                            }}
-                            onDragEnd={handleStepDragEnd}
-                            aria-label={`Reorder ${getStepDisplayLabel(step)}`}
-                            aria-grabbed={isDragging}
-                            disabled={!canReorderStep}
-                          >
-                            <GripVertical className="h-3.5 w-3.5" />
-                          </button>
-                          {isSelectedStep && isRemovable ? (
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => removeStep(step.id)}
-                              disabled={isProcessEditorReadOnly}
-                              className="h-7 w-7 shrink-0 text-red-500 hover:text-red-600"
-                              aria-label="Delete step"
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </Button>
-                          ) : null}
-                        </div>
-                          {isSelectedStep ? (
-                            <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-                              <Input
-                                id={`step-${step.id}-label`}
-                                value={step.label}
-                                onChange={(event) => updateStepLabel(step.id, event.target.value)}
-                                placeholder="Step label"
-                                disabled={isProcessEditorReadOnly}
-                                className="h-8 w-full border-slate-200 bg-white text-sm text-slate-900 placeholder:text-slate-400 focus-visible:ring-slate-900/20 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-50"
-                                />
-                                <div className="grid gap-1.5 sm:grid-cols-2">
-                                  <label className="flex flex-col gap-1 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
-                                    <span>Department</span>
-                                    <select
-                                      value={step.departmentId ?? ''}
-                                      onChange={(event) =>
-                                        updateStepDepartment(
-                                          step.id,
-                                          event.target.value.length > 0 ? event.target.value : null
-                                        )
-                                      }
-                                      className="h-8 rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-900 transition focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
-                                      disabled={isProcessEditorReadOnly || !hasDepartments}
-                                    >
-                                      <option value="">No department</option>
-                                      {departments.map((department) => (
-                                        <option key={department.id} value={department.id}>
-                                          {department.name}
-                                        </option>
-                                      ))}
-                                    </select>
-                                    {!hasDepartments ? (
-                                      <span className="text-[0.6rem] font-normal normal-case tracking-normal text-slate-500">
-                                        Add a department to assign it to this step.
-                                      </span>
-                                    ) : null}
-                                  </label>
-                                  <label className="flex flex-col gap-1 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
-                                    <span title={rolePickerMessages.chooseRoleForDepartment}>Role</span>
-                                    <select
-                                      value={step.roleId ?? ''}
-                                      onChange={(event) =>
-                                        updateStepRole(
-                                          step.id,
-                                          event.target.value.length > 0 ? event.target.value : null
-                                        )
-                                      }
-                                      className="h-8 rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-900 transition focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
-                                      disabled={isProcessEditorReadOnly || !hasRoles}
-                                    >
-                                      <option value="">No role</option>
-                                      {availableRoleEntries.map((entry) => (
-                                        <option key={entry.role.id} value={entry.role.id}>
-                                          {step.departmentId
-                                            ? entry.role.name
-                                            : `${entry.role.name} — ${entry.departmentName}`}
-                                        </option>
-                                      ))}
-                                    </select>
-                                    {roleHelperText &&
-                                    step.type !== 'start' &&
-                                    step.type !== 'finish' &&
-                                    roleHelperText !== rolePickerMessages.chooseRoleForDepartment ? (
-                                      <span className="text-[0.6rem] font-normal normal-case tracking-normal text-slate-500">
-                                        {roleHelperText}
-                                      </span>
-                                    ) : null}
-                                  </label>
-                                </div>
-                                {step.type === 'decision' ? (
-                                  <div className="mt-1.5 grid gap-1.5 sm:grid-cols-2">
-                                    <label className="flex flex-col gap-1 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
-                                      <span>Yes branch</span>
-                                      <select
-                                        value={step.yesTargetId ?? ''}
-                                        onChange={(event) =>
-                                          updateDecisionBranch(step.id, 'yes', event.target.value || null)
-                                        }
-                                        disabled={isProcessEditorReadOnly}
-                                        className="h-8 rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-900 transition focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
-                                      >
-                                        <option value="">Next step (default)</option>
-                                        {availableTargets.map((candidate) => {
-                                          const position = stepPositions.get(candidate.id);
-                                          const optionLabel = position
-                                            ? `${position}. ${getStepDisplayLabel(candidate)}`
-                                            : getStepDisplayLabel(candidate);
-
-                                          return (
-                                            <option key={candidate.id} value={candidate.id}>
-                                              {optionLabel}
-                                            </option>
-                                          );
-                                        })}
-                                      </select>
-                                    </label>
-                                    <label className="flex flex-col gap-1 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
-                                      <span>No branch</span>
-                                      <select
-                                        value={step.noTargetId ?? ''}
-                                        onChange={(event) =>
-                                          updateDecisionBranch(step.id, 'no', event.target.value || null)
-                                        }
-                                        disabled={isProcessEditorReadOnly}
-                                        className="h-8 rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-900 transition focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
-                                      >
-                                        <option value="">Next step (default)</option>
-                                        {availableTargets.map((candidate) => {
-                                          const position = stepPositions.get(candidate.id);
-                                          const optionLabel = position
-                                            ? `${position}. ${getStepDisplayLabel(candidate)}`
-                                            : getStepDisplayLabel(candidate);
-
-                                          return (
-                                            <option key={candidate.id} value={candidate.id}>
-                                              {optionLabel}
-                                            </option>
-                                          );
-                                        })}
-                                      </select>
-                                    </label>
-                                  </div>
-                                ) : null}
-                            </div>
-                          ) : (
-                            <div className="flex min-w-0 flex-1 items-center gap-2">
-                              <span className="truncate text-sm font-medium text-slate-900" title={displayLabel}>
-                                {displayLabel}
-                              </span>
-                            </div>
-                          )}
-                        </CardContent>
-                      </Card>
-                    );
-                  })}
-                  <div
-                    role="presentation"
-                    className={cn(
-                      'h-4 rounded border border-dashed border-transparent transition',
-                      draggedStepId ? 'border-slate-300 bg-white/60' : 'border-transparent'
-                    )}
-                    onDragOver={handleStepListDragOverEnd}
-                    onDrop={handleStepDrop}
-                  >
-                    {draggedStepId ? (
-                      <span className="sr-only">Drop here to place the step at the end</span>
-                    ) : null}
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div className="grid grid-cols-[auto,1fr] items-start gap-3 pt-2">
-              <Button
-                type="button"
-                onClick={handleSave}
-                disabled={isSaveDisabled}
-                className="h-9 rounded-md bg-slate-900 px-3 text-sm font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600"
-              >
-                {saveButtonLabel}
-              </Button>
-              <p className={cn('text-[11px] leading-5', statusToneClass)} aria-live="polite">
-                {statusMessage}
-              </p>
-            </div>
-          </div>
-        </div>
-        <div
-          className="pointer-events-auto relative flex h-full min-h-0 shrink-0 items-stretch overflow-visible transition-[width] duration-300 ease-out lg:col-start-3 lg:row-start-1 lg:row-span-2 lg:h-full lg:min-h-0"
-          style={{ width: secondaryWidth }}
-        >
-          <button
-            type="button"
-            onClick={() => setIsSecondaryCollapsed((prev) => !prev)}
-            aria-expanded={!isSecondaryCollapsed}
-            aria-controls="secondary-panel"
-            className={cn(
-              'absolute left-0 top-1/2 z-20 flex h-10 w-10 -translate-y-1/2 -translate-x-1/2 items-center justify-center rounded-full border border-slate-200 bg-white/90 text-slate-600 shadow-sm transition hover:bg-white'
-            )}
-          >
-            {isSecondaryCollapsed ? <ChevronLeft className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
-            <span className="sr-only">{secondaryPanel.toggleLabel}</span>
-          </button>
-          <aside
-            id="secondary-panel"
-            className={cn(
-              'flex h-full w-full flex-col gap-5 overflow-hidden rounded-3xl border border-slate-200 bg-white/80 p-6 shadow-[0_30px_120px_-50px_rgba(15,23,42,0.35)] backdrop-blur transition-all duration-300 ease-out',
-              isSecondaryCollapsed
-                ? 'pointer-events-none opacity-0 lg:translate-x-[110%]'
-                : 'pointer-events-auto opacity-100 lg:translate-x-0'
-            )}
-          >
-            <div className="space-y-3">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <h2 className="text-lg font-semibold text-slate-900">{secondaryPanelTitle}</h2>
-                </div>
-                {isProcessesTabActive ? (
-                  <Button
-                    type="button"
-                    size="sm"
-                      onClick={handleCreateProcess}
-                      disabled={isProcessEditorReadOnly || isCreating}
-                    className="inline-flex h-8 items-center gap-1 rounded-md bg-slate-900 px-3 text-xs font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600"
-                  >
-                    {isCreating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
-                    {createLabel}
-                  </Button>
-                ) : isDepartmentsTabActive ? (
-                  <Button
-                    type="button"
-                    size="sm"
-                    onClick={handleCreateDepartment}
-                    disabled={isDepartmentActionsDisabled || isCreatingDepartment}
-                    className="inline-flex h-8 items-center gap-1 rounded-md bg-slate-900 px-3 text-xs font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600"
-                  >
-                    {isCreatingDepartment ? (
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    ) : (
-                      <Plus className="h-3.5 w-3.5" />
-                    )}
-                    {createLabel}
-                  </Button>
-                ) : null}
-                </div>
-                {isProcessesTabActive && isProcessManagementRestricted ? (
-                  <p className="text-xs text-slate-500">
-                    {statusMessages.readerRestriction}
-                  </p>
-                ) : null}
-                <div className="flex flex-col gap-2" aria-live="polite">
-                  <div
-                    className="flex items-center gap-1.5 rounded-2xl bg-slate-100 p-1.5 shadow-inner ring-1 ring-inset ring-slate-200"
-                    role="tablist"
-                    aria-label={secondaryPanel.tabs.ariaLabel}
-                  >
-                    <button
-                      type="button"
-                      id="processes-tab"
-                      role="tab"
-                      aria-selected={isProcessesTabActive}
-                      aria-controls="processes-panel"
-                      onClick={() => setActiveSecondaryTab('processes')}
-                      title={secondaryPanel.tabs.tooltip}
-                      className={cn(
-                        'group relative flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400',
-                        isProcessesTabActive
-                          ? 'bg-white text-slate-900 shadow-sm ring-1 ring-inset ring-slate-200'
-                          : 'text-slate-600 hover:bg-white/70'
-                      )}
-                    >
-                      <FolderTree className="h-3.5 w-3.5" />
-                      {secondaryPanel.tabs.processes}
-                      <span
-                        aria-hidden="true"
-                        className={cn(
-                          'pointer-events-none absolute inset-x-3 -bottom-1 h-0.5 rounded-full bg-slate-900 transition-opacity',
-                          isProcessesTabActive ? 'opacity-100' : 'opacity-0'
-                        )}
-                      />
-                    </button>
-                    <button
-                      type="button"
-                      id="departments-tab"
-                      role="tab"
-                      aria-selected={isDepartmentsTabActive}
-                      aria-controls="departments-panel"
-                      onClick={() => setActiveSecondaryTab('departments')}
-                      title={secondaryPanel.tabs.tooltip}
-                      className={cn(
-                        'group relative flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400',
-                        isDepartmentsTabActive
-                          ? 'bg-white text-slate-900 shadow-sm ring-1 ring-inset ring-slate-200'
-                          : 'text-slate-600 hover:bg-white/70'
-                      )}
-                    >
-                      <Building2 className="h-3.5 w-3.5" />
-                      {secondaryPanel.tabs.departments}
-                      <span
-                        aria-hidden="true"
-                        className={cn(
-                          'pointer-events-none absolute inset-x-3 -bottom-1 h-0.5 rounded-full bg-slate-900 transition-opacity',
-                          isDepartmentsTabActive ? 'opacity-100' : 'opacity-0'
-                        )}
-                      />
-                    </button>
-                  </div>
-                </div>
-            </div>
-            <div className="flex-1 min-h-0 overflow-hidden">
-              <div className="flex h-full flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white/80">
-                <div className="flex-1 overflow-y-auto px-3 py-4">
-                  <div
-                    role="tabpanel"
-                    id="processes-panel"
-                    aria-labelledby="processes-tab"
-                    hidden={!isProcessesTabActive}
-                    className={cn('h-full', !isProcessesTabActive && 'hidden')}
-                  >
-                    {isProcessListUnauthorized ? (
-                      <p className="text-sm text-slate-600">
-                        {landingErrorMessages.authRequired}
-                      </p>
-                    ) : processSummariesQuery.isLoading ? (
-                      <div className="flex items-center gap-2 text-sm text-slate-500">
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        {secondaryPanel.processes.loading}
-                      </div>
-                    ) : processSummariesQuery.isError ? (
-                      <p className="text-sm text-red-600">
-                        {processSummariesQuery.error instanceof ApiError
-                          ? processSummariesQuery.error.message
-                          : landingErrorMessages.process.listFailed}
-                      </p>
-                    ) : hasProcesses ? (
-                      <ul role="tree" aria-label={secondaryPanel.processes.listAriaLabel} className="space-y-2">
-                        {processSummaries.map((summary) => {
-                          const isSelected = summary.id === currentProcessId;
-                          const isEditing = editingProcessId === summary.id;
-                          return (
-                            <li key={summary.id} role="treeitem" aria-selected={isSelected} className="focus:outline-none">
-                              <div
-                                role={isEditing ? undefined : 'button'}
-                                tabIndex={isEditing ? undefined : 0}
-                                onClick={
-                                  isEditing
-                                    ? undefined
-                                    : () => {
-                                        setSelectedProcessId(summary.id);
-                                      }
-                                }
-                                onDoubleClick={
-                                  isEditing || isProcessEditorReadOnly
-                                    ? undefined
-                                    : () => startEditingProcess(summary)
-                                }
-                                onKeyDown={
-                                  isEditing
-                                    ? undefined
-                                    : (event) => {
-                                        if (event.key === 'Enter' || event.key === ' ') {
-                                          event.preventDefault();
-                                          setSelectedProcessId(summary.id);
-                                        }
-                                      }
-                                }
-                                className={cn(
-                                  'group flex flex-col gap-1 rounded-lg border border-transparent px-2 py-2 transition focus:outline-none',
-                                  isSelected
-                                    ? 'border-slate-900/30 bg-slate-900/5 shadow-inner'
-                                    : 'hover:border-slate-300 hover:bg-slate-100',
-                                  isEditing
-                                    ? undefined
-                                    : 'cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400'
-                                )}
-                              >
-                                <div className="flex items-center justify-between gap-2">
-                                  <div className="flex items-center gap-2">
-                                    <div className="min-w-0">
-                                      {isEditing ? (
-                                        <div className="flex items-center gap-2">
-                                          <Input
-                                            ref={renameInputRef}
-                                            value={renameDraft}
-                                            onChange={(event) => setRenameDraft(event.target.value)}
-                                          className="h-8 w-40 rounded-md border border-slate-300 bg-white px-2 text-sm text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
-                                        />
-                                        <div className="flex items-center gap-1">
-                                          <button
-                                            type="button"
-                                            onClick={() => confirmRenameProcess(summary.id)}
-                                            className="inline-flex h-8 items-center justify-center rounded-md bg-slate-900 px-2 text-xs font-medium text-white hover:bg-slate-800"
-                                          >
-                                              {secondaryPanel.processes.rename.save}
-                                          </button>
-                                          <button
-                                            type="button"
-                                            onClick={cancelEditingProcess}
-                                            className="inline-flex h-8 items-center justify-center rounded-md border border-slate-200 px-2 text-xs font-medium text-slate-700 hover:bg-slate-100"
-                                          >
-                                              {secondaryPanel.processes.rename.cancel}
-                                          </button>
-                                        </div>
-                                      </div>
-                                    ) : (
-                                      <>
-                                          <p
-                                          className="text-sm font-medium text-slate-900 leading-snug break-words overflow-hidden [display:-webkit-box] [-webkit-line-clamp:2] [-webkit-box-orient:vertical]"
-                                        >
-                                          {summary.title}
-                                        </p>
-                                        </>
-                                      )}
-                                    </div>
-                                  </div>
-                                  {!isEditing ? (
-                                    <div className="flex items-center gap-1">
-                                      <button
-                                        type="button"
-                                        onClick={() => startEditingProcess(summary)}
-                                        disabled={isProcessEditorReadOnly}
-                                        className={cn(
-                                          'inline-flex h-8 w-8 items-center justify-center rounded-md border border-transparent text-slate-500 transition hover:border-slate-300 hover:bg-slate-100 hover:text-slate-900',
-                                          isProcessEditorReadOnly && 'cursor-not-allowed opacity-40 hover:border-transparent hover:bg-transparent'
-                                        )}
-                                      >
-                                        <Pencil className="h-4 w-4" />
-                                        <span className="sr-only">{secondaryPanel.processes.rename.ariaLabel}</span>
-                                      </button>
-                                      <button
-                                        type="button"
-                                        onClick={() => handleDeleteProcess(summary.id)}
-                                        disabled={
-                                          isProcessEditorReadOnly ||
-                                          (deleteProcessMutation.isPending &&
-                                            deleteProcessMutation.variables === summary.id)
-                                        }
-                                        className={cn(
-                                          'inline-flex h-8 w-8 items-center justify-center rounded-md border border-transparent text-red-500 transition hover:border-red-200 hover:bg-red-50 hover:text-red-600 disabled:opacity-60',
-                                          isProcessEditorReadOnly && 'cursor-not-allowed opacity-40 hover:border-transparent hover:bg-transparent hover:text-red-500'
-                                        )}
-                                      >
-                                        {deleteProcessMutation.isPending && deleteProcessMutation.variables === summary.id ? (
-                                          <Loader2 className="h-4 w-4 animate-spin" />
-                                        ) : (
-                                          <Trash2 className="h-4 w-4" />
-                                        )}
-                                        <span className="sr-only">{secondaryPanel.processes.deleteAriaLabel}</span>
-                                      </button>
-                                    </div>
-                                  ) : null}
-                                </div>
-                              </div>
-                            </li>
-                          );
-                        })}
-                      </ul>
-                    ) : (
-                      <p className="text-sm text-slate-600">
-                        {isProcessManagementRestricted
-                          ? statusMessages.readerRestriction
-                          : statusMessages.createPrompt}
-                      </p>
-                    )}
-                  </div>
-                  <div
-                    role="tabpanel"
-                    id="departments-panel"
-                    aria-labelledby="departments-tab"
-                    hidden={!isDepartmentsTabActive}
-                    className={cn('h-full', !isDepartmentsTabActive && 'hidden')}
-                  >
-                    <div className="space-y-4">
-                      {shouldUseDepartmentDemo ? (
-                        <p className="text-sm text-slate-600">
-                          {secondaryPanel.departments.demoNotice}
-                        </p>
-                      ) : null}
-                      {!shouldUseDepartmentDemo && createDepartmentMutation.isError ? (
-                        <p className="text-xs text-red-600">{createDepartmentMutation.error.message}</p>
-                      ) : null}
-                      {!shouldUseDepartmentDemo && departmentsQuery.isLoading ? (
-                        <div className="flex items-center gap-2 text-sm text-slate-500">
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                          {secondaryPanel.departments.loading}
-                        </div>
-                      ) : !shouldUseDepartmentDemo && departmentsQuery.isError ? (
-                        <p className="text-sm text-red-600">
-                          {departmentsQuery.error instanceof ApiError
-                            ? departmentsQuery.error.message
-                            : secondaryPanel.departments.errorFallback}
-                        </p>
-                      ) : departments.length > 0 ? (
-                        <ul
-                          role="tree"
-                          aria-label={secondaryPanel.departments.listAriaLabel}
-                          className="department-tree flex flex-col gap-3"
-                        >
-                          {departments.map((department) => {
-                            const isEditingDepartment = editingDepartmentId === department.id;
-                            const isDeletingCurrent =
-                              isDeletingDepartment && deleteDepartmentId === department.id;
-                            const isExpanded = isEditingDepartment;
-                            const isCollapsed = !isExpanded;
-                            const updatedLabel = formatDateTime(department.updatedAt);
-                            const colorInputId = `department-color-${department.id}`;
-                              return (
-                                <li
-                                  key={department.id}
-                                  role="treeitem"
-                                  aria-expanded={isExpanded}
-                                  aria-selected={isEditingDepartment}
-                                  className="department-node"
-                                  data-collapsed={isCollapsed ? 'true' : 'false'}
-                                >
-                                  <Card
-                                    className={cn(
-                                      'border-slate-200 bg-white/90 shadow-sm transition focus-within:ring-2 focus-within:ring-slate-900/20',
-                                      isEditingDepartment
-                                        ? 'border-slate-900 ring-2 ring-slate-900/20'
-                                        : 'hover:border-slate-300'
-                                    )}
-                                  >
-                                    <CardContent
-                                      className={cn(
-                                        'flex gap-3 transition',
-                                        isEditingDepartment ? 'flex-col p-3.5' : 'items-center p-2.5'
-                                      )}
-                                    >
-                                      {isEditingDepartment ? (
-                                        <form
-                                          onSubmit={departmentEditForm.handleSubmit(handleSaveDepartment)}
-                                          className="flex w-full flex-col gap-3"
-                                          data-entity-type="department"
-                                        >
-                                          <div className="flex flex-wrap items-center gap-2">
-                                            <div className="flex items-center">
-                                              <label htmlFor={colorInputId} className="sr-only">
-                                                {secondaryPanel.departments.colorLabel}
-                                              </label>
-                                              <input
-                                                id={colorInputId}
-                                                type="color"
-                                                {...departmentEditForm.register('color')}
-                                                disabled={isSavingDepartment}
-                                                className="h-9 w-9 cursor-pointer rounded-md border border-slate-300 bg-white p-1 shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
-                                                aria-describedby={
-                                                  departmentEditForm.formState.errors.color
-                                                    ? `${colorInputId}-error`
-                                                    : undefined
-                                                }
-                                              />
-                                            </div>
-                                            <Input
-                                              {...departmentEditForm.register('name')}
-                                              autoFocus
-                                              disabled={isSavingDepartment}
-                                              className="h-9 min-w-[12rem] flex-1 rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
-                                            />
-                                              <Button
-                                                type="button"
-                                                size="icon"
-                                                variant="ghost"
-                                                onClick={() => handleDeleteDepartment(department.id)}
-                                                disabled={isDepartmentActionsDisabled || isDeletingCurrent || isSavingDepartment}
-                                                className="ml-auto h-8 w-8 text-red-500 hover:bg-red-50 hover:text-red-600"
-                                              >
-                                                {isDeletingCurrent ? (
-                                                  <Loader2 aria-hidden="true" className="h-4 w-4 animate-spin" />
-                                                ) : (
-                                                  <Trash2 aria-hidden="true" className="h-4 w-4" />
-                                                )}
-                                                <span className="sr-only">{secondaryPanel.departments.deleteAriaLabel}</span>
-                                              </Button>
-                                            </div>
-                                          {departmentEditForm.formState.errors.color ? (
-                                            <p id={`${colorInputId}-error`} className="text-xs text-red-600">
-                                              {departmentEditForm.formState.errors.color.message}
-                                            </p>
-                                          ) : null}
-                                          {departmentEditForm.formState.errors.name ? (
-                                            <p className="text-xs text-red-600">
-                                              {departmentEditForm.formState.errors.name.message}
-                                            </p>
-                                          ) : null}
-                                          <div className="flex flex-col gap-2">
-                                            {departmentRoleFields.fields.length > 0 ? (
-                                              departmentRoleFields.fields.map((field, index) => {
-                                                const roleFieldErrors = departmentEditForm.formState.errors.roles?.[index];
-                                                const roleNameError = roleFieldErrors?.name;
-                                                const roleColorError = roleFieldErrors?.color;
-                                                const roleNameField = `roles.${index}.name` as const;
-                                                const roleIdField = `roles.${index}.roleId` as const;
-                                                const roleColorField = `roles.${index}.color` as const;
-                                                const roleColorInputId = `department-role-color-${field.id}`;
-                                                return (
-                                                  <div key={field.id} className="space-y-1">
-                                                    <Controller
-                                                      control={departmentEditForm.control}
-                                                      name={roleIdField}
-                                                      defaultValue={field.roleId ?? ''}
-                                                      render={({ field: roleIdControl }) => (
-                                                        <input
-                                                          type="hidden"
-                                                          {...roleIdControl}
-                                                          value={roleIdControl.value ?? ''}
-                                                        />
-                                                      )}
-                                                    />
-                                                    <div className="flex flex-wrap items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2.5 shadow-sm">
-                                                      <div className="flex min-w-0 flex-1 items-center gap-2">
-                                                        <Controller
-                                                          control={departmentEditForm.control}
-                                                          name={roleColorField}
-                                                          defaultValue={field.color ?? DEFAULT_ROLE_COLOR}
-                                                          render={({ field: roleColorControl }) => (
-                                                            <input
-                                                              id={roleColorInputId}
-                                                              name={roleColorControl.name}
-                                                              type="color"
-                                                              value={roleColorControl.value ?? DEFAULT_ROLE_COLOR}
-                                                              onChange={(event) =>
-                                                                roleColorControl.onChange(event.target.value.toUpperCase())
-                                                              }
-                                                              onBlur={roleColorControl.onBlur}
-                                                              ref={roleColorControl.ref}
-                                                              disabled={isSavingDepartment}
-                                                              className="h-8 w-8 cursor-pointer rounded-md border border-slate-300 bg-white p-1 shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
-                                                              aria-describedby={
-                                                                roleColorError ? `${roleColorInputId}-error` : undefined
-                                                              }
-                                                            />
-                                                          )}
-                                                        />
-                                                        <UserRound className="h-4 w-4 text-slate-500" />
-                                                        <Controller
-                                                          control={departmentEditForm.control}
-                                                          name={roleNameField}
-                                                          defaultValue={field.name}
-                                                          render={({ field: roleNameControl }) => (
-                                                            <Input
-                                                              {...roleNameControl}
-                                                              value={roleNameControl.value ?? ''}
-                                                              disabled={isSavingDepartment}
-                                                              className="h-8 min-w-[10rem] flex-1 rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
-                                                            />
-                                                          )}
-                                                        />
-                                                      </div>
-                                                      <Button
-                                                        type="button"
-                                                        size="icon"
-                                                        variant="ghost"
-                                                        onClick={() => departmentRoleFields.remove(index)}
-                                                        disabled={isSavingDepartment || isAddingDepartmentRole}
-                                                          className="h-8 w-8 text-red-500 hover:bg-red-50 hover:text-red-600"
-                                                          title={
-                                                            field.roleId
-                                                              ? secondaryPanel.departments.roles.removeTitleSaved
-                                                              : secondaryPanel.departments.roles.removeTitleUnsaved
-                                                          }
-                                                        >
-                                                        <Trash2 aria-hidden="true" className="h-4 w-4" />
-                                                      <span className="sr-only">{secondaryPanel.departments.roles.removeAriaLabel}</span>
-                                                    </Button>
-                                                    </div>
-                                                  {roleNameError ? (
-                                                      <p className="text-xs text-red-600">{roleNameError.message}</p>
-                                                    ) : null}
-                                                    {roleColorError ? (
-                                                      <p id={`${roleColorInputId}-error`} className="text-xs text-red-600">
-                                                        {roleColorError.message}
-                                                      </p>
-                                                    ) : null}
-                                                  </div>
-                                                );
-                                              })
-                                            ) : (
-                                              <p className="text-xs text-slate-500">{secondaryPanel.departments.roles.empty}</p>
-                                            )}
-                                          </div>
-                                          <div className="flex flex-wrap items-center justify-between gap-2">
-                                            <div className="flex flex-wrap items-center gap-2">
-                                              <Button
-                                                type="button"
-                                                variant="outline"
-                                                size="sm"
-                                                onClick={handleAddRole}
-                                                disabled={
-                                                  isSavingDepartment ||
-                                                  isAddingDepartmentRole ||
-                                                  !editingDepartmentId ||
-                                                  isDepartmentActionsDisabled
-                                                }
-                                                className="inline-flex h-8 items-center gap-1 rounded-md border-slate-300 text-xs font-medium text-slate-700 hover:bg-slate-100"
-                                              >
-                                                {isAddingDepartmentRole ? (
-                                                  <Loader2 aria-hidden="true" className="h-3.5 w-3.5 animate-spin" />
-                                                ) : (
-                                                  <Plus className="h-3.5 w-3.5" />
-                                                )}
-                                                {secondaryPanel.departments.addRole}
-                                              </Button>
-                                              <Button
-                                                type="submit"
-                                                size="sm"
-                                                disabled={isSavingDepartment || isAddingDepartmentRole}
-                                                className="inline-flex h-8 items-center gap-1 rounded-md bg-slate-900 px-3 text-xs font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600"
-                                              >
-                                                {isSavingDepartment ? (
-                                                  <Loader2 aria-hidden="true" className="h-3.5 w-3.5 animate-spin" />
-                                                ) : (
-                                                  <Save aria-hidden="true" className="h-3.5 w-3.5" />
-                                                )}
-                                                {secondaryPanel.departments.save}
-                                              </Button>
-                                            </div>
-                                            <div className="space-y-1">
-                                              {createDepartmentRoleMutation.isError ? (
-                                                <p className="text-xs text-red-600">
-                                                  {createDepartmentRoleMutation.error.message}
-                                                </p>
-                                              ) : null}
-                                              {saveDepartmentMutation.isError ? (
-                                                <p className="text-xs text-red-600">{saveDepartmentMutation.error.message}</p>
-                                              ) : null}
-                                            </div>
-                                          </div>
-                                        </form>
-                                      ) : (
-                                        <div
-                                          className={cn(
-                                            'flex min-w-0 flex-1 items-center gap-3 rounded-lg border border-transparent px-1 py-1 transition',
-                                            !(isDepartmentActionsDisabled || isDeletingCurrent) &&
-                                              'cursor-pointer hover:border-slate-300 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400'
-                                          )}
-                                              role="button"
-                                              tabIndex={isDepartmentActionsDisabled || isDeletingCurrent ? -1 : 0}
-                                              aria-disabled={isDepartmentActionsDisabled || isDeletingCurrent}
-                                          onClick={() => {
-                                            if (isDepartmentActionsDisabled || isDeletingCurrent) {
-                                              return;
-                                            }
-                                            startEditingDepartment(department);
-                                          }}
-                                          onKeyDown={(event) => {
-                                            if (event.key === 'Enter' || event.key === ' ') {
-                                              event.preventDefault();
-                                              if (isDepartmentActionsDisabled || isDeletingCurrent) {
-                                                return;
-                                              }
-                                              startEditingDepartment(department);
-                                            }
-                                          }}
-                                        >
-                                          <div className="flex min-w-0 flex-1 items-center gap-3">
-                                              <span
-                                                className="inline-flex h-8 w-8 shrink-0 rounded-md border border-slate-200 shadow-inner"
-                                                style={{ backgroundColor: department.color }}
-                                                aria-hidden="true"
-                                              />
-                                            <span className="sr-only">
-                                              {formatTemplateText(
-                                                secondaryPanel.departments.colorValueLabel,
-                                                department.color,
-                                                '{color}'
-                                              )}
-                                            </span>
-                                            <div className="min-w-0">
-                                              <p className="truncate text-sm font-medium text-slate-900">{department.name}</p>
-                                              {updatedLabel ? (
-                                                <p className="text-xs text-slate-500">
-                                                  {formatTemplateText(
-                                                    secondaryPanel.departments.updatedLabel,
-                                                    updatedLabel
-                                                  )}
-                                                </p>
-                                              ) : null}
-                                            </div>
-                                          </div>
-                                        </div>
-                                      )}
-                                      {!isEditingDepartment ? (
-                                        <Button
-                                          type="button"
-                                          size="icon"
-                                          variant="ghost"
-                                          onClick={(event) => {
-                                            event.stopPropagation();
-                                            handleDeleteDepartment(department.id);
-                                          }}
-                                          disabled={isDepartmentActionsDisabled || isDeletingCurrent}
-                                          className="h-8 w-8 text-red-500 hover:bg-red-50 hover:text-red-600"
-                                        >
-                                          {isDeletingCurrent ? (
-                                            <Loader2 className="h-4 w-4 animate-spin" />
-                                          ) : (
-                                            <Trash2 className="h-4 w-4" />
-                                          )}
-                                          <span className="sr-only">{secondaryPanel.departments.deleteAriaLabel}</span>
-                                        </Button>
-                                      ) : null}
-                                    </CardContent>
-                                  </Card>
-                                  {deleteDepartmentMutation.isError && deleteDepartmentId === department.id ? (
-                                    <p className="mt-2 text-xs text-red-600">
-                                      {deleteDepartmentMutation.error.message}
-                                    </p>
-                                  ) : null}
-                                </li>
-                            );
-                        })}
-                      </ul>
-
-                    ) : shouldUseDepartmentDemo ? (
-                      <p className="text-sm text-slate-600">{secondaryPanel.departments.empty.demo}</p>
-                    ) : (
-                      <p className="text-sm text-slate-600">{secondaryPanel.departments.empty.standard}</p>
-                    )}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-            {highlights.length > 0 ? (
-              <div className="grid gap-3.5 sm:grid-cols-2">
-                {highlights.map((item) => {
-                  const Icon = highlightIcons[item.icon];
-
-                  return (
-                    <Card key={item.title} className="border-slate-200 bg-white/90 shadow-sm">
-                      <CardContent className="flex flex-col gap-1.5 p-4">
-                        <Icon className="h-4 w-4 text-slate-500" />
-                        <p className="text-xs font-medium text-slate-900">{item.title}</p>
-                        <p className="text-xs text-slate-600">{item.description}</p>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
-              </div>
-            ) : null}
-          </aside>
-        </div>
-        <div className="pointer-events-auto flex w-full justify-center lg:col-start-2 lg:row-start-2">
-          <div className="relative w-full max-w-3xl pt-2 lg:max-w-2xl">
-            <button
-              type="button"
-              onClick={() => setIsBottomCollapsed((previous) => !previous)}
-              aria-expanded={!isBottomCollapsed}
-              aria-controls="diagram-controls-panel"
-            className={cn(
-              'z-30 flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white/90 text-slate-600 shadow-sm transition hover:bg-white',
-              isBottomCollapsed
-                ? 'fixed bottom-6 left-1/2 -translate-x-1/2'
-                : 'absolute left-1/2 top-0 -translate-x-1/2 -translate-y-1/2'
-            )}
-          >
-            {isBottomCollapsed ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
-            <span className="sr-only">{diagramControls.toggleLabel}</span>
-          </button>
-            <section
-              id="diagram-controls-panel"
-              aria-hidden={isBottomCollapsed}
-              className={cn(
-                'w-full rounded-2xl border border-slate-200 bg-white/85 p-4 pt-6 shadow-[0_24px_96px_-48px_rgba(15,23,42,0.3)] backdrop-blur transition-all duration-300 ease-out',
-                isBottomCollapsed
-                  ? 'pointer-events-none -translate-y-2 opacity-0'
-                  : 'pointer-events-auto translate-y-0 opacity-100'
-              )}
-            >
-              <div className="flex flex-wrap items-center gap-3">
-                <div className="flex min-w-0 flex-1 items-center gap-3">
-                  <h2 className="text-sm font-semibold text-slate-900">{diagramControls.title}</h2>
-                </div>
-                <div
-                  id={diagramControlsContentId}
-                  role="group"
-                  aria-label={diagramControls.orientationAriaLabel}
-                  className={cn(
-                    'flex flex-1 items-center justify-center gap-1 rounded-lg border border-slate-200 bg-white/70 p-1 shadow-inner sm:flex-none',
-                    isBottomCollapsed && 'hidden'
-                  )}
-                >
-                  <button
-                    type="button"
-                    onClick={() => setDiagramDirection('TD')}
-                    aria-pressed={diagramDirection === 'TD'}
-                    className={cn(
-                      'inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400',
-                      diagramDirection === 'TD'
-                        ? 'bg-slate-900 text-white shadow'
-                        : 'text-slate-600 hover:bg-slate-100'
-                    )}
-                  >
-                    <ArrowUpDown className="h-3.5 w-3.5" />
-                    {diagramControls.directions.topToBottom}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setDiagramDirection('LR')}
-                    aria-pressed={diagramDirection === 'LR'}
-                    className={cn(
-                      'inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400',
-                      diagramDirection === 'LR'
-                        ? 'bg-slate-900 text-white shadow'
-                        : 'text-slate-600 hover:bg-slate-100'
-                    )}
-                  >
-                    <ArrowLeftRight className="h-3.5 w-3.5" />
-                    {diagramControls.directions.leftToRight}
-                  </button>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setAreDepartmentsVisible((previous) => !previous)}
-                  aria-pressed={areDepartmentsVisible}
-                  aria-label={
-                    areDepartmentsVisible
-                      ? diagramControls.hideDepartments
-                      : diagramControls.showDepartments
-                  }
-                  className={cn(
-                    'inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white/70 px-3 py-1.5 text-xs font-medium text-slate-600 shadow-inner transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400 hover:bg-slate-100',
-                    isBottomCollapsed && 'hidden'
-                  )}
-                >
-                  {areDepartmentsVisible ? (
-                    <EyeOff className="h-3.5 w-3.5" aria-hidden="true" />
-                  ) : (
-                    <Eye className="h-3.5 w-3.5" aria-hidden="true" />
-                  )}
-                  <span className="sr-only">
-                    {areDepartmentsVisible
-                      ? diagramControls.hideDepartments
-                      : diagramControls.showDepartments}
-                  </span>
-                </button>
-              </div>
-            </section>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
+    <ProcessShell
+      diagramDefinition={diagramDefinition}
+      fallbackDiagram={fallbackDiagram}
+      mermaidErrorMessages={mermaidErrorMessages}
+      diagramDirection={diagramDirection}
+      diagramElementId={diagramElementId}
+      primaryPanel={primaryPanelContent}
+      secondaryPanel={secondaryPanelContent}
+      renderBottomPanel={renderBottomPanel}
+      primaryToggleLabel={primaryPanel.toggleLabel}
+      secondaryToggleLabel={secondaryPanel.toggleLabel}
+      bottomToggleLabel={diagramControls.toggleLabel}
+    />
   );
 }
