@@ -28,8 +28,8 @@ type ChatCompletionParams = {
 export async function performChatCompletion({
   messages,
   model = 'gpt-5-mini', // ✅ cohérent avec ton route
-  temperature = 1,
-  maxTokens = 650,
+  temperature = 0,5,
+  maxTokens = 1200,
   responseFormat = 'text'
 }: ChatCompletionParams): Promise<string> {
   if (!env.OPENAI_API_KEY) {
