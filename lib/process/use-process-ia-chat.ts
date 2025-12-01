@@ -37,8 +37,13 @@ type UseProcessIaChatOptions = {
 };
 
 type SendResult = { ok: boolean };
+type ProcessAiResponse = { process: ProcessPayload; reply: string };
 
 const userMessageSchema = z.object({ message: z.string().trim().min(1) });
+const processAiResponseSchema = z.object({
+  process: processPayloadSchema,
+  reply: z.string().trim().min(1)
+});
 
 const buildId = () => (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36));
 
@@ -96,7 +101,7 @@ export function useProcessIaChat({
       .join('\n\n');
   }, [followUpContent, locale, mermaidJson, processTitle]);
 
-  const mutation = useMutation<ProcessPayload, Error, string>({
+  const mutation = useMutation<ProcessAiResponse, Error, string>({
     mutationFn: async (userMessage) => {
       const parsed = userMessageSchema.safeParse({ message: userMessage });
       if (!parsed.success) {
@@ -132,13 +137,13 @@ export function useProcessIaChat({
       }
 
       const json = await response.json();
-      return processPayloadSchema.parse(json);
+      return processAiResponseSchema.parse(json);
     },
-    onSuccess: (payload) => {
-      const normalizedTitle = payload.title?.trim() || DEFAULT_PROCESS_TITLE;
-      const formattedContent = `${copy.responseTitle}\n\n${JSON.stringify({
+    onSuccess: ({ process, reply }) => {
+      const normalizedTitle = process.title?.trim() || DEFAULT_PROCESS_TITLE;
+      const formattedContent = `${copy.responseTitle}\n\n${reply}\n\n${JSON.stringify({
         title: normalizedTitle,
-        steps: payload.steps
+        steps: process.steps
       }, null, 2)}\n\n${copy.applyNotice}`;
 
       setMessages((previous) => [
@@ -150,8 +155,8 @@ export function useProcessIaChat({
         }
       ]);
 
-      onProcessUpdate(payload);
-      queryClient.invalidateQueries({ queryKey: ['process', payload.id], refetchType: 'inactive' });
+      onProcessUpdate(process);
+      queryClient.invalidateQueries({ queryKey: ['process', process.id], refetchType: 'inactive' });
       queryClient.invalidateQueries({ queryKey: ['processes'], refetchType: 'inactive' });
     },
     onError: (error) => {

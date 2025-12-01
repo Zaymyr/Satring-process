@@ -91,28 +91,36 @@ const enforceRateLimit = (request: Request) => {
 const aiResponseSchema = {
   type: 'object',
   properties: {
-    id: { type: 'string', format: 'uuid' },
-    title: { type: 'string', minLength: 1, maxLength: 120 },
-    steps: {
-      type: 'array',
-      minItems: 2,
-      items: {
-        type: 'object',
-        additionalProperties: false,
-        properties: {
-          id: { type: 'string', minLength: 1 },
-          label: { type: 'string' },
-          type: { type: 'string', enum: stepTypeValues },
-          departmentId: { anyOf: [{ type: 'string', format: 'uuid' }, { type: 'null' }] },
-          roleId: { anyOf: [{ type: 'string', format: 'uuid' }, { type: 'null' }] },
-          yesTargetId: { anyOf: [{ type: 'string', minLength: 1 }, { type: 'null' }] },
-          noTargetId: { anyOf: [{ type: 'string', minLength: 1 }, { type: 'null' }] }
-        },
-        required: ['id', 'label', 'type', 'departmentId', 'roleId', 'yesTargetId', 'noTargetId']
-      }
-    }
+    process: {
+      type: 'object',
+      properties: {
+        id: { type: 'string', format: 'uuid' },
+        title: { type: 'string', minLength: 1, maxLength: 120 },
+        steps: {
+          type: 'array',
+          minItems: 2,
+          items: {
+            type: 'object',
+            additionalProperties: false,
+            properties: {
+              id: { type: 'string', minLength: 1 },
+              label: { type: 'string' },
+              type: { type: 'string', enum: stepTypeValues },
+              departmentId: { anyOf: [{ type: 'string', format: 'uuid' }, { type: 'null' }] },
+              roleId: { anyOf: [{ type: 'string', format: 'uuid' }, { type: 'null' }] },
+              yesTargetId: { anyOf: [{ type: 'string', minLength: 1 }, { type: 'null' }] },
+              noTargetId: { anyOf: [{ type: 'string', minLength: 1 }, { type: 'null' }] }
+            },
+            required: ['id', 'label', 'type', 'departmentId', 'roleId', 'yesTargetId', 'noTargetId']
+          }
+        }
+      },
+      required: ['title', 'steps'],
+      additionalProperties: false
+    },
+    reply: { type: 'string', minLength: 1, maxLength: 1200 }
   },
-  required: ['title', 'steps'],
+  required: ['process', 'reply'],
   additionalProperties: false
 };
 
@@ -231,7 +239,7 @@ export async function POST(request: Request) {
         {
           role: 'system',
           content:
-            "Tu es un expert en cartographie de processus (bilingue français/anglais). A partir du processus fourni, propose une version améliorée en respectant strictement le schéma JSON indiqué. La sortie doit uniquement contenir le JSON final, sans commentaire."
+            "Tu es un expert en cartographie de processus (bilingue français/anglais). A partir du processus fourni, propose une version améliorée en respectant strictement le schéma JSON indiqué. La sortie doit uniquement contenir l'objet JSON final (aucun texte libre) avec deux clés obligatoires : process (processus à jour conforme au schéma) et reply (message concis destiné à l'utilisateur)."
         },
         {
           role: 'user',
@@ -242,7 +250,9 @@ export async function POST(request: Request) {
             parsedBody.data.context || 'Aucun contexte fourni.',
             'Demande utilisateur :',
             parsedBody.data.prompt,
-            "Utilise l\'identifiant existant et retourne un objet JSON conforme au schéma."
+            "Utilise l'identifiant existant et retourne un objet JSON conforme au schéma. Le champ reply doit :",
+            '- résumer brièvement la proposition (2 phrases max) ;',
+            "- poser une question de clarification si des informations manquent (1 question courte maximum)."
           ].join('\n\n')
         }
       ],
@@ -273,19 +283,35 @@ export async function POST(request: Request) {
     );
   }
 
-  const parsedPayload = processPayloadSchema.safeParse({
-    id: parsedProcess.data.id,
-    title: (aiPayload as Record<string, unknown>)?.title ?? parsedProcess.data.title,
-    steps: normalizeSteps((aiPayload as Record<string, unknown>)?.steps)
-  });
-
-  if (!parsedPayload.success) {
-    console.error('Payload IA invalide', parsedPayload.error);
+  if (!aiPayload || typeof aiPayload !== 'object') {
+    console.error('Réponse IA invalide : payload non structuré');
     return NextResponse.json(
-      { error: 'Le format de la réponse générée est invalide.', details: parsedPayload.error.flatten() },
+      { error: 'Le format de la réponse générée est invalide.' },
       { status: 502, headers: RESPONSE_HEADERS }
     );
   }
 
-  return NextResponse.json(parsedPayload.data satisfies ProcessPayload, { headers: RESPONSE_HEADERS });
+  const aiPayloadRecord = aiPayload as Record<string, unknown>;
+
+  const aiProcess = aiPayloadRecord.process as Record<string, unknown> | undefined;
+  const reply = typeof aiPayloadRecord.reply === 'string' ? aiPayloadRecord.reply.trim() : '';
+
+  const parsedPayload = processPayloadSchema.safeParse({
+    id: parsedProcess.data.id,
+    title: aiProcess?.title ?? parsedProcess.data.title,
+    steps: normalizeSteps(aiProcess?.steps)
+  });
+
+  if (!parsedPayload.success || reply.length === 0) {
+    console.error('Payload IA invalide', parsedPayload.success ? 'Message manquant' : parsedPayload.error);
+    return NextResponse.json(
+      { error: 'Le format de la réponse générée est invalide.' },
+      { status: 502, headers: RESPONSE_HEADERS }
+    );
+  }
+
+  return NextResponse.json(
+    { process: parsedPayload.data satisfies ProcessPayload, reply },
+    { headers: RESPONSE_HEADERS }
+  );
 }

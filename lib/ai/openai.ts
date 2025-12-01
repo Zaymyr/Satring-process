@@ -25,6 +25,56 @@ type ChatCompletionParams = {
   responseFormat?: ResponseFormat;
 };
 
+type ChatMessageContentBlock =
+  | { type: 'text'; text: string }
+  | { type: 'input_text'; input_text: { content: string } }
+  | { type: 'output_text'; output_text: { content: string } }
+  | { type: 'output_json'; output_json: unknown };
+
+const extractContent = (content: unknown): string | null => {
+  if (typeof content === 'string') {
+    const trimmed = content.trim();
+    return trimmed.length > 0 ? trimmed : null;
+  }
+
+  if (Array.isArray(content)) {
+    const text = content
+      .map((block) => {
+        const textBlock = block as ChatMessageContentBlock;
+
+        if (textBlock.type === 'text') {
+          return textBlock.text;
+        }
+
+        if (textBlock.type === 'input_text') {
+          return textBlock.input_text.content;
+        }
+
+        if (textBlock.type === 'output_text') {
+          return textBlock.output_text.content;
+        }
+
+        if (textBlock.type === 'output_json') {
+          try {
+            return JSON.stringify(textBlock.output_json);
+          } catch (error) {
+            console.error('Impossible de sérialiser le bloc JSON OpenAI', error);
+            return '';
+          }
+        }
+
+        return '';
+      })
+      .filter(Boolean)
+      .join('\n')
+      .trim();
+
+    return text.length > 0 ? text : null;
+  }
+
+  return null;
+};
+
 export async function performChatCompletion({
   messages,
   model = 'GPT-5-mini',
@@ -64,10 +114,17 @@ export async function performChatCompletion({
   }
 
   const payload = (await response.json()) as {
-    choices?: Array<{ message?: { content?: string | null } | null } | null>;
+    choices?: Array<
+      | {
+          message?: {
+            content?: string | ChatMessageContentBlock[] | null;
+          } | null;
+        }
+      | null
+    >;
   };
 
-  const content = payload.choices?.[0]?.message?.content?.trim();
+  const content = extractContent(payload.choices?.[0]?.message?.content);
 
   if (!content) {
     throw new Error('Réponse OpenAI vide.');
