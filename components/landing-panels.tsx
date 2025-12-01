@@ -5,10 +5,10 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeftRight, ArrowUpDown, Eye, EyeOff } from 'lucide-react';
 import { useFieldArray, useForm } from 'react-hook-form';
 
 import { useI18n } from '@/components/providers/i18n-provider';
+import { BottomPanel } from '@/components/landing/LandingPanels/BottomPanel';
 import type { Highlight as HighlightsGridHighlight } from '@/components/landing/LandingPanels/HighlightsGrid';
 import { PrimaryPanel } from '@/components/landing/LandingPanels/PrimaryPanel';
 import { SecondaryPanel } from '@/components/landing/LandingPanels/SecondaryPanel';
@@ -17,7 +17,6 @@ import { DEFAULT_PROCESS_STEPS, DEFAULT_PROCESS_TITLE } from '@/lib/process/defa
 import { processSummariesSchema } from '@/lib/process/schema';
 import { type ProcessErrorMessages, type RoleLookupEntry, type Step } from '@/lib/process/types';
 import { getInviteDemoDepartments } from '@/lib/department/demo';
-import { cn } from '@/lib/utils/cn';
 import { DEFAULT_LOCALE, getDictionary } from '@/lib/i18n/dictionaries';
 import { createDateTimeFormatter } from '@/lib/i18n/format';
 import {
@@ -2402,75 +2401,15 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
   );
 
   const renderBottomPanel = ({ isCollapsed }: { isCollapsed: boolean }) => (
-              <div className="flex flex-wrap items-center gap-3">
-                <div className="flex min-w-0 flex-1 items-center gap-3">
-                  <h2 className="text-sm font-semibold text-slate-900">{diagramControls.title}</h2>
-                </div>
-                <div
-                  id={diagramControlsContentId}
-                  role="group"
-                  aria-label={diagramControls.orientationAriaLabel}
-                  className={cn(
-                    'flex flex-1 items-center justify-center gap-1 rounded-lg border border-slate-200 bg-white/70 p-1 shadow-inner sm:flex-none',
-                    isCollapsed && 'hidden'
-                  )}
-                >
-                  <button
-                    type="button"
-                    onClick={() => setDiagramDirection('TD')}
-                    aria-pressed={diagramDirection === 'TD'}
-                    className={cn(
-                      'inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400',
-                      diagramDirection === 'TD'
-                        ? 'bg-slate-900 text-white shadow'
-                        : 'text-slate-600 hover:bg-slate-100'
-                    )}
-                  >
-                    <ArrowUpDown className="h-3.5 w-3.5" />
-                    {diagramControls.directions.topToBottom}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setDiagramDirection('LR')}
-                    aria-pressed={diagramDirection === 'LR'}
-                    className={cn(
-                      'inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400',
-                      diagramDirection === 'LR'
-                        ? 'bg-slate-900 text-white shadow'
-                        : 'text-slate-600 hover:bg-slate-100'
-                    )}
-                  >
-                    <ArrowLeftRight className="h-3.5 w-3.5" />
-                    {diagramControls.directions.leftToRight}
-                  </button>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setAreDepartmentsVisible((previous) => !previous)}
-                  aria-pressed={areDepartmentsVisible}
-                  aria-label={
-                    areDepartmentsVisible
-                      ? diagramControls.hideDepartments
-                      : diagramControls.showDepartments
-                  }
-                  className={cn(
-                    'inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white/70 px-3 py-1.5 text-xs font-medium text-slate-600 shadow-inner transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400 hover:bg-slate-100',
-                    isCollapsed && 'hidden'
-                  )}
-                >
-                  {areDepartmentsVisible ? (
-                    <EyeOff className="h-3.5 w-3.5" aria-hidden="true" />
-                  ) : (
-                    <Eye className="h-3.5 w-3.5" aria-hidden="true" />
-                  )}
-                  <span className="sr-only">
-                    {areDepartmentsVisible
-                      ? diagramControls.hideDepartments
-                      : diagramControls.showDepartments}
-                  </span>
-                </button>
-              </div>
-
+    <BottomPanel
+      diagramControls={diagramControls}
+      diagramDirection={diagramDirection}
+      setDiagramDirection={setDiagramDirection}
+      areDepartmentsVisible={areDepartmentsVisible}
+      setAreDepartmentsVisible={setAreDepartmentsVisible}
+      diagramControlsContentId={diagramControlsContentId}
+      isCollapsed={isCollapsed}
+    />
   );
 
   return (
