@@ -27,7 +27,9 @@ type ChatCompletionParams = {
 
 type ChatMessageContentBlock =
   | { type: 'text'; text: string }
-  | { type: 'input_text'; input_text: { content: string } };
+  | { type: 'input_text'; input_text: { content: string } }
+  | { type: 'output_text'; output_text: { content: string } }
+  | { type: 'output_json'; output_json: unknown };
 
 const extractContent = (content: unknown): string | null => {
   if (typeof content === 'string') {
@@ -46,6 +48,19 @@ const extractContent = (content: unknown): string | null => {
 
         if (textBlock.type === 'input_text') {
           return textBlock.input_text.content;
+        }
+
+        if (textBlock.type === 'output_text') {
+          return textBlock.output_text.content;
+        }
+
+        if (textBlock.type === 'output_json') {
+          try {
+            return JSON.stringify(textBlock.output_json);
+          } catch (error) {
+            console.error('Impossible de sérialiser le bloc JSON OpenAI', error);
+            return '';
+          }
         }
 
         return '';

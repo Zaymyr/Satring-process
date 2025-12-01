@@ -239,7 +239,7 @@ export async function POST(request: Request) {
         {
           role: 'system',
           content:
-            "Tu es un expert en cartographie de processus (bilingue français/anglais). A partir du processus fourni, propose une version améliorée en respectant strictement le schéma JSON indiqué. La sortie doit uniquement contenir le JSON final, sans commentaire, avec deux clés : process (processus à jour) et reply (message concis pour l'utilisateur)."
+            "Tu es un expert en cartographie de processus (bilingue français/anglais). A partir du processus fourni, propose une version améliorée en respectant strictement le schéma JSON indiqué. La sortie doit uniquement contenir l'objet JSON final (aucun texte libre) avec deux clés obligatoires : process (processus à jour conforme au schéma) et reply (message concis destiné à l'utilisateur)."
         },
         {
           role: 'user',
