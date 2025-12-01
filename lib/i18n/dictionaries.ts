@@ -36,6 +36,7 @@ export type Dictionary = {
         title: {
           processes: string;
           departments: string;
+          ia: string;
         };
         description: {
           processes: string;
@@ -50,6 +51,7 @@ export type Dictionary = {
           tooltip: string;
           processes: string;
           departments: string;
+          ia: string;
         };
         processes: {
           loading: string;
