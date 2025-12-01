@@ -590,7 +590,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
   const [renameDraft, setRenameDraft] = useState('');
   const renameInputRef = useRef<HTMLInputElement | null>(null);
   const appliedQueryProcessIdRef = useRef<string | null>(null);
-  const [activeSecondaryTab, setActiveSecondaryTab] = useState<'processes' | 'departments' | 'ia'>('processes');
+  const [activeSecondaryTab, setActiveSecondaryTab] = useState<'processes' | 'departments'>('processes');
   const hasAppliedInviteTabRef = useRef(false);
   const [editingDepartmentId, setEditingDepartmentId] = useState<string | null>(null);
   const [deleteDepartmentId, setDeleteDepartmentId] = useState<string | null>(null);
@@ -953,17 +953,14 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
   const hasRoles = roleLookup.all.length > 0;
   const isProcessesTabActive = activeSecondaryTab === 'processes';
   const isDepartmentsTabActive = activeSecondaryTab === 'departments';
-  const isIaTabActive = activeSecondaryTab === 'ia';
   const isDepartmentActionsDisabled = shouldUseDepartmentDemo;
   const isCreatingDepartment = createDepartmentMutation.isPending;
   const isSavingDepartment = saveDepartmentMutation.isPending;
   const isAddingDepartmentRole = createDepartmentRoleMutation.isPending;
   const isDeletingDepartment = deleteDepartmentMutation.isPending;
-  const secondaryPanelTitle = isIaTabActive
-    ? secondaryPanel.title.ia
-    : isDepartmentsTabActive
-      ? secondaryPanel.title.departments
-      : secondaryPanel.title.processes;
+  const secondaryPanelTitle = isDepartmentsTabActive
+    ? secondaryPanel.title.departments
+    : secondaryPanel.title.processes;
   const formatTemplateText = useCallback(
     (template: string, value: string | null, token = '{timestamp}') =>
       value ? template.replace(token, value) : null,
@@ -2377,10 +2374,32 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
 
   const diagramControlsContentId = useId();
 
+  const iaPanelContent = (
+    <ProcessIaChat
+      messages={iaChat.messages}
+      onSend={iaChat.sendMessage}
+      isLoading={iaChat.isLoading}
+      inputError={iaChat.inputError}
+      errorMessage={iaChat.errorMessage}
+      followUpContent={iaChat.followUpContent}
+      labels={{
+        title: iaPanel.title,
+        placeholder: iaPanel.placeholder,
+        send: iaPanel.send,
+        loading: iaPanel.loading,
+        helper: iaPanel.helper,
+        errorLabel: iaPanel.errorLabel,
+        followUpNote: iaPanel.followUpNote
+      }}
+      disabled={!currentProcessId || isProcessEditorReadOnly}
+    />
+  );
+
   const primaryPanelContent = (
     <PrimaryPanel
       processTitle={processTitle}
       primaryPanel={primaryPanel}
+      iaPanel={iaPanelContent}
       addStep={addStep}
       isProcessEditorReadOnly={isProcessEditorReadOnly}
       steps={steps}
@@ -2417,34 +2436,12 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
     />
   );
 
-  const iaPanelContent = (
-    <ProcessIaChat
-      messages={iaChat.messages}
-      onSend={iaChat.sendMessage}
-      isLoading={iaChat.isLoading}
-      inputError={iaChat.inputError}
-      errorMessage={iaChat.errorMessage}
-      followUpContent={iaChat.followUpContent}
-      labels={{
-        title: iaPanel.title,
-        placeholder: iaPanel.placeholder,
-        send: iaPanel.send,
-        loading: iaPanel.loading,
-        helper: iaPanel.helper,
-        errorLabel: iaPanel.errorLabel,
-        followUpNote: iaPanel.followUpNote
-      }}
-      disabled={!currentProcessId || isProcessEditorReadOnly}
-    />
-  );
-
   const secondaryPanelContent = (
     <SecondaryPanel
       highlights={highlights}
       secondaryPanelTitle={secondaryPanelTitle}
       isProcessesTabActive={isProcessesTabActive}
       isDepartmentsTabActive={isDepartmentsTabActive}
-      isIaTabActive={isIaTabActive}
       createLabel={createLabel}
       handleCreateProcess={handleCreateProcess}
       handleCreateDepartment={handleCreateDepartment}
@@ -2492,7 +2489,6 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
       deleteDepartmentMutation={deleteDepartmentMutation}
       startEditingDepartment={startEditingDepartment}
       formatTemplateText={formatTemplateText}
-      iaPanel={iaPanelContent}
     />
   );
 
