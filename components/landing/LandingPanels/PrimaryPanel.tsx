@@ -1,4 +1,5 @@
 import type { Dispatch, DragEvent, ReactNode, SetStateAction } from 'react';
+import { useId, useState } from 'react';
 import { GitBranch, GripVertical, Plus, Trash2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -12,6 +13,12 @@ import type { Department } from '@/lib/validation/department';
 type PrimaryPanelLabels = {
   addAction: string;
   addDecision: string;
+  iaDescription: string;
+  tabs: {
+    ariaLabel: string;
+    ia: string;
+    manual: string;
+  };
 };
 
 type RolePickerMessages = {
@@ -29,6 +36,7 @@ type TooltipLabels = {
 type PrimaryPanelProps = {
   processTitle: string;
   primaryPanel: PrimaryPanelLabels;
+  iaPanel: ReactNode;
   addStep: (type: Extract<StepType, 'action' | 'decision'>) => void;
   isProcessEditorReadOnly: boolean;
   steps: ProcessStep[];
@@ -66,6 +74,13 @@ type PrimaryPanelProps = {
   saveButtonLabel: string;
   statusToneClass: string;
   statusMessage: ReactNode;
+  missingAssignments: {
+    departmentsLabel: string;
+    rolesLabel: string;
+    departments: string[];
+    roles: string[];
+  };
+  isDirty: boolean;
 };
 
 export function PrimaryPanel({
@@ -103,310 +118,429 @@ export function PrimaryPanel({
   isSaveDisabled,
   saveButtonLabel,
   statusToneClass,
-  statusMessage
+  statusMessage,
+  missingAssignments,
+  isDirty,
+  iaPanel
 }: PrimaryPanelProps) {
+  const tabsListId = useId();
+  const [activeTab, setActiveTab] = useState<'ia' | 'manual'>('manual');
+
+  const manualPanelId = `${tabsListId}-manual-panel`;
+  const iaPanelId = `${tabsListId}-ia-panel`;
+
   return (
-    <>
-      <div className="grid grid-cols-2 gap-2 sm:gap-3">
-        <div className="col-span-2 row-span-2 flex items-center sm:col-span-1 sm:row-span-2">
-          <h1 className="text-base font-semibold text-slate-900">{processTitle}</h1>
-        </div>
-        <Button
+    <div className="flex h-full flex-col gap-4">
+      <div
+        role="tablist"
+        aria-label={primaryPanel.tabs.ariaLabel}
+        className="grid grid-cols-2 gap-2 rounded-xl border border-slate-200 bg-white/80 p-1 text-sm font-medium text-slate-700"
+      >
+        <button
+          id={`${tabsListId}-manual-tab`}
+          role="tab"
+          aria-selected={activeTab === 'manual'}
+          aria-controls={manualPanelId}
           type="button"
-          onClick={() => addStep('action')}
-          disabled={isProcessEditorReadOnly}
-          className="h-10 w-full rounded-md bg-slate-900 px-3 text-sm text-white hover:bg-slate-800"
+          onClick={() => setActiveTab('manual')}
+          className={cn(
+            'flex items-center justify-center rounded-lg px-3 py-2 transition',
+            activeTab === 'manual'
+              ? 'bg-slate-900 text-white shadow-sm'
+              : 'text-slate-700 hover:bg-slate-100'
+          )}
         >
-          <Plus className="mr-2 h-3.5 w-3.5" />
-          {primaryPanel.addAction}
-        </Button>
-        <Button
+          {primaryPanel.tabs.manual}
+        </button>
+        <button
+          id={`${tabsListId}-ia-tab`}
+          role="tab"
+          aria-selected={activeTab === 'ia'}
+          aria-controls={iaPanelId}
           type="button"
-          variant="outline"
-          onClick={() => addStep('decision')}
-          disabled={isProcessEditorReadOnly}
-          className="h-10 w-full rounded-md border-slate-300 bg-white px-3 text-sm text-slate-900 hover:bg-slate-50"
+          onClick={() => setActiveTab('ia')}
+          className={cn(
+            'flex items-center justify-center rounded-lg px-3 py-2 transition',
+            activeTab === 'ia'
+              ? 'bg-slate-900 text-white shadow-sm'
+              : 'text-slate-700 hover:bg-slate-100'
+          )}
         >
-          <GitBranch className="mr-2 h-3.5 w-3.5" />
-          {primaryPanel.addDecision}
-        </Button>
+          {primaryPanel.tabs.ia}
+        </button>
       </div>
-      <div className="flex-1 min-h-0 overflow-hidden">
-        <div className="h-full space-y-3 overflow-y-auto rounded-2xl border border-slate-200 bg-white/75 p-3 pr-1 shadow-inner sm:pr-1.5">
-          <div className="space-y-2.5">
-            {steps.map((step, index) => {
-              const isRemovable = step.type === 'action' || step.type === 'decision';
-              const stepPosition = index + 1;
-              const availableTargets = steps.filter((candidate) => candidate.id !== step.id);
-              const isDragging = draggedStepId === step.id;
-              const isFixedStep = step.type === 'start' || step.type === 'finish';
-              const canReorderStep = !isFixedStep && !isProcessEditorReadOnly;
-              const isSelectedStep = selectedStepId === step.id;
-              const displayLabel = getStepDisplayLabel(step);
-              const roleEntry = step.roleId ? roleLookup.byId.get(step.roleId) ?? null : null;
-              const departmentName =
-                (step.departmentId
-                  ? departmentNameById.get(step.departmentId)
-                  : roleEntry?.departmentName) ?? defaultDepartmentName;
-              const roleName = roleEntry?.role.name ?? defaultRoleName;
-              const tooltipTitle = `${tooltipLabels.type}: ${stepTypeLabels[step.type]}\n${tooltipLabels.department}: ${departmentName}\n${tooltipLabels.role}: ${roleName}`;
-              const availableRoleEntries =
-                step.departmentId !== null
-                  ? roleLookup.byDepartment.get(step.departmentId) ?? []
-                  : roleLookup.all;
-              const roleHelperText = (() => {
-                if (!hasRoles) {
-                  return rolePickerMessages.addRole;
-                }
 
-                if (step.departmentId && availableRoleEntries.length === 0) {
-                  return rolePickerMessages.noDepartmentRoles;
-                }
-
-                if (!step.departmentId && hasRoles) {
-                  return rolePickerMessages.chooseRoleForDepartment;
-                }
-
-                return null;
-              })();
-
-              return (
-                <Card
-                  key={step.id}
-                  title={tooltipTitle}
-                  className={cn(
-                    'border-slate-200 bg-white/90 shadow-sm transition',
-                    isDragging
-                      ? 'opacity-70 ring-2 ring-slate-300'
-                      : isSelectedStep
-                      ? 'border-slate-900 ring-2 ring-slate-900/20'
-                      : 'hover:border-slate-300'
-                  )}
-                  onDragOver={(event) => handleStepDragOver(event, step.id)}
-                  onDrop={handleStepDrop}
-                  onClick={() => setSelectedStepId(step.id)}
-                  onFocusCapture={() => setSelectedStepId(step.id)}
-                  aria-selected={isSelectedStep}
-                >
-                  <CardContent
-                    className={cn(
-                      'relative flex gap-2 p-2.5',
-                      isSelectedStep ? 'items-start' : 'items-center gap-1.5 p-2'
-                    )}
-                  >
-                    <div
-                      className={cn(
-                        'flex items-center',
-                        isSelectedStep ? 'flex-col gap-2 pt-0.5' : 'flex-row gap-2'
-                      )}
-                    >
-                      <span
-                        className={cn(
-                          'flex h-7 w-7 items-center justify-center rounded-full text-[0.65rem] font-semibold transition-colors',
-                          isSelectedStep ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600'
-                        )}
-                      >
-                        {stepPosition}
-                      </span>
-                      <button
-                        type="button"
-                        className={cn(
-                          'flex h-7 w-7 items-center justify-center rounded-full border border-transparent bg-slate-100 text-slate-500 transition',
-                          canReorderStep ? 'hover:border-slate-300 hover:bg-white' : 'cursor-not-allowed opacity-60'
-                        )}
-                        draggable={canReorderStep}
-                        onDragStart={(event) => {
-                          if (!canReorderStep) {
-                            event.preventDefault();
-                            return;
-                          }
-                          handleStepDragStart(event, step.id);
-                        }}
-                        onDragEnd={handleStepDragEnd}
-                        aria-label={`Reorder ${getStepDisplayLabel(step)}`}
-                        aria-grabbed={isDragging}
-                        disabled={!canReorderStep}
-                      >
-                        <GripVertical className="h-3.5 w-3.5" />
-                      </button>
-                      {isSelectedStep && isRemovable ? (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => removeStep(step.id)}
-                          disabled={isProcessEditorReadOnly}
-                          className="h-7 w-7 shrink-0 text-red-500 hover:text-red-600"
-                          aria-label="Delete step"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
-                      ) : null}
-                    </div>
-                    {isSelectedStep ? (
-                      <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-                        <Input
-                          id={`step-${step.id}-label`}
-                          value={step.label}
-                          onChange={(event) => updateStepLabel(step.id, event.target.value)}
-                          placeholder="Step label"
-                          disabled={isProcessEditorReadOnly}
-                          className="h-8 w-full border-slate-200 bg-white text-sm text-slate-900 placeholder:text-slate-400 focus-visible:ring-slate-900/20 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-50"
-                        />
-                        <div className="grid gap-1.5 sm:grid-cols-2">
-                          <label className="flex flex-col gap-1 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
-                            <span>Department</span>
-                            <select
-                              value={step.departmentId ?? ''}
-                              onChange={(event) =>
-                                updateStepDepartment(
-                                  step.id,
-                                  event.target.value.length > 0 ? event.target.value : null
-                                )
-                              }
-                              className="h-8 rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-900 transition focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
-                              disabled={isProcessEditorReadOnly || !hasDepartments}
-                            >
-                              <option value="">No department</option>
-                              {departments.map((department) => (
-                                <option key={department.id} value={department.id}>
-                                  {department.name}
-                                </option>
-                              ))}
-                            </select>
-                            {!hasDepartments ? (
-                              <span className="text-[0.6rem] font-normal normal-case tracking-normal text-slate-500">
-                                Add a department to assign it to this step.
-                              </span>
-                            ) : null}
-                          </label>
-                          <label className="flex flex-col gap-1 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
-                            <span title={rolePickerMessages.chooseRoleForDepartment}>Role</span>
-                            <select
-                              value={step.roleId ?? ''}
-                              onChange={(event) =>
-                                updateStepRole(
-                                  step.id,
-                                  event.target.value.length > 0 ? event.target.value : null
-                                )
-                              }
-                              className="h-8 rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-900 transition focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
-                              disabled={isProcessEditorReadOnly || !hasRoles}
-                            >
-                              <option value="">No role</option>
-                              {availableRoleEntries.map((entry) => (
-                                <option key={entry.role.id} value={entry.role.id}>
-                                  {step.departmentId
-                                    ? entry.role.name
-                                    : `${entry.role.name} — ${entry.departmentName}`}
-                                </option>
-                              ))}
-                            </select>
-                            {roleHelperText &&
-                            step.type !== 'start' &&
-                            step.type !== 'finish' &&
-                            roleHelperText !== rolePickerMessages.chooseRoleForDepartment ? (
-                              <span className="text-[0.6rem] font-normal normal-case tracking-normal text-slate-500">
-                                {roleHelperText}
-                              </span>
-                            ) : null}
-                          </label>
-                        </div>
-                        {step.type === 'decision' ? (
-                          <div className="mt-1.5 grid gap-1.5 sm:grid-cols-2">
-                            <label className="flex flex-col gap-1 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
-                              <span>Yes branch</span>
-                              <select
-                                value={step.yesTargetId ?? ''}
-                                onChange={(event) =>
-                                  updateDecisionBranch(step.id, 'yes', event.target.value || null)
-                                }
-                                disabled={isProcessEditorReadOnly}
-                                className="h-8 rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-900 transition focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
-                              >
-                                <option value="">Next step (default)</option>
-                                {availableTargets.map((candidate) => {
-                                  const position = stepPositions.get(candidate.id);
-                                  const optionLabel = position
-                                    ? `${position}. ${getStepDisplayLabel(candidate)}`
-                                    : getStepDisplayLabel(candidate);
-
-                                  return (
-                                    <option key={candidate.id} value={candidate.id}>
-                                      {optionLabel}
-                                    </option>
-                                  );
-                                })}
-                              </select>
-                            </label>
-                            <label className="flex flex-col gap-1 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
-                              <span>No branch</span>
-                              <select
-                                value={step.noTargetId ?? ''}
-                                onChange={(event) =>
-                                  updateDecisionBranch(step.id, 'no', event.target.value || null)
-                                }
-                                disabled={isProcessEditorReadOnly}
-                                className="h-8 rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-900 transition focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
-                              >
-                                <option value="">Next step (default)</option>
-                                {availableTargets.map((candidate) => {
-                                  const position = stepPositions.get(candidate.id);
-                                  const optionLabel = position
-                                    ? `${position}. ${getStepDisplayLabel(candidate)}`
-                                    : getStepDisplayLabel(candidate);
-
-                                  return (
-                                    <option key={candidate.id} value={candidate.id}>
-                                      {optionLabel}
-                                    </option>
-                                  );
-                                })}
-                              </select>
-                            </label>
-                          </div>
-                        ) : null}
-                      </div>
-                    ) : (
-                      <div className="flex min-w-0 flex-1 items-center gap-2">
-                        <span className="truncate text-sm font-medium text-slate-900" title={displayLabel}>
-                          {displayLabel}
-                        </span>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              );
-            })}
-            <div
-              role="presentation"
-              className={cn(
-                'h-4 rounded border border-dashed border-transparent transition',
-                draggedStepId ? 'border-slate-300 bg-white/60' : 'border-transparent'
-              )}
-              onDragOver={handleStepListDragOverEnd}
-              onDrop={handleStepDrop}
+      <div className="flex min-h-0 flex-1 flex-col">
+        <section
+          id={manualPanelId}
+          role="tabpanel"
+          aria-labelledby={`${tabsListId}-manual-tab`}
+          aria-hidden={activeTab !== 'manual'}
+          className={cn('flex h-full flex-col gap-4', activeTab !== 'manual' && 'hidden')}
+        >
+          <div className="grid grid-cols-2 gap-2 sm:gap-3">
+            <div className="col-span-2 row-span-2 flex items-center sm:col-span-1 sm:row-span-2">
+              <h1 className="text-base font-semibold text-slate-900">{processTitle}</h1>
+            </div>
+            <Button
+              type="button"
+              onClick={() => addStep('action')}
+              disabled={isProcessEditorReadOnly}
+              className="h-10 w-full rounded-md bg-slate-900 px-3 text-sm text-white hover:bg-slate-800"
             >
-              {draggedStepId ? (
-                <span className="sr-only">Drop here to place the step at the end</span>
-              ) : null}
+              <Plus className="mr-2 h-3.5 w-3.5" />
+              {primaryPanel.addAction}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => addStep('decision')}
+              disabled={isProcessEditorReadOnly}
+              className="h-10 w-full rounded-md border-slate-300 bg-white px-3 text-sm text-slate-900 hover:bg-slate-50"
+            >
+              <GitBranch className="mr-2 h-3.5 w-3.5" />
+              {primaryPanel.addDecision}
+            </Button>
+          </div>
+          <div className="flex-1 min-h-0 overflow-hidden">
+            <div className="h-full space-y-3 overflow-y-auto rounded-2xl border border-slate-200 bg-white/75 p-3 pr-1 shadow-inner sm:pr-1.5">
+              <div className="space-y-2.5">
+                {steps.map((step, index) => {
+                  const isRemovable = step.type === 'action' || step.type === 'decision';
+                  const stepPosition = index + 1;
+                  const availableTargets = steps.filter((candidate) => candidate.id !== step.id);
+                  const isDragging = draggedStepId === step.id;
+                  const isFixedStep = step.type === 'start' || step.type === 'finish';
+                  const canReorderStep = !isFixedStep && !isProcessEditorReadOnly;
+                  const isSelectedStep = selectedStepId === step.id;
+                  const displayLabel = getStepDisplayLabel(step);
+                  const roleEntry = step.roleId ? roleLookup.byId.get(step.roleId) ?? null : null;
+                  const departmentName =
+                    (step.departmentId
+                      ? departmentNameById.get(step.departmentId)
+                      : roleEntry?.departmentName) ?? defaultDepartmentName;
+                  const roleName = roleEntry?.role.name ?? defaultRoleName;
+                  const tooltipTitle = `${tooltipLabels.type}: ${stepTypeLabels[step.type]}\n${tooltipLabels.department}: ${departmentName}\n${tooltipLabels.role}: ${roleName}`;
+                  const availableRoleEntries =
+                    step.departmentId !== null
+                      ? roleLookup.byDepartment.get(step.departmentId) ?? []
+                      : roleLookup.all;
+                  const roleHelperText = (() => {
+                    if (!hasRoles) {
+                      return rolePickerMessages.addRole;
+                    }
+
+                    if (step.departmentId && availableRoleEntries.length === 0) {
+                      return rolePickerMessages.noDepartmentRoles;
+                    }
+
+                    if (!step.departmentId && hasRoles) {
+                      return rolePickerMessages.chooseRoleForDepartment;
+                    }
+
+                    return null;
+                  })();
+
+                  return (
+                    <Card
+                      key={step.id}
+                      title={tooltipTitle}
+                      className={cn(
+                        'border-slate-200 bg-white/90 shadow-sm transition',
+                        isDragging
+                          ? 'opacity-70 ring-2 ring-slate-300'
+                          : isSelectedStep
+                          ? 'border-slate-900 ring-2 ring-slate-900/20'
+                          : 'hover:border-slate-300'
+                      )}
+                      onDragOver={(event) => handleStepDragOver(event, step.id)}
+                      onDrop={handleStepDrop}
+                      onClick={() => setSelectedStepId(step.id)}
+                      onFocusCapture={() => setSelectedStepId(step.id)}
+                      aria-selected={isSelectedStep}
+                    >
+                      <CardContent
+                        className={cn(
+                          'relative flex gap-2 p-2.5',
+                          isSelectedStep ? 'items-start' : 'items-center gap-1.5 p-2'
+                        )}
+                      >
+                        <div
+                          className={cn(
+                            'flex items-center',
+                            isSelectedStep ? 'flex-col gap-2 pt-0.5' : 'flex-row gap-2'
+                          )}
+                        >
+                          <span
+                            className={cn(
+                              'flex h-7 w-7 items-center justify-center rounded-full text-[0.65rem] font-semibold transition-colors',
+                              isSelectedStep ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600'
+                            )}
+                          >
+                            {stepPosition}
+                          </span>
+                          <button
+                            type="button"
+                            className={cn(
+                              'flex h-7 w-7 items-center justify-center rounded-full border border-transparent bg-slate-100 text-slate-500 transition',
+                              canReorderStep ? 'hover:border-slate-300 hover:bg-white' : 'cursor-not-allowed opacity-60'
+                            )}
+                            draggable={canReorderStep}
+                            onDragStart={(event) => {
+                              if (!canReorderStep) {
+                                event.preventDefault();
+                                return;
+                              }
+                              handleStepDragStart(event, step.id);
+                            }}
+                            onDragEnd={handleStepDragEnd}
+                            aria-label={`Reorder ${getStepDisplayLabel(step)}`}
+                            aria-grabbed={isDragging}
+                            disabled={!canReorderStep}
+                          >
+                            <GripVertical className="h-3.5 w-3.5" />
+                          </button>
+                          {isSelectedStep && isRemovable ? (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => removeStep(step.id)}
+                              disabled={isProcessEditorReadOnly}
+                              className="h-7 w-7 shrink-0 text-red-500 hover:text-red-600"
+                              aria-label="Delete step"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          ) : null}
+                        </div>
+                        {isSelectedStep ? (
+                          <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+                            <Input
+                              id={`step-${step.id}-label`}
+                              value={step.label}
+                              onChange={(event) => updateStepLabel(step.id, event.target.value)}
+                              placeholder="Step label"
+                              disabled={isProcessEditorReadOnly}
+                              className="h-8 w-full border-slate-200 bg-white text-sm text-slate-900 placeholder:text-slate-400 focus-visible:ring-slate-900/20 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-50"
+                            />
+                            <div className="grid gap-1.5 sm:grid-cols-2">
+                              <label className="flex flex-col gap-1 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                                <span>Department</span>
+                                <select
+                                  value={step.departmentId ?? ''}
+                                  onChange={(event) =>
+                                    updateStepDepartment(
+                                      step.id,
+                                      event.target.value.length > 0 ? event.target.value : null
+                                    )
+                                  }
+                                  className="h-8 rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-900 transition focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
+                                  disabled={isProcessEditorReadOnly || !hasDepartments}
+                                >
+                                  <option value="">No department</option>
+                                  {departments.map((department) => (
+                                    <option key={department.id} value={department.id}>
+                                      {department.name}
+                                    </option>
+                                  ))}
+                                </select>
+                                {!hasDepartments ? (
+                                  <span className="text-[0.6rem] font-normal normal-case tracking-normal text-slate-500">
+                                    Add a department to assign it to this step.
+                                  </span>
+                                ) : null}
+                              </label>
+                              <label className="flex flex-col gap-1 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                                <span title={rolePickerMessages.chooseRoleForDepartment}>Role</span>
+                                <select
+                                  value={step.roleId ?? ''}
+                                  onChange={(event) =>
+                                    updateStepRole(
+                                      step.id,
+                                      event.target.value.length > 0 ? event.target.value : null
+                                    )
+                                  }
+                                  className="h-8 rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-900 transition focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
+                                  disabled={isProcessEditorReadOnly || !hasRoles}
+                                >
+                                  <option value="">No role</option>
+                                  {availableRoleEntries.map((entry) => (
+                                    <option key={entry.role.id} value={entry.role.id}>
+                                      {step.departmentId
+                                        ? entry.role.name
+                                        : `${entry.role.name} — ${entry.departmentName}`}
+                                    </option>
+                                  ))}
+                                </select>
+                                {roleHelperText &&
+                                step.type !== 'start' &&
+                                step.type !== 'finish' &&
+                                roleHelperText !== rolePickerMessages.chooseRoleForDepartment ? (
+                                  <span className="text-[0.6rem] font-normal normal-case tracking-normal text-slate-500">
+                                    {roleHelperText}
+                                  </span>
+                                ) : null}
+                              </label>
+                            </div>
+                            {step.type === 'decision' ? (
+                              <div className="mt-1.5 grid gap-1.5 sm:grid-cols-2">
+                                <label className="flex flex-col gap-1 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                                  <span>Yes branch</span>
+                                  <select
+                                    value={step.yesTargetId ?? ''}
+                                    onChange={(event) =>
+                                      updateDecisionBranch(step.id, 'yes', event.target.value || null)
+                                    }
+                                    disabled={isProcessEditorReadOnly}
+                                    className="h-8 rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-900 transition focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
+                                  >
+                                    <option value="">Next step (default)</option>
+                                    {availableTargets.map((candidate) => {
+                                      const position = stepPositions.get(candidate.id);
+                                      const optionLabel = position
+                                        ? `${position}. ${getStepDisplayLabel(candidate)}`
+                                        : getStepDisplayLabel(candidate);
+
+                                      return (
+                                        <option key={candidate.id} value={candidate.id}>
+                                          {optionLabel}
+                                        </option>
+                                      );
+                                    })}
+                                  </select>
+                                </label>
+                                <label className="flex flex-col gap-1 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                                  <span>No branch</span>
+                                  <select
+                                    value={step.noTargetId ?? ''}
+                                    onChange={(event) =>
+                                      updateDecisionBranch(step.id, 'no', event.target.value || null)
+                                    }
+                                    disabled={isProcessEditorReadOnly}
+                                    className="h-8 rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-900 transition focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
+                                  >
+                                    <option value="">Next step (default)</option>
+                                    {availableTargets.map((candidate) => {
+                                      const position = stepPositions.get(candidate.id);
+                                      const optionLabel = position
+                                        ? `${position}. ${getStepDisplayLabel(candidate)}`
+                                        : getStepDisplayLabel(candidate);
+
+                                      return (
+                                        <option key={candidate.id} value={candidate.id}>
+                                          {optionLabel}
+                                        </option>
+                                      );
+                                    })}
+                                  </select>
+                                </label>
+                              </div>
+                            ) : null}
+                          </div>
+                        ) : (
+                          <div className="flex min-w-0 flex-1 items-center gap-2">
+                            <span className="truncate text-sm font-medium text-slate-900" title={displayLabel}>
+                              {displayLabel}
+                            </span>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+                <div
+                  role="presentation"
+                  className={cn(
+                    'h-4 rounded border border-dashed border-transparent transition',
+                    draggedStepId ? 'border-slate-300 bg-white/60' : 'border-transparent'
+                  )}
+                  onDragOver={handleStepListDragOverEnd}
+                  onDrop={handleStepDrop}
+                >
+                  {draggedStepId ? (
+                    <span className="sr-only">Drop here to place the step at the end</span>
+                  ) : null}
+                </div>
+              </div>
             </div>
           </div>
+          <div className="grid grid-cols-[auto,1fr] items-start gap-3 pt-2">
+          <Button
+            type="button"
+            onClick={handleSave}
+            disabled={isSaveDisabled}
+            className="h-9 rounded-md bg-slate-900 px-3 text-sm font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600"
+          >
+            {saveButtonLabel}
+          </Button>
+          <p className={cn('text-[11px] leading-5', statusToneClass)} aria-live="polite">
+            {statusMessage}
+          </p>
+          {isDirty && (missingAssignments.departments.length > 0 || missingAssignments.roles.length > 0) ? (
+            <div className="col-span-2 space-y-1.5 rounded-lg border border-amber-200 bg-amber-50/80 px-3 py-2 text-[11px] text-amber-950 shadow-inner">
+              {missingAssignments.departments.length > 0 ? (
+                <div className="flex flex-wrap items-start gap-2">
+                  <span className="font-semibold">{missingAssignments.departmentsLabel}</span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {missingAssignments.departments.map((label, index) => (
+                      <span
+                        key={`${label}-department-${index}`}
+                        className="rounded-full bg-white/80 px-2 py-0.5 text-[10px] font-medium shadow-sm"
+                      >
+                        {label}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+              {missingAssignments.roles.length > 0 ? (
+                <div className="flex flex-wrap items-start gap-2">
+                  <span className="font-semibold">{missingAssignments.rolesLabel}</span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {missingAssignments.roles.map((label, index) => (
+                      <span
+                        key={`${label}-role-${index}`}
+                        className="rounded-full bg-white/80 px-2 py-0.5 text-[10px] font-medium shadow-sm"
+                      >
+                        {label}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
         </div>
-      </div>
-      <div className="grid grid-cols-[auto,1fr] items-start gap-3 pt-2">
-        <Button
-          type="button"
-          onClick={handleSave}
-          disabled={isSaveDisabled}
-          className="h-9 rounded-md bg-slate-900 px-3 text-sm font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600"
+      </section>
+
+        <section
+          id={iaPanelId}
+          role="tabpanel"
+          aria-labelledby={`${tabsListId}-ia-tab`}
+          aria-hidden={activeTab !== 'ia'}
+          className={cn(
+            'flex h-full flex-col gap-4 rounded-2xl border border-slate-200 bg-white/80 p-4 shadow-inner',
+            activeTab !== 'ia' && 'hidden'
+          )}
         >
-          {saveButtonLabel}
-        </Button>
-        <p className={cn('text-[11px] leading-5', statusToneClass)} aria-live="polite">
-          {statusMessage}
-        </p>
+          <div className="flex items-center justify-between">
+            <h2 className="text-base font-semibold text-slate-900">{primaryPanel.tabs.ia}</h2>
+          </div>
+          <p className="text-sm text-slate-700">{primaryPanel.iaDescription}</p>
+          <div className="flex-1 min-h-0 overflow-y-auto">{iaPanel}</div>
+          <div className="mt-4 flex justify-end">
+            <Button
+              type="button"
+              onClick={handleSave}
+              disabled={isSaveDisabled}
+              className="h-9 rounded-md bg-slate-900 px-3 text-sm font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600"
+            >
+              {saveButtonLabel}
+            </Button>
+          </div>
+        </section>
       </div>
-    </>
+    </div>
   );
 }

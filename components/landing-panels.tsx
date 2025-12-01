@@ -11,6 +11,7 @@ import { useI18n } from '@/components/providers/i18n-provider';
 import { BottomPanel } from '@/components/landing/LandingPanels/BottomPanel';
 import type { Highlight as HighlightsGridHighlight } from '@/components/landing/LandingPanels/HighlightsGrid';
 import { PrimaryPanel } from '@/components/landing/LandingPanels/PrimaryPanel';
+import { ProcessIaChat } from '@/components/landing/LandingPanels/ProcessIaChat';
 import { SecondaryPanel } from '@/components/landing/LandingPanels/SecondaryPanel';
 import { ProcessShell } from '@/components/landing/LandingPanels/ProcessShell';
 import { DEFAULT_PROCESS_STEPS, DEFAULT_PROCESS_TITLE } from '@/lib/process/defaults';
@@ -28,6 +29,7 @@ import {
   type ProcessSummary,
   type StepType
 } from '@/lib/validation/process';
+import { useProcessIaChat } from '@/lib/process/use-process-ia-chat';
 import { profileResponseSchema, type ProfileResponse } from '@/lib/validation/profile';
 import {
   DEFAULT_DEPARTMENT_COLOR,
@@ -542,7 +544,8 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
       errors: landingErrorMessages,
       status: statusMessages,
       saveButton: saveButtonLabels,
-      diagramControls
+      diagramControls,
+      ia: iaPanel
     }
   } = dictionary;
   const stepTypeLabels = primaryPanel.stepLabels;
@@ -577,6 +580,8 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
   const [steps, setSteps] = useState<ProcessStep[]>(() => cloneSteps(DEFAULT_PROCESS_STEPS));
   const [selectedStepId, setSelectedStepId] = useState<string | null>(null);
   const baselineStepsRef = useRef<ProcessStep[]>(cloneSteps(DEFAULT_PROCESS_STEPS));
+  const baselineTitleRef = useRef(DEFAULT_PROCESS_TITLE);
+  const shouldSkipProcessHydrationRef = useRef(false);
   const hasResetForUnauthorizedRef = useRef(false);
   const hasResetDepartmentEditorRef = useRef(false);
   const draggedStepIdRef = useRef<string | null>(null);
@@ -1108,13 +1113,21 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
   }, [selectedStepId, steps]);
 
   useEffect(() => {
-    if (processQuery.data) {
-      const fromServer = cloneSteps(processQuery.data.steps);
-      baselineStepsRef.current = cloneSteps(fromServer);
-      setSteps(fromServer);
-      setLastSavedAt(processQuery.data.updatedAt);
-      setProcessTitle(normalizeProcessTitle(processQuery.data.title));
+    if (!processQuery.data) {
+      return;
     }
+
+    if (shouldSkipProcessHydrationRef.current) {
+      shouldSkipProcessHydrationRef.current = false;
+      return;
+    }
+
+    const fromServer = cloneSteps(processQuery.data.steps);
+    baselineStepsRef.current = cloneSteps(fromServer);
+    baselineTitleRef.current = normalizeProcessTitle(processQuery.data.title);
+    setSteps(fromServer);
+    setLastSavedAt(processQuery.data.updatedAt);
+    setProcessTitle(normalizeProcessTitle(processQuery.data.title));
   }, [processQuery.data]);
 
   useEffect(() => {
@@ -1131,6 +1144,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
 
     const fallback = cloneSteps(DEFAULT_PROCESS_STEPS);
     baselineStepsRef.current = cloneSteps(fallback);
+    baselineTitleRef.current = DEFAULT_PROCESS_TITLE;
     setSteps(fallback);
     setLastSavedAt(null);
     setSelectedProcessId(null);
@@ -1153,6 +1167,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
       setProcessTitle(DEFAULT_PROCESS_TITLE);
       const fallback = cloneSteps(DEFAULT_PROCESS_STEPS);
       baselineStepsRef.current = cloneSteps(fallback);
+      baselineTitleRef.current = DEFAULT_PROCESS_TITLE;
       setSteps(fallback);
       setLastSavedAt(null);
       return;
@@ -1211,23 +1226,30 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
       setSelectedProcessId(null);
       const fallback = cloneSteps(DEFAULT_PROCESS_STEPS);
       baselineStepsRef.current = cloneSteps(fallback);
+      baselineTitleRef.current = DEFAULT_PROCESS_TITLE;
       setSteps(fallback);
       setLastSavedAt(null);
       setProcessTitle(DEFAULT_PROCESS_TITLE);
     }
   }, [currentProcessId, processQuery.error, processQuery.isError, queryClient]);
 
-  const isDirty = useMemo(() => !areStepsEqual(steps, baselineStepsRef.current), [steps]);
+  const isDirty = useMemo(() => {
+    const normalizedTitle = normalizeProcessTitle(processTitle);
+    return (
+      normalizedTitle !== baselineTitleRef.current || !areStepsEqual(steps, baselineStepsRef.current)
+    );
+  }, [processTitle, steps]);
 
   const createProcessMutation = useMutation<ProcessResponse, ApiError, string | undefined>({
     mutationFn: (title) => createProcessRequest(landingErrorMessages, title),
     onSuccess: (data) => {
       const sanitizedSteps = cloneSteps(data.steps);
+      const normalizedTitle = normalizeProcessTitle(data.title);
       baselineStepsRef.current = cloneSteps(sanitizedSteps);
+      baselineTitleRef.current = normalizedTitle;
       setSteps(sanitizedSteps);
       setLastSavedAt(data.updatedAt);
       setSelectedProcessId(data.id);
-      const normalizedTitle = normalizeProcessTitle(data.title);
       setProcessTitle(normalizedTitle);
       queryClient.setQueryData(['processes'], (previous?: ProcessSummary[]) => {
         const summary: ProcessSummary = { id: data.id, title: normalizedTitle, updatedAt: data.updatedAt };
@@ -1280,6 +1302,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
       });
 
       if (selectedProcessId === summary.id) {
+        baselineTitleRef.current = normalizedTitle;
         setProcessTitle(normalizedTitle);
         setLastSavedAt((prev) => summary.updatedAt ?? prev);
       }
@@ -1333,6 +1356,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
       if (shouldResetSelection) {
         const fallback = cloneSteps(DEFAULT_PROCESS_STEPS);
         baselineStepsRef.current = cloneSteps(fallback);
+        baselineTitleRef.current = DEFAULT_PROCESS_TITLE;
         setSteps(fallback);
         setProcessTitle(DEFAULT_PROCESS_TITLE);
         setLastSavedAt(null);
@@ -1370,10 +1394,11 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
     },
     onSuccess: (data) => {
       const sanitized = cloneSteps(data.steps);
+      const normalizedTitle = normalizeProcessTitle(data.title);
       baselineStepsRef.current = cloneSteps(sanitized);
+      baselineTitleRef.current = normalizedTitle;
       setSteps(sanitized);
       setLastSavedAt(data.updatedAt);
-      const normalizedTitle = normalizeProcessTitle(data.title);
       setProcessTitle(normalizedTitle);
       queryClient.setQueryData(['process', data.id], data);
       queryClient.setQueryData(['processes'], (previous?: ProcessSummary[]) => {
@@ -1498,29 +1523,6 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
     isSaving,
     saveButtonLabels
   ]);
-
-  const isSaveDisabled = isProcessEditorReadOnly || isSaving || !isDirty || !currentProcessId;
-
-  const handleSave = () => {
-    if (isSaveDisabled || !currentProcessId) {
-      return;
-    }
-
-      const payloadSteps = steps.map((step) => ({
-        ...step,
-        label: step.label.trim(),
-        departmentId: normalizeDepartmentId(step.departmentId),
-        roleId: normalizeRoleId(step.roleId),
-        yesTargetId: normalizeBranchTarget(step.yesTargetId),
-        noTargetId: normalizeBranchTarget(step.noTargetId)
-      }));
-    const payload: ProcessPayload = {
-      id: currentProcessId,
-      title: normalizeProcessTitle(processTitle),
-      steps: payloadSteps
-    };
-    saveMutation.mutate(payload);
-  };
 
   const stepPositions = useMemo(
     () => new Map(steps.map((step, index) => [step.id, index + 1] as const)),
@@ -2132,6 +2134,98 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
     );
   }, [areDepartmentsVisible, departments, getStepDisplayLabel, steps]);
 
+  const mermaidJson = useMemo(
+    () =>
+      JSON.stringify(
+        { title: processTitle || DEFAULT_PROCESS_TITLE, definition: diagramDefinition, steps },
+        null,
+        2
+      ),
+    [diagramDefinition, processTitle, steps]
+  );
+
+  const missingDepartments = useMemo(
+    () => steps.filter((step) => !step.departmentId).map((step) => getStepDisplayLabel(step)),
+    [getStepDisplayLabel, steps]
+  );
+
+  const missingRoles = useMemo(
+    () => steps.filter((step) => !step.roleId).map((step) => getStepDisplayLabel(step)),
+    [getStepDisplayLabel, steps]
+  );
+
+  const handleProcessUpdateFromIa = useCallback(
+    (payload: ProcessPayload) => {
+      const targetProcessId = payload.id ?? currentProcessId;
+
+      if (!targetProcessId) {
+        return;
+      }
+
+      const sanitizedSteps = cloneSteps(payload.steps);
+      const normalizedTitle = normalizeProcessTitle(payload.title);
+
+      shouldSkipProcessHydrationRef.current = true;
+      setSteps(sanitizedSteps);
+      setSelectedStepId(null);
+      setProcessTitle(normalizedTitle);
+      queryClient.setQueryData(['process', targetProcessId], (previous: ProcessResponse | undefined) => {
+        const nextUpdatedAt = previous?.updatedAt ?? null;
+
+        return previous
+          ? { ...previous, steps: sanitizedSteps, title: normalizedTitle, updatedAt: nextUpdatedAt }
+          : { id: targetProcessId, title: normalizedTitle, steps: sanitizedSteps, updatedAt: nextUpdatedAt };
+      });
+    },
+    [currentProcessId, queryClient]
+  );
+
+  const iaChat = useProcessIaChat({
+    processId: currentProcessId,
+    locale,
+    processTitle,
+    mermaidJson,
+    missingDepartments,
+    missingRoles,
+    copy: {
+      intro: iaPanel.intro,
+      followUpHeading: iaPanel.followUpHeading,
+      missingDepartmentsHeading: iaPanel.missingDepartmentsHeading,
+      missingRolesHeading: iaPanel.missingRolesHeading,
+      languageInstruction: iaPanel.languageInstruction,
+      modelInstruction: iaPanel.modelInstruction,
+      missingProcess: iaPanel.missingProcess,
+      validation: iaPanel.validation,
+      responseTitle: iaPanel.responseTitle,
+      applyNotice: iaPanel.applyNotice
+    },
+    onProcessUpdate: handleProcessUpdateFromIa
+  });
+
+  const isSaveDisabled =
+    isProcessEditorReadOnly || isSaving || !isDirty || !currentProcessId || iaChat.isLoading;
+
+  const handleSave = () => {
+    if (isSaveDisabled || !currentProcessId) {
+      return;
+    }
+
+    const payloadSteps = steps.map((step) => ({
+      ...step,
+      label: step.label.trim(),
+      departmentId: normalizeDepartmentId(step.departmentId),
+      roleId: normalizeRoleId(step.roleId),
+      yesTargetId: normalizeBranchTarget(step.yesTargetId),
+      noTargetId: normalizeBranchTarget(step.noTargetId)
+    }));
+    const payload: ProcessPayload = {
+      id: currentProcessId,
+      title: normalizeProcessTitle(processTitle),
+      steps: payloadSteps
+    };
+    saveMutation.mutate(payload);
+  };
+
   const addStep = (type: Extract<StepType, 'action' | 'decision'>) => {
     if (isProcessEditorReadOnly) {
       return;
@@ -2304,10 +2398,29 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
 
   const diagramControlsContentId = useId();
 
+  const iaPanelContent = (
+    <ProcessIaChat
+      messages={iaChat.messages}
+      onSend={iaChat.sendMessage}
+      isLoading={iaChat.isLoading}
+      inputError={iaChat.inputError}
+      errorMessage={iaChat.errorMessage}
+      labels={{
+        title: iaPanel.title,
+        placeholder: iaPanel.placeholder,
+        send: iaPanel.send,
+        loading: iaPanel.loading,
+        errorLabel: iaPanel.errorLabel
+      }}
+      disabled={!currentProcessId || isProcessEditorReadOnly}
+    />
+  );
+
   const primaryPanelContent = (
     <PrimaryPanel
       processTitle={processTitle}
       primaryPanel={primaryPanel}
+      iaPanel={iaPanelContent}
       addStep={addStep}
       isProcessEditorReadOnly={isProcessEditorReadOnly}
       steps={steps}
@@ -2341,6 +2454,13 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
       saveButtonLabel={saveButtonLabel}
       statusToneClass={statusToneClass}
       statusMessage={statusMessage}
+      missingAssignments={{
+        departmentsLabel: iaPanel.missingDepartmentsHeading,
+        rolesLabel: iaPanel.missingRolesHeading,
+        departments: missingDepartments,
+        roles: missingRoles
+      }}
+      isDirty={isDirty}
     />
   );
 

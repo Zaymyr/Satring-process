@@ -27,9 +27,9 @@ type ChatCompletionParams = {
 
 export async function performChatCompletion({
   messages,
-  model = 'gpt-4o-mini',
-  temperature = 0.7,
-  maxTokens = 650,
+  model = 'gpt-4.1-mini', // ✅ cohérent avec ton route
+  temperature = 0.5,
+  maxTokens = 5000,
   responseFormat = 'text'
 }: ChatCompletionParams): Promise<string> {
   if (!env.OPENAI_API_KEY) {
@@ -53,8 +53,9 @@ export async function performChatCompletion({
       model,
       messages,
       temperature,
-      max_tokens: maxTokens,
-      response_format: responseFormatPayload
+      // ✅ GPT-4.1 / GPT-5 => max_completion_tokens
+      max_completion_tokens: maxTokens,
+      ...(responseFormatPayload ? { response_format: responseFormatPayload } : {})
     })
   });
 
@@ -64,12 +65,31 @@ export async function performChatCompletion({
   }
 
   const payload = (await response.json()) as {
-    choices?: Array<{ message?: { content?: string | null } | null } | null>;
+    choices?: Array<{
+      message?: {
+        content?: string | Array<{ type?: string; text?: string }> | null;
+      } | null;
+    } | null>;
   };
 
-  const content = payload.choices?.[0]?.message?.content?.trim();
+  const rawContent = payload.choices?.[0]?.message?.content;
+
+  let content: string | undefined;
+
+  if (typeof rawContent === 'string') {
+    content = rawContent.trim();
+  } else if (Array.isArray(rawContent)) {
+    const textParts = rawContent
+      .map((part) => (typeof part?.text === 'string' ? part.text : ''))
+      .join('');
+    content = textParts.trim() || undefined;
+  }
 
   if (!content) {
+    console.error(
+      'Réponse OpenAI sans contenu exploitable:',
+      JSON.stringify(payload, null, 2)
+    );
     throw new Error('Réponse OpenAI vide.');
   }
 

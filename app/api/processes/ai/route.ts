@@ -8,6 +8,12 @@ import { getServerUser } from '@/lib/supabase/auth';
 import { createServerClient } from '@/lib/supabase/server';
 import { processPayloadSchema, processResponseSchema, stepTypeValues, type ProcessPayload } from '@/lib/validation/process';
 
+type DepartmentWithRoles = {
+  id: string;
+  name: string;
+  roles: { id: string; name: string }[] | null;
+};
+
 const RESPONSE_HEADERS = {
   'Cache-Control': 'no-store, max-age=0, must-revalidate',
   'Content-Security-Policy': "default-src 'none'"
@@ -16,6 +22,24 @@ const RESPONSE_HEADERS = {
 const RATE_LIMIT_WINDOW_MS = 60_000;
 const RATE_LIMIT_MAX = 10;
 const rateLimitCache = new Map<string, { count: number; expires: number }>();
+
+const NEW_ID_PREFIX = 'new:';
+
+const formatDepartmentsContext = (departments: DepartmentWithRoles[]): string => {
+  if (departments.length === 0) {
+    return 'Aucun département ni rôle enregistré pour cette organisation.';
+  }
+
+  return departments
+    .map((department) => {
+      const roleSummary = department.roles?.length
+        ? department.roles.map((role) => `  - ${role.name} (id: ${role.id})`).join('\n')
+        : '  - Aucun rôle enregistré.';
+
+      return [`- ${department.name} (id: ${department.id})`, roleSummary].join('\n');
+    })
+    .join('\n');
+};
 
 const requestSchema = z.object({
   processId: z.string().uuid("Identifiant de process invalide."),
@@ -91,28 +115,48 @@ const enforceRateLimit = (request: Request) => {
 const aiResponseSchema = {
   type: 'object',
   properties: {
-    id: { type: 'string', format: 'uuid' },
-    title: { type: 'string', minLength: 1, maxLength: 120 },
-    steps: {
-      type: 'array',
-      minItems: 2,
-      items: {
-        type: 'object',
-        additionalProperties: false,
-        properties: {
-          id: { type: 'string', minLength: 1 },
-          label: { type: 'string' },
-          type: { type: 'string', enum: stepTypeValues },
-          departmentId: { anyOf: [{ type: 'string', format: 'uuid' }, { type: 'null' }] },
-          roleId: { anyOf: [{ type: 'string', format: 'uuid' }, { type: 'null' }] },
-          yesTargetId: { anyOf: [{ type: 'string', minLength: 1 }, { type: 'null' }] },
-          noTargetId: { anyOf: [{ type: 'string', minLength: 1 }, { type: 'null' }] }
-        },
-        required: ['id', 'label', 'type', 'departmentId', 'roleId', 'yesTargetId', 'noTargetId']
-      }
-    }
+    process: {
+      type: 'object',
+      properties: {
+        id: { type: 'string', format: 'uuid' },
+        title: { type: 'string', minLength: 1, maxLength: 120 },
+        steps: {
+          type: 'array',
+          minItems: 2,
+          items: {
+            type: 'object',
+            additionalProperties: false,
+            properties: {
+              id: { type: 'string', minLength: 1 },
+              label: { type: 'string' },
+              type: { type: 'string', enum: stepTypeValues },
+              departmentId: {
+                anyOf: [
+                  { type: 'string', format: 'uuid' },
+                  { type: 'string', pattern: '^new:[A-Za-z0-9][A-Za-z0-9._-]*$' },
+                  { type: 'null' }
+                ]
+              },
+              roleId: {
+                anyOf: [
+                  { type: 'string', format: 'uuid' },
+                  { type: 'string', pattern: '^new:[A-Za-z0-9][A-Za-z0-9._-]*$' },
+                  { type: 'null' }
+                ]
+              },
+              yesTargetId: { anyOf: [{ type: 'string', minLength: 1 }, { type: 'null' }] },
+              noTargetId: { anyOf: [{ type: 'string', minLength: 1 }, { type: 'null' }] }
+            },
+            required: ['id', 'label', 'type', 'departmentId', 'roleId', 'yesTargetId', 'noTargetId']
+          }
+        }
+      },
+      required: ['title', 'steps'],
+      additionalProperties: false
+    },
+    reply: { type: 'string', minLength: 1, maxLength: 1200 }
   },
-  required: ['title', 'steps'],
+  required: ['process', 'reply'],
   additionalProperties: false
 };
 
@@ -213,6 +257,24 @@ export async function POST(request: Request) {
     );
   }
 
+  const { data: departmentRows, error: departmentsError } = await supabase
+    .from('departments')
+    .select('id, name, roles:roles(id, name)')
+    .eq('organization_id', processRecord.organization_id)
+    .order('name', { ascending: true })
+    .order('name', { referencedTable: 'roles', ascending: true });
+
+  if (departmentsError) {
+    console.error('Erreur lors de la récupération des départements pour IA', departmentsError);
+    return NextResponse.json(
+      { error: 'Impossible de récupérer les départements et rôles.' },
+      { status: 500, headers: RESPONSE_HEADERS }
+    );
+  }
+
+  const departmentsWithRoles: DepartmentWithRoles[] = (departmentRows ?? []) as DepartmentWithRoles[];
+  const departmentsContext = formatDepartmentsContext(departmentsWithRoles);
+
   const grounding = JSON.stringify(
     {
       id: parsedProcess.data.id,
@@ -231,23 +293,33 @@ export async function POST(request: Request) {
         {
           role: 'system',
           content:
-            "Tu es un expert en cartographie de processus (bilingue français/anglais). A partir du processus fourni, propose une version améliorée en respectant strictement le schéma JSON indiqué. La sortie doit uniquement contenir le JSON final, sans commentaire."
+            [
+              'Tu es un expert en cartographie de processus (bilingue français/anglais).',
+              'A partir du processus fourni, propose une version améliorée en respectant strictement le schéma JSON indiqué.',
+              "Réutilise les identifiants existants des départements et rôles fournis dans le contexte ; si tu proposes un nouvel élément, utilise un identifiant provisoire au format \"new:<slug>\" en indiquant clairement qu'il devra être créé.",
+              "La sortie doit uniquement contenir l'objet JSON final (aucun texte libre) avec deux clés obligatoires : process (processus à jour conforme au schéma) et reply (message concis destiné à l'utilisateur)."
+            ].join('\n')
         },
         {
           role: 'user',
           content: [
+            'Référentiel des départements et rôles autorisés :',
+            departmentsContext,
             'Processus actuel :',
             grounding,
             'Contexte supplémentaire :',
             parsedBody.data.context || 'Aucun contexte fourni.',
             'Demande utilisateur :',
             parsedBody.data.prompt,
-            "Utilise l\'identifiant existant et retourne un objet JSON conforme au schéma."
+            "Utilise exclusivement les identifiants ci-dessus ou un identifiant provisoire \"new:<slug>\" pour les nouveaux éléments à créer, et retourne un objet JSON conforme au schéma. Le champ reply doit :",
+            '- résumer brièvement la proposition (2 phrases max) ;',
+            "- poser une question de clarification si des informations manquent (1 question courte maximum)."
           ].join('\n\n')
         }
       ],
-      temperature: 0.35,
-      maxTokens: 900,
+      model: 'gpt-4.1-mini',
+      temperature: 0.2,
+      maxTokens: 2000,
       responseFormat: { type: 'json_schema', json_schema: { name: 'process_payload', schema: aiResponseSchema } }
     });
   } catch (generationError) {
@@ -272,19 +344,110 @@ export async function POST(request: Request) {
     );
   }
 
-  const parsedPayload = processPayloadSchema.safeParse({
-    id: parsedProcess.data.id,
-    title: (aiPayload as Record<string, unknown>)?.title ?? parsedProcess.data.title,
-    steps: normalizeSteps((aiPayload as Record<string, unknown>)?.steps)
-  });
-
-  if (!parsedPayload.success) {
-    console.error('Payload IA invalide', parsedPayload.error);
+  if (!aiPayload || typeof aiPayload !== 'object') {
+    console.error('Réponse IA invalide : payload non structuré');
     return NextResponse.json(
-      { error: 'Le format de la réponse générée est invalide.', details: parsedPayload.error.flatten() },
+      { error: 'Le format de la réponse générée est invalide.' },
       { status: 502, headers: RESPONSE_HEADERS }
     );
   }
 
-  return NextResponse.json(parsedPayload.data satisfies ProcessPayload, { headers: RESPONSE_HEADERS });
+  const aiPayloadRecord = aiPayload as Record<string, unknown>;
+
+  const aiProcess = aiPayloadRecord.process as Record<string, unknown> | undefined;
+  const reply = typeof aiPayloadRecord.reply === 'string' ? aiPayloadRecord.reply.trim() : '';
+
+  const parsedPayload = processPayloadSchema.safeParse({
+    id: parsedProcess.data.id,
+    title: aiProcess?.title ?? parsedProcess.data.title,
+    steps: normalizeSteps(aiProcess?.steps)
+  });
+
+  if (!parsedPayload.success || reply.length === 0) {
+    console.error('Payload IA invalide', parsedPayload.success ? 'Message manquant' : parsedPayload.error);
+    return NextResponse.json(
+      { error: 'Le format de la réponse générée est invalide.' },
+      { status: 502, headers: RESPONSE_HEADERS }
+    );
+  }
+
+  const existingDepartmentById = new Map<string, DepartmentWithRoles>(
+    departmentsWithRoles.map((department) => [department.id, department])
+  );
+  const existingRoleById = new Map<string, { id: string; departmentId: string }>();
+  const temporaryRoleDepartments = new Map<string, string>();
+
+  departmentsWithRoles.forEach((department) => {
+    department.roles?.forEach((role) => {
+      existingRoleById.set(role.id, { id: role.id, departmentId: department.id });
+    });
+  });
+
+  for (const step of parsedPayload.data.steps) {
+    const departmentId = step.departmentId;
+    const roleId = step.roleId;
+
+    if (!departmentId && roleId) {
+      return NextResponse.json(
+        { error: 'Un rôle est référencé sans département dans le process généré.' },
+        { status: 422, headers: RESPONSE_HEADERS }
+      );
+    }
+
+    if (departmentId) {
+      if (!departmentId.startsWith(NEW_ID_PREFIX) && !existingDepartmentById.has(departmentId)) {
+        return NextResponse.json(
+          { error: 'Le process généré référence un département inconnu.' },
+          { status: 422, headers: RESPONSE_HEADERS }
+        );
+      }
+    }
+
+    if (!roleId) {
+      continue;
+    }
+
+    if (roleId.startsWith(NEW_ID_PREFIX)) {
+      if (!departmentId) {
+        return NextResponse.json(
+          { error: 'Le rôle généré est associé à aucun département.' },
+          { status: 422, headers: RESPONSE_HEADERS }
+        );
+      }
+
+      const previousDepartmentId = temporaryRoleDepartments.get(roleId);
+
+      if (previousDepartmentId && previousDepartmentId !== departmentId) {
+        return NextResponse.json(
+          { error: 'Un même rôle provisoire est associé à plusieurs départements.' },
+          { status: 422, headers: RESPONSE_HEADERS }
+        );
+      }
+
+      temporaryRoleDepartments.set(roleId, departmentId);
+
+      continue;
+    }
+
+    const existingRole = existingRoleById.get(roleId);
+
+    if (!existingRole) {
+      return NextResponse.json(
+        { error: 'Le process généré référence un rôle inconnu.' },
+        { status: 422, headers: RESPONSE_HEADERS }
+      );
+    }
+
+    if (!departmentId || existingRole.departmentId !== departmentId) {
+      return NextResponse.json(
+        { error: 'Le rôle référencé ne correspond pas au département indiqué.' },
+        { status: 422, headers: RESPONSE_HEADERS }
+      );
+    }
+  }
+
+  return NextResponse.json(
+    { process: parsedPayload.data satisfies ProcessPayload, reply },
+    { headers: RESPONSE_HEADERS }
+  );
 }
