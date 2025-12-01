@@ -581,6 +581,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
   const [selectedStepId, setSelectedStepId] = useState<string | null>(null);
   const baselineStepsRef = useRef<ProcessStep[]>(cloneSteps(DEFAULT_PROCESS_STEPS));
   const baselineTitleRef = useRef(DEFAULT_PROCESS_TITLE);
+  const shouldSkipProcessHydrationRef = useRef(false);
   const hasResetForUnauthorizedRef = useRef(false);
   const hasResetDepartmentEditorRef = useRef(false);
   const draggedStepIdRef = useRef<string | null>(null);
@@ -1112,14 +1113,21 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
   }, [selectedStepId, steps]);
 
   useEffect(() => {
-    if (processQuery.data) {
-      const fromServer = cloneSteps(processQuery.data.steps);
-      baselineStepsRef.current = cloneSteps(fromServer);
-      baselineTitleRef.current = normalizeProcessTitle(processQuery.data.title);
-      setSteps(fromServer);
-      setLastSavedAt(processQuery.data.updatedAt);
-      setProcessTitle(normalizeProcessTitle(processQuery.data.title));
+    if (!processQuery.data) {
+      return;
     }
+
+    if (shouldSkipProcessHydrationRef.current) {
+      shouldSkipProcessHydrationRef.current = false;
+      return;
+    }
+
+    const fromServer = cloneSteps(processQuery.data.steps);
+    baselineStepsRef.current = cloneSteps(fromServer);
+    baselineTitleRef.current = normalizeProcessTitle(processQuery.data.title);
+    setSteps(fromServer);
+    setLastSavedAt(processQuery.data.updatedAt);
+    setProcessTitle(normalizeProcessTitle(processQuery.data.title));
   }, [processQuery.data]);
 
   useEffect(() => {
@@ -2180,6 +2188,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
       const sanitizedSteps = cloneSteps(payload.steps);
       const normalizedTitle = normalizeProcessTitle(payload.title);
 
+      shouldSkipProcessHydrationRef.current = true;
       setSteps(sanitizedSteps);
       setSelectedStepId(null);
       setProcessTitle(normalizedTitle);
