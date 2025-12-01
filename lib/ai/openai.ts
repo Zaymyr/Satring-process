@@ -25,59 +25,9 @@ type ChatCompletionParams = {
   responseFormat?: ResponseFormat;
 };
 
-type ChatMessageContentBlock =
-  | { type: 'text'; text: string }
-  | { type: 'input_text'; input_text: { content: string } }
-  | { type: 'output_text'; output_text: { content: string } }
-  | { type: 'output_json'; output_json: unknown };
-
-const extractContent = (content: unknown): string | null => {
-  if (typeof content === 'string') {
-    const trimmed = content.trim();
-    return trimmed.length > 0 ? trimmed : null;
-  }
-
-  if (Array.isArray(content)) {
-    const text = content
-      .map((block) => {
-        const textBlock = block as ChatMessageContentBlock;
-
-        if (textBlock.type === 'text') {
-          return textBlock.text;
-        }
-
-        if (textBlock.type === 'input_text') {
-          return textBlock.input_text.content;
-        }
-
-        if (textBlock.type === 'output_text') {
-          return textBlock.output_text.content;
-        }
-
-        if (textBlock.type === 'output_json') {
-          try {
-            return JSON.stringify(textBlock.output_json);
-          } catch (error) {
-            console.error('Impossible de sérialiser le bloc JSON OpenAI', error);
-            return '';
-          }
-        }
-
-        return '';
-      })
-      .filter(Boolean)
-      .join('\n')
-      .trim();
-
-    return text.length > 0 ? text : null;
-  }
-
-  return null;
-};
-
 export async function performChatCompletion({
   messages,
-  model = 'GPT-5-mini',
+  model = 'gpt-5-mini',          // ✅ minuscule + cohérent avec ton route
   temperature = 1,
   maxTokens = 650,
   responseFormat = 'text'
@@ -103,8 +53,10 @@ export async function performChatCompletion({
       model,
       messages,
       temperature,
-      max_completion_tokens: maxTokens,
-      response_format: responseFormatPayload
+      // ✅ param classique de l'endpoint chat.completions
+      max_tokens: maxTokens,
+      // ✅ on ne l'envoie que si défini
+      ...(responseFormatPayload ? { response_format: responseFormatPayload } : {})
     })
   });
 
@@ -114,19 +66,31 @@ export async function performChatCompletion({
   }
 
   const payload = (await response.json()) as {
-    choices?: Array<
-      | {
-          message?: {
-            content?: string | ChatMessageContentBlock[] | null;
-          } | null;
-        }
-      | null
-    >;
+    choices?: Array<{
+      message?: {
+        // content peut être soit une string, soit un tableau de "parts"
+        content?: string | Array<{ type?: string; text?: string }> | null;
+      } | null;
+    } | null>;
   };
 
-  const content = extractContent(payload.choices?.[0]?.message?.content);
+  const rawContent = payload.choices?.[0]?.message?.content;
+
+  let content: string | undefined;
+
+  if (typeof rawContent === 'string') {
+    content = rawContent.trim();
+  } else if (Array.isArray(rawContent)) {
+    // On concatène les morceaux de texte si OpenAI renvoie un tableau
+    const textParts = rawContent
+      .map((part) => (typeof part?.text === 'string' ? part.text : ''))
+      .join('');
+    content = textParts.trim() || undefined;
+  }
 
   if (!content) {
+    // 🔍 log utile pour comprendre ce qui se passe si ça recasse
+    console.error('Réponse OpenAI sans contenu exploitable:', JSON.stringify(payload, null, 2));
     throw new Error('Réponse OpenAI vide.');
   }
 
