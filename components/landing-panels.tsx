@@ -580,6 +580,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
   const [steps, setSteps] = useState<ProcessStep[]>(() => cloneSteps(DEFAULT_PROCESS_STEPS));
   const [selectedStepId, setSelectedStepId] = useState<string | null>(null);
   const baselineStepsRef = useRef<ProcessStep[]>(cloneSteps(DEFAULT_PROCESS_STEPS));
+  const baselineTitleRef = useRef(DEFAULT_PROCESS_TITLE);
   const hasResetForUnauthorizedRef = useRef(false);
   const hasResetDepartmentEditorRef = useRef(false);
   const draggedStepIdRef = useRef<string | null>(null);
@@ -1114,6 +1115,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
     if (processQuery.data) {
       const fromServer = cloneSteps(processQuery.data.steps);
       baselineStepsRef.current = cloneSteps(fromServer);
+      baselineTitleRef.current = normalizeProcessTitle(processQuery.data.title);
       setSteps(fromServer);
       setLastSavedAt(processQuery.data.updatedAt);
       setProcessTitle(normalizeProcessTitle(processQuery.data.title));
@@ -1134,6 +1136,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
 
     const fallback = cloneSteps(DEFAULT_PROCESS_STEPS);
     baselineStepsRef.current = cloneSteps(fallback);
+    baselineTitleRef.current = DEFAULT_PROCESS_TITLE;
     setSteps(fallback);
     setLastSavedAt(null);
     setSelectedProcessId(null);
@@ -1156,6 +1159,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
       setProcessTitle(DEFAULT_PROCESS_TITLE);
       const fallback = cloneSteps(DEFAULT_PROCESS_STEPS);
       baselineStepsRef.current = cloneSteps(fallback);
+      baselineTitleRef.current = DEFAULT_PROCESS_TITLE;
       setSteps(fallback);
       setLastSavedAt(null);
       return;
@@ -1214,23 +1218,30 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
       setSelectedProcessId(null);
       const fallback = cloneSteps(DEFAULT_PROCESS_STEPS);
       baselineStepsRef.current = cloneSteps(fallback);
+      baselineTitleRef.current = DEFAULT_PROCESS_TITLE;
       setSteps(fallback);
       setLastSavedAt(null);
       setProcessTitle(DEFAULT_PROCESS_TITLE);
     }
   }, [currentProcessId, processQuery.error, processQuery.isError, queryClient]);
 
-  const isDirty = useMemo(() => !areStepsEqual(steps, baselineStepsRef.current), [steps]);
+  const isDirty = useMemo(() => {
+    const normalizedTitle = normalizeProcessTitle(processTitle);
+    return (
+      normalizedTitle !== baselineTitleRef.current || !areStepsEqual(steps, baselineStepsRef.current)
+    );
+  }, [processTitle, steps]);
 
   const createProcessMutation = useMutation<ProcessResponse, ApiError, string | undefined>({
     mutationFn: (title) => createProcessRequest(landingErrorMessages, title),
     onSuccess: (data) => {
       const sanitizedSteps = cloneSteps(data.steps);
+      const normalizedTitle = normalizeProcessTitle(data.title);
       baselineStepsRef.current = cloneSteps(sanitizedSteps);
+      baselineTitleRef.current = normalizedTitle;
       setSteps(sanitizedSteps);
       setLastSavedAt(data.updatedAt);
       setSelectedProcessId(data.id);
-      const normalizedTitle = normalizeProcessTitle(data.title);
       setProcessTitle(normalizedTitle);
       queryClient.setQueryData(['processes'], (previous?: ProcessSummary[]) => {
         const summary: ProcessSummary = { id: data.id, title: normalizedTitle, updatedAt: data.updatedAt };
@@ -1283,6 +1294,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
       });
 
       if (selectedProcessId === summary.id) {
+        baselineTitleRef.current = normalizedTitle;
         setProcessTitle(normalizedTitle);
         setLastSavedAt((prev) => summary.updatedAt ?? prev);
       }
@@ -1336,6 +1348,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
       if (shouldResetSelection) {
         const fallback = cloneSteps(DEFAULT_PROCESS_STEPS);
         baselineStepsRef.current = cloneSteps(fallback);
+        baselineTitleRef.current = DEFAULT_PROCESS_TITLE;
         setSteps(fallback);
         setProcessTitle(DEFAULT_PROCESS_TITLE);
         setLastSavedAt(null);
@@ -1373,10 +1386,11 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
     },
     onSuccess: (data) => {
       const sanitized = cloneSteps(data.steps);
+      const normalizedTitle = normalizeProcessTitle(data.title);
       baselineStepsRef.current = cloneSteps(sanitized);
+      baselineTitleRef.current = normalizedTitle;
       setSteps(sanitized);
       setLastSavedAt(data.updatedAt);
-      const normalizedTitle = normalizeProcessTitle(data.title);
       setProcessTitle(normalizedTitle);
       queryClient.setQueryData(['process', data.id], data);
       queryClient.setQueryData(['processes'], (previous?: ProcessSummary[]) => {
