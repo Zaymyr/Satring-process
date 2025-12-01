@@ -27,7 +27,7 @@ type ChatCompletionParams = {
 
 export async function performChatCompletion({
   messages,
-  model = 'gpt-5-mini', // ✅ cohérent avec ton route
+  model = 'gpt-4.1-mini', // ✅ cohérent avec ton route
   temperature = 0.5,
   maxTokens = 5000,
   responseFormat = 'text'
