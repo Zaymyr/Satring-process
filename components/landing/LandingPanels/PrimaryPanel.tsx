@@ -526,10 +526,19 @@ export function PrimaryPanel({
         >
           <div className="flex items-center justify-between">
             <h2 className="text-base font-semibold text-slate-900">{primaryPanel.tabs.ia}</h2>
-            <span className="text-xs font-medium uppercase tracking-wide text-slate-500">IA</span>
           </div>
           <p className="text-sm text-slate-700">{primaryPanel.iaDescription}</p>
           <div className="flex-1 min-h-0 overflow-y-auto">{iaPanel}</div>
+          <div className="mt-4 flex justify-end">
+            <Button
+              type="button"
+              onClick={handleSave}
+              disabled={isSaveDisabled}
+              className="h-9 rounded-md bg-slate-900 px-3 text-sm font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600"
+            >
+              {saveButtonLabel}
+            </Button>
+          </div>
         </section>
       </div>
     </div>

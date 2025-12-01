@@ -57,11 +57,7 @@ export function useProcessIaChat({
   copy,
   onProcessUpdate
 }: UseProcessIaChatOptions) {
-  const [messages, setMessages] = useState<IaChatMessage[]>([{
-    id: buildId(),
-    role: 'assistant',
-    content: copy.intro
-  }]);
+  const [messages, setMessages] = useState<IaChatMessage[]>([]);
   const [inputError, setInputError] = useState<string | null>(null);
 
   const followUpContent = useMemo(() => {
