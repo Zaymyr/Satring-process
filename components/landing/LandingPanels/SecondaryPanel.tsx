@@ -91,7 +91,7 @@ type SecondaryPanelProps = {
   editingDepartmentId: string | null;
   isDeletingDepartment: boolean;
   deleteDepartmentId: string | null;
-  formatDateTime: (date: Date | number | string) => string;
+  formatDateTime: (date: string | number | Date | null | undefined) => string | null;
   departmentEditForm: UseFormReturn<DepartmentCascadeForm>;
   handleSaveDepartment: (values: DepartmentCascadeForm) => void;
   handleDeleteDepartment: (departmentId: string) => void;
