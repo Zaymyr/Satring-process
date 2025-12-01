@@ -1,33 +1,6 @@
-import { env } from '@/lib/utils/env';
-
-type ChatMessage = {
-  role: 'system' | 'user' | 'assistant';
-  content: string;
-};
-
-type ResponseFormat =
-  | 'text'
-  | 'json_object'
-  | {
-      type: 'json_schema';
-      json_schema: {
-        name: string;
-        schema: Record<string, unknown>;
-        strict?: boolean;
-      };
-    };
-
-type ChatCompletionParams = {
-  messages: ChatMessage[];
-  model?: string;
-  temperature?: number;
-  maxTokens?: number;
-  responseFormat?: ResponseFormat;
-};
-
 export async function performChatCompletion({
   messages,
-  model = 'gpt-5-mini',          // ✅ minuscule + cohérent avec ton route
+  model = 'gpt-5-mini',
   temperature = 1,
   maxTokens = 650,
   responseFormat = 'text'
@@ -53,9 +26,8 @@ export async function performChatCompletion({
       model,
       messages,
       temperature,
-      // ✅ param classique de l'endpoint chat.completions
-      max_tokens: maxTokens,
-      // ✅ on ne l'envoie que si défini
+      // ✅ GPT-5 / GPT-4.1 → param correct
+      max_completion_tokens: maxTokens,
       ...(responseFormatPayload ? { response_format: responseFormatPayload } : {})
     })
   });
@@ -68,7 +40,6 @@ export async function performChatCompletion({
   const payload = (await response.json()) as {
     choices?: Array<{
       message?: {
-        // content peut être soit une string, soit un tableau de "parts"
         content?: string | Array<{ type?: string; text?: string }> | null;
       } | null;
     } | null>;
@@ -81,7 +52,6 @@ export async function performChatCompletion({
   if (typeof rawContent === 'string') {
     content = rawContent.trim();
   } else if (Array.isArray(rawContent)) {
-    // On concatène les morceaux de texte si OpenAI renvoie un tableau
     const textParts = rawContent
       .map((part) => (typeof part?.text === 'string' ? part.text : ''))
       .join('');
@@ -89,8 +59,10 @@ export async function performChatCompletion({
   }
 
   if (!content) {
-    // 🔍 log utile pour comprendre ce qui se passe si ça recasse
-    console.error('Réponse OpenAI sans contenu exploitable:', JSON.stringify(payload, null, 2));
+    console.error(
+      'Réponse OpenAI sans contenu exploitable:',
+      JSON.stringify(payload, null, 2)
+    );
     throw new Error('Réponse OpenAI vide.');
   }
 
