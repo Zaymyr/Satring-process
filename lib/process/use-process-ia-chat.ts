@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useMemo, useState } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation } from '@tanstack/react-query';
 import { z } from 'zod';
 
 import { DEFAULT_PROCESS_TITLE } from '@/lib/process/defaults';
@@ -57,7 +57,6 @@ export function useProcessIaChat({
   copy,
   onProcessUpdate
 }: UseProcessIaChatOptions) {
-  const queryClient = useQueryClient();
   const [messages, setMessages] = useState<IaChatMessage[]>([{
     id: buildId(),
     role: 'assistant',
@@ -156,8 +155,6 @@ export function useProcessIaChat({
       ]);
 
       onProcessUpdate(process);
-      queryClient.invalidateQueries({ queryKey: ['process', process.id], refetchType: 'inactive' });
-      queryClient.invalidateQueries({ queryKey: ['processes'], refetchType: 'inactive' });
     },
     onError: (error) => {
       setMessages((previous) => [
