@@ -1,4 +1,4 @@
-import type { Dispatch, DragEvent, SetStateAction } from 'react';
+import type { Dispatch, DragEvent, ReactNode, SetStateAction } from 'react';
 import { GitBranch, GripVertical, Plus, Trash2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -65,7 +65,7 @@ type PrimaryPanelProps = {
   isSaveDisabled: boolean;
   saveButtonLabel: string;
   statusToneClass: string;
-  statusMessage: string;
+  statusMessage: ReactNode;
 };
 
 export function PrimaryPanel({
