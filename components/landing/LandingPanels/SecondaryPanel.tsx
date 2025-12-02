@@ -9,7 +9,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils/cn';
 import type { ApiError, DepartmentWithDraftStatus } from '@/components/landing-panels';
-import type { DepartmentCascadeForm } from '@/lib/validation/department';
+import type { Department, DepartmentCascadeForm } from '@/lib/validation/department';
 import type { ProcessSummary } from '@/lib/validation/process';
 import { DEFAULT_ROLE_COLOR, type Role } from '@/lib/validation/role';
 
