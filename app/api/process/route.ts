@@ -438,8 +438,6 @@ export async function POST(request: Request) {
     }
   }
 
-  let newDepartmentIds = new Map<string, string>();
-
   if (pendingDepartments.size > 0) {
     const departmentsToCreate = Array.from(pendingDepartments.entries()).map(([, name]) => ({
       name,
@@ -467,19 +465,16 @@ export async function POST(request: Request) {
 
     const createdPairs = Array.from(pendingDepartments.keys());
 
-    newDepartmentIds = new Map(
-      data.map((department, index) => {
-        const draftKey = createdPairs[index];
-        const persistedId = typeof department.id === 'string' ? department.id : String(department.id);
-        existingDepartmentById.set(persistedId, { id: persistedId, name: department.name, roles: [] });
-        existingDepartmentByName.set(normalizeName(department.name), { id: persistedId, name: department.name, roles: [] });
-        resolvedDraftDepartmentIds.set(draftKey, persistedId);
-        if (!existingRoleNameByDepartment.has(persistedId)) {
-          existingRoleNameByDepartment.set(persistedId, new Map());
-        }
-        return [draftKey, persistedId];
-      })
-    );
+    data.forEach((department, index) => {
+      const draftKey = createdPairs[index];
+      const persistedId = typeof department.id === 'string' ? department.id : String(department.id);
+      existingDepartmentById.set(persistedId, { id: persistedId, name: department.name, roles: [] });
+      existingDepartmentByName.set(normalizeName(department.name), { id: persistedId, name: department.name, roles: [] });
+      resolvedDraftDepartmentIds.set(draftKey, persistedId);
+      if (!existingRoleNameByDepartment.has(persistedId)) {
+        existingRoleNameByDepartment.set(persistedId, new Map());
+      }
+    });
   }
 
   let newRoleIds = new Map<string, string>();
@@ -493,7 +488,7 @@ export async function POST(request: Request) {
       organization_id: string;
     }[] = [];
 
-    for (const [roleKey, role] of pendingRoles.entries()) {
+    for (const [, role] of pendingRoles.entries()) {
       const resolvedDepartmentId = existingDepartmentById.has(role.departmentKey)
         ? role.departmentKey
         : resolvedDraftDepartmentIds.get(role.departmentKey);
