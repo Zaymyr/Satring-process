@@ -25,8 +25,6 @@ const RATE_LIMIT_WINDOW_MS = 60_000;
 const RATE_LIMIT_MAX = 10;
 const rateLimitCache = new Map<string, { count: number; expires: number }>();
 
-const NEW_ID_PREFIX = 'new:';
-
 const formatDepartmentsContext = (departments: DepartmentWithRoles[]): string => {
   if (departments.length === 0) {
     return 'Aucun département ni rôle enregistré pour cette organisation.';
@@ -159,14 +157,12 @@ const aiResponseSchema = {
               departmentId: {
                 anyOf: [
                   { type: 'string', format: 'uuid' },
-                  { type: 'string', pattern: '^new:[A-Za-z0-9][A-Za-z0-9._-]*$' },
                   { type: 'null' }
                 ]
               },
               roleId: {
                 anyOf: [
                   { type: 'string', format: 'uuid' },
-                  { type: 'string', pattern: '^new:[A-Za-z0-9][A-Za-z0-9._-]*$' },
                   { type: 'null' }
                 ]
               },
@@ -339,14 +335,14 @@ export async function POST(request: Request) {
             [
               'Tu es un expert en cartographie de processus (bilingue français/anglais).',
               'A partir du processus fourni, propose une version améliorée en respectant strictement le schéma JSON indiqué.',
-              "Réutilise les identifiants existants des départements et rôles fournis dans le contexte ; si tu proposes un nouvel élément, utilise un identifiant provisoire au format \"new:<slug>\" en indiquant clairement qu'il devra être créé.",
+              "Réutilise exclusivement les identifiants UUID des départements et rôles fournis ; si un nouveau département ou un nouveau rôle est nécessaire, laisse departmentId/roleId à null dans les étapes et décris l'ajout uniquement dans reply (aucun identifiant provisoire).",
               "La sortie doit uniquement contenir l'objet JSON final (aucun texte libre) avec deux clés obligatoires : process (processus à jour conforme au schéma) et reply (message concis destiné à l'utilisateur)."
             ].join('\n')
         },
         {
           role: 'user',
           content: [
-            'Référentiel des départements et rôles autorisés :',
+            'Référentiel des départements et rôles autorisés (réutilise uniquement ces UUID) :',
             departmentsContext,
             'Processus actuel :',
             grounding,
@@ -354,7 +350,7 @@ export async function POST(request: Request) {
             parsedBody.data.context || 'Aucun contexte fourni.',
             'Demande utilisateur :',
             parsedBody.data.prompt,
-            "Utilise exclusivement les identifiants ci-dessus ou un identifiant provisoire \"new:<slug>\" pour les nouveaux éléments à créer, et retourne un objet JSON conforme au schéma. Le champ reply doit :",
+            "Chaque étape doit référencer un departmentId et roleId existant à partir du référentiel ci-dessus ; si un département ou rôle n'existe pas encore, laisse les champs departmentId/roleId à null dans le JSON et détaille la création uniquement dans reply (aucun identifiant provisoire). Le champ reply doit :",
             '- résumer brièvement la proposition (2 phrases max) ;',
             "- poser une question de clarification si des informations manquent (1 question courte maximum)."
           ].join('\n\n')
@@ -418,7 +414,6 @@ export async function POST(request: Request) {
     departmentsWithRoles.map((department) => [department.id, department])
   );
   const existingRoleById = new Map<string, { id: string; departmentId: string }>();
-  const temporaryRoleDepartments = new Map<string, string>();
 
   departmentsWithRoles.forEach((department) => {
     department.roles?.forEach((role) => {
@@ -438,7 +433,7 @@ export async function POST(request: Request) {
     }
 
     if (departmentId) {
-      if (!departmentId.startsWith(NEW_ID_PREFIX) && !existingDepartmentById.has(departmentId)) {
+      if (!existingDepartmentById.has(departmentId)) {
         return NextResponse.json(
           { error: 'Le process généré référence un département inconnu.' },
           { status: 422, headers: RESPONSE_HEADERS }
@@ -447,28 +442,6 @@ export async function POST(request: Request) {
     }
 
     if (!roleId) {
-      continue;
-    }
-
-    if (roleId.startsWith(NEW_ID_PREFIX)) {
-      if (!departmentId) {
-        return NextResponse.json(
-          { error: 'Le rôle généré est associé à aucun département.' },
-          { status: 422, headers: RESPONSE_HEADERS }
-        );
-      }
-
-      const previousDepartmentId = temporaryRoleDepartments.get(roleId);
-
-      if (previousDepartmentId && previousDepartmentId !== departmentId) {
-        return NextResponse.json(
-          { error: 'Un même rôle provisoire est associé à plusieurs départements.' },
-          { status: 422, headers: RESPONSE_HEADERS }
-        );
-      }
-
-      temporaryRoleDepartments.set(roleId, departmentId);
-
       continue;
     }
 

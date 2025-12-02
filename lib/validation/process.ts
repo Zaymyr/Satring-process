@@ -2,15 +2,10 @@ import { z } from 'zod';
 
 export const stepTypeValues = ['start', 'action', 'decision', 'finish'] as const;
 
-const newIdentifierSchema = z
-  .string()
-  .regex(/^new:[a-zA-Z0-9][a-zA-Z0-9._-]*$/, 'Identifiant provisoire invalide (préfixe "new:").');
-
 const departmentIdSchema = z.preprocess(
   (value) => (typeof value === 'string' ? value.trim() : null),
   z.union([
     z.string().uuid('Identifiant de département invalide.'),
-    newIdentifierSchema,
     z.literal(null)
   ])
 );
@@ -38,7 +33,7 @@ const roleIdSchema = z.preprocess(
     const trimmed = value.trim();
     return trimmed.length > 0 ? trimmed : null;
   },
-  z.union([z.string().uuid('Identifiant de rôle invalide.'), newIdentifierSchema, z.literal(null)])
+  z.union([z.string().uuid('Identifiant de rôle invalide.'), z.literal(null)])
 );
 
 export const stepSchema = z.object({
