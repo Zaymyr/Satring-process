@@ -212,7 +212,6 @@ export function PrimaryPanel({
                   const canReorderStep = !isFixedStep && !isProcessEditorReadOnly;
                   const isSelectedStep = selectedStepId === step.id;
                   const displayLabel = getStepDisplayLabel(step);
-                  const roleEntry = step.roleId ? roleLookup.byId.get(step.roleId) ?? null : null;
                   const departmentName = getStepDepartmentLabel(step);
                   const roleName = getStepRoleLabel(step);
                   const tooltipTitle = `${tooltipLabels.type}: ${stepTypeLabels[step.type]}\n${tooltipLabels.department}: ${departmentName}\n${tooltipLabels.role}: ${roleName}`;
