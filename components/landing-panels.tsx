@@ -14,6 +14,7 @@ import { PrimaryPanel } from '@/components/landing/LandingPanels/PrimaryPanel';
 import { ProcessIaChat } from '@/components/landing/LandingPanels/ProcessIaChat';
 import { SecondaryPanel } from '@/components/landing/LandingPanels/SecondaryPanel';
 import { ProcessShell } from '@/components/landing/LandingPanels/ProcessShell';
+import { Button } from '@/components/ui/button';
 import { DEFAULT_PROCESS_STEPS, DEFAULT_PROCESS_TITLE } from '@/lib/process/defaults';
 import { processSummariesSchema } from '@/lib/process/schema';
 import { type ProcessErrorMessages, type RoleLookupEntry, type Step } from '@/lib/process/types';
@@ -2398,6 +2399,17 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
 
   const diagramControlsContentId = useId();
 
+  const iaPanelSaveButton = (
+    <Button
+      type="button"
+      onClick={handleSave}
+      disabled={isSaveDisabled}
+      className="h-9 rounded-md bg-slate-900 px-3 text-sm font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600"
+    >
+      {saveButtonLabel}
+    </Button>
+  );
+
   const iaPanelContent = (
     <ProcessIaChat
       messages={iaChat.messages}
@@ -2413,6 +2425,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
         errorLabel: iaPanel.errorLabel
       }}
       disabled={!currentProcessId || isProcessEditorReadOnly}
+      footerAction={iaPanelSaveButton}
     />
   );
 

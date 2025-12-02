@@ -1,4 +1,4 @@
-import type { FormEvent } from 'react';
+import type { FormEvent, ReactNode } from 'react';
 import { useState } from 'react';
 import { Loader2, MessageSquare, Sparkles } from 'lucide-react';
 
@@ -22,6 +22,7 @@ type ProcessIaChatProps = {
     errorLabel: string;
   };
   disabled: boolean;
+  footerAction?: ReactNode;
 };
 
 export function ProcessIaChat({
@@ -31,7 +32,8 @@ export function ProcessIaChat({
   inputError,
   errorMessage,
   labels,
-  disabled
+  disabled,
+  footerAction
 }: ProcessIaChatProps) {
   const [draft, setDraft] = useState('');
 
@@ -87,17 +89,24 @@ export function ProcessIaChat({
         {errorMessage ? (
           <p className="text-xs text-red-600">{`${labels.errorLabel}: ${errorMessage}`}</p>
         ) : null}
-        <div className="flex items-center justify-end gap-2">
-          {isLoading ? (
-            <div className="flex items-center gap-1 text-sm text-slate-600">
-              <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-              <span>{labels.loading}</span>
-            </div>
-          ) : null}
-          <Button type="submit" disabled={disabled || isLoading} className="bg-slate-900 text-white hover:bg-slate-800">
-            <Sparkles className="mr-2 h-4 w-4" aria-hidden="true" />
-            {labels.send}
-          </Button>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-2">{footerAction}</div>
+          <div className="flex items-center gap-2">
+            {isLoading ? (
+              <div className="flex items-center gap-1 text-sm text-slate-600">
+                <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                <span>{labels.loading}</span>
+              </div>
+            ) : null}
+            <Button
+              type="submit"
+              disabled={disabled || isLoading}
+              className="bg-slate-900 text-white hover:bg-slate-800"
+            >
+              <Sparkles className="mr-2 h-4 w-4" aria-hidden="true" />
+              {labels.send}
+            </Button>
+          </div>
         </div>
       </form>
     </div>
