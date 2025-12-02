@@ -1340,6 +1340,79 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
   );
 
   useEffect(() => {
+    const subscription = departmentEditForm.watch((values) => {
+      if (!editingDepartmentId) {
+        return;
+      }
+
+      setDraftDepartments((previous) => {
+        const targetIndex = previous.findIndex((department) => department.id === editingDepartmentId);
+
+        if (targetIndex === -1) {
+          return previous;
+        }
+
+        const targetDepartment = previous[targetIndex];
+        const rolesById = new Map(targetDepartment.roles.map((role) => [role.id, role]));
+
+        const updatedRoles: Role[] = (values.roles ?? []).map((roleInput, roleIndex) => {
+          const safeRoleInput = (roleInput ?? {}) as DepartmentCascadeForm['roles'][number];
+          const existingRoleById = safeRoleInput.roleId ? rolesById.get(safeRoleInput.roleId) : undefined;
+          const existingRoleByIndex = targetDepartment.roles[roleIndex];
+          const baseRole = existingRoleById ?? existingRoleByIndex;
+
+          if (baseRole) {
+            if (baseRole.name === safeRoleInput.name && baseRole.color === safeRoleInput.color) {
+              return baseRole;
+            }
+
+            return {
+              ...baseRole,
+              name: safeRoleInput.name ?? baseRole.name,
+              color: safeRoleInput.color ?? baseRole.color
+            } satisfies Role;
+          }
+
+          const now = new Date().toISOString();
+
+          return {
+            id: safeRoleInput.roleId ?? generateClientUuid(),
+            departmentId: targetDepartment.id,
+            name: safeRoleInput.name ?? '',
+            color: safeRoleInput.color ?? DEFAULT_ROLE_COLOR,
+            createdAt: now,
+            updatedAt: now
+          } satisfies Role;
+        });
+
+        const hasRoleUpdates =
+          updatedRoles.length !== targetDepartment.roles.length ||
+          updatedRoles.some((role, index) => role !== targetDepartment.roles[index]);
+
+        const hasDepartmentUpdates =
+          values.name !== targetDepartment.name || values.color !== targetDepartment.color || hasRoleUpdates;
+
+        if (!hasDepartmentUpdates) {
+          return previous;
+        }
+
+        const nextDepartment: Department = {
+          ...targetDepartment,
+          name: values.name ?? targetDepartment.name,
+          color: values.color ?? targetDepartment.color,
+          roles: updatedRoles
+        };
+
+        const nextDrafts = [...previous];
+        nextDrafts[targetIndex] = nextDepartment;
+        return nextDrafts;
+      });
+    });
+
+    return () => subscription.unsubscribe();
+  }, [departmentEditForm, editingDepartmentId, setDraftDepartments]);
+
+  useEffect(() => {
     if (!isDepartmentActionsDisabled) {
       hasResetDepartmentEditorRef.current = false;
       return;
