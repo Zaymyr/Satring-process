@@ -524,20 +524,7 @@ export function PrimaryPanel({
             activeTab !== 'ia' && 'hidden'
           )}
         >
-          <div className="flex items-center justify-between">
-            <h2 className="text-base font-semibold text-slate-900">{primaryPanel.tabs.ia}</h2>
-          </div>
           <div className="flex-1 min-h-0">{iaPanel}</div>
-          <div className="mt-4 flex justify-end">
-            <Button
-              type="button"
-              onClick={handleSave}
-              disabled={isSaveDisabled}
-              className="h-9 rounded-md bg-slate-900 px-3 text-sm font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600"
-            >
-              {saveButtonLabel}
-            </Button>
-          </div>
         </section>
       </div>
     </div>
