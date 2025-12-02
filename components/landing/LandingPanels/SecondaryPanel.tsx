@@ -94,7 +94,7 @@ type SecondaryPanelProps = {
   deleteDepartmentId: string | null;
   formatDateTime: (date: string | number | Date | null | undefined) => string | null;
   departmentEditForm: UseFormReturn<DepartmentCascadeForm>;
-  handleSaveDepartment: (values: DepartmentCascadeForm) => void;
+  handleSaveAllDepartments: () => void;
   handleDeleteDepartment: (departmentId: string) => void;
   isSavingDepartment: boolean;
   departmentRoleFields: UseFieldArrayReturn<DepartmentCascadeForm, 'roles', 'id'>;
@@ -104,7 +104,14 @@ type SecondaryPanelProps = {
   saveDepartmentMutation: UseMutationResult<
     Department[],
     ApiError,
-    { departmentId: string; values: DepartmentCascadeForm }
+    {
+      departments: {
+        id: string;
+        name: string;
+        color: string;
+        roles: { id?: string; name: string; color: string }[];
+      }[];
+    }
   >;
   deleteDepartmentMutation: UseMutationResult<void, ApiError, { id: string }>;
   startEditingDepartment: (department: DepartmentWithDraftStatus) => void;
@@ -152,7 +159,7 @@ export function SecondaryPanel({
   deleteDepartmentId,
   formatDateTime,
   departmentEditForm,
-  handleSaveDepartment,
+  handleSaveAllDepartments,
   handleDeleteDepartment,
   isSavingDepartment,
   departmentRoleFields,
@@ -410,16 +417,16 @@ export function SecondaryPanel({
                 </p>
               )}
             </div>
-            <div
-              role="tabpanel"
-              id="departments-panel"
-              aria-labelledby="departments-tab"
-              hidden={!isDepartmentsTabActive}
-              className={cn('h-full', !isDepartmentsTabActive && 'hidden')}
-            >
-              <div className="space-y-4">
-                {shouldUseDepartmentDemo ? (
-                  <p className="text-sm text-slate-600">{secondaryPanel.departments.demoNotice}</p>
+              <div
+                role="tabpanel"
+                id="departments-panel"
+                aria-labelledby="departments-tab"
+                hidden={!isDepartmentsTabActive}
+                className={cn('h-full', !isDepartmentsTabActive && 'hidden')}
+              >
+                <div className="space-y-4">
+                  {shouldUseDepartmentDemo ? (
+                    <p className="text-sm text-slate-600">{secondaryPanel.departments.demoNotice}</p>
                 ) : null}
                 {!shouldUseDepartmentDemo && createDepartmentMutation.isError ? (
                   <p className="text-xs text-red-600">{createDepartmentMutation.error?.message}</p>
@@ -467,7 +474,7 @@ export function SecondaryPanel({
                             >
                               {isEditingDepartment ? (
                                 <form
-                                  onSubmit={departmentEditForm.handleSubmit(handleSaveDepartment)}
+                                  onSubmit={(event) => event.preventDefault()}
                                   className="flex w-full flex-col gap-3"
                                   data-entity-type="department"
                                 >
@@ -631,27 +638,6 @@ export function SecondaryPanel({
                                         )}
                                         {secondaryPanel.departments.addRole}
                                       </Button>
-                                      <Button
-                                        type="submit"
-                                        size="sm"
-                                        disabled={isSavingDepartment || isAddingDepartmentRole}
-                                        className="inline-flex h-8 items-center gap-1 rounded-md bg-slate-900 px-3 text-xs font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600"
-                                      >
-                                        {isSavingDepartment ? (
-                                          <Loader2 aria-hidden="true" className="h-3.5 w-3.5 animate-spin" />
-                                        ) : (
-                                          <Save aria-hidden="true" className="h-3.5 w-3.5" />
-                                        )}
-                                        {secondaryPanel.departments.save}
-                                      </Button>
-                                    </div>
-                                    <div className="space-y-1">
-                                      {createDepartmentRoleMutation.isError ? (
-                                        <p className="text-xs text-red-600">{createDepartmentRoleMutation.error?.message}</p>
-                                      ) : null}
-                                      {saveDepartmentMutation.isError ? (
-                                        <p className="text-xs text-red-600">{saveDepartmentMutation.error?.message}</p>
-                                      ) : null}
                                     </div>
                                   </div>
                                 </form>
@@ -742,6 +728,36 @@ export function SecondaryPanel({
                 ) : (
                   <p className="text-sm text-slate-600">{secondaryPanel.departments.empty.standard}</p>
                 )}
+              </div>
+              <div className="mt-4 flex flex-col items-end gap-2 border-t border-slate-200 pt-4">
+                <div className="space-y-1 text-right">
+                  {createDepartmentRoleMutation.isError ? (
+                    <p className="text-xs text-red-600">{createDepartmentRoleMutation.error?.message}</p>
+                  ) : null}
+                  {saveDepartmentMutation.isError ? (
+                    <p className="text-xs text-red-600">{saveDepartmentMutation.error?.message}</p>
+                  ) : null}
+                </div>
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={handleSaveAllDepartments}
+                  disabled={
+                    isDepartmentActionsDisabled ||
+                    isSavingDepartment ||
+                    isAddingDepartmentRole ||
+                    isDeletingDepartment ||
+                    departments.length === 0
+                  }
+                  className="inline-flex h-9 items-center gap-1 rounded-md bg-slate-900 px-3 text-xs font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600"
+                >
+                  {isSavingDepartment ? (
+                    <Loader2 aria-hidden="true" className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Save aria-hidden="true" className="h-4 w-4" />
+                  )}
+                  {secondaryPanel.departments.save}
+                </Button>
               </div>
             </div>
           </div>

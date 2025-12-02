@@ -880,51 +880,56 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
   const saveDepartmentMutation = useMutation<
     Department[],
     ApiError,
-    { departmentId: string; values: DepartmentCascadeForm }
+    {
+      departments: {
+        id: string;
+        name: string;
+        color: string;
+        roles: { id?: string; name: string; color: string }[];
+      }[];
+    }
   >({
-    mutationFn: async ({ departmentId, values }) => {
-      const baseline = (departmentsQuery.data ?? []).find((item) => item.id === departmentId) ?? null;
+    mutationFn: async ({ departments: stagedDepartments }) => {
+      const baselineDepartments = departmentsQuery.data ?? [];
+      const baselineById = new Map(baselineDepartments.map((item) => [item.id, item]));
 
-      if (!baseline) {
-        const created = await createDepartmentRequest({ name: values.name, color: values.color });
+      for (const staged of stagedDepartments) {
+        const baseline = baselineById.get(staged.id) ?? null;
+        let targetDepartmentId = baseline?.id ?? staged.id;
 
-        for (const roleInput of values.roles) {
-          await createRoleRequest({ departmentId: created.id, name: roleInput.name, color: roleInput.color });
+        if (!baseline) {
+          const created = await createDepartmentRequest({ name: staged.name, color: staged.color });
+          targetDepartmentId = created.id;
+        } else if (baseline.name !== staged.name || baseline.color !== staged.color) {
+          await updateDepartmentRequest({ id: staged.id, name: staged.name, color: staged.color });
         }
 
-        const refreshedDepartments = await requestDepartments();
-        return refreshedDepartments;
-      }
+        const baselineRoles = new Map(baseline?.roles.map((role) => [role.id, role]));
+        const seenRoleIds = new Set<string>();
 
-      if (baseline.name !== values.name || baseline.color !== values.color) {
-        await updateDepartmentRequest({ id: departmentId, name: values.name, color: values.color });
-      }
+        for (const roleInput of staged.roles) {
+          if (roleInput.id) {
+            seenRoleIds.add(roleInput.id);
+            const originalRole = baselineRoles.get(roleInput.id);
 
-      const baselineRoles = new Map(baseline.roles.map((role) => [role.id, role]));
-      const seenRoleIds = new Set<string>();
+            if (
+              !originalRole ||
+              originalRole.name !== roleInput.name ||
+              originalRole.color !== roleInput.color
+            ) {
+              await updateRoleRequest({ id: roleInput.id, name: roleInput.name, color: roleInput.color });
+            }
 
-      for (const roleInput of values.roles) {
-        if (roleInput.roleId) {
-          seenRoleIds.add(roleInput.roleId);
-          const originalRole = baselineRoles.get(roleInput.roleId);
-
-          if (
-            !originalRole ||
-            originalRole.name !== roleInput.name ||
-            originalRole.color !== roleInput.color
-          ) {
-            await updateRoleRequest({ id: roleInput.roleId, name: roleInput.name, color: roleInput.color });
+            continue;
           }
 
-          continue;
+          await createRoleRequest({ departmentId: targetDepartmentId, name: roleInput.name, color: roleInput.color });
         }
 
-        await createRoleRequest({ departmentId, name: roleInput.name, color: roleInput.color });
-      }
-
-      for (const [roleId] of baselineRoles) {
-        if (!seenRoleIds.has(roleId)) {
-          await deleteRoleRequest(roleId);
+        for (const [roleId] of baselineRoles) {
+          if (!seenRoleIds.has(roleId)) {
+            await deleteRoleRequest(roleId);
+          }
         }
       }
 
@@ -944,7 +949,36 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
       });
       departmentRoleFields.replace([]);
       createDepartmentRoleMutation.reset();
+
+      const updatedLookup = new Map<string, string>();
+      departmentsList.forEach((department) => {
+        updatedLookup.set(department.id, department.name);
+        department.roles.forEach((role) => {
+          updatedLookup.set(role.id, role.name);
+        });
+      });
+
+      if (selectedStepId) {
+        setSteps((previousSteps) =>
+          previousSteps.map((step) => {
+            if (step.id !== selectedStepId) {
+              return step;
+            }
+
+            const updatedDepartmentName = updatedLookup.get(step.departmentId ?? '') ?? step.draftDepartmentName;
+            const updatedRoleName = updatedLookup.get(step.roleId ?? '') ?? step.draftRoleName;
+
+            return {
+              ...step,
+              draftDepartmentName: updatedDepartmentName ?? step.draftDepartmentName,
+              draftRoleName: updatedRoleName ?? step.draftRoleName
+            };
+          })
+        );
+      }
+
       await queryClient.invalidateQueries({ queryKey: ['departments'] });
+      await queryClient.invalidateQueries({ queryKey: ['roles', { departmentId: editingDepartmentId }] });
     }
   });
 
@@ -1176,32 +1210,53 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
     createDepartmentMutation.mutate();
   }, [createDepartmentMutation, isCreatingDepartment, isDepartmentActionsDisabled]);
 
-  const handleSaveDepartment = useCallback(
-    (values: DepartmentCascadeForm) => {
-      if (
-        !editingDepartmentId ||
-        isDepartmentActionsDisabled ||
-        isSavingDepartment ||
-        isAddingDepartmentRole
-      ) {
+  const handleSaveAllDepartments = useCallback(async () => {
+    if (isDepartmentActionsDisabled || isSavingDepartment || isAddingDepartmentRole) {
+      return;
+    }
+
+    let editedDepartmentValues: DepartmentCascadeForm | null = null;
+
+    if (editingDepartmentId) {
+      const isValid = await departmentEditForm.trigger();
+      if (!isValid) {
         return;
       }
+      editedDepartmentValues = departmentEditForm.getValues();
+    }
 
-      if (!departments.some((department) => department.id === editingDepartmentId)) {
-        return;
+    const stagedDepartments = draftDepartments.map((department) => {
+      if (editedDepartmentValues && department.id === editingDepartmentId) {
+        return {
+          id: department.id,
+          name: editedDepartmentValues.name,
+          color: editedDepartmentValues.color,
+          roles: editedDepartmentValues.roles.map((role) => ({
+            id: role.roleId ?? undefined,
+            name: role.name,
+            color: role.color
+          }))
+        };
       }
 
-      saveDepartmentMutation.mutate({ departmentId: editingDepartmentId, values });
-    },
-    [
-      departments,
-      editingDepartmentId,
-      isDepartmentActionsDisabled,
-      isAddingDepartmentRole,
-      isSavingDepartment,
-      saveDepartmentMutation
-    ]
-  );
+      return {
+        id: department.id,
+        name: department.name,
+        color: department.color,
+        roles: department.roles.map((role) => ({ id: role.id, name: role.name, color: role.color }))
+      };
+    });
+
+    saveDepartmentMutation.mutate({ departments: stagedDepartments });
+  }, [
+    departmentEditForm,
+    draftDepartments,
+    editingDepartmentId,
+    isAddingDepartmentRole,
+    isDepartmentActionsDisabled,
+    isSavingDepartment,
+    saveDepartmentMutation
+  ]);
 
   const handleAddRole = useCallback(() => {
     if (
@@ -2772,7 +2827,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
       deleteDepartmentId={deleteDepartmentId}
       formatDateTime={formatDateTime}
       departmentEditForm={departmentEditForm}
-      handleSaveDepartment={handleSaveDepartment}
+      handleSaveAllDepartments={handleSaveAllDepartments}
       handleDeleteDepartment={handleDeleteDepartment}
       isSavingDepartment={isSavingDepartment}
       departmentRoleFields={departmentRoleFields}
