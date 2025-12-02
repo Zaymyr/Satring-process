@@ -24,6 +24,30 @@ const branchTargetSchema = z
     return trimmed.length > 0 ? trimmed : null;
   });
 
+const draftDepartmentNameSchema = z.preprocess(
+  (value) => {
+    if (typeof value !== 'string') {
+      return null;
+    }
+
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : null;
+  },
+  z.union([z.string().min(1, 'Nom de département invalide.'), z.literal(null)])
+);
+
+const draftRoleNameSchema = z.preprocess(
+  (value) => {
+    if (typeof value !== 'string') {
+      return null;
+    }
+
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : null;
+  },
+  z.union([z.string().min(1, 'Nom de rôle invalide.'), z.literal(null)])
+);
+
 const roleIdSchema = z.preprocess(
   (value) => {
     if (typeof value !== 'string') {
@@ -36,15 +60,36 @@ const roleIdSchema = z.preprocess(
   z.union([z.string().uuid('Identifiant de rôle invalide.'), z.literal(null)])
 );
 
-export const stepSchema = z.object({
-  id: z.string().min(1),
-  label: z.string(),
-  type: z.enum(stepTypeValues),
-  departmentId: departmentIdSchema,
-  roleId: roleIdSchema,
-  yesTargetId: branchTargetSchema.default(null),
-  noTargetId: branchTargetSchema.default(null)
-});
+export const stepSchema = z
+  .object({
+    id: z.string().min(1),
+    label: z.string(),
+    type: z.enum(stepTypeValues),
+    departmentId: departmentIdSchema,
+    draftDepartmentName: draftDepartmentNameSchema.optional().default(null),
+    roleId: roleIdSchema,
+    draftRoleName: draftRoleNameSchema.optional().default(null),
+    yesTargetId: branchTargetSchema.default(null),
+    noTargetId: branchTargetSchema.default(null)
+  })
+  .superRefine((step, ctx) => {
+    if (step.departmentId && step.draftDepartmentName) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message:
+          'Sélectionnez un département existant ou indiquez un nom provisoire, pas les deux.',
+        path: ['draftDepartmentName']
+      });
+    }
+
+    if (step.roleId && step.draftRoleName) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Sélectionnez un rôle existant ou indiquez un nom provisoire, pas les deux.',
+        path: ['draftRoleName']
+      });
+    }
+  });
 
 export const processPayloadSchema = z.object({
   id: z.string().uuid().optional(),

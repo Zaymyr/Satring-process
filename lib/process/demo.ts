@@ -29,7 +29,9 @@ const buildInviteDemoSteps = (): ProcessStep[] => {
       label: 'Commencer',
       type: 'start',
       departmentId: null,
+      draftDepartmentName: null,
       roleId: null,
+      draftRoleName: null,
       yesTargetId: 'qualifier',
       noTargetId: null
     },
@@ -38,7 +40,9 @@ const buildInviteDemoSteps = (): ProcessStep[] => {
       label: 'Qualifier la demande',
       type: 'action',
       departmentId: support?.id ?? null,
+      draftDepartmentName: null,
       roleId: supportAdvisor?.id ?? null,
+      draftRoleName: null,
       yesTargetId: 'prioriser',
       noTargetId: null
     },
@@ -47,7 +51,9 @@ const buildInviteDemoSteps = (): ProcessStep[] => {
       label: 'Escalade nécessaire ?',
       type: 'decision',
       departmentId: support?.id ?? null,
+      draftDepartmentName: null,
       roleId: supportLead?.id ?? null,
+      draftRoleName: null,
       yesTargetId: 'planifier',
       noTargetId: 'resoudre'
     },
@@ -56,7 +62,9 @@ const buildInviteDemoSteps = (): ProcessStep[] => {
       label: 'Planifier l’intervention',
       type: 'action',
       departmentId: operations?.id ?? null,
+      draftDepartmentName: null,
       roleId: projectManager?.id ?? null,
+      draftRoleName: null,
       yesTargetId: 'suivi_qualite',
       noTargetId: null
     },
@@ -65,7 +73,9 @@ const buildInviteDemoSteps = (): ProcessStep[] => {
       label: 'Résoudre la demande',
       type: 'action',
       departmentId: support?.id ?? null,
+      draftDepartmentName: null,
       roleId: supportAdvisor?.id ?? null,
+      draftRoleName: null,
       yesTargetId: 'suivi_qualite',
       noTargetId: null
     },
@@ -74,7 +84,9 @@ const buildInviteDemoSteps = (): ProcessStep[] => {
       label: 'Suivi qualité',
       type: 'action',
       departmentId: operations?.id ?? null,
+      draftDepartmentName: null,
       roleId: qualityAnalyst?.id ?? null,
+      draftRoleName: null,
       yesTargetId: 'cloturer',
       noTargetId: null
     },
@@ -83,7 +95,9 @@ const buildInviteDemoSteps = (): ProcessStep[] => {
       label: 'Clôturer le ticket',
       type: 'finish',
       departmentId: support?.id ?? null,
+      draftDepartmentName: null,
       roleId: supportLead?.id ?? null,
+      draftRoleName: null,
       yesTargetId: null,
       noTargetId: null
     }
