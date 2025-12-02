@@ -912,11 +912,16 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
             seenRoleIds.add(roleInput.id);
             const originalRole = baselineRoles.get(roleInput.id);
 
-            if (
-              !originalRole ||
-              originalRole.name !== roleInput.name ||
-              originalRole.color !== roleInput.color
-            ) {
+            if (!originalRole) {
+              await createRoleRequest({
+                departmentId: targetDepartmentId,
+                name: roleInput.name,
+                color: roleInput.color
+              });
+              continue;
+            }
+
+            if (originalRole.name !== roleInput.name || originalRole.color !== roleInput.color) {
               await updateRoleRequest({ id: roleInput.id, name: roleInput.name, color: roleInput.color });
             }
 
