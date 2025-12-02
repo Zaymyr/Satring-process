@@ -104,7 +104,14 @@ type SecondaryPanelProps = {
   saveDepartmentMutation: UseMutationResult<
     Department[],
     ApiError,
-    { departmentId: string; values: DepartmentCascadeForm }
+    {
+      departments: {
+        id: string;
+        name: string;
+        color: string;
+        roles: { id?: string; name: string; color: string }[];
+      }[];
+    }
   >;
   deleteDepartmentMutation: UseMutationResult<void, ApiError, { id: string }>;
   startEditingDepartment: (department: DepartmentWithDraftStatus) => void;
