@@ -58,6 +58,8 @@ const CLUSTER_STYLE_TEXT_COLOR = '#0f172a';
 const CLUSTER_FILL_OPACITY = 0.18;
 const FALLBACK_STEP_FILL_ALPHA = 0.12;
 
+type IaDepartmentsPayload = Parameters<typeof useProcessIaChat>[0]['departments'];
+
 const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
 
 const toRgba = (color: string, alpha: number, fallback: string) => {
@@ -994,7 +996,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
     return { byId, byDepartment, all };
   }, [departments]);
 
-  const iaDepartmentsPayload = useMemo(
+  const iaDepartmentsPayload = useMemo<IaDepartmentsPayload>(
     () =>
       departments.map((department) => ({
         id: department.id,
