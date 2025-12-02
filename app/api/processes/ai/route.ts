@@ -410,7 +410,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const existingDepartmentById = new Map<string, DepartmentWithRoles>(
+    const existingDepartmentById = new Map<string, DepartmentWithRoles>(
     departmentsWithRoles.map((department) => [department.id, department])
   );
   const existingRoleById = new Map<string, { id: string; departmentId: string }>();
@@ -421,6 +421,40 @@ export async function POST(request: Request) {
     });
   });
 
+  // 🔹 SANITIZE : on nettoie les incohérences IA avant de valider
+  const reconciledSteps = parsedPayload.data.steps.map((step) => {
+    let { departmentId, roleId } = step;
+
+    const existingDept = departmentId ? existingDepartmentById.get(departmentId) : undefined;
+    const existingRole = roleId ? existingRoleById.get(roleId) : undefined;
+
+    // Si le département n'existe pas → on considère que c'est une proposition de nouveau département
+    if (departmentId && !existingDept) {
+      departmentId = null;
+      roleId = null; // rôle forcément incohérent dans ce cas
+    }
+
+    // Si le rôle n'existe pas → proposition de nouveau rôle → on l'ignore côté IDs
+    if (roleId && !existingRole) {
+      roleId = null;
+    }
+
+    // Si le rôle existe mais ne correspond pas au département → on garde le département mais on enlève le rôle
+    if (departmentId && roleId && existingRole && existingRole.departmentId !== departmentId) {
+      roleId = null;
+    }
+
+    return {
+      ...step,
+      departmentId,
+      roleId
+    };
+  });
+
+  // 🔹 On remplace les steps par la version nettoyée
+  parsedPayload.data.steps = reconciledSteps;
+
+  // 🔹 Ensuite on garde la boucle de validation comme garde-fou (au cas où)
   for (const step of parsedPayload.data.steps) {
     const departmentId = step.departmentId;
     const roleId = step.roleId;
