@@ -1003,7 +1003,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
         roles: department.roles.map((role) => ({
           id: role.id,
           name: role.name,
-          status: role.isDraft ? 'draft' : 'persisted'
+          status: 'isDraft' in role && role.isDraft ? 'draft' : 'persisted'
         }))
       })),
     [departments]
