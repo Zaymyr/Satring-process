@@ -1356,29 +1356,30 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
         const rolesById = new Map(targetDepartment.roles.map((role) => [role.id, role]));
 
         const updatedRoles: Role[] = (values.roles ?? []).map((roleInput, roleIndex) => {
-          const existingRoleById = roleInput.roleId ? rolesById.get(roleInput.roleId) : undefined;
+          const safeRoleInput = (roleInput ?? {}) as DepartmentCascadeForm['roles'][number];
+          const existingRoleById = safeRoleInput.roleId ? rolesById.get(safeRoleInput.roleId) : undefined;
           const existingRoleByIndex = targetDepartment.roles[roleIndex];
           const baseRole = existingRoleById ?? existingRoleByIndex;
 
           if (baseRole) {
-            if (baseRole.name === roleInput.name && baseRole.color === roleInput.color) {
+            if (baseRole.name === safeRoleInput.name && baseRole.color === safeRoleInput.color) {
               return baseRole;
             }
 
             return {
               ...baseRole,
-              name: roleInput.name ?? baseRole.name,
-              color: roleInput.color ?? baseRole.color
+              name: safeRoleInput.name ?? baseRole.name,
+              color: safeRoleInput.color ?? baseRole.color
             } satisfies Role;
           }
 
           const now = new Date().toISOString();
 
           return {
-            id: roleInput.roleId ?? generateClientUuid(),
+            id: safeRoleInput.roleId ?? generateClientUuid(),
             departmentId: targetDepartment.id,
-            name: roleInput.name ?? '',
-            color: roleInput.color ?? DEFAULT_ROLE_COLOR,
+            name: safeRoleInput.name ?? '',
+            color: safeRoleInput.color ?? DEFAULT_ROLE_COLOR,
             createdAt: now,
             updatedAt: now
           } satisfies Role;
