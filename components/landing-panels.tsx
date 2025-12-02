@@ -1365,7 +1365,11 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
               return baseRole;
             }
 
-            return { ...baseRole, name: roleInput.name, color: roleInput.color } satisfies Role;
+            return {
+              ...baseRole,
+              name: roleInput.name ?? baseRole.name,
+              color: roleInput.color ?? baseRole.color
+            } satisfies Role;
           }
 
           const now = new Date().toISOString();
@@ -1373,8 +1377,8 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
           return {
             id: roleInput.roleId ?? generateClientUuid(),
             departmentId: targetDepartment.id,
-            name: roleInput.name,
-            color: roleInput.color,
+            name: roleInput.name ?? '',
+            color: roleInput.color ?? DEFAULT_ROLE_COLOR,
             createdAt: now,
             updatedAt: now
           } satisfies Role;
