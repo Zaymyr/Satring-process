@@ -107,7 +107,7 @@ type SecondaryPanelProps = {
     { departmentId: string; values: DepartmentCascadeForm }
   >;
   deleteDepartmentMutation: UseMutationResult<void, ApiError, { id: string }>;
-  startEditingDepartment: (department: Department) => void;
+  startEditingDepartment: (department: DepartmentWithDraftStatus) => void;
   formatTemplateText: (template: string, value: string | null, token?: string) => string | null;
 };
 
