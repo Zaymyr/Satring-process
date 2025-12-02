@@ -160,16 +160,38 @@ const aiResponseSchema = {
                   { type: 'null' }
                 ]
               },
+              draftDepartmentName: {
+                anyOf: [
+                  { type: 'string', minLength: 1 },
+                  { type: 'null' }
+                ]
+              },
               roleId: {
                 anyOf: [
                   { type: 'string', format: 'uuid' },
                   { type: 'null' }
                 ]
               },
+              draftRoleName: {
+                anyOf: [
+                  { type: 'string', minLength: 1 },
+                  { type: 'null' }
+                ]
+              },
               yesTargetId: { anyOf: [{ type: 'string', minLength: 1 }, { type: 'null' }] },
               noTargetId: { anyOf: [{ type: 'string', minLength: 1 }, { type: 'null' }] }
             },
-            required: ['id', 'label', 'type', 'departmentId', 'roleId', 'yesTargetId', 'noTargetId']
+            required: [
+              'id',
+              'label',
+              'type',
+              'departmentId',
+              'draftDepartmentName',
+              'roleId',
+              'draftRoleName',
+              'yesTargetId',
+              'noTargetId'
+            ]
           }
         }
       },
@@ -335,7 +357,13 @@ export async function POST(request: Request) {
             [
               'Tu es un expert en cartographie de processus (bilingue français/anglais).',
               'A partir du processus fourni, propose une version améliorée en respectant strictement le schéma JSON indiqué.',
-              "Réutilise exclusivement les identifiants UUID des départements et rôles fournis ; si un nouveau département ou un nouveau rôle est nécessaire, laisse departmentId/roleId à null dans les étapes et décris l'ajout uniquement dans reply (aucun identifiant provisoire).",
+              [
+                "Réutilise uniquement les UUID fournis pour departmentId/roleId.",
+                "Pour proposer un nouveau département, laisse departmentId à null et renseigne draftDepartmentName avec le nom suggéré (pas d'UUID inventé).",
+                "Pour proposer un nouveau rôle sur un département existant, fournis departmentId (UUID connu), mets roleId à null et renseigne draftRoleName.",
+                "Pour un nouveau rôle sur un nouveau département, laisse departmentId/roleId à null et fournis draftDepartmentName et draftRoleName.",
+                "Ne génère jamais d'UUID provisoire ni de placeholders ; utilise les champs draft* pour toute création."
+              ].join('\n'),
               "La sortie doit uniquement contenir l'objet JSON final (aucun texte libre) avec deux clés obligatoires : process (processus à jour conforme au schéma) et reply (message concis destiné à l'utilisateur)."
             ].join('\n')
         },
@@ -350,9 +378,17 @@ export async function POST(request: Request) {
             parsedBody.data.context || 'Aucun contexte fourni.',
             'Demande utilisateur :',
             parsedBody.data.prompt,
-            "Chaque étape doit référencer un departmentId et roleId existant à partir du référentiel ci-dessus ; si un département ou rôle n'existe pas encore, laisse les champs departmentId/roleId à null dans le JSON et détaille la création uniquement dans reply (aucun identifiant provisoire). Le champ reply doit :",
-            '- résumer brièvement la proposition (2 phrases max) ;',
-            "- poser une question de clarification si des informations manquent (1 question courte maximum)."
+            [
+              'Pour chaque étape :',
+              '- departmentId/roleId doivent correspondre aux UUID du référentiel ci-dessus.',
+              "- Si tu proposes un nouveau département, laisse departmentId à null et remplis draftDepartmentName (pas d'UUID inventé).",
+              "- Si tu proposes un nouveau rôle dans un département existant, indique son departmentId, mets roleId à null et remplis draftRoleName.",
+              "- Si département et rôle sont tous deux nouveaux, garde departmentId/roleId à null et fournis draftDepartmentName et draftRoleName.",
+              "- N'invente jamais d'UUID ou d'identifiant temporaire : utilise uniquement les champs draft*.",
+              'Le champ reply doit :',
+              '- résumer brièvement la proposition (2 phrases max) ;',
+              "- poser une question de clarification si des informations manquent (1 question courte maximum)."
+            ].join('\n')
           ].join('\n\n')
         }
       ],
@@ -410,7 +446,7 @@ export async function POST(request: Request) {
     );
   }
 
-    const existingDepartmentById = new Map<string, DepartmentWithRoles>(
+  const existingDepartmentById = new Map<string, DepartmentWithRoles>(
     departmentsWithRoles.map((department) => [department.id, department])
   );
   const existingRoleById = new Map<string, { id: string; departmentId: string }>();
@@ -421,6 +457,10 @@ export async function POST(request: Request) {
     });
   });
 
+  const invalidDepartmentIds = new Set<string>();
+  const invalidRoleIds = new Set<string>();
+  const mismatchedRoleIds = new Set<string>();
+
   // 🔹 SANITIZE : on nettoie les incohérences IA avant de valider
   const reconciledSteps = parsedPayload.data.steps.map((step) => {
     let { departmentId, roleId } = step;
@@ -428,19 +468,19 @@ export async function POST(request: Request) {
     const existingDept = departmentId ? existingDepartmentById.get(departmentId) : undefined;
     const existingRole = roleId ? existingRoleById.get(roleId) : undefined;
 
-    // Si le département n'existe pas → on considère que c'est une proposition de nouveau département
     if (departmentId && !existingDept) {
+      invalidDepartmentIds.add(departmentId);
       departmentId = null;
-      roleId = null; // rôle forcément incohérent dans ce cas
-    }
-
-    // Si le rôle n'existe pas → proposition de nouveau rôle → on l'ignore côté IDs
-    if (roleId && !existingRole) {
       roleId = null;
     }
 
-    // Si le rôle existe mais ne correspond pas au département → on garde le département mais on enlève le rôle
+    if (roleId && !existingRole) {
+      invalidRoleIds.add(roleId);
+      roleId = null;
+    }
+
     if (departmentId && roleId && existingRole && existingRole.departmentId !== departmentId) {
+      mismatchedRoleIds.add(roleId);
       roleId = null;
     }
 
@@ -453,6 +493,27 @@ export async function POST(request: Request) {
 
   // 🔹 On remplace les steps par la version nettoyée
   parsedPayload.data.steps = reconciledSteps;
+
+  if (invalidDepartmentIds.size > 0) {
+    return NextResponse.json(
+      { error: 'Le process généré référence un département inconnu.' },
+      { status: 422, headers: RESPONSE_HEADERS }
+    );
+  }
+
+  if (invalidRoleIds.size > 0) {
+    return NextResponse.json(
+      { error: 'Le process généré référence un rôle inconnu.' },
+      { status: 422, headers: RESPONSE_HEADERS }
+    );
+  }
+
+  if (mismatchedRoleIds.size > 0) {
+    return NextResponse.json(
+      { error: 'Le rôle référencé ne correspond pas au département indiqué.' },
+      { status: 422, headers: RESPONSE_HEADERS }
+    );
+  }
 
   // 🔹 Ensuite on garde la boucle de validation comme garde-fou (au cas où)
   for (const step of parsedPayload.data.steps) {
