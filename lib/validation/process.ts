@@ -89,6 +89,22 @@ export const stepSchema = z
         path: ['draftRoleName']
       });
     }
+
+    if (step.roleId && step.draftDepartmentName) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Associez un rôle existant à un département enregistré, pas à un brouillon.',
+        path: ['departmentId']
+      });
+    }
+
+    if (step.draftRoleName && !step.departmentId && !step.draftDepartmentName) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Créez ou sélectionnez un département avant de définir un rôle.',
+        path: ['draftRoleName']
+      });
+    }
   });
 
 export const processPayloadSchema = z.object({
