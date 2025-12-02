@@ -44,14 +44,13 @@ type PrimaryPanelProps = {
   selectedStepId: string | null;
   setSelectedStepId: Dispatch<SetStateAction<string | null>>;
   getStepDisplayLabel: (step: Step) => string;
+  getStepDepartmentLabel: (step: Step) => string;
+  getStepRoleLabel: (step: Step) => string;
   roleLookup: {
     byId: Map<string, RoleLookupEntry>;
     byDepartment: Map<string, RoleLookupEntry[]>;
     all: RoleLookupEntry[];
   };
-  departmentNameById: Map<string, string>;
-  defaultDepartmentName: string;
-  defaultRoleName: string;
   tooltipLabels: TooltipLabels;
   stepTypeLabels: Record<StepType, string>;
   hasRoles: boolean;
@@ -93,10 +92,9 @@ export function PrimaryPanel({
   selectedStepId,
   setSelectedStepId,
   getStepDisplayLabel,
+  getStepDepartmentLabel,
+  getStepRoleLabel,
   roleLookup,
-  departmentNameById,
-  defaultDepartmentName,
-  defaultRoleName,
   tooltipLabels,
   stepTypeLabels,
   hasRoles,
@@ -215,11 +213,8 @@ export function PrimaryPanel({
                   const isSelectedStep = selectedStepId === step.id;
                   const displayLabel = getStepDisplayLabel(step);
                   const roleEntry = step.roleId ? roleLookup.byId.get(step.roleId) ?? null : null;
-                  const departmentName =
-                    (step.departmentId
-                      ? departmentNameById.get(step.departmentId)
-                      : roleEntry?.departmentName) ?? defaultDepartmentName;
-                  const roleName = roleEntry?.role.name ?? defaultRoleName;
+                  const departmentName = getStepDepartmentLabel(step);
+                  const roleName = getStepRoleLabel(step);
                   const tooltipTitle = `${tooltipLabels.type}: ${stepTypeLabels[step.type]}\n${tooltipLabels.department}: ${departmentName}\n${tooltipLabels.role}: ${roleName}`;
                   const availableRoleEntries =
                     step.departmentId !== null
@@ -345,6 +340,11 @@ export function PrimaryPanel({
                                     </option>
                                   ))}
                                 </select>
+                                {!step.departmentId && step.draftDepartmentName ? (
+                                  <span className="text-[0.6rem] font-normal normal-case tracking-normal text-slate-500">
+                                    Suggested: {step.draftDepartmentName}
+                                  </span>
+                                ) : null}
                                 {!hasDepartments ? (
                                   <span className="text-[0.6rem] font-normal normal-case tracking-normal text-slate-500">
                                     Add a department to assign it to this step.
@@ -373,6 +373,11 @@ export function PrimaryPanel({
                                     </option>
                                   ))}
                                 </select>
+                                {!step.roleId && step.draftRoleName ? (
+                                  <span className="text-[0.6rem] font-normal normal-case tracking-normal text-slate-500">
+                                    Suggested: {step.draftRoleName}
+                                  </span>
+                                ) : null}
                                 {roleHelperText &&
                                 step.type !== 'start' &&
                                 step.type !== 'finish' &&
@@ -439,10 +444,18 @@ export function PrimaryPanel({
                             ) : null}
                           </div>
                         ) : (
-                          <div className="flex min-w-0 flex-1 items-center gap-2">
+                          <div className="flex min-w-0 flex-1 flex-col gap-1">
                             <span className="truncate text-sm font-medium text-slate-900" title={displayLabel}>
                               {displayLabel}
                             </span>
+                            <div className="flex flex-wrap gap-1.5">
+                              <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-700">
+                                {departmentName}
+                              </span>
+                              <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-700">
+                                {roleName}
+                              </span>
+                            </div>
                           </div>
                         )}
                       </CardContent>
