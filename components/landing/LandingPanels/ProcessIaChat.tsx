@@ -45,12 +45,12 @@ export function ProcessIaChat({
 
   return (
     <div className="flex h-full flex-col gap-3">
-      <div className="space-y-2 rounded-2xl border border-slate-200 bg-white/70 p-3 shadow-inner">
+      <div className="flex flex-1 min-h-0 flex-col space-y-2 rounded-2xl border border-slate-200 bg-white/70 p-3 shadow-inner">
         <div className="flex items-center gap-2 text-sm font-medium text-slate-900">
           <Sparkles className="h-4 w-4" aria-hidden="true" />
           <span>{labels.title}</span>
         </div>
-        <div className="max-h-64 space-y-2 overflow-y-auto rounded-xl bg-slate-50 p-2" aria-live="polite">
+        <div className="flex-1 min-h-0 space-y-2 overflow-y-auto rounded-xl bg-slate-50 p-2" aria-live="polite">
           {messages.length === 0 ? null : (
             messages.map((message) => {
               const isUser = message.role === 'user';

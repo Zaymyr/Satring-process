@@ -527,8 +527,7 @@ export function PrimaryPanel({
           <div className="flex items-center justify-between">
             <h2 className="text-base font-semibold text-slate-900">{primaryPanel.tabs.ia}</h2>
           </div>
-          <p className="text-sm text-slate-700">{primaryPanel.iaDescription}</p>
-          <div className="flex-1 min-h-0 overflow-y-auto">{iaPanel}</div>
+          <div className="flex-1 min-h-0">{iaPanel}</div>
           <div className="mt-4 flex justify-end">
             <Button
               type="button"
