@@ -12,6 +12,8 @@ type DepartmentWithRoles = {
   id: string;
   name: string;
   roles: { id: string; name: string }[] | null;
+  status?: 'persisted' | 'draft';
+  rolesStatus?: ('persisted' | 'draft')[];
 };
 
 const RESPONSE_HEADERS = {
@@ -33,10 +35,17 @@ const formatDepartmentsContext = (departments: DepartmentWithRoles[]): string =>
   return departments
     .map((department) => {
       const roleSummary = department.roles?.length
-        ? department.roles.map((role) => `  - ${role.name} (id: ${role.id})`).join('\n')
+        ? department.roles
+            .map((role, index) => {
+              const status = department.rolesStatus?.[index] === 'draft' ? ' (brouillon)' : '';
+              return `  - ${role.name}${status} (id: ${role.id})`;
+            })
+            .join('\n')
         : '  - Aucun rôle enregistré.';
 
-      return [`- ${department.name} (id: ${department.id})`, roleSummary].join('\n');
+      const statusLabel = department.status === 'draft' ? ' (brouillon)' : '';
+
+      return [`- ${department.name}${statusLabel} (id: ${department.id})`, roleSummary].join('\n');
     })
     .join('\n');
 };
@@ -53,7 +62,24 @@ const requestSchema = z.object({
     .trim()
     .max(6000, 'Le contexte ne peut pas dépasser 6000 caractères.')
     .optional()
-    .transform((value) => value ?? '')
+    .transform((value) => value ?? ''),
+  departments: z
+    .array(
+      z.object({
+        id: z.string().trim().min(1),
+        name: z.string().trim().min(1),
+        status: z.enum(['persisted', 'draft']),
+        roles: z.array(
+          z.object({
+            id: z.string().trim().min(1),
+            name: z.string().trim().min(1),
+            status: z.enum(['persisted', 'draft'])
+          })
+        )
+      })
+    )
+    .optional()
+    .transform((value) => value ?? [])
 });
 
 const normalizeSteps = (value: unknown): unknown => {
@@ -257,22 +283,39 @@ export async function POST(request: Request) {
     );
   }
 
-  const { data: departmentRows, error: departmentsError } = await supabase
-    .from('departments')
-    .select('id, name, roles:roles(id, name)')
-    .eq('organization_id', processRecord.organization_id)
-    .order('name', { ascending: true })
-    .order('name', { referencedTable: 'roles', ascending: true });
+  let departmentsWithRoles: DepartmentWithRoles[];
 
-  if (departmentsError) {
-    console.error('Erreur lors de la récupération des départements pour IA', departmentsError);
-    return NextResponse.json(
-      { error: 'Impossible de récupérer les départements et rôles.' },
-      { status: 500, headers: RESPONSE_HEADERS }
-    );
+  if (parsedBody.data.departments.length > 0) {
+    departmentsWithRoles = parsedBody.data.departments.map((department) => ({
+      id: department.id,
+      name: department.name,
+      roles: department.roles.map((role) => ({ id: role.id, name: role.name })),
+      status: department.status,
+      rolesStatus: department.roles.map((role) => role.status)
+    }));
+  } else {
+    const { data: departmentRows, error: departmentsError } = await supabase
+      .from('departments')
+      .select('id, name, roles:roles(id, name)')
+      .eq('organization_id', processRecord.organization_id)
+      .order('name', { ascending: true })
+      .order('name', { referencedTable: 'roles', ascending: true });
+
+    if (departmentsError) {
+      console.error('Erreur lors de la récupération des départements pour IA', departmentsError);
+      return NextResponse.json(
+        { error: 'Impossible de récupérer les départements et rôles.' },
+        { status: 500, headers: RESPONSE_HEADERS }
+      );
+    }
+
+    departmentsWithRoles = (departmentRows ?? []).map((department) => ({
+      ...department,
+      status: 'persisted',
+      rolesStatus: department.roles?.map(() => 'persisted')
+    })) as DepartmentWithRoles[];
   }
 
-  const departmentsWithRoles: DepartmentWithRoles[] = (departmentRows ?? []) as DepartmentWithRoles[];
   const departmentsContext = formatDepartmentsContext(departmentsWithRoles);
 
   const grounding = JSON.stringify(

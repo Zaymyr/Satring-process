@@ -103,6 +103,11 @@ export class ApiError extends Error {
   }
 }
 
+export type DepartmentWithDraftStatus = Department & {
+  isDraft: boolean;
+  roles: (Role & { isDraft: boolean })[];
+};
+
 const parseErrorPayload = (raw: string, fallback: string) => {
   if (!raw) {
     return fallback;
@@ -938,7 +943,23 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
     }
   }, [draftDepartments.length, shouldUseDepartmentDemo, sourceDepartments]);
 
-  const departments = draftDepartments;
+  const departments: DepartmentWithDraftStatus[] = useMemo(() => {
+    const persistedById = new Map((departmentsQuery.data ?? []).map((department) => [department.id, department]));
+
+    return draftDepartments.map((department) => {
+      const persisted = persistedById.get(department.id);
+      const rolesWithStatus = department.roles.map((role) => ({
+        ...role,
+        isDraft: !persisted?.roles.some((item) => item.id === role.id)
+      }));
+
+      return {
+        ...department,
+        isDraft: !persisted,
+        roles: rolesWithStatus
+      } satisfies DepartmentWithDraftStatus;
+    });
+  }, [departmentsQuery.data, draftDepartments]);
   const departmentNameById = useMemo(() => {
     const map = new Map<string, string>();
     departments.forEach((department) => {
@@ -972,6 +993,21 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
 
     return { byId, byDepartment, all };
   }, [departments]);
+
+  const iaDepartmentsPayload = useMemo(
+    () =>
+      departments.map((department) => ({
+        id: department.id,
+        name: department.name,
+        status: department.isDraft ? 'draft' : 'persisted',
+        roles: department.roles.map((role) => ({
+          id: role.id,
+          name: role.name,
+          status: role.isDraft ? 'draft' : 'persisted'
+        }))
+      })),
+    [departments]
+  );
 
   useEffect(() => {
     if (!hasAppliedInviteTabRef.current && shouldUseDepartmentDemo) {
@@ -1090,7 +1126,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
   );
 
   const startEditingDepartment = useCallback(
-    (department: Department) => {
+    (department: DepartmentWithDraftStatus) => {
       if (isDepartmentActionsDisabled || isSavingDepartment) {
         return;
       }
@@ -2241,6 +2277,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
     mermaidJson,
     missingDepartments,
     missingRoles,
+    departments: iaDepartmentsPayload,
     copy: {
       intro: iaPanel.intro,
       followUpHeading: iaPanel.followUpHeading,
