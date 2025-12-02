@@ -58,6 +58,8 @@ const CLUSTER_STYLE_TEXT_COLOR = '#0f172a';
 const CLUSTER_FILL_OPACITY = 0.18;
 const FALLBACK_STEP_FILL_ALPHA = 0.12;
 
+type IaDepartmentsPayload = Parameters<typeof useProcessIaChat>[0]['departments'];
+
 const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
 
 const toRgba = (color: string, alpha: number, fallback: string) => {
@@ -102,6 +104,11 @@ export class ApiError extends Error {
     this.name = 'ApiError';
   }
 }
+
+export type DepartmentWithDraftStatus = Department & {
+  isDraft: boolean;
+  roles: (Role & { isDraft: boolean })[];
+};
 
 const parseErrorPayload = (raw: string, fallback: string) => {
   if (!raw) {
@@ -938,7 +945,23 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
     }
   }, [draftDepartments.length, shouldUseDepartmentDemo, sourceDepartments]);
 
-  const departments = draftDepartments;
+  const departments: DepartmentWithDraftStatus[] = useMemo(() => {
+    const persistedById = new Map((departmentsQuery.data ?? []).map((department) => [department.id, department]));
+
+    return draftDepartments.map((department) => {
+      const persisted = persistedById.get(department.id);
+      const rolesWithStatus = department.roles.map((role) => ({
+        ...role,
+        isDraft: !persisted?.roles.some((item) => item.id === role.id)
+      }));
+
+      return {
+        ...department,
+        isDraft: !persisted,
+        roles: rolesWithStatus
+      } satisfies DepartmentWithDraftStatus;
+    });
+  }, [departmentsQuery.data, draftDepartments]);
   const departmentNameById = useMemo(() => {
     const map = new Map<string, string>();
     departments.forEach((department) => {
@@ -972,6 +995,21 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
 
     return { byId, byDepartment, all };
   }, [departments]);
+
+  const iaDepartmentsPayload = useMemo<IaDepartmentsPayload>(
+    () =>
+      departments.map((department) => ({
+        id: department.id,
+        name: department.name,
+        status: department.isDraft ? 'draft' : 'persisted',
+        roles: department.roles.map((role) => ({
+          id: role.id,
+          name: role.name,
+          status: 'isDraft' in role && role.isDraft ? 'draft' : 'persisted'
+        }))
+      })),
+    [departments]
+  );
 
   useEffect(() => {
     if (!hasAppliedInviteTabRef.current && shouldUseDepartmentDemo) {
@@ -1090,7 +1128,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
   );
 
   const startEditingDepartment = useCallback(
-    (department: Department) => {
+    (department: DepartmentWithDraftStatus) => {
       if (isDepartmentActionsDisabled || isSavingDepartment) {
         return;
       }
@@ -2241,6 +2279,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
     mermaidJson,
     missingDepartments,
     missingRoles,
+    departments: iaDepartmentsPayload,
     copy: {
       intro: iaPanel.intro,
       followUpHeading: iaPanel.followUpHeading,

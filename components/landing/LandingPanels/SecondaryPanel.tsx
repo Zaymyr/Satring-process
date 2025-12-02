@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils/cn';
-import type { ApiError } from '@/components/landing-panels';
+import type { ApiError, DepartmentWithDraftStatus } from '@/components/landing-panels';
 import type { Department, DepartmentCascadeForm } from '@/lib/validation/department';
 import type { ProcessSummary } from '@/lib/validation/process';
 import { DEFAULT_ROLE_COLOR, type Role } from '@/lib/validation/role';
@@ -88,7 +88,7 @@ type SecondaryPanelProps = {
   shouldUseDepartmentDemo: boolean;
   createDepartmentMutation: UseMutationResult<Department, ApiError, void>;
   departmentsQuery: UseQueryResult<Department[], Error>;
-  departments: Department[];
+  departments: DepartmentWithDraftStatus[];
   editingDepartmentId: string | null;
   isDeletingDepartment: boolean;
   deleteDepartmentId: string | null;
@@ -107,7 +107,7 @@ type SecondaryPanelProps = {
     { departmentId: string; values: DepartmentCascadeForm }
   >;
   deleteDepartmentMutation: UseMutationResult<void, ApiError, { id: string }>;
-  startEditingDepartment: (department: Department) => void;
+  startEditingDepartment: (department: DepartmentWithDraftStatus) => void;
   formatTemplateText: (template: string, value: string | null, token?: string) => string | null;
 };
 
