@@ -526,6 +526,14 @@ function generateStepId() {
   return `step-${Math.random().toString(36).slice(2, 10)}`;
 }
 
+const generateClientUuid = () => {
+  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
+    return crypto.randomUUID();
+  }
+
+  return `draft-${Math.random().toString(36).slice(2, 10)}`;
+};
+
 type LandingPanelsProps = {
   highlights: readonly Highlight[];
 };
@@ -585,6 +593,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
   const shouldSkipProcessHydrationRef = useRef(false);
   const hasResetForUnauthorizedRef = useRef(false);
   const hasResetDepartmentEditorRef = useRef(false);
+  const hasInitializedDraftDepartmentsRef = useRef(false);
   const draggedStepIdRef = useRef<string | null>(null);
   const [draggedStepId, setDraggedStepId] = useState<string | null>(null);
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
@@ -597,6 +606,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
   const hasAppliedInviteTabRef = useRef(false);
   const [editingDepartmentId, setEditingDepartmentId] = useState<string | null>(null);
   const [deleteDepartmentId, setDeleteDepartmentId] = useState<string | null>(null);
+  const [draftDepartments, setDraftDepartments] = useState<Department[]>([]);
   const departmentEditForm = useForm<DepartmentCascadeForm>({
     resolver: zodResolver(departmentCascadeFormSchema),
     defaultValues: { name: '', color: DEFAULT_DEPARTMENT_COLOR, roles: [] }
@@ -681,59 +691,56 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
   });
 
   const createDepartmentMutation = useMutation<Department, ApiError, void>({
-    mutationFn: () =>
-      createDepartmentRequest({ name: defaultDepartmentName, color: DEFAULT_DEPARTMENT_COLOR }),
-    onSuccess: async (department) => {
-      queryClient.setQueryData(['departments'], (previous?: Department[]) => {
-        if (!previous) {
-          return [department];
-        }
+    mutationFn: async () => {
+      const now = new Date().toISOString();
 
-        const filtered = previous.filter((item) => item.id !== department.id);
-        return [department, ...filtered];
-      });
+      return {
+        id: generateClientUuid(),
+        name: defaultDepartmentName,
+        color: DEFAULT_DEPARTMENT_COLOR,
+        createdAt: now,
+        updatedAt: now,
+        roles: []
+      } satisfies Department;
+    },
+    onSuccess: (department) => {
+      setDraftDepartments((previous) => [department, ...previous]);
       setEditingDepartmentId(department.id);
-      editingDepartmentBaselineRef.current = department;
-      const mappedRoles = department.roles.map((role) => ({ roleId: role.id, name: role.name, color: role.color }));
-      departmentEditForm.reset({ name: department.name, color: department.color, roles: mappedRoles });
-      departmentRoleFields.replace(mappedRoles);
+      editingDepartmentBaselineRef.current = null;
+      departmentEditForm.reset({ name: department.name, color: department.color, roles: [] });
+      departmentRoleFields.replace([]);
       createDepartmentRoleMutation.reset();
-      await queryClient.invalidateQueries({ queryKey: ['departments'] });
     }
   });
 
   const createDepartmentRoleMutation = useMutation<Role, ApiError, { departmentId: string }>({
-    mutationFn: ({ departmentId }) => {
+    mutationFn: async ({ departmentId }) => {
       const department = departments.find((item) => item.id === departmentId);
       const fallbackColor = department?.color ?? DEFAULT_ROLE_COLOR;
-      return createRoleRequest({ departmentId, name: defaultRoleName, color: fallbackColor });
+      const now = new Date().toISOString();
+
+      return {
+        id: generateClientUuid(),
+        departmentId,
+        name: defaultRoleName,
+        color: fallbackColor,
+        createdAt: now,
+        updatedAt: now
+      } satisfies Role;
     },
     onSuccess: (role) => {
-      queryClient.setQueryData(['departments'], (previous?: Department[]) => {
-        if (!previous) {
-          return previous;
-        }
-
-        return previous.map((department) => {
+      setDraftDepartments((previous) =>
+        previous.map((department) => {
           if (department.id !== role.departmentId) {
             return department;
           }
 
-          const filteredRoles = department.roles.filter((item) => item.id !== role.id);
           return {
             ...department,
-            roles: [...filteredRoles, role]
+            roles: [...department.roles, role]
           };
-        });
-      });
-
-      if (editingDepartmentBaselineRef.current?.id === role.departmentId) {
-        const baselineRoles = editingDepartmentBaselineRef.current.roles.filter((item) => item.id !== role.id);
-        editingDepartmentBaselineRef.current = {
-          ...editingDepartmentBaselineRef.current,
-          roles: [...baselineRoles, role]
-        };
-      }
+        })
+      );
 
       const newIndex = departmentEditForm.getValues('roles').length;
       departmentRoleFields.append({ roleId: role.id, name: role.name, color: role.color });
@@ -769,14 +776,17 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
     { departmentId: string; values: DepartmentCascadeForm }
   >({
     mutationFn: async ({ departmentId, values }) => {
-      const baseline =
-        editingDepartmentBaselineRef.current &&
-        editingDepartmentBaselineRef.current.id === departmentId
-          ? editingDepartmentBaselineRef.current
-          : (departmentsQuery.data ?? []).find((item) => item.id === departmentId) ?? null;
+      const baseline = (departmentsQuery.data ?? []).find((item) => item.id === departmentId) ?? null;
 
       if (!baseline) {
-        throw new ApiError('Département introuvable.', 404);
+        const created = await createDepartmentRequest({ name: values.name, color: values.color });
+
+        for (const roleInput of values.roles) {
+          await createRoleRequest({ departmentId: created.id, name: roleInput.name, color: roleInput.color });
+        }
+
+        const refreshedDepartments = await requestDepartments();
+        return refreshedDepartments;
       }
 
       if (baseline.name !== values.name || baseline.color !== values.color) {
@@ -816,7 +826,8 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
     },
     onSuccess: async (departmentsList) => {
       queryClient.setQueryData(['departments'], departmentsList);
-
+      setDraftDepartments(departmentsList);
+      hasInitializedDraftDepartmentsRef.current = true;
       setEditingDepartmentId(null);
       editingDepartmentBaselineRef.current = null;
       departmentEditForm.reset({
@@ -837,6 +848,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
     },
     onSuccess: async (_data, variables) => {
       await queryClient.invalidateQueries({ queryKey: ['departments'] });
+      setDraftDepartments((previous) => previous.filter((item) => item.id !== variables.id));
       let shouldReset = false;
       setEditingDepartmentId((current) => {
         if (current === variables.id) {
@@ -908,10 +920,25 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
     departmentsQuery.error instanceof ApiError &&
     departmentsQuery.error.status === 401;
   const shouldUseDepartmentDemo = isAuthMissing || isDepartmentUnauthorized;
-  const departments = useMemo(
+  const sourceDepartments = useMemo(
     () => (shouldUseDepartmentDemo ? getInviteDemoDepartments() : departmentsQuery.data ?? []),
     [departmentsQuery.data, shouldUseDepartmentDemo]
   );
+
+  useEffect(() => {
+    if (shouldUseDepartmentDemo) {
+      setDraftDepartments(sourceDepartments);
+      hasInitializedDraftDepartmentsRef.current = true;
+      return;
+    }
+
+    if (draftDepartments.length === 0 && sourceDepartments.length > 0 && !hasInitializedDraftDepartmentsRef.current) {
+      setDraftDepartments(sourceDepartments);
+      hasInitializedDraftDepartmentsRef.current = true;
+    }
+  }, [draftDepartments.length, shouldUseDepartmentDemo, sourceDepartments]);
+
+  const departments = draftDepartments;
   const departmentNameById = useMemo(() => {
     const map = new Map<string, string>();
     departments.forEach((department) => {
@@ -1033,9 +1060,33 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
       if (isDepartmentActionsDisabled) {
         return;
       }
+
+      const isPersisted = (departmentsQuery.data ?? []).some((department) => department.id === id);
+
+      if (!isPersisted) {
+        setDraftDepartments((previous) => previous.filter((department) => department.id !== id));
+
+        setEditingDepartmentId((current) => {
+          if (current !== id) {
+            return current;
+          }
+
+          departmentEditForm.reset({ name: '', color: DEFAULT_DEPARTMENT_COLOR, roles: [] });
+          departmentRoleFields.replace([]);
+          return null;
+        });
+
+        return;
+      }
       deleteDepartmentMutation.mutate({ id });
     },
-    [deleteDepartmentMutation, isDepartmentActionsDisabled]
+    [
+      departmentEditForm,
+      departmentRoleFields,
+      departmentsQuery.data,
+      deleteDepartmentMutation,
+      isDepartmentActionsDisabled
+    ]
   );
 
   const startEditingDepartment = useCallback(
@@ -1045,7 +1096,8 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
       }
 
       setEditingDepartmentId(department.id);
-      editingDepartmentBaselineRef.current = department;
+      editingDepartmentBaselineRef.current =
+        (departmentsQuery.data ?? []).find((item) => item.id === department.id) ?? null;
       const mappedRoles = department.roles.map((role) => ({ roleId: role.id, name: role.name, color: role.color }));
       departmentEditForm.reset({ name: department.name, color: department.color, roles: mappedRoles });
       departmentRoleFields.replace(mappedRoles);
@@ -1053,6 +1105,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
     [
       departmentEditForm,
       departmentRoleFields,
+      departmentsQuery.data,
       editingDepartmentBaselineRef,
       isDepartmentActionsDisabled,
       isSavingDepartment
