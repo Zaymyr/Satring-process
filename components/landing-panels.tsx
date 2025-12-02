@@ -96,6 +96,20 @@ const getClusterStyleDeclaration = (clusterId: string, color: string) => {
   return `style ${clusterId} fill:${normalized},stroke:${normalized},color:${CLUSTER_STYLE_TEXT_COLOR},stroke-width:2px,fill-opacity:${CLUSTER_FILL_OPACITY};`;
 };
 
+const normalizeNameKey = (value: string | null | undefined) => {
+  if (typeof value !== 'string') {
+    return null;
+  }
+
+  const trimmed = value.trim();
+
+  if (trimmed.length === 0) {
+    return null;
+  }
+
+  return trimmed.toLowerCase();
+};
+
 type Highlight = HighlightsGridHighlight;
 
 export class ApiError extends Error {
@@ -559,6 +573,74 @@ const generateClientUuid = () => {
   return `draft-${Math.random().toString(36).slice(2, 10)}`;
 };
 
+const mergeDraftEntitiesFromSteps = (
+  steps: readonly ProcessStep[],
+  baseDepartments: readonly Department[]
+): Department[] => {
+  const now = new Date().toISOString();
+  const byName = new Map<string, Department>();
+
+  baseDepartments.forEach((department) => {
+    const key = normalizeNameKey(department.name);
+    if (!key) {
+      return;
+    }
+
+    byName.set(key, { ...department, roles: department.roles.map((role) => ({ ...role })) });
+  });
+
+  steps.forEach((step) => {
+    const draftDepartmentName = normalizeDraftName(step.draftDepartmentName);
+
+    if (!draftDepartmentName) {
+      return;
+    }
+
+    const departmentKey = normalizeNameKey(draftDepartmentName);
+
+    if (!departmentKey) {
+      return;
+    }
+
+    const existingDepartment = byName.get(departmentKey);
+    const department: Department = existingDepartment ?? {
+      id: generateClientUuid(),
+      name: draftDepartmentName,
+      color: DEFAULT_DEPARTMENT_COLOR,
+      createdAt: now,
+      updatedAt: now,
+      roles: []
+    };
+
+    const draftRoleName = normalizeDraftName(step.draftRoleName);
+
+    if (draftRoleName) {
+      const roleKey = normalizeNameKey(draftRoleName);
+      const hasRole = roleKey
+        ? department.roles.some((role) => normalizeNameKey(role.name) === roleKey)
+        : false;
+
+      if (!hasRole) {
+        department.roles = [
+          ...department.roles,
+          {
+            id: generateClientUuid(),
+            departmentId: department.id,
+            name: draftRoleName,
+            color: DEFAULT_ROLE_COLOR,
+            createdAt: now,
+            updatedAt: now
+          }
+        ];
+      }
+    }
+
+    byName.set(departmentKey, department);
+  });
+
+  return Array.from(byName.values());
+};
+
 type LandingPanelsProps = {
   highlights: readonly Highlight[];
 };
@@ -1013,6 +1095,40 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
 
     return { byId, byDepartment, all };
   }, [departments]);
+
+  const getStepDepartmentLabel = useCallback(
+    (step: Step) => {
+      const normalizedDepartmentId = normalizeDepartmentId(step.departmentId);
+
+      if (normalizedDepartmentId) {
+        const departmentName = departmentNameById.get(normalizedDepartmentId);
+        if (departmentName) {
+          return departmentName;
+        }
+      }
+
+      const departmentFromRole = step.roleId ? roleLookup.byId.get(step.roleId)?.departmentName : null;
+      const draftDepartmentName = normalizeDraftName(step.draftDepartmentName);
+
+      return draftDepartmentName ?? departmentFromRole ?? defaultDepartmentName;
+    },
+    [defaultDepartmentName, departmentNameById, roleLookup.byId]
+  );
+
+  const getStepRoleLabel = useCallback(
+    (step: Step) => {
+      if (step.roleId) {
+        const entry = roleLookup.byId.get(step.roleId);
+        if (entry) {
+          return entry.role.name;
+        }
+      }
+
+      const draftRoleName = normalizeDraftName(step.draftRoleName);
+      return draftRoleName ?? defaultRoleName;
+    },
+    [defaultRoleName, roleLookup.byId]
+  );
 
   const iaDepartmentsPayload = useMemo<IaDepartmentsPayload>(
     () =>
@@ -1843,6 +1959,15 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
         { department, clusterId: `cluster_${index}` }
       ])
     );
+    const departmentLookupByName = new Map(
+      departments
+        .map((department, index) => ({ department, clusterId: `cluster_${index}` }))
+        .map((entry) => {
+          const key = normalizeNameKey(entry.department.name);
+          return key ? ([key, entry] as const) : null;
+        })
+        .filter(Boolean) as Array<readonly [string, { department: DepartmentWithDraftStatus; clusterId: string }]>
+    );
     const roleLookup = new Map<string, Role>();
 
     for (const department of departments) {
@@ -1859,8 +1984,14 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
       const lines = wrapStepLabel(baseLabel);
       const label = lines.map((line) => escapeHtml(line)).join('<br/>');
       const departmentId = normalizeDepartmentId(step.departmentId);
-      const clusterEntry =
-        areDepartmentsVisible && departmentId ? departmentLookup.get(departmentId) : undefined;
+      const draftDepartmentKey = normalizeNameKey(step.draftDepartmentName);
+      const clusterEntry = areDepartmentsVisible
+        ? departmentId
+          ? departmentLookup.get(departmentId)
+          : draftDepartmentKey
+            ? departmentLookupByName.get(draftDepartmentKey)
+            : undefined
+        : undefined;
       const roleColor = step.roleId ? roleLookup.get(step.roleId)?.color ?? null : null;
       const departmentColor = areDepartmentsVisible
         ? (clusterEntry?.department.color ?? null)
@@ -2012,7 +2143,15 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
 
     const stepById = new Map(steps.map((step) => [step.id, step] as const));
     const departmentById = new Map(departments.map((department) => [department.id, department] as const));
-    const roleById = new Map<string, { role: Role; department: Department }>();
+    const departmentByName = new Map(
+      departments
+        .map((department) => {
+          const key = normalizeNameKey(department.name);
+          return key ? ([key, department] as const) : null;
+        })
+        .filter(Boolean) as Array<readonly [string, DepartmentWithDraftStatus]>
+    );
+    const roleById = new Map<string, { role: Role; department: DepartmentWithDraftStatus }>();
 
     for (const department of departments) {
       for (const role of department.roles) {
@@ -2037,22 +2176,28 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
       const displayLines = [...labelLines];
       const roleEntry = step.roleId ? roleById.get(step.roleId) : undefined;
       const departmentFromStep = step.departmentId ? departmentById.get(step.departmentId) : undefined;
-      const department = areDepartmentsVisible
-        ? roleEntry?.department ?? departmentFromStep
+      const draftDepartmentName = normalizeDraftName(step.draftDepartmentName);
+      const departmentFromDraft = draftDepartmentName
+        ? departmentByName.get(normalizeNameKey(draftDepartmentName) ?? '')
         : undefined;
+      const department = areDepartmentsVisible
+        ? roleEntry?.department ?? departmentFromStep ?? departmentFromDraft
+        : undefined;
+      const departmentLabel = department?.name ?? draftDepartmentName ?? roleEntry?.department.name ?? defaultDepartmentName;
       const role = roleEntry?.role;
+      const roleLabel = role?.name ?? normalizeDraftName(step.draftRoleName) ?? defaultRoleName;
       const stepIndex = acc.length;
       const defaultNextStep = steps[stepIndex + 1];
       const fallbackLabel = defaultNextStep ? getStepDisplayLabel(defaultNextStep) : '—';
 
       const metadataLines: string[] = [];
 
-      if (role) {
-        metadataLines.push(`Rôle : ${role.name}`);
+      if (roleLabel) {
+        metadataLines.push(`Rôle : ${roleLabel}`);
       }
 
-      if (areDepartmentsVisible && department) {
-        metadataLines.push(`Département : ${department.name}`);
+      if (areDepartmentsVisible && departmentLabel) {
+        metadataLines.push(`Département : ${departmentLabel}`);
       }
 
       if (metadataLines.length > 0) {
@@ -2242,7 +2387,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
         })}
       </svg>
     );
-  }, [areDepartmentsVisible, departments, getStepDisplayLabel, steps]);
+  }, [areDepartmentsVisible, defaultDepartmentName, defaultRoleName, departments, getStepDisplayLabel, steps]);
 
   const mermaidJson = useMemo(
     () =>
@@ -2275,6 +2420,10 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
       const sanitizedSteps = cloneSteps(payload.steps);
       const normalizedTitle = normalizeProcessTitle(payload.title);
 
+      setDraftDepartments((previous) =>
+        mergeDraftEntitiesFromSteps(sanitizedSteps, previous.length > 0 ? previous : sourceDepartments)
+      );
+
       shouldSkipProcessHydrationRef.current = true;
       setSteps(sanitizedSteps);
       setSelectedStepId(null);
@@ -2287,7 +2436,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
           : { id: targetProcessId, title: normalizedTitle, steps: sanitizedSteps, updatedAt: nextUpdatedAt };
       });
     },
-    [currentProcessId, queryClient]
+    [currentProcessId, queryClient, sourceDepartments]
   );
 
   const iaChat = useProcessIaChat({
@@ -2546,10 +2695,9 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
       selectedStepId={selectedStepId}
       setSelectedStepId={setSelectedStepId}
       getStepDisplayLabel={getStepDisplayLabel}
+      getStepDepartmentLabel={getStepDepartmentLabel}
+      getStepRoleLabel={getStepRoleLabel}
       roleLookup={roleLookup}
-      departmentNameById={departmentNameById}
-      defaultDepartmentName={defaultDepartmentName}
-      defaultRoleName={defaultRoleName}
       tooltipLabels={tooltipLabels}
       stepTypeLabels={stepTypeLabels}
       hasRoles={hasRoles}
