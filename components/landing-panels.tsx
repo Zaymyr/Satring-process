@@ -157,6 +157,15 @@ const normalizeDepartmentId = (value: string | null | undefined) => {
   return trimmed.length > 0 ? trimmed : null;
 };
 
+const normalizeDraftName = (value: string | null | undefined) => {
+  if (typeof value !== 'string') {
+    return null;
+  }
+
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+};
+
 const normalizeRoleId = (value: string | null | undefined) => {
   if (typeof value !== 'string') {
     return null;
@@ -171,13 +180,20 @@ const normalizeRoleId = (value: string | null | undefined) => {
   return ROLE_ID_REGEX.test(trimmed) ? trimmed : null;
 };
 
-const normalizeStep = (step: ProcessStep): ProcessStep => ({
-  ...step,
-  departmentId: normalizeDepartmentId(step.departmentId),
-  roleId: normalizeRoleId(step.roleId),
-  yesTargetId: normalizeBranchTarget(step.yesTargetId),
-  noTargetId: normalizeBranchTarget(step.noTargetId)
-});
+const normalizeStep = (step: ProcessStep): ProcessStep => {
+  const normalizedDepartmentId = normalizeDepartmentId(step.departmentId);
+  const normalizedRoleId = normalizeRoleId(step.roleId);
+
+  return {
+    ...step,
+    departmentId: normalizedDepartmentId,
+    draftDepartmentName: normalizedDepartmentId ? null : normalizeDraftName(step.draftDepartmentName),
+    roleId: normalizedRoleId,
+    draftRoleName: normalizedRoleId ? null : normalizeDraftName(step.draftRoleName),
+    yesTargetId: normalizeBranchTarget(step.yesTargetId),
+    noTargetId: normalizeBranchTarget(step.noTargetId)
+  };
+};
 
 const cloneSteps = (steps: readonly ProcessStep[]): ProcessStep[] => steps.map((step) => normalizeStep({ ...step }));
 
@@ -247,7 +263,9 @@ const areStepsEqual = (a: readonly ProcessStep[], b: readonly ProcessStep[]) => 
       normalized.label === normalizedOther.label &&
       normalized.type === normalizedOther.type &&
       normalized.departmentId === normalizedOther.departmentId &&
+      normalized.draftDepartmentName === normalizedOther.draftDepartmentName &&
       normalized.roleId === normalizedOther.roleId &&
+      normalized.draftRoleName === normalizedOther.draftRoleName &&
       normalized.yesTargetId === normalizedOther.yesTargetId &&
       normalized.noTargetId === normalizedOther.noTargetId
     );
@@ -2303,14 +2321,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
       return;
     }
 
-    const payloadSteps = steps.map((step) => ({
-      ...step,
-      label: step.label.trim(),
-      departmentId: normalizeDepartmentId(step.departmentId),
-      roleId: normalizeRoleId(step.roleId),
-      yesTargetId: normalizeBranchTarget(step.yesTargetId),
-      noTargetId: normalizeBranchTarget(step.noTargetId)
-    }));
+    const payloadSteps = steps.map((step) => normalizeStep({ ...step, label: step.label.trim() }));
     const payload: ProcessPayload = {
       id: currentProcessId,
       title: normalizeProcessTitle(processTitle),
@@ -2331,7 +2342,9 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
       label,
       type,
       departmentId: null,
+      draftDepartmentName: null,
       roleId: null,
+      draftRoleName: null,
       yesTargetId: null,
       noTargetId: null
     };
