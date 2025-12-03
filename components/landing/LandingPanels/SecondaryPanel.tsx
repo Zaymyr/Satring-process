@@ -1,5 +1,5 @@
 import type { Dispatch, MutableRefObject, SetStateAction } from 'react';
-import { Building2, FolderTree, Loader2, Plus, Save, Trash2 } from 'lucide-react';
+import { Building2, FolderTree, Loader2, Plus, Trash2 } from 'lucide-react';
 import type { UseMutationResult, UseQueryResult } from '@tanstack/react-query';
 import { type UseFieldArrayReturn, type UseFormReturn } from 'react-hook-form';
 
@@ -98,10 +98,8 @@ type SecondaryPanelProps = {
   deleteDepartmentId: string | null;
   formatDateTime: (date: string | number | Date | null | undefined) => string | null;
   departmentEditForm: UseFormReturn<DepartmentCascadeForm>;
-  handleSave: () => void;
   handleDeleteDepartment: (departmentId: string) => void;
   isSaving: boolean;
-  isSaveDisabled: boolean;
   saveError: string | null;
   departmentRoleFields: UseFieldArrayReturn<DepartmentCascadeForm, 'roles', 'id'>;
   isAddingDepartmentRole: boolean;
@@ -153,10 +151,8 @@ export function SecondaryPanel({
   deleteDepartmentId,
   formatDateTime,
   departmentEditForm,
-  handleSave,
   handleDeleteDepartment,
   isSaving,
-  isSaveDisabled,
   saveError,
   departmentRoleFields,
   isAddingDepartmentRole,
@@ -490,27 +486,6 @@ export function SecondaryPanel({
                     <p className="text-xs text-red-600">{saveError}</p>
                   ) : null}
                 </div>
-                <Button
-                  type="button"
-                  size="sm"
-                  onClick={handleSave}
-                  disabled={
-                    isDepartmentActionsDisabled ||
-                    isSaving ||
-                    isAddingDepartmentRole ||
-                    isDeletingDepartment ||
-                    isSaveDisabled ||
-                    departments.length === 0
-                  }
-                  className="inline-flex h-9 items-center gap-1 rounded-md bg-slate-900 px-3 text-xs font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600"
-                >
-                  {isSaving ? (
-                    <Loader2 aria-hidden="true" className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Save aria-hidden="true" className="h-4 w-4" />
-                  )}
-                  {secondaryPanel.departments.save}
-                </Button>
               </div>
             </div>
           </div>
