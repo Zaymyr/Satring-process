@@ -77,6 +77,8 @@ export type Dictionary = {
           listAriaLabel: string;
           colorLabel: string;
           colorValueLabel: string;
+          draftBadge: string;
+          roleDraftBadge: string;
           updatedLabel: string;
           deleteAriaLabel: string;
           empty: {
@@ -459,6 +461,8 @@ const dictionaries: Record<Locale, Dictionary> = {
           listAriaLabel: 'Departments',
           colorLabel: 'Department color',
           colorValueLabel: 'Color: {color}',
+          draftBadge: 'Draft',
+          roleDraftBadge: 'Draft role',
           updatedLabel: 'Updated {timestamp}',
           deleteAriaLabel: 'Delete department',
           empty: {
@@ -860,6 +864,8 @@ const dictionaries: Record<Locale, Dictionary> = {
           listAriaLabel: 'Départements',
           colorLabel: 'Couleur du département',
           colorValueLabel: 'Couleur : {color}',
+          draftBadge: 'Brouillon',
+          roleDraftBadge: 'Rôle brouillon',
           updatedLabel: 'Mis à jour {timestamp}',
           deleteAriaLabel: 'Supprimer le département',
           empty: {

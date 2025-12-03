@@ -5,9 +5,11 @@ import { type ProcessStep } from '@/lib/validation/process';
 export type Step = ProcessStep;
 
 export type RoleLookupEntry = {
-  role: Role;
+  role: Role & { isDraft?: boolean };
   departmentId: string;
   departmentName: string;
+  departmentIsDraft?: boolean;
+  isDraft?: boolean;
 };
 
 export type DiagramDragState = {
