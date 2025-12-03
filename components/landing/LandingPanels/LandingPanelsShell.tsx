@@ -640,7 +640,7 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
         for (const roleInput of staged.roles) {
           const originalRole = roleInput.id ? baselineRoles.get(roleInput.id) : null;
 
-          if (originalRole) {
+          if (roleInput.id && originalRole) {
             seenRoleIds.add(roleInput.id);
 
             if (originalRole.name !== roleInput.name || originalRole.color !== roleInput.color) {
