@@ -378,7 +378,7 @@ export function SecondaryPanel({
                                   draftBadgeLabel={secondaryPanel.departments.draftBadge}
                                   roleDraftBadgeLabel={secondaryPanel.departments.roleDraftBadge}
                                   roleDraftLookup={new Map(
-                                    department.roles.map((role) => [role.id, role.isDraft])
+                                    department.roles.map((role) => [role.id, 'isDraft' in role && role.isDraft])
                                   )}
                                   isDraft={department.isDraft}
                                   departmentEditForm={departmentEditForm}
