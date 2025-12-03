@@ -628,8 +628,11 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
 
       const baselineDepartments = departmentsQuery.data ?? [];
       const baselineById = new Map(baselineDepartments.map((item) => [item.id, item]));
+      const stagedDepartmentIds = new Set(stagedDepartments.map((department) => department.id));
       const departmentIdMap = new Map<string, string>();
       const roleIdMap = new Map<string, string>();
+      const savedDepartmentIds = new Set<string>();
+      const savedRoleIds = new Set<string>();
 
       for (const staged of stagedDepartments) {
         const baseline = baselineById.get(staged.id) ?? null;
@@ -639,8 +642,13 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
           const created = await createDepartment({ name: staged.name, color: staged.color });
           departmentIdMap.set(staged.id, created.id);
           targetDepartmentId = created.id;
-        } else if (baseline.name !== staged.name || baseline.color !== staged.color) {
-          await updateDepartment({ id: staged.id, name: staged.name, color: staged.color });
+          savedDepartmentIds.add(created.id);
+        } else {
+          savedDepartmentIds.add(baseline.id);
+
+          if (baseline.name !== staged.name || baseline.color !== staged.color) {
+            await updateDepartment({ id: staged.id, name: staged.name, color: staged.color });
+          }
         }
 
         const baselineRoles = new Map(baseline?.roles.map((role) => [role.id, role]));
@@ -664,6 +672,7 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
             const resolvedRoleId = originalRole.id;
             const stagedRoleKey = roleInput.id ?? roleInput.name;
             seenRoleIds.add(resolvedRoleId);
+            savedRoleIds.add(resolvedRoleId);
 
             if (stagedRoleKey) {
               roleIdMap.set(stagedRoleKey, resolvedRoleId);
@@ -682,6 +691,7 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
             color: roleInput.color
           });
           roleIdMap.set(roleInput.id ?? roleInput.name, createdRole.id);
+          savedRoleIds.add(createdRole.id);
           seenRoleIds.add(createdRole.id);
         }
 
@@ -692,12 +702,20 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
         }
       }
 
+      for (const baseline of baselineDepartments) {
+        if (!stagedDepartmentIds.has(baseline.id)) {
+          await deleteDepartment(baseline.id);
+        }
+      }
+
       const refreshedDepartments = await fetchDepartments();
       const normalizedSteps = process.steps.map((step) => {
         const mappedDepartmentId = step.departmentId
-          ? departmentIdMap.get(step.departmentId) ?? step.departmentId
+          ? departmentIdMap.get(step.departmentId) ?? (savedDepartmentIds.has(step.departmentId) ? step.departmentId : null)
           : null;
-        const mappedRoleId = step.roleId ? roleIdMap.get(step.roleId) ?? step.roleId : null;
+        const mappedRoleId = step.roleId
+          ? roleIdMap.get(step.roleId) ?? (savedRoleIds.has(step.roleId) ? step.roleId : null)
+          : null;
 
         return normalizeStep({
           ...step,
