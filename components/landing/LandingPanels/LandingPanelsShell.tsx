@@ -730,7 +730,7 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
         });
       });
 
-      setRoleLookup((previous) => ({
+      setRoleLookup(() => ({
         all: data.departments.flatMap((department) =>
           department.roles.map((role) => ({ departmentId: department.id, role }))
         ),
