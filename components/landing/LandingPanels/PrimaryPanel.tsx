@@ -5,10 +5,12 @@ import { GitBranch, GripVertical, Plus, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { ProcessControls } from '@/components/landing/LandingPanels/ProcessControls';
+import { RolePicker, type RolePickerMessages } from '@/components/landing/LandingPanels/RolePicker';
 import { cn } from '@/lib/utils/cn';
 import type { RoleLookupEntry, Step } from '@/lib/process/types';
 import type { ProcessStep, StepType } from '@/lib/validation/process';
-import type { Department } from '@/lib/validation/department';
+import type { DepartmentWithDraftStatus } from './LandingPanelsShell';
 
 type PrimaryPanelLabels = {
   addAction: string;
@@ -21,12 +23,6 @@ type PrimaryPanelLabels = {
   };
 };
 
-type RolePickerMessages = {
-  addRole: string;
-  noDepartmentRoles: string;
-  chooseRoleForDepartment: string;
-};
-
 type TooltipLabels = {
   type: string;
   department: string;
@@ -37,6 +33,11 @@ type PrimaryPanelProps = {
   processTitle: string;
   primaryPanel: PrimaryPanelLabels;
   iaPanel: ReactNode;
+  isProcessInitialized: boolean;
+  onCreateProcess: () => void;
+  isCreatingProcess: boolean;
+  createLabel: string;
+  createPrompt: string;
   addStep: (type: Extract<StepType, 'action' | 'decision'>) => void;
   isProcessEditorReadOnly: boolean;
   steps: ProcessStep[];
@@ -44,20 +45,21 @@ type PrimaryPanelProps = {
   selectedStepId: string | null;
   setSelectedStepId: Dispatch<SetStateAction<string | null>>;
   getStepDisplayLabel: (step: Step) => string;
+  getStepDepartmentLabel: (step: Step) => string;
+  getStepRoleLabel: (step: Step) => string;
   roleLookup: {
     byId: Map<string, RoleLookupEntry>;
     byDepartment: Map<string, RoleLookupEntry[]>;
     all: RoleLookupEntry[];
   };
-  departmentNameById: Map<string, string>;
-  defaultDepartmentName: string;
-  defaultRoleName: string;
   tooltipLabels: TooltipLabels;
   stepTypeLabels: Record<StepType, string>;
   hasRoles: boolean;
   rolePickerMessages: RolePickerMessages;
   hasDepartments: boolean;
-  departments: Department[];
+  departments: DepartmentWithDraftStatus[];
+  draftBadgeLabel: string;
+  roleDraftBadgeLabel: string;
   updateStepLabel: (id: string, label: string) => void;
   updateStepDepartment: (id: string, departmentId: string | null) => void;
   updateStepRole: (id: string, roleId: string | null) => void;
@@ -86,6 +88,11 @@ type PrimaryPanelProps = {
 export function PrimaryPanel({
   processTitle,
   primaryPanel,
+  isProcessInitialized,
+  onCreateProcess,
+  isCreatingProcess,
+  createLabel,
+  createPrompt,
   addStep,
   isProcessEditorReadOnly,
   steps,
@@ -93,16 +100,17 @@ export function PrimaryPanel({
   selectedStepId,
   setSelectedStepId,
   getStepDisplayLabel,
+  getStepDepartmentLabel,
+  getStepRoleLabel,
   roleLookup,
-  departmentNameById,
-  defaultDepartmentName,
-  defaultRoleName,
   tooltipLabels,
   stepTypeLabels,
   hasRoles,
   rolePickerMessages,
   hasDepartments,
   departments,
+  draftBadgeLabel,
+  roleDraftBadgeLabel,
   updateStepLabel,
   updateStepDepartment,
   updateStepRole,
@@ -125,6 +133,8 @@ export function PrimaryPanel({
 }: PrimaryPanelProps) {
   const tabsListId = useId();
   const [activeTab, setActiveTab] = useState<'ia' | 'manual'>('manual');
+
+  const isStepEditingDisabled = isProcessEditorReadOnly || !isProcessInitialized;
 
   const manualPanelId = `${tabsListId}-manual-panel`;
   const iaPanelId = `${tabsListId}-ia-panel`;
@@ -185,7 +195,7 @@ export function PrimaryPanel({
             <Button
               type="button"
               onClick={() => addStep('action')}
-              disabled={isProcessEditorReadOnly}
+              disabled={isStepEditingDisabled}
               className="h-10 w-full rounded-md bg-slate-900 px-3 text-sm text-white hover:bg-slate-800"
             >
               <Plus className="mr-2 h-3.5 w-3.5" />
@@ -195,7 +205,7 @@ export function PrimaryPanel({
               type="button"
               variant="outline"
               onClick={() => addStep('decision')}
-              disabled={isProcessEditorReadOnly}
+              disabled={isStepEditingDisabled}
               className="h-10 w-full rounded-md border-slate-300 bg-white px-3 text-sm text-slate-900 hover:bg-slate-50"
             >
               <GitBranch className="mr-2 h-3.5 w-3.5" />
@@ -204,6 +214,21 @@ export function PrimaryPanel({
           </div>
           <div className="flex-1 min-h-0 overflow-hidden">
             <div className="h-full space-y-3 overflow-y-auto rounded-2xl border border-slate-200 bg-white/75 p-3 pr-1 shadow-inner sm:pr-1.5">
+              {!isProcessInitialized ? (
+                <Card className="border-dashed border-slate-300 bg-white/80">
+                  <CardContent className="flex flex-wrap items-center justify-between gap-3 p-3 text-sm text-slate-700">
+                    <p className="flex-1 text-left text-sm text-slate-800">{createPrompt}</p>
+                    <Button
+                      type="button"
+                      onClick={onCreateProcess}
+                      disabled={isProcessEditorReadOnly || isCreatingProcess}
+                      className="bg-slate-900 text-xs font-semibold text-white hover:bg-slate-800 disabled:bg-slate-200"
+                    >
+                      {createLabel}
+                    </Button>
+                  </CardContent>
+                </Card>
+              ) : null}
               <div className="space-y-2.5">
                 {steps.map((step, index) => {
                   const isRemovable = step.type === 'action' || step.type === 'decision';
@@ -211,15 +236,11 @@ export function PrimaryPanel({
                   const availableTargets = steps.filter((candidate) => candidate.id !== step.id);
                   const isDragging = draggedStepId === step.id;
                   const isFixedStep = step.type === 'start' || step.type === 'finish';
-                  const canReorderStep = !isFixedStep && !isProcessEditorReadOnly;
+                  const canReorderStep = !isFixedStep && !isStepEditingDisabled;
                   const isSelectedStep = selectedStepId === step.id;
                   const displayLabel = getStepDisplayLabel(step);
-                  const roleEntry = step.roleId ? roleLookup.byId.get(step.roleId) ?? null : null;
-                  const departmentName =
-                    (step.departmentId
-                      ? departmentNameById.get(step.departmentId)
-                      : roleEntry?.departmentName) ?? defaultDepartmentName;
-                  const roleName = roleEntry?.role.name ?? defaultRoleName;
+                  const departmentName = getStepDepartmentLabel(step);
+                  const roleName = getStepRoleLabel(step);
                   const tooltipTitle = `${tooltipLabels.type}: ${stepTypeLabels[step.type]}\n${tooltipLabels.department}: ${departmentName}\n${tooltipLabels.role}: ${roleName}`;
                   const availableRoleEntries =
                     step.departmentId !== null
@@ -240,6 +261,18 @@ export function PrimaryPanel({
 
                     return null;
                   })();
+                  const helperText =
+                    roleHelperText &&
+                    step.type !== 'start' &&
+                    step.type !== 'finish' &&
+                    roleHelperText !== rolePickerMessages.chooseRoleForDepartment
+                      ? roleHelperText
+                      : null;
+                  const department =
+                    step.departmentId
+                      ? departments.find((candidate) => candidate.id === step.departmentId) ?? null
+                      : null;
+                  const roleEntry = step.roleId ? roleLookup.byId.get(step.roleId) : null;
 
                   return (
                     <Card
@@ -279,11 +312,11 @@ export function PrimaryPanel({
                           >
                             {stepPosition}
                           </span>
-                          <button
-                            type="button"
-                            className={cn(
-                              'flex h-7 w-7 items-center justify-center rounded-full border border-transparent bg-slate-100 text-slate-500 transition',
-                              canReorderStep ? 'hover:border-slate-300 hover:bg-white' : 'cursor-not-allowed opacity-60'
+                            <button
+                              type="button"
+                              className={cn(
+                                'flex h-7 w-7 items-center justify-center rounded-full border border-transparent bg-slate-100 text-slate-500 transition',
+                                canReorderStep ? 'hover:border-slate-300 hover:bg-white' : 'cursor-not-allowed opacity-60'
                             )}
                             draggable={canReorderStep}
                             onDragStart={(event) => {
@@ -306,7 +339,7 @@ export function PrimaryPanel({
                               variant="ghost"
                               size="icon"
                               onClick={() => removeStep(step.id)}
-                              disabled={isProcessEditorReadOnly}
+                              disabled={isStepEditingDisabled}
                               className="h-7 w-7 shrink-0 text-red-500 hover:text-red-600"
                               aria-label="Delete step"
                             >
@@ -321,7 +354,7 @@ export function PrimaryPanel({
                               value={step.label}
                               onChange={(event) => updateStepLabel(step.id, event.target.value)}
                               placeholder="Step label"
-                              disabled={isProcessEditorReadOnly}
+                              disabled={isStepEditingDisabled}
                               className="h-8 w-full border-slate-200 bg-white text-sm text-slate-900 placeholder:text-slate-400 focus-visible:ring-slate-900/20 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-50"
                             />
                             <div className="grid gap-1.5 sm:grid-cols-2">
@@ -336,52 +369,42 @@ export function PrimaryPanel({
                                     )
                                   }
                                   className="h-8 rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-900 transition focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
-                                  disabled={isProcessEditorReadOnly || !hasDepartments}
+                                  disabled={isStepEditingDisabled || !hasDepartments}
                                 >
                                   <option value="">No department</option>
-                                  {departments.map((department) => (
-                                    <option key={department.id} value={department.id}>
-                                      {department.name}
-                                    </option>
-                                  ))}
+                                  {departments.map((department) => {
+                                    const optionLabel = department.isDraft
+                                      ? `${department.name} · ${draftBadgeLabel}`
+                                      : department.name;
+
+                                    return (
+                                      <option key={department.id} value={department.id}>
+                                        {optionLabel}
+                                      </option>
+                                    );
+                                  })}
                                 </select>
+                                {!step.departmentId && step.draftDepartmentName ? (
+                                  <span className="text-[0.6rem] font-normal normal-case tracking-normal text-slate-500">
+                                    Suggested: {step.draftDepartmentName}
+                                  </span>
+                                ) : null}
                                 {!hasDepartments ? (
                                   <span className="text-[0.6rem] font-normal normal-case tracking-normal text-slate-500">
                                     Add a department to assign it to this step.
                                   </span>
                                 ) : null}
                               </label>
-                              <label className="flex flex-col gap-1 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
-                                <span title={rolePickerMessages.chooseRoleForDepartment}>Role</span>
-                                <select
-                                  value={step.roleId ?? ''}
-                                  onChange={(event) =>
-                                    updateStepRole(
-                                      step.id,
-                                      event.target.value.length > 0 ? event.target.value : null
-                                    )
-                                  }
-                                  className="h-8 rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-900 transition focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
-                                  disabled={isProcessEditorReadOnly || !hasRoles}
-                                >
-                                  <option value="">No role</option>
-                                  {availableRoleEntries.map((entry) => (
-                                    <option key={entry.role.id} value={entry.role.id}>
-                                      {step.departmentId
-                                        ? entry.role.name
-                                        : `${entry.role.name} — ${entry.departmentName}`}
-                                    </option>
-                                  ))}
-                                </select>
-                                {roleHelperText &&
-                                step.type !== 'start' &&
-                                step.type !== 'finish' &&
-                                roleHelperText !== rolePickerMessages.chooseRoleForDepartment ? (
-                                  <span className="text-[0.6rem] font-normal normal-case tracking-normal text-slate-500">
-                                    {roleHelperText}
-                                  </span>
-                                ) : null}
-                              </label>
+                              <RolePicker
+                                step={step}
+                                hasRoles={hasRoles}
+                                roleEntries={availableRoleEntries}
+                                messages={rolePickerMessages}
+                                disabled={isStepEditingDisabled || !hasRoles}
+                                onChange={(roleId) => updateStepRole(step.id, roleId)}
+                                helperText={helperText}
+                                draftBadgeLabel={roleDraftBadgeLabel}
+                              />
                             </div>
                             {step.type === 'decision' ? (
                               <div className="mt-1.5 grid gap-1.5 sm:grid-cols-2">
@@ -392,7 +415,7 @@ export function PrimaryPanel({
                                     onChange={(event) =>
                                       updateDecisionBranch(step.id, 'yes', event.target.value || null)
                                     }
-                                    disabled={isProcessEditorReadOnly}
+                                    disabled={isStepEditingDisabled}
                                     className="h-8 rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-900 transition focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
                                   >
                                     <option value="">Next step (default)</option>
@@ -417,7 +440,7 @@ export function PrimaryPanel({
                                     onChange={(event) =>
                                       updateDecisionBranch(step.id, 'no', event.target.value || null)
                                     }
-                                    disabled={isProcessEditorReadOnly}
+                                    disabled={isStepEditingDisabled}
                                     className="h-8 rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-900 transition focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
                                   >
                                     <option value="">Next step (default)</option>
@@ -439,12 +462,40 @@ export function PrimaryPanel({
                             ) : null}
                           </div>
                         ) : (
-                          <div className="flex min-w-0 flex-1 items-center gap-2">
-                            <span className="truncate text-sm font-medium text-slate-900" title={displayLabel}>
-                              {displayLabel}
-                            </span>
-                          </div>
-                        )}
+                          <div className="flex min-w-0 flex-1 flex-col gap-1">
+                              <span className="truncate text-sm font-medium text-slate-900" title={displayLabel}>
+                                {displayLabel}
+                              </span>
+                              <div className="flex flex-wrap gap-1.5">
+                              <span
+                                className={cn(
+                                  'flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-700',
+                                  department?.isDraft && 'border border-dashed border-slate-300 bg-slate-50'
+                                )}
+                              >
+                                <span className="truncate">{departmentName}</span>
+                                {department?.isDraft ? (
+                                  <span className="text-[9px] font-semibold uppercase tracking-wide text-slate-500">
+                                    {draftBadgeLabel}
+                                  </span>
+                                ) : null}
+                              </span>
+                              <span
+                                className={cn(
+                                  'flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-700',
+                                  roleEntry?.isDraft && 'border border-dashed border-slate-300 bg-slate-50'
+                                )}
+                              >
+                                <span className="truncate">{roleName}</span>
+                                {roleEntry?.isDraft ? (
+                                  <span className="text-[9px] font-semibold uppercase tracking-wide text-slate-500">
+                                    {roleDraftBadgeLabel}
+                                  </span>
+                                ) : null}
+                              </span>
+                              </div>
+                            </div>
+                          )}
                       </CardContent>
                     </Card>
                   );
@@ -465,53 +516,15 @@ export function PrimaryPanel({
               </div>
             </div>
           </div>
-          <div className="grid grid-cols-[auto,1fr] items-start gap-3 pt-2">
-          <Button
-            type="button"
-            onClick={handleSave}
-            disabled={isSaveDisabled}
-            className="h-9 rounded-md bg-slate-900 px-3 text-sm font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600"
-          >
-            {saveButtonLabel}
-          </Button>
-          <p className={cn('text-[11px] leading-5', statusToneClass)} aria-live="polite">
-            {statusMessage}
-          </p>
-          {isDirty && (missingAssignments.departments.length > 0 || missingAssignments.roles.length > 0) ? (
-            <div className="col-span-2 space-y-1.5 rounded-lg border border-amber-200 bg-amber-50/80 px-3 py-2 text-[11px] text-amber-950 shadow-inner">
-              {missingAssignments.departments.length > 0 ? (
-                <div className="flex flex-wrap items-start gap-2">
-                  <span className="font-semibold">{missingAssignments.departmentsLabel}</span>
-                  <div className="flex flex-wrap gap-1.5">
-                    {missingAssignments.departments.map((label, index) => (
-                      <span
-                        key={`${label}-department-${index}`}
-                        className="rounded-full bg-white/80 px-2 py-0.5 text-[10px] font-medium shadow-sm"
-                      >
-                        {label}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              ) : null}
-              {missingAssignments.roles.length > 0 ? (
-                <div className="flex flex-wrap items-start gap-2">
-                  <span className="font-semibold">{missingAssignments.rolesLabel}</span>
-                  <div className="flex flex-wrap gap-1.5">
-                    {missingAssignments.roles.map((label, index) => (
-                      <span
-                        key={`${label}-role-${index}`}
-                        className="rounded-full bg-white/80 px-2 py-0.5 text-[10px] font-medium shadow-sm"
-                      >
-                        {label}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              ) : null}
-            </div>
-          ) : null}
-        </div>
+          <ProcessControls
+            onSave={handleSave}
+            isSaveDisabled={isSaveDisabled}
+            saveButtonLabel={saveButtonLabel}
+            statusToneClass={statusToneClass}
+            statusMessage={statusMessage}
+            missingAssignments={missingAssignments}
+            isDirty={isDirty}
+          />
       </section>
 
         <section
@@ -524,21 +537,7 @@ export function PrimaryPanel({
             activeTab !== 'ia' && 'hidden'
           )}
         >
-          <div className="flex items-center justify-between">
-            <h2 className="text-base font-semibold text-slate-900">{primaryPanel.tabs.ia}</h2>
-          </div>
-          <p className="text-sm text-slate-700">{primaryPanel.iaDescription}</p>
-          <div className="flex-1 min-h-0 overflow-y-auto">{iaPanel}</div>
-          <div className="mt-4 flex justify-end">
-            <Button
-              type="button"
-              onClick={handleSave}
-              disabled={isSaveDisabled}
-              className="h-9 rounded-md bg-slate-900 px-3 text-sm font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600"
-            >
-              {saveButtonLabel}
-            </Button>
-          </div>
+          <div className="flex-1 min-h-0">{iaPanel}</div>
         </section>
       </div>
     </div>

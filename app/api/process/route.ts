@@ -19,29 +19,12 @@ const NO_STORE_HEADERS = { 'Cache-Control': 'no-store, max-age=0, must-revalidat
 
 const processIdSchema = z.string().uuid();
 
-const NEW_ID_PREFIX = 'new:';
+const normalizeName = (value: string) => value.trim().toLowerCase();
 
 type DepartmentWithRoles = {
   id: string;
   name: string;
   roles: { id: string; name: string }[] | null;
-};
-
-const humanizeFromTemporaryId = (value: string, fallback: string) => {
-  const slug = value.startsWith(NEW_ID_PREFIX) ? value.slice(NEW_ID_PREFIX.length) : value;
-  const words = slug
-    .split(/[._-]+/)
-    .map((segment) => segment.trim())
-    .filter((segment) => segment.length > 0);
-
-  if (words.length === 0) {
-    return fallback;
-  }
-
-  return words
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(' ')
-    .slice(0, 120);
 };
 
 type SupabaseError = {
@@ -335,20 +318,33 @@ export async function POST(request: Request) {
     departmentsWithRoles.map((department) => [department.id, department])
   );
   const existingRoleById = new Map<string, { id: string; departmentId: string }>();
+  const existingDepartmentByName = new Map<string, DepartmentWithRoles>(
+    departmentsWithRoles.map((department) => [normalizeName(department.name), department])
+  );
+  const existingRoleNameByDepartment = new Map<string, Map<string, { id: string; name: string }>>();
 
   departmentsWithRoles.forEach((department) => {
+    if (!existingRoleNameByDepartment.has(department.id)) {
+      existingRoleNameByDepartment.set(department.id, new Map());
+    }
+
     department.roles?.forEach((role) => {
       existingRoleById.set(role.id, { id: role.id, departmentId: department.id });
+      existingRoleNameByDepartment
+        .get(department.id)
+        ?.set(normalizeName(role.name), { id: role.id, name: role.name });
     });
   });
 
   const pendingDepartments = new Map<string, string>();
-  const pendingRoles = new Map<string, { departmentId: string; name: string }>();
-  const temporaryRoleDepartments = new Map<string, string>();
+  const pendingRoles = new Map<string, { departmentKey: string; name: string; normalizedName: string }>();
+  const resolvedDraftDepartmentIds = new Map<string, string>();
 
   for (const step of body.steps) {
     const departmentId = step.departmentId;
     const roleId = step.roleId;
+    const draftDepartmentName = step.draftDepartmentName;
+    const draftRoleName = step.draftRoleName;
 
     if (!departmentId && roleId) {
       return NextResponse.json(
@@ -357,66 +353,90 @@ export async function POST(request: Request) {
       );
     }
 
+    let resolvedDepartmentId: string | null = null;
+    let draftDepartmentKey: string | null = null;
+
     if (departmentId) {
-      if (departmentId.startsWith(NEW_ID_PREFIX)) {
-        if (!pendingDepartments.has(departmentId)) {
-          pendingDepartments.set(departmentId, humanizeFromTemporaryId(departmentId, 'Nouveau département'));
-        }
-      } else if (!existingDepartmentById.has(departmentId)) {
+      if (!existingDepartmentById.has(departmentId)) {
         return NextResponse.json(
           { error: 'Le process référence un département inconnu.' },
           { status: 422, headers: NO_STORE_HEADERS }
         );
       }
+
+      resolvedDepartmentId = departmentId;
     }
 
-    if (!roleId) {
+    if (draftDepartmentName) {
+      const normalized = normalizeName(draftDepartmentName);
+      const existingDepartment = existingDepartmentByName.get(normalized);
+
+      if (existingDepartment) {
+        resolvedDepartmentId = existingDepartment.id;
+        resolvedDraftDepartmentIds.set(normalized, existingDepartment.id);
+      } else {
+        draftDepartmentKey = normalized;
+        if (!pendingDepartments.has(normalized)) {
+          pendingDepartments.set(normalized, draftDepartmentName);
+        }
+      }
+    }
+
+    if (!roleId && !draftRoleName) {
       continue;
     }
 
-    if (roleId.startsWith(NEW_ID_PREFIX)) {
-      if (!departmentId) {
+    if (roleId) {
+      const existingRole = existingRoleById.get(roleId);
+
+      if (!existingRole) {
         return NextResponse.json(
-          { error: 'Le rôle proposé est associé à aucun département.' },
+          { error: 'Le process référence un rôle inconnu.' },
           { status: 422, headers: NO_STORE_HEADERS }
         );
       }
 
-      const previousDepartmentId = temporaryRoleDepartments.get(roleId);
+      const expectedDepartmentId = resolvedDepartmentId ?? existingRole.departmentId;
 
-      if (previousDepartmentId && previousDepartmentId !== departmentId) {
+      if (!expectedDepartmentId || existingRole.departmentId !== expectedDepartmentId) {
         return NextResponse.json(
-          { error: 'Un même rôle provisoire est associé à plusieurs départements.' },
+          { error: 'Le rôle référencé ne correspond pas au département indiqué.' },
           { status: 422, headers: NO_STORE_HEADERS }
         );
       }
+    }
 
-      temporaryRoleDepartments.set(roleId, departmentId);
-      pendingRoles.set(roleId, {
-        departmentId,
-        name: humanizeFromTemporaryId(roleId, 'Nouveau rôle')
+    if (!draftRoleName) {
+      continue;
+    }
+
+    const normalizedRoleName = normalizeName(draftRoleName);
+    const departmentKey = resolvedDepartmentId ?? draftDepartmentKey;
+
+    if (!departmentKey) {
+      return NextResponse.json(
+        { error: 'Un rôle provisoire est défini sans département associé.' },
+        { status: 422, headers: NO_STORE_HEADERS }
+      );
+    }
+
+    if (resolvedDepartmentId) {
+      const existingRole = existingRoleNameByDepartment.get(resolvedDepartmentId)?.get(normalizedRoleName);
+      if (existingRole) {
+        continue;
+      }
+    }
+
+    const roleKey = `${departmentKey}::${normalizedRoleName}`;
+
+    if (!pendingRoles.has(roleKey)) {
+      pendingRoles.set(roleKey, {
+        departmentKey,
+        name: draftRoleName,
+        normalizedName: normalizedRoleName
       });
-      continue;
-    }
-
-    const existingRole = existingRoleById.get(roleId);
-
-    if (!existingRole) {
-      return NextResponse.json(
-        { error: 'Le process référence un rôle inconnu.' },
-        { status: 422, headers: NO_STORE_HEADERS }
-      );
-    }
-
-    if (!departmentId || existingRole.departmentId !== departmentId) {
-      return NextResponse.json(
-        { error: 'Le rôle référencé ne correspond pas au département indiqué.' },
-        { status: 422, headers: NO_STORE_HEADERS }
-      );
     }
   }
-
-  let newDepartmentIds = new Map<string, string>();
 
   if (pendingDepartments.size > 0) {
     const departmentsToCreate = Array.from(pendingDepartments.entries()).map(([, name]) => ({
@@ -445,20 +465,22 @@ export async function POST(request: Request) {
 
     const createdPairs = Array.from(pendingDepartments.keys());
 
-    newDepartmentIds = new Map(
-      data.map((department, index) => {
-        const tempId = createdPairs[index];
-        const persistedId = typeof department.id === 'string' ? department.id : String(department.id);
-        existingDepartmentById.set(persistedId, { id: persistedId, name: department.name, roles: [] });
-        return [tempId, persistedId];
-      })
-    );
+    data.forEach((department, index) => {
+      const draftKey = createdPairs[index];
+      const persistedId = typeof department.id === 'string' ? department.id : String(department.id);
+      existingDepartmentById.set(persistedId, { id: persistedId, name: department.name, roles: [] });
+      existingDepartmentByName.set(normalizeName(department.name), { id: persistedId, name: department.name, roles: [] });
+      resolvedDraftDepartmentIds.set(draftKey, persistedId);
+      if (!existingRoleNameByDepartment.has(persistedId)) {
+        existingRoleNameByDepartment.set(persistedId, new Map());
+      }
+    });
   }
 
   let newRoleIds = new Map<string, string>();
 
   if (pendingRoles.size > 0) {
-    const roleTempIds: string[] = [];
+    const roleKeys: string[] = [];
     const rolesToCreate: {
       department_id: string;
       name: string;
@@ -466,70 +488,94 @@ export async function POST(request: Request) {
       organization_id: string;
     }[] = [];
 
-    for (const [tempId, role] of pendingRoles.entries()) {
-      const resolvedDepartmentId = role.departmentId.startsWith(NEW_ID_PREFIX)
-        ? newDepartmentIds.get(role.departmentId)
-        : role.departmentId;
+    for (const [, role] of pendingRoles.entries()) {
+      const resolvedDepartmentId = existingDepartmentById.has(role.departmentKey)
+        ? role.departmentKey
+        : resolvedDraftDepartmentIds.get(role.departmentKey);
 
-      if (!resolvedDepartmentId || !existingDepartmentById.has(resolvedDepartmentId)) {
+      if (!resolvedDepartmentId) {
         return NextResponse.json(
           { error: 'Le process référence un rôle lié à un département inexistant.' },
           { status: 422, headers: NO_STORE_HEADERS }
         );
       }
 
-      roleTempIds.push(tempId);
+      const roleNames = existingRoleNameByDepartment.get(resolvedDepartmentId) ?? new Map();
+      if (roleNames.has(role.normalizedName)) {
+        continue;
+      }
+
+      roleKeys.push(`${resolvedDepartmentId}::${role.normalizedName}`);
       rolesToCreate.push({
         department_id: resolvedDepartmentId,
         name: role.name,
         color: DEFAULT_ROLE_COLOR,
         organization_id: processRecord.organization_id
       });
+      existingRoleNameByDepartment.set(resolvedDepartmentId, roleNames);
     }
 
-    const { data, error } = await supabase
-      .from('roles')
-      .insert(rolesToCreate)
-      .select('id, department_id');
+    if (rolesToCreate.length > 0) {
+      const { data, error } = await supabase
+        .from('roles')
+        .insert(rolesToCreate)
+        .select('id, department_id, name');
 
-    if (error) {
-      console.error('Erreur lors de la création des rôles lors de la sauvegarde du process', error);
-      const mapped = mapRoleWriteError(error);
-      return NextResponse.json(mapped.body, { status: mapped.status, headers: NO_STORE_HEADERS });
-    }
+      if (error) {
+        console.error('Erreur lors de la création des rôles lors de la sauvegarde du process', error);
+        const mapped = mapRoleWriteError(error);
+        return NextResponse.json(mapped.body, { status: mapped.status, headers: NO_STORE_HEADERS });
+      }
 
-    if (!data || data.length !== pendingRoles.size) {
-      return NextResponse.json(
-        { error: 'Création des nouveaux rôles incomplète.' },
-        { status: 500, headers: NO_STORE_HEADERS }
+      if (!data || data.length !== rolesToCreate.length) {
+        return NextResponse.json(
+          { error: 'Création des nouveaux rôles incomplète.' },
+          { status: 500, headers: NO_STORE_HEADERS }
+        );
+      }
+
+      newRoleIds = new Map(
+        data.map((role, index) => {
+          const persistedId = typeof role.id === 'string' ? role.id : String(role.id);
+          const departmentId =
+            typeof role.department_id === 'string' ? role.department_id : String(role.department_id ?? '');
+          const normalizedName = normalizeName(role.name ?? '');
+          existingRoleById.set(persistedId, { id: persistedId, departmentId });
+
+          const roleNameMap = existingRoleNameByDepartment.get(departmentId) ?? new Map();
+          roleNameMap.set(normalizedName, { id: persistedId, name: role.name ?? '' });
+          existingRoleNameByDepartment.set(departmentId, roleNameMap);
+
+          return [roleKeys[index], persistedId];
+        })
       );
     }
-
-    newRoleIds = new Map(
-      data.map((role, index) => {
-        const tempId = roleTempIds[index];
-        const persistedId = typeof role.id === 'string' ? role.id : String(role.id);
-        const departmentId =
-          typeof role.department_id === 'string' ? role.department_id : String(role.department_id ?? '');
-
-        existingRoleById.set(persistedId, { id: persistedId, departmentId });
-        return [tempId, persistedId];
-      })
-    );
   }
 
   const resolvedSteps = body.steps.map((step) => {
+    const draftDepartmentKey = step.draftDepartmentName ? normalizeName(step.draftDepartmentName) : null;
     const resolvedDepartmentId =
-      typeof step.departmentId === 'string' && step.departmentId.startsWith(NEW_ID_PREFIX)
-        ? newDepartmentIds.get(step.departmentId) ?? null
-        : step.departmentId;
+      step.departmentId ??
+      (draftDepartmentKey ? resolvedDraftDepartmentIds.get(draftDepartmentKey) : null) ??
+      (draftDepartmentKey ? existingDepartmentByName.get(draftDepartmentKey)?.id ?? null : null);
 
-    const resolvedRoleId =
-      typeof step.roleId === 'string' && step.roleId.startsWith(NEW_ID_PREFIX)
-        ? newRoleIds.get(step.roleId) ?? null
-        : step.roleId;
+    const normalizedDraftRole = step.draftRoleName ? normalizeName(step.draftRoleName) : null;
+    const departmentIdForRole = resolvedDepartmentId;
 
-    return { ...step, departmentId: resolvedDepartmentId, roleId: resolvedRoleId };
+    let resolvedRoleId = step.roleId;
+
+    if (!resolvedRoleId && normalizedDraftRole && departmentIdForRole) {
+      const existingRole = existingRoleNameByDepartment.get(departmentIdForRole)?.get(normalizedDraftRole);
+      resolvedRoleId = existingRole?.id ?? newRoleIds.get(`${departmentIdForRole}::${normalizedDraftRole}`) ?? null;
+    }
+
+    return {
+      ...step,
+      departmentId: resolvedDepartmentId,
+      roleId: resolvedRoleId,
+      draftDepartmentName: null,
+      draftRoleName: null
+    };
   });
 
   const resolvedBody: ProcessPayload = { ...body, steps: resolvedSteps };

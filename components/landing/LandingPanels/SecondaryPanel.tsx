@@ -1,17 +1,19 @@
 import type { Dispatch, MutableRefObject, SetStateAction } from 'react';
-import { Building2, FolderTree, Loader2, Pencil, Plus, Save, Trash2, UserRound } from 'lucide-react';
+import { Building2, FolderTree, Loader2, Plus, Trash2 } from 'lucide-react';
 import type { UseMutationResult, UseQueryResult } from '@tanstack/react-query';
-import { Controller, type UseFieldArrayReturn, type UseFormReturn } from 'react-hook-form';
+import { type UseFieldArrayReturn, type UseFormReturn } from 'react-hook-form';
 
 import { HighlightsGrid, type Highlight } from './HighlightsGrid';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils/cn';
-import type { ApiError } from '@/components/landing-panels';
+import type { ApiError } from '@/lib/api/errors';
+import type { DepartmentWithDraftStatus } from './LandingPanelsShell';
 import type { Department, DepartmentCascadeForm } from '@/lib/validation/department';
 import type { ProcessSummary } from '@/lib/validation/process';
-import { DEFAULT_ROLE_COLOR, type Role } from '@/lib/validation/role';
+import type { Role } from '@/lib/validation/role';
+import { ProcessListPanel } from '@/components/landing/LandingPanels/ProcessListPanel';
+import { DepartmentEditor } from '@/components/landing/LandingPanels/DepartmentEditor';
 
 export type SecondaryPanelLabels = {
   title: { processes: string; departments: string };
@@ -31,6 +33,8 @@ export type SecondaryPanelLabels = {
     deleteAriaLabel: string;
     updatedLabel: string;
     colorValueLabel: string;
+    draftBadge: string;
+    roleDraftBadge: string;
     addRole: string;
     save: string;
     empty: { demo: string; standard: string };
@@ -88,26 +92,21 @@ type SecondaryPanelProps = {
   shouldUseDepartmentDemo: boolean;
   createDepartmentMutation: UseMutationResult<Department, ApiError, void>;
   departmentsQuery: UseQueryResult<Department[], Error>;
-  departments: Department[];
+  departments: DepartmentWithDraftStatus[];
   editingDepartmentId: string | null;
   isDeletingDepartment: boolean;
   deleteDepartmentId: string | null;
   formatDateTime: (date: string | number | Date | null | undefined) => string | null;
   departmentEditForm: UseFormReturn<DepartmentCascadeForm>;
-  handleSaveDepartment: (values: DepartmentCascadeForm) => void;
   handleDeleteDepartment: (departmentId: string) => void;
-  isSavingDepartment: boolean;
+  isSaving: boolean;
+  saveError: string | null;
   departmentRoleFields: UseFieldArrayReturn<DepartmentCascadeForm, 'roles', 'id'>;
   isAddingDepartmentRole: boolean;
   handleAddRole: () => void;
   createDepartmentRoleMutation: UseMutationResult<Role, ApiError, { departmentId: string }>;
-  saveDepartmentMutation: UseMutationResult<
-    Department[],
-    ApiError,
-    { departmentId: string; values: DepartmentCascadeForm }
-  >;
   deleteDepartmentMutation: UseMutationResult<void, ApiError, { id: string }>;
-  startEditingDepartment: (department: Department) => void;
+  startEditingDepartment: (department: DepartmentWithDraftStatus) => void;
   formatTemplateText: (template: string, value: string | null, token?: string) => string | null;
 };
 
@@ -152,18 +151,27 @@ export function SecondaryPanel({
   deleteDepartmentId,
   formatDateTime,
   departmentEditForm,
-  handleSaveDepartment,
   handleDeleteDepartment,
-  isSavingDepartment,
+  isSaving,
+  saveError,
   departmentRoleFields,
   isAddingDepartmentRole,
   handleAddRole,
   createDepartmentRoleMutation,
-  saveDepartmentMutation,
   deleteDepartmentMutation,
   startEditingDepartment,
   formatTemplateText
 }: SecondaryPanelProps) {
+  const processListErrorMessage =
+    processSummariesQuery.isError && !isProcessListUnauthorized
+      ? processSummariesQuery.error instanceof Error
+        ? processSummariesQuery.error.message
+        : landingErrorMessages.process.listFailed
+      : isProcessListUnauthorized
+        ? landingErrorMessages.authRequired
+        : null;
+  const isProcessListLoading = processSummariesQuery.isLoading;
+
   return (
     <>
       <div className="space-y-3">
@@ -271,155 +279,39 @@ export function SecondaryPanel({
               hidden={!isProcessesTabActive}
               className={cn('h-full', !isProcessesTabActive && 'hidden')}
             >
-              {isProcessListUnauthorized ? (
-                <p className="text-sm text-slate-600">{landingErrorMessages.authRequired}</p>
-              ) : processSummariesQuery.isLoading ? (
-                <div className="flex items-center gap-2 text-sm text-slate-500">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  {secondaryPanel.processes.loading}
-                </div>
-              ) : processSummariesQuery.isError ? (
-                <p className="text-sm text-red-600">
-                  {processSummariesQuery.error instanceof Error
-                    ? processSummariesQuery.error.message
-                    : landingErrorMessages.process.listFailed}
-                </p>
-              ) : hasProcesses ? (
-                <ul role="tree" aria-label={secondaryPanel.processes.listAriaLabel} className="space-y-2">
-                  {processSummaries.map((summary) => {
-                    const isSelected = summary.id === currentProcessId;
-                    const isEditing = editingProcessId === summary.id;
-                    return (
-                      <li key={summary.id} role="treeitem" aria-selected={isSelected} className="focus:outline-none">
-                        <div
-                          role={isEditing ? undefined : 'button'}
-                          tabIndex={isEditing ? undefined : 0}
-                          onClick={
-                            isEditing
-                              ? undefined
-                              : () => {
-                                  setSelectedProcessId(summary.id);
-                                }
-                          }
-                          onDoubleClick={
-                            isEditing || isProcessEditorReadOnly
-                              ? undefined
-                              : () => startEditingProcess(summary)
-                          }
-                          onKeyDown={
-                            isEditing
-                              ? undefined
-                              : (event) => {
-                                  if (event.key === 'Enter' || event.key === ' ') {
-                                    event.preventDefault();
-                                    setSelectedProcessId(summary.id);
-                                  }
-                                }
-                          }
-                          className={cn(
-                            'group flex flex-col gap-1 rounded-lg border border-transparent px-2 py-2 transition focus:outline-none',
-                            isSelected
-                              ? 'border-slate-900/30 bg-slate-900/5 shadow-inner'
-                              : 'hover:border-slate-300 hover:bg-slate-100',
-                            isEditing
-                              ? undefined
-                              : 'cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400'
-                          )}
-                        >
-                          <div className="flex items-center justify-between gap-2">
-                            <div className="flex items-center gap-2">
-                              <div className="min-w-0">
-                                {isEditing ? (
-                                  <div className="flex items-center gap-2">
-                                    <Input
-                                      ref={renameInputRef}
-                                      value={renameDraft}
-                                      onChange={(event) => setRenameDraft(event.target.value)}
-                                      className="h-8 w-40 rounded-md border border-slate-300 bg-white px-2 text-sm text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
-                                    />
-                                    <div className="flex items-center gap-1">
-                                      <button
-                                        type="button"
-                                        onClick={() => confirmRenameProcess(summary.id)}
-                                        className="inline-flex h-8 items-center justify-center rounded-md bg-slate-900 px-2 text-xs font-medium text-white hover:bg-slate-800"
-                                      >
-                                        {secondaryPanel.processes.rename.save}
-                                      </button>
-                                      <button
-                                        type="button"
-                                        onClick={cancelEditingProcess}
-                                        className="inline-flex h-8 items-center justify-center rounded-md border border-slate-200 px-2 text-xs font-medium text-slate-700 hover:bg-slate-100"
-                                      >
-                                        {secondaryPanel.processes.rename.cancel}
-                                      </button>
-                                    </div>
-                                  </div>
-                                ) : (
-                                  <>
-                                    <p className="text-sm font-medium text-slate-900 leading-snug break-words overflow-hidden [display:-webkit-box] [-webkit-line-clamp:2] [-webkit-box-orient:vertical]">
-                                      {summary.title}
-                                    </p>
-                                  </>
-                                )}
-                              </div>
-                            </div>
-                            {!isEditing ? (
-                              <div className="flex items-center gap-1">
-                                <button
-                                  type="button"
-                                  onClick={() => startEditingProcess(summary)}
-                                  disabled={isProcessEditorReadOnly}
-                                  className={cn(
-                                    'inline-flex h-8 w-8 items-center justify-center rounded-md border border-transparent text-slate-500 transition hover:border-slate-300 hover:bg-slate-100 hover:text-slate-900',
-                                    isProcessEditorReadOnly && 'cursor-not-allowed opacity-40 hover:border-transparent hover:bg-transparent'
-                                  )}
-                                >
-                                  <Pencil className="h-4 w-4" />
-                                  <span className="sr-only">{secondaryPanel.processes.rename.ariaLabel}</span>
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => handleDeleteProcess(summary.id)}
-                                  disabled={
-                                    isProcessEditorReadOnly ||
-                                    (deleteProcessMutation.isPending && deleteProcessMutation.variables === summary.id)
-                                  }
-                                  className={cn(
-                                    'inline-flex h-8 w-8 items-center justify-center rounded-md border border-transparent text-red-500 transition hover:border-red-200 hover:bg-red-50 hover:text-red-600 disabled:opacity-60',
-                                    isProcessEditorReadOnly && 'cursor-not-allowed opacity-40 hover:border-transparent hover:bg-transparent hover:text-red-500'
-                                  )}
-                                >
-                                  {deleteProcessMutation.isPending && deleteProcessMutation.variables === summary.id ? (
-                                    <Loader2 className="h-4 w-4 animate-spin" />
-                                  ) : (
-                                    <Trash2 className="h-4 w-4" />
-                                  )}
-                                  <span className="sr-only">{secondaryPanel.processes.deleteAriaLabel}</span>
-                                </button>
-                              </div>
-                            ) : null}
-                          </div>
-                        </div>
-                      </li>
-                    );
-                  })}
-                </ul>
-              ) : (
-                <p className="text-sm text-slate-600">
-                  {isProcessManagementRestricted ? statusMessages.readerRestriction : statusMessages.createPrompt}
-                </p>
-              )}
+              <ProcessListPanel
+                isUnauthorized={isProcessListUnauthorized}
+                isLoading={isProcessListLoading}
+                errorMessage={processListErrorMessage}
+                hasProcesses={hasProcesses}
+                processes={processSummaries}
+                currentProcessId={currentProcessId}
+                editingProcessId={editingProcessId}
+                isProcessEditorReadOnly={isProcessEditorReadOnly}
+                renameInputRef={renameInputRef}
+                renameDraft={renameDraft}
+                onRenameDraftChange={setRenameDraft}
+                onSelectProcess={setSelectedProcessId}
+                onStartEditing={startEditingProcess}
+                onConfirmRename={confirmRenameProcess}
+                onCancelEditing={cancelEditingProcess}
+                onDeleteProcess={handleDeleteProcess}
+                deleteProcessMutation={deleteProcessMutation}
+                labels={secondaryPanel.processes}
+                statusMessages={statusMessages}
+                isProcessManagementRestricted={isProcessManagementRestricted}
+              />
             </div>
-            <div
-              role="tabpanel"
-              id="departments-panel"
-              aria-labelledby="departments-tab"
-              hidden={!isDepartmentsTabActive}
-              className={cn('h-full', !isDepartmentsTabActive && 'hidden')}
-            >
-              <div className="space-y-4">
-                {shouldUseDepartmentDemo ? (
-                  <p className="text-sm text-slate-600">{secondaryPanel.departments.demoNotice}</p>
+              <div
+                role="tabpanel"
+                id="departments-panel"
+                aria-labelledby="departments-tab"
+                hidden={!isDepartmentsTabActive}
+                className={cn('h-full', !isDepartmentsTabActive && 'hidden')}
+              >
+                <div className="space-y-4">
+                  {shouldUseDepartmentDemo ? (
+                    <p className="text-sm text-slate-600">{secondaryPanel.departments.demoNotice}</p>
                 ) : null}
                 {!shouldUseDepartmentDemo && createDepartmentMutation.isError ? (
                   <p className="text-xs text-red-600">{createDepartmentMutation.error?.message}</p>
@@ -454,207 +346,40 @@ export function SecondaryPanel({
                           data-collapsed={isCollapsed ? 'true' : 'false'}
                         >
                           <Card
-                            className={cn(
-                              'border-slate-200 bg-white/90 shadow-sm transition focus-within:ring-2 focus-within:ring-slate-900/20',
+                          className={cn(
+                              'bg-white/90 shadow-sm transition focus-within:ring-2 focus-within:ring-slate-900/20',
+                              department.isDraft ? 'border-dashed border-slate-300' : 'border-slate-200',
                               isEditingDepartment ? 'border-slate-900 ring-2 ring-slate-900/20' : 'hover:border-slate-300'
-                            )}
-                          >
-                            <CardContent
+                          )}
+                        >
+                          <CardContent
                               className={cn(
                                 'flex gap-3 transition',
                                 isEditingDepartment ? 'flex-col p-3.5' : 'items-center p-2.5'
                               )}
                             >
                               {isEditingDepartment ? (
-                                <form
-                                  onSubmit={departmentEditForm.handleSubmit(handleSaveDepartment)}
-                                  className="flex w-full flex-col gap-3"
-                                  data-entity-type="department"
-                                >
-                                  <div className="flex flex-wrap items-center gap-2">
-                                    <div className="flex items-center">
-                                      <label htmlFor={colorInputId} className="sr-only">
-                                        {secondaryPanel.departments.colorLabel}
-                                      </label>
-                                      <input
-                                        id={colorInputId}
-                                        type="color"
-                                        {...departmentEditForm.register('color')}
-                                        disabled={isSavingDepartment}
-                                        className="h-9 w-9 cursor-pointer rounded-md border border-slate-300 bg-white p-1 shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
-                                        aria-describedby={
-                                          departmentEditForm.formState.errors.color
-                                            ? `${colorInputId}-error`
-                                            : undefined
-                                        }
-                                      />
-                                    </div>
-                                    <Input
-                                      {...departmentEditForm.register('name')}
-                                      autoFocus
-                                      disabled={isSavingDepartment}
-                                      className="h-9 min-w-[12rem] flex-1 rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
-                                    />
-                                    <Button
-                                      type="button"
-                                      size="icon"
-                                      variant="ghost"
-                                      onClick={() => handleDeleteDepartment(department.id)}
-                                      disabled={isDepartmentActionsDisabled || isDeletingCurrent || isSavingDepartment}
-                                      className="ml-auto h-8 w-8 text-red-500 hover:bg-red-50 hover:text-red-600"
-                                    >
-                                      {isDeletingCurrent ? (
-                                        <Loader2 aria-hidden="true" className="h-4 w-4 animate-spin" />
-                                      ) : (
-                                        <Trash2 aria-hidden="true" className="h-4 w-4" />
-                                      )}
-                                      <span className="sr-only">{secondaryPanel.departments.deleteAriaLabel}</span>
-                                    </Button>
-                                  </div>
-                                  {departmentEditForm.formState.errors.color ? (
-                                    <p id={`${colorInputId}-error`} className="text-xs text-red-600">
-                                      {departmentEditForm.formState.errors.color.message}
-                                    </p>
-                                  ) : null}
-                                  {departmentEditForm.formState.errors.name ? (
-                                    <p className="text-xs text-red-600">{departmentEditForm.formState.errors.name.message}</p>
-                                  ) : null}
-                                  <div className="flex flex-col gap-2">
-                                    {departmentRoleFields.fields.length > 0 ? (
-                                      departmentRoleFields.fields.map((field, index) => {
-                                        const roleFieldErrors = departmentEditForm.formState.errors.roles?.[index];
-                                        const roleNameError = roleFieldErrors?.name;
-                                        const roleColorError = roleFieldErrors?.color;
-                                        const roleNameField = `roles.${index}.name` as const;
-                                        const roleIdField = `roles.${index}.roleId` as const;
-                                        const roleColorField = `roles.${index}.color` as const;
-                                        const roleColorInputId = `department-role-color-${field.id}`;
-                                        return (
-                                          <div key={field.id} className="space-y-1">
-                                            <Controller
-                                              control={departmentEditForm.control}
-                                              name={roleIdField}
-                                              defaultValue={field.roleId ?? ''}
-                                              render={({ field: roleIdControl }) => (
-                                                <input type="hidden" {...roleIdControl} value={roleIdControl.value ?? ''} />
-                                              )}
-                                            />
-                                            <div className="flex flex-wrap items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2.5 shadow-sm">
-                                              <div className="flex min-w-0 flex-1 items-center gap-2">
-                                                <Controller
-                                                  control={departmentEditForm.control}
-                                                  name={roleColorField}
-                                                  defaultValue={field.color ?? DEFAULT_ROLE_COLOR}
-                                                  render={({ field: roleColorControl }) => (
-                                                    <input
-                                                      id={roleColorInputId}
-                                                      name={roleColorControl.name}
-                                                      type="color"
-                                                      value={roleColorControl.value ?? DEFAULT_ROLE_COLOR}
-                                                      onChange={(event) =>
-                                                        roleColorControl.onChange(event.target.value.toUpperCase())
-                                                      }
-                                                      onBlur={roleColorControl.onBlur}
-                                                      ref={roleColorControl.ref}
-                                                      disabled={isSavingDepartment}
-                                                      className="h-8 w-8 cursor-pointer rounded-md border border-slate-300 bg-white p-1 shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
-                                                      aria-describedby={roleColorError ? `${roleColorInputId}-error` : undefined}
-                                                    />
-                                                  )}
-                                                />
-                                                <UserRound className="h-4 w-4 text-slate-500" />
-                                                <Controller
-                                                  control={departmentEditForm.control}
-                                                  name={roleNameField}
-                                                  defaultValue={field.name}
-                                                  render={({ field: roleNameControl }) => (
-                                                    <Input
-                                                      {...roleNameControl}
-                                                      value={roleNameControl.value ?? ''}
-                                                      disabled={isSavingDepartment}
-                                                      className="h-8 min-w-[10rem] flex-1 rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
-                                                    />
-                                                  )}
-                                                />
-                                              </div>
-                                              <Button
-                                                type="button"
-                                                size="icon"
-                                                variant="ghost"
-                                                onClick={() => departmentRoleFields.remove(index)}
-                                                disabled={isSavingDepartment || isAddingDepartmentRole}
-                                                className="h-8 w-8 text-red-500 hover:bg-red-50 hover:text-red-600"
-                                                title={
-                                                  field.roleId
-                                                    ? secondaryPanel.departments.roles.removeTitleSaved
-                                                    : secondaryPanel.departments.roles.removeTitleUnsaved
-                                                }
-                                              >
-                                                <Trash2 aria-hidden="true" className="h-4 w-4" />
-                                                <span className="sr-only">{secondaryPanel.departments.roles.removeAriaLabel}</span>
-                                              </Button>
-                                            </div>
-                                            {roleNameError ? (
-                                              <p className="text-xs text-red-600">{roleNameError.message}</p>
-                                            ) : null}
-                                            {roleColorError ? (
-                                              <p id={`${roleColorInputId}-error`} className="text-xs text-red-600">
-                                                {roleColorError.message}
-                                              </p>
-                                            ) : null}
-                                          </div>
-                                        );
-                                      })
-                                    ) : (
-                                      <p className="text-xs text-slate-500">{secondaryPanel.departments.roles.empty}</p>
-                                    )}
-                                  </div>
-                                  <div className="flex flex-wrap items-center justify-between gap-2">
-                                    <div className="flex flex-wrap items-center gap-2">
-                                      <Button
-                                        type="button"
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={handleAddRole}
-                                        disabled={
-                                          isSavingDepartment ||
-                                          isAddingDepartmentRole ||
-                                          !editingDepartmentId ||
-                                          isDepartmentActionsDisabled
-                                        }
-                                        className="inline-flex h-8 items-center gap-1 rounded-md border-slate-300 text-xs font-medium text-slate-700 hover:bg-slate-100"
-                                      >
-                                        {isAddingDepartmentRole ? (
-                                          <Loader2 aria-hidden="true" className="h-3.5 w-3.5 animate-spin" />
-                                        ) : (
-                                          <Plus className="h-3.5 w-3.5" />
-                                        )}
-                                        {secondaryPanel.departments.addRole}
-                                      </Button>
-                                      <Button
-                                        type="submit"
-                                        size="sm"
-                                        disabled={isSavingDepartment || isAddingDepartmentRole}
-                                        className="inline-flex h-8 items-center gap-1 rounded-md bg-slate-900 px-3 text-xs font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600"
-                                      >
-                                        {isSavingDepartment ? (
-                                          <Loader2 aria-hidden="true" className="h-3.5 w-3.5 animate-spin" />
-                                        ) : (
-                                          <Save aria-hidden="true" className="h-3.5 w-3.5" />
-                                        )}
-                                        {secondaryPanel.departments.save}
-                                      </Button>
-                                    </div>
-                                    <div className="space-y-1">
-                                      {createDepartmentRoleMutation.isError ? (
-                                        <p className="text-xs text-red-600">{createDepartmentRoleMutation.error?.message}</p>
-                                      ) : null}
-                                      {saveDepartmentMutation.isError ? (
-                                        <p className="text-xs text-red-600">{saveDepartmentMutation.error?.message}</p>
-                                      ) : null}
-                                    </div>
-                                  </div>
-                                </form>
+                                <DepartmentEditor
+                                  colorInputId={colorInputId}
+                                  labels={secondaryPanel.departments}
+                                  draftBadgeLabel={secondaryPanel.departments.draftBadge}
+                                  roleDraftBadgeLabel={secondaryPanel.departments.roleDraftBadge}
+                                  roleDraftLookup={new Map(
+                                    department.roles.map((role) => [
+                                      role.id,
+                                      Boolean((role as Role & { isDraft?: boolean }).isDraft)
+                                    ])
+                                  )}
+                                  isDraft={department.isDraft}
+                                  departmentEditForm={departmentEditForm}
+                                  departmentRoleFields={departmentRoleFields}
+                                  isSaving={isSaving}
+                                  isActionsDisabled={isDepartmentActionsDisabled || !editingDepartmentId}
+                                  isAddingRole={isAddingDepartmentRole}
+                                  isDeleting={isDeletingCurrent}
+                                  onDelete={() => handleDeleteDepartment(department.id)}
+                                  onAddRole={handleAddRole}
+                                />
                               ) : (
                                 <div
                                   className={cn(
@@ -695,7 +420,16 @@ export function SecondaryPanel({
                                       )}
                                     </span>
                                     <div className="min-w-0">
-                                      <p className="truncate text-sm font-medium text-slate-900">{department.name}</p>
+                                      <div className="flex items-center gap-2">
+                                        <p className="truncate text-sm font-medium text-slate-900">
+                                          {department.name}
+                                        </p>
+                                        {department.isDraft ? (
+                                          <span className="inline-flex items-center gap-1 rounded-full border border-dashed border-slate-300 bg-slate-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-600">
+                                            {secondaryPanel.departments.draftBadge}
+                                          </span>
+                                        ) : null}
+                                      </div>
                                       {updatedLabel ? (
                                         <p className="text-xs text-slate-500">
                                           {formatTemplateText(
@@ -742,6 +476,16 @@ export function SecondaryPanel({
                 ) : (
                   <p className="text-sm text-slate-600">{secondaryPanel.departments.empty.standard}</p>
                 )}
+              </div>
+              <div className="mt-4 flex flex-col items-end gap-2 border-t border-slate-200 pt-4">
+                <div className="space-y-1 text-right">
+                  {createDepartmentRoleMutation.isError ? (
+                    <p className="text-xs text-red-600">{createDepartmentRoleMutation.error?.message}</p>
+                  ) : null}
+                  {saveError ? (
+                    <p className="text-xs text-red-600">{saveError}</p>
+                  ) : null}
+                </div>
               </div>
             </div>
           </div>

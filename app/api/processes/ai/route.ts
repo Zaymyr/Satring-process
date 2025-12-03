@@ -12,6 +12,8 @@ type DepartmentWithRoles = {
   id: string;
   name: string;
   roles: { id: string; name: string }[] | null;
+  status?: 'persisted' | 'draft';
+  rolesStatus?: ('persisted' | 'draft')[];
 };
 
 const RESPONSE_HEADERS = {
@@ -23,8 +25,6 @@ const RATE_LIMIT_WINDOW_MS = 60_000;
 const RATE_LIMIT_MAX = 10;
 const rateLimitCache = new Map<string, { count: number; expires: number }>();
 
-const NEW_ID_PREFIX = 'new:';
-
 const formatDepartmentsContext = (departments: DepartmentWithRoles[]): string => {
   if (departments.length === 0) {
     return 'Aucun département ni rôle enregistré pour cette organisation.';
@@ -33,10 +33,17 @@ const formatDepartmentsContext = (departments: DepartmentWithRoles[]): string =>
   return departments
     .map((department) => {
       const roleSummary = department.roles?.length
-        ? department.roles.map((role) => `  - ${role.name} (id: ${role.id})`).join('\n')
+        ? department.roles
+            .map((role, index) => {
+              const status = department.rolesStatus?.[index] === 'draft' ? ' (brouillon)' : '';
+              return `  - ${role.name}${status} (id: ${role.id})`;
+            })
+            .join('\n')
         : '  - Aucun rôle enregistré.';
 
-      return [`- ${department.name} (id: ${department.id})`, roleSummary].join('\n');
+      const statusLabel = department.status === 'draft' ? ' (brouillon)' : '';
+
+      return [`- ${department.name}${statusLabel} (id: ${department.id})`, roleSummary].join('\n');
     })
     .join('\n');
 };
@@ -53,7 +60,24 @@ const requestSchema = z.object({
     .trim()
     .max(6000, 'Le contexte ne peut pas dépasser 6000 caractères.')
     .optional()
-    .transform((value) => value ?? '')
+    .transform((value) => value ?? ''),
+  departments: z
+    .array(
+      z.object({
+        id: z.string().trim().min(1),
+        name: z.string().trim().min(1),
+        status: z.enum(['persisted', 'draft']),
+        roles: z.array(
+          z.object({
+            id: z.string().trim().min(1),
+            name: z.string().trim().min(1),
+            status: z.enum(['persisted', 'draft'])
+          })
+        )
+      })
+    )
+    .optional()
+    .transform((value) => value ?? [])
 });
 
 const normalizeSteps = (value: unknown): unknown => {
@@ -133,21 +157,41 @@ const aiResponseSchema = {
               departmentId: {
                 anyOf: [
                   { type: 'string', format: 'uuid' },
-                  { type: 'string', pattern: '^new:[A-Za-z0-9][A-Za-z0-9._-]*$' },
+                  { type: 'null' }
+                ]
+              },
+              draftDepartmentName: {
+                anyOf: [
+                  { type: 'string', minLength: 1 },
                   { type: 'null' }
                 ]
               },
               roleId: {
                 anyOf: [
                   { type: 'string', format: 'uuid' },
-                  { type: 'string', pattern: '^new:[A-Za-z0-9][A-Za-z0-9._-]*$' },
+                  { type: 'null' }
+                ]
+              },
+              draftRoleName: {
+                anyOf: [
+                  { type: 'string', minLength: 1 },
                   { type: 'null' }
                 ]
               },
               yesTargetId: { anyOf: [{ type: 'string', minLength: 1 }, { type: 'null' }] },
               noTargetId: { anyOf: [{ type: 'string', minLength: 1 }, { type: 'null' }] }
             },
-            required: ['id', 'label', 'type', 'departmentId', 'roleId', 'yesTargetId', 'noTargetId']
+            required: [
+              'id',
+              'label',
+              'type',
+              'departmentId',
+              'draftDepartmentName',
+              'roleId',
+              'draftRoleName',
+              'yesTargetId',
+              'noTargetId'
+            ]
           }
         }
       },
@@ -257,22 +301,39 @@ export async function POST(request: Request) {
     );
   }
 
-  const { data: departmentRows, error: departmentsError } = await supabase
-    .from('departments')
-    .select('id, name, roles:roles(id, name)')
-    .eq('organization_id', processRecord.organization_id)
-    .order('name', { ascending: true })
-    .order('name', { referencedTable: 'roles', ascending: true });
+  let departmentsWithRoles: DepartmentWithRoles[];
 
-  if (departmentsError) {
-    console.error('Erreur lors de la récupération des départements pour IA', departmentsError);
-    return NextResponse.json(
-      { error: 'Impossible de récupérer les départements et rôles.' },
-      { status: 500, headers: RESPONSE_HEADERS }
-    );
+  if (parsedBody.data.departments.length > 0) {
+    departmentsWithRoles = parsedBody.data.departments.map((department) => ({
+      id: department.id,
+      name: department.name,
+      roles: department.roles.map((role) => ({ id: role.id, name: role.name })),
+      status: department.status,
+      rolesStatus: department.roles.map((role) => role.status)
+    }));
+  } else {
+    const { data: departmentRows, error: departmentsError } = await supabase
+      .from('departments')
+      .select('id, name, roles:roles(id, name)')
+      .eq('organization_id', processRecord.organization_id)
+      .order('name', { ascending: true })
+      .order('name', { referencedTable: 'roles', ascending: true });
+
+    if (departmentsError) {
+      console.error('Erreur lors de la récupération des départements pour IA', departmentsError);
+      return NextResponse.json(
+        { error: 'Impossible de récupérer les départements et rôles.' },
+        { status: 500, headers: RESPONSE_HEADERS }
+      );
+    }
+
+    departmentsWithRoles = (departmentRows ?? []).map((department) => ({
+      ...department,
+      status: 'persisted',
+      rolesStatus: department.roles?.map(() => 'persisted')
+    })) as DepartmentWithRoles[];
   }
 
-  const departmentsWithRoles: DepartmentWithRoles[] = (departmentRows ?? []) as DepartmentWithRoles[];
   const departmentsContext = formatDepartmentsContext(departmentsWithRoles);
 
   const grounding = JSON.stringify(
@@ -296,14 +357,20 @@ export async function POST(request: Request) {
             [
               'Tu es un expert en cartographie de processus (bilingue français/anglais).',
               'A partir du processus fourni, propose une version améliorée en respectant strictement le schéma JSON indiqué.',
-              "Réutilise les identifiants existants des départements et rôles fournis dans le contexte ; si tu proposes un nouvel élément, utilise un identifiant provisoire au format \"new:<slug>\" en indiquant clairement qu'il devra être créé.",
+              [
+                "Réutilise uniquement les UUID fournis pour departmentId/roleId.",
+                "Pour proposer un nouveau département, laisse departmentId à null et renseigne draftDepartmentName avec le nom suggéré (pas d'UUID inventé).",
+                "Pour proposer un nouveau rôle sur un département existant, fournis departmentId (UUID connu), mets roleId à null et renseigne draftRoleName.",
+                "Pour un nouveau rôle sur un nouveau département, laisse departmentId/roleId à null et fournis draftDepartmentName et draftRoleName.",
+                "Ne génère jamais d'UUID provisoire ni de placeholders ; utilise les champs draft* pour toute création."
+              ].join('\n'),
               "La sortie doit uniquement contenir l'objet JSON final (aucun texte libre) avec deux clés obligatoires : process (processus à jour conforme au schéma) et reply (message concis destiné à l'utilisateur)."
             ].join('\n')
         },
         {
           role: 'user',
           content: [
-            'Référentiel des départements et rôles autorisés :',
+            'Référentiel des départements et rôles autorisés (réutilise uniquement ces UUID) :',
             departmentsContext,
             'Processus actuel :',
             grounding,
@@ -311,9 +378,17 @@ export async function POST(request: Request) {
             parsedBody.data.context || 'Aucun contexte fourni.',
             'Demande utilisateur :',
             parsedBody.data.prompt,
-            "Utilise exclusivement les identifiants ci-dessus ou un identifiant provisoire \"new:<slug>\" pour les nouveaux éléments à créer, et retourne un objet JSON conforme au schéma. Le champ reply doit :",
-            '- résumer brièvement la proposition (2 phrases max) ;',
-            "- poser une question de clarification si des informations manquent (1 question courte maximum)."
+            [
+              'Pour chaque étape :',
+              '- departmentId/roleId doivent correspondre aux UUID du référentiel ci-dessus.',
+              "- Si tu proposes un nouveau département, laisse departmentId à null et remplis draftDepartmentName (pas d'UUID inventé).",
+              "- Si tu proposes un nouveau rôle dans un département existant, indique son departmentId, mets roleId à null et remplis draftRoleName.",
+              "- Si département et rôle sont tous deux nouveaux, garde departmentId/roleId à null et fournis draftDepartmentName et draftRoleName.",
+              "- N'invente jamais d'UUID ou d'identifiant temporaire : utilise uniquement les champs draft*.",
+              'Le champ reply doit :',
+              '- résumer brièvement la proposition (2 phrases max) ;',
+              "- poser une question de clarification si des informations manquent (1 question courte maximum)."
+            ].join('\n')
           ].join('\n\n')
         }
       ],
@@ -375,7 +450,6 @@ export async function POST(request: Request) {
     departmentsWithRoles.map((department) => [department.id, department])
   );
   const existingRoleById = new Map<string, { id: string; departmentId: string }>();
-  const temporaryRoleDepartments = new Map<string, string>();
 
   departmentsWithRoles.forEach((department) => {
     department.roles?.forEach((role) => {
@@ -383,6 +457,65 @@ export async function POST(request: Request) {
     });
   });
 
+  const invalidDepartmentIds = new Set<string>();
+  const invalidRoleIds = new Set<string>();
+  const mismatchedRoleIds = new Set<string>();
+
+  // 🔹 SANITIZE : on nettoie les incohérences IA avant de valider
+  const reconciledSteps = parsedPayload.data.steps.map((step) => {
+    let { departmentId, roleId } = step;
+
+    const existingDept = departmentId ? existingDepartmentById.get(departmentId) : undefined;
+    const existingRole = roleId ? existingRoleById.get(roleId) : undefined;
+
+    if (departmentId && !existingDept) {
+      invalidDepartmentIds.add(departmentId);
+      departmentId = null;
+      roleId = null;
+    }
+
+    if (roleId && !existingRole) {
+      invalidRoleIds.add(roleId);
+      roleId = null;
+    }
+
+    if (departmentId && roleId && existingRole && existingRole.departmentId !== departmentId) {
+      mismatchedRoleIds.add(roleId);
+      roleId = null;
+    }
+
+    return {
+      ...step,
+      departmentId,
+      roleId
+    };
+  });
+
+  // 🔹 On remplace les steps par la version nettoyée
+  parsedPayload.data.steps = reconciledSteps;
+
+  if (invalidDepartmentIds.size > 0) {
+    return NextResponse.json(
+      { error: 'Le process généré référence un département inconnu.' },
+      { status: 422, headers: RESPONSE_HEADERS }
+    );
+  }
+
+  if (invalidRoleIds.size > 0) {
+    return NextResponse.json(
+      { error: 'Le process généré référence un rôle inconnu.' },
+      { status: 422, headers: RESPONSE_HEADERS }
+    );
+  }
+
+  if (mismatchedRoleIds.size > 0) {
+    return NextResponse.json(
+      { error: 'Le rôle référencé ne correspond pas au département indiqué.' },
+      { status: 422, headers: RESPONSE_HEADERS }
+    );
+  }
+
+  // 🔹 Ensuite on garde la boucle de validation comme garde-fou (au cas où)
   for (const step of parsedPayload.data.steps) {
     const departmentId = step.departmentId;
     const roleId = step.roleId;
@@ -395,7 +528,7 @@ export async function POST(request: Request) {
     }
 
     if (departmentId) {
-      if (!departmentId.startsWith(NEW_ID_PREFIX) && !existingDepartmentById.has(departmentId)) {
+      if (!existingDepartmentById.has(departmentId)) {
         return NextResponse.json(
           { error: 'Le process généré référence un département inconnu.' },
           { status: 422, headers: RESPONSE_HEADERS }
@@ -404,28 +537,6 @@ export async function POST(request: Request) {
     }
 
     if (!roleId) {
-      continue;
-    }
-
-    if (roleId.startsWith(NEW_ID_PREFIX)) {
-      if (!departmentId) {
-        return NextResponse.json(
-          { error: 'Le rôle généré est associé à aucun département.' },
-          { status: 422, headers: RESPONSE_HEADERS }
-        );
-      }
-
-      const previousDepartmentId = temporaryRoleDepartments.get(roleId);
-
-      if (previousDepartmentId && previousDepartmentId !== departmentId) {
-        return NextResponse.json(
-          { error: 'Un même rôle provisoire est associé à plusieurs départements.' },
-          { status: 422, headers: RESPONSE_HEADERS }
-        );
-      }
-
-      temporaryRoleDepartments.set(roleId, departmentId);
-
       continue;
     }
 

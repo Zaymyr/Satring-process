@@ -21,6 +21,12 @@ type UseProcessIaChatOptions = {
   mermaidJson: string;
   missingDepartments: string[];
   missingRoles: string[];
+  departments: {
+    id: string;
+    name: string;
+    status: 'persisted' | 'draft';
+    roles: { id: string; name: string; status: 'persisted' | 'draft' }[];
+  }[];
   copy: {
     intro: string;
     followUpHeading: string;
@@ -54,6 +60,7 @@ export function useProcessIaChat({
   mermaidJson,
   missingDepartments,
   missingRoles,
+  departments,
   copy,
   onProcessUpdate
 }: UseProcessIaChatOptions) {
@@ -114,7 +121,8 @@ export function useProcessIaChat({
         body: JSON.stringify({
           processId,
           prompt: buildPrompt(parsed.data.message),
-          context: buildContext()
+          context: buildContext(),
+          departments
         })
       });
 
