@@ -33,6 +33,8 @@ export type SecondaryPanelLabels = {
     deleteAriaLabel: string;
     updatedLabel: string;
     colorValueLabel: string;
+    draftBadge: string;
+    roleDraftBadge: string;
     addRole: string;
     save: string;
     empty: { demo: string; standard: string };
@@ -357,12 +359,13 @@ export function SecondaryPanel({
                           data-collapsed={isCollapsed ? 'true' : 'false'}
                         >
                           <Card
-                            className={cn(
-                              'border-slate-200 bg-white/90 shadow-sm transition focus-within:ring-2 focus-within:ring-slate-900/20',
+                          className={cn(
+                              'bg-white/90 shadow-sm transition focus-within:ring-2 focus-within:ring-slate-900/20',
+                              department.isDraft ? 'border-dashed border-slate-300' : 'border-slate-200',
                               isEditingDepartment ? 'border-slate-900 ring-2 ring-slate-900/20' : 'hover:border-slate-300'
-                            )}
-                          >
-                            <CardContent
+                          )}
+                        >
+                          <CardContent
                               className={cn(
                                 'flex gap-3 transition',
                                 isEditingDepartment ? 'flex-col p-3.5' : 'items-center p-2.5'
@@ -372,6 +375,15 @@ export function SecondaryPanel({
                                 <DepartmentEditor
                                   colorInputId={colorInputId}
                                   labels={secondaryPanel.departments}
+                                  draftBadgeLabel={secondaryPanel.departments.draftBadge}
+                                  roleDraftBadgeLabel={secondaryPanel.departments.roleDraftBadge}
+                                  roleDraftLookup={new Map(
+                                    department.roles.map((role) => [
+                                      role.id,
+                                      Boolean((role as Role & { isDraft?: boolean }).isDraft)
+                                    ])
+                                  )}
+                                  isDraft={department.isDraft}
                                   departmentEditForm={departmentEditForm}
                                   departmentRoleFields={departmentRoleFields}
                                   isSaving={isSavingDepartment}
@@ -421,7 +433,16 @@ export function SecondaryPanel({
                                       )}
                                     </span>
                                     <div className="min-w-0">
-                                      <p className="truncate text-sm font-medium text-slate-900">{department.name}</p>
+                                      <div className="flex items-center gap-2">
+                                        <p className="truncate text-sm font-medium text-slate-900">
+                                          {department.name}
+                                        </p>
+                                        {department.isDraft ? (
+                                          <span className="inline-flex items-center gap-1 rounded-full border border-dashed border-slate-300 bg-slate-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-600">
+                                            {secondaryPanel.departments.draftBadge}
+                                          </span>
+                                        ) : null}
+                                      </div>
                                       {updatedLabel ? (
                                         <p className="text-xs text-slate-500">
                                           {formatTemplateText(

@@ -544,10 +544,10 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
       } satisfies DepartmentWithDraftStatus;
     });
   }, [departmentsQuery.data, draftDepartments]);
-  const departmentNameById = useMemo(() => {
-    const map = new Map<string, string>();
+  const departmentById = useMemo(() => {
+    const map = new Map<string, DepartmentWithDraftStatus>();
     departments.forEach((department) => {
-      map.set(department.id, department.name);
+      map.set(department.id, department);
     });
     return map;
   }, [departments]);
@@ -564,7 +564,9 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
         const entry: RoleLookupEntry = {
           role,
           departmentId: department.id,
-          departmentName: department.name
+          departmentName: department.name,
+          departmentIsDraft: department.isDraft,
+          isDraft: 'isDraft' in role && role.isDraft
         };
 
         byId.set(role.id, entry);
@@ -581,20 +583,26 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
   const getStepDepartmentLabel = useCallback(
     (step: Step) => {
       const normalizedDepartmentId = normalizeDepartmentId(step.departmentId);
-
-      if (normalizedDepartmentId) {
-        const departmentName = departmentNameById.get(normalizedDepartmentId);
-        if (departmentName) {
-          return departmentName;
-        }
-      }
-
-      const departmentFromRole = step.roleId ? roleLookup.byId.get(step.roleId)?.departmentName : null;
+      const departmentFromStep = normalizedDepartmentId
+        ? departmentById.get(normalizedDepartmentId)
+        : null;
+      const roleEntry = step.roleId ? roleLookup.byId.get(step.roleId) : null;
       const draftDepartmentName = normalizeDraftName(step.draftDepartmentName);
+      const departmentLabel =
+        departmentFromStep?.name ?? draftDepartmentName ?? roleEntry?.departmentName ?? defaultDepartmentName;
+      const isDraft =
+        Boolean(departmentFromStep?.isDraft) || Boolean(draftDepartmentName) || Boolean(roleEntry?.departmentIsDraft);
 
-      return draftDepartmentName ?? departmentFromRole ?? defaultDepartmentName;
+      return isDraft && departmentLabel
+        ? `${departmentLabel} (${secondaryPanel.departments.draftBadge})`
+        : departmentLabel;
     },
-    [defaultDepartmentName, departmentNameById, roleLookup.byId]
+    [
+      defaultDepartmentName,
+      departmentById,
+      roleLookup.byId,
+      secondaryPanel.departments.draftBadge
+    ]
   );
 
   const getStepRoleLabel = useCallback(
@@ -602,14 +610,21 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
       if (step.roleId) {
         const entry = roleLookup.byId.get(step.roleId);
         if (entry) {
-          return entry.role.name;
+          const label = entry.role.name;
+          return entry.isDraft && label
+            ? `${label} (${secondaryPanel.departments.roleDraftBadge})`
+            : label;
         }
       }
 
       const draftRoleName = normalizeDraftName(step.draftRoleName);
-      return draftRoleName ?? defaultRoleName;
+      if (draftRoleName) {
+        return `${draftRoleName} (${secondaryPanel.departments.roleDraftBadge})`;
+      }
+
+      return defaultRoleName;
     },
-    [defaultRoleName, roleLookup.byId]
+    [defaultRoleName, roleLookup.byId, secondaryPanel.departments.roleDraftBadge]
   );
 
   const iaDepartmentsPayload = useMemo<IaDepartmentsPayload>(
@@ -2085,6 +2100,8 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
       rolePickerMessages={rolePickerMessages}
       hasDepartments={hasDepartments}
       departments={departments}
+      draftBadgeLabel={secondaryPanel.departments.draftBadge}
+      roleDraftBadgeLabel={secondaryPanel.departments.roleDraftBadge}
       updateStepLabel={updateStepLabel}
       updateStepDepartment={updateStepDepartment}
       updateStepRole={updateStepRole}

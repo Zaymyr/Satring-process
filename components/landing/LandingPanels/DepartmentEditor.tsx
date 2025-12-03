@@ -3,6 +3,7 @@ import { Loader2, Plus, Trash2, UserRound } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { cn } from '@/lib/utils/cn';
 import { DEFAULT_ROLE_COLOR } from '@/lib/validation/role';
 import type { DepartmentCascadeForm } from '@/lib/validation/department';
 import type { SecondaryPanelLabels } from './SecondaryPanel';
@@ -10,6 +11,10 @@ import type { SecondaryPanelLabels } from './SecondaryPanel';
 type DepartmentEditorProps = {
   colorInputId: string;
   labels: SecondaryPanelLabels['departments'];
+  draftBadgeLabel: string;
+  roleDraftBadgeLabel: string;
+  roleDraftLookup: Map<string, boolean>;
+  isDraft: boolean;
   departmentEditForm: UseFormReturn<DepartmentCascadeForm>;
   departmentRoleFields: UseFieldArrayReturn<DepartmentCascadeForm, 'roles', 'id'>;
   isSaving: boolean;
@@ -23,6 +28,10 @@ type DepartmentEditorProps = {
 export function DepartmentEditor({
   colorInputId,
   labels,
+  draftBadgeLabel,
+  roleDraftBadgeLabel,
+  roleDraftLookup,
+  isDraft,
   departmentEditForm,
   departmentRoleFields,
   isSaving,
@@ -54,6 +63,11 @@ export function DepartmentEditor({
           disabled={isSaving}
           className="h-9 min-w-[12rem] flex-1 rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
         />
+        {isDraft ? (
+          <span className="inline-flex items-center gap-1 rounded-full border border-dashed border-slate-300 bg-slate-50 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-slate-600">
+            {draftBadgeLabel}
+          </span>
+        ) : null}
         <Button
           type="button"
           size="icon"
@@ -84,6 +98,7 @@ export function DepartmentEditor({
             const roleIdField = `roles.${index}.roleId` as const;
             const roleColorField = `roles.${index}.color` as const;
             const roleColorInputId = `department-role-color-${field.id}`;
+            const isRoleDraft = !field.roleId || roleDraftLookup.get(field.roleId) === true;
 
             return (
               <div key={field.id} className="space-y-1">
@@ -95,7 +110,12 @@ export function DepartmentEditor({
                     <input type="hidden" {...roleIdControl} value={roleIdControl.value ?? ''} />
                   )}
                 />
-                <div className="flex flex-wrap items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2.5 shadow-sm">
+                <div
+                  className={cn(
+                    'flex flex-wrap items-center gap-2 rounded-lg border bg-white px-3 py-2.5 shadow-sm',
+                    isRoleDraft ? 'border-dashed border-slate-300' : 'border-slate-200'
+                  )}
+                >
                   <div className="flex min-w-0 flex-1 items-center gap-2">
                     <Controller
                       control={departmentEditForm.control}
@@ -131,6 +151,11 @@ export function DepartmentEditor({
                       )}
                     />
                   </div>
+                  {isRoleDraft ? (
+                    <span className="inline-flex items-center gap-1 rounded-full border border-dashed border-slate-300 bg-slate-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-600">
+                      {roleDraftBadgeLabel}
+                    </span>
+                  ) : null}
                   <Button
                     type="button"
                     size="icon"

@@ -10,7 +10,7 @@ import { RolePicker, type RolePickerMessages } from '@/components/landing/Landin
 import { cn } from '@/lib/utils/cn';
 import type { RoleLookupEntry, Step } from '@/lib/process/types';
 import type { ProcessStep, StepType } from '@/lib/validation/process';
-import type { Department } from '@/lib/validation/department';
+import type { DepartmentWithDraftStatus } from './LandingPanelsShell';
 
 type PrimaryPanelLabels = {
   addAction: string;
@@ -57,7 +57,9 @@ type PrimaryPanelProps = {
   hasRoles: boolean;
   rolePickerMessages: RolePickerMessages;
   hasDepartments: boolean;
-  departments: Department[];
+  departments: DepartmentWithDraftStatus[];
+  draftBadgeLabel: string;
+  roleDraftBadgeLabel: string;
   updateStepLabel: (id: string, label: string) => void;
   updateStepDepartment: (id: string, departmentId: string | null) => void;
   updateStepRole: (id: string, roleId: string | null) => void;
@@ -107,6 +109,8 @@ export function PrimaryPanel({
   rolePickerMessages,
   hasDepartments,
   departments,
+  draftBadgeLabel,
+  roleDraftBadgeLabel,
   updateStepLabel,
   updateStepDepartment,
   updateStepRole,
@@ -264,6 +268,11 @@ export function PrimaryPanel({
                     roleHelperText !== rolePickerMessages.chooseRoleForDepartment
                       ? roleHelperText
                       : null;
+                  const department =
+                    step.departmentId
+                      ? departments.find((candidate) => candidate.id === step.departmentId) ?? null
+                      : null;
+                  const roleEntry = step.roleId ? roleLookup.byId.get(step.roleId) : null;
 
                   return (
                     <Card
@@ -363,11 +372,17 @@ export function PrimaryPanel({
                                   disabled={isStepEditingDisabled || !hasDepartments}
                                 >
                                   <option value="">No department</option>
-                                  {departments.map((department) => (
-                                    <option key={department.id} value={department.id}>
-                                      {department.name}
-                                    </option>
-                                  ))}
+                                  {departments.map((department) => {
+                                    const optionLabel = department.isDraft
+                                      ? `${department.name} · ${draftBadgeLabel}`
+                                      : department.name;
+
+                                    return (
+                                      <option key={department.id} value={department.id}>
+                                        {optionLabel}
+                                      </option>
+                                    );
+                                  })}
                                 </select>
                                 {!step.departmentId && step.draftDepartmentName ? (
                                   <span className="text-[0.6rem] font-normal normal-case tracking-normal text-slate-500">
@@ -388,6 +403,7 @@ export function PrimaryPanel({
                                 disabled={isStepEditingDisabled || !hasRoles}
                                 onChange={(roleId) => updateStepRole(step.id, roleId)}
                                 helperText={helperText}
+                                draftBadgeLabel={roleDraftBadgeLabel}
                               />
                             </div>
                             {step.type === 'decision' ? (
@@ -447,19 +463,39 @@ export function PrimaryPanel({
                           </div>
                         ) : (
                           <div className="flex min-w-0 flex-1 flex-col gap-1">
-                            <span className="truncate text-sm font-medium text-slate-900" title={displayLabel}>
-                              {displayLabel}
-                            </span>
-                            <div className="flex flex-wrap gap-1.5">
-                              <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-700">
-                                {departmentName}
+                              <span className="truncate text-sm font-medium text-slate-900" title={displayLabel}>
+                                {displayLabel}
                               </span>
-                              <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-700">
-                                {roleName}
+                              <div className="flex flex-wrap gap-1.5">
+                              <span
+                                className={cn(
+                                  'flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-700',
+                                  department?.isDraft && 'border border-dashed border-slate-300 bg-slate-50'
+                                )}
+                              >
+                                <span className="truncate">{departmentName}</span>
+                                {department?.isDraft ? (
+                                  <span className="text-[9px] font-semibold uppercase tracking-wide text-slate-500">
+                                    {draftBadgeLabel}
+                                  </span>
+                                ) : null}
                               </span>
+                              <span
+                                className={cn(
+                                  'flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-700',
+                                  roleEntry?.isDraft && 'border border-dashed border-slate-300 bg-slate-50'
+                                )}
+                              >
+                                <span className="truncate">{roleName}</span>
+                                {roleEntry?.isDraft ? (
+                                  <span className="text-[9px] font-semibold uppercase tracking-wide text-slate-500">
+                                    {roleDraftBadgeLabel}
+                                  </span>
+                                ) : null}
+                              </span>
+                              </div>
                             </div>
-                          </div>
-                        )}
+                          )}
                       </CardContent>
                     </Card>
                   );
