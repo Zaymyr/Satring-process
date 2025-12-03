@@ -771,7 +771,7 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
       void queryClient.invalidateQueries({ queryKey: ['process', data.process.id] });
       void queryClient.invalidateQueries({ queryKey: ['processes'] });
     },
-    onError: (error, variables) => {
+    onError: (error) => {
       console.error('Erreur lors de la sauvegarde', error);
     }
   });
