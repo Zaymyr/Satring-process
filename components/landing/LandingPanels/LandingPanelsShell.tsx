@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, useId, type ReactNod
 import { zodResolver } from '@hookform/resolvers/zod';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useFieldArray, useForm } from 'react-hook-form';
 
 import { useI18n } from '@/components/providers/i18n-provider';
@@ -16,7 +16,6 @@ import { SecondaryPanel } from '@/components/landing/LandingPanels/SecondaryPane
 import { ProcessShell } from '@/components/landing/LandingPanels/ProcessShell';
 import { Button } from '@/components/ui/button';
 import { DEFAULT_PROCESS_STEPS, DEFAULT_PROCESS_TITLE } from '@/lib/process/defaults';
-import { processSummariesSchema } from '@/lib/process/schema';
 import { type ProcessErrorMessages, type RoleLookupEntry, type Step } from '@/lib/process/types';
 import { getInviteDemoDepartments } from '@/lib/department/demo';
 import { DEFAULT_LOCALE, getDictionary } from '@/lib/i18n/dictionaries';
@@ -31,23 +30,18 @@ import {
   type StepType
 } from '@/lib/validation/process';
 import { useProcessIaChat } from '@/lib/process/use-process-ia-chat';
-import { profileResponseSchema, type ProfileResponse } from '@/lib/validation/profile';
 import {
   DEFAULT_DEPARTMENT_COLOR,
   departmentCascadeFormSchema,
-  departmentListSchema,
-  departmentSchema,
   type Department,
-  type DepartmentCascadeForm,
-  type DepartmentInput
+  type DepartmentCascadeForm
 } from '@/lib/validation/department';
-import {
-  DEFAULT_ROLE_COLOR,
-  roleSchema,
-  type Role,
-  type RoleCreateInput,
-  type RoleUpdateInput
-} from '@/lib/validation/role';
+import { DEFAULT_ROLE_COLOR, type Role } from '@/lib/validation/role';
+import { ApiError, readErrorMessage } from '@/lib/api/errors';
+import { useProcessData, processQueryKeys } from '@/hooks/use-process-data';
+import { useDepartments, createDepartment, deleteDepartment, fetchDepartments, updateDepartment } from '@/hooks/use-departments';
+import { useRoles, createRole, deleteRole, updateRole } from '@/hooks/use-roles';
+import { useProfile } from '@/hooks/use-profile';
 
 const ROLE_ID_REGEX = /^[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}$/i;
 const HEX_COLOR_REGEX = /^#[0-9A-F]{6}$/;
@@ -112,45 +106,9 @@ const normalizeNameKey = (value: string | null | undefined) => {
 
 type Highlight = HighlightsGridHighlight;
 
-export class ApiError extends Error {
-  constructor(message: string, public status: number) {
-    super(message);
-    this.name = 'ApiError';
-  }
-}
-
 export type DepartmentWithDraftStatus = Department & {
   isDraft: boolean;
   roles: (Role & { isDraft: boolean })[];
-};
-
-const parseErrorPayload = (raw: string, fallback: string) => {
-  if (!raw) {
-    return fallback;
-  }
-
-  try {
-    const parsed = JSON.parse(raw) as { error?: unknown };
-    const parsedMessage = typeof parsed.error === 'string' ? parsed.error.trim() : '';
-
-    if (parsedMessage) {
-      return parsedMessage;
-    }
-  } catch (error) {
-    console.error('Impossible de parser la réponse d’erreur', error);
-  }
-
-  return raw;
-};
-
-const readErrorMessage = async (response: Response, fallback: string) => {
-  try {
-    const raw = await response.text();
-    return parseErrorPayload(raw, fallback);
-  } catch (error) {
-    console.error('Impossible de lire la réponse d’erreur', error);
-    return fallback;
-  }
 };
 
 const normalizeBranchTarget = (value: string | null | undefined) => {
@@ -295,51 +253,6 @@ const normalizeProcessTitle = (value: string | null | undefined) => {
   return trimmed.length > 0 ? trimmed : DEFAULT_PROCESS_TITLE;
 };
 
-const requestProcess = async (
-  processId: string,
-  messages: ProcessErrorMessages
-): Promise<ProcessResponse> => {
-  const response = await fetch(`/api/process?id=${encodeURIComponent(processId)}`, {
-    method: 'GET',
-    credentials: 'include',
-    cache: 'no-store'
-  });
-
-  if (response.status === 401) {
-    throw new ApiError(messages.authRequired, 401);
-  }
-
-  if (!response.ok) {
-    const message = await readErrorMessage(response, messages.process.fetchFailed);
-    throw new ApiError(message, response.status);
-  }
-
-  const json = await response.json();
-  return processResponseSchema.parse(json);
-};
-
-const requestProcessSummaries = async (
-  messages: ProcessErrorMessages
-): Promise<ProcessSummary[]> => {
-  const response = await fetch('/api/processes', {
-    method: 'GET',
-    credentials: 'include',
-    cache: 'no-store'
-  });
-
-  if (response.status === 401) {
-    throw new ApiError(messages.authRequired, 401);
-  }
-
-  if (!response.ok) {
-    const message = await readErrorMessage(response, messages.process.listFailed);
-    throw new ApiError(message, response.status);
-  }
-
-  const json = await response.json();
-  return processSummariesSchema.parse(json);
-};
-
 const createProcessRequest = async (
   messages: ProcessErrorMessages,
   title?: string
@@ -407,150 +320,6 @@ const deleteProcessRequest = async (
 
   if (!response.ok) {
     const message = await readErrorMessage(response, messages.process.deleteFailed);
-    throw new ApiError(message, response.status);
-  }
-};
-
-const requestDepartments = async (): Promise<Department[]> => {
-  const response = await fetch('/api/departments', {
-    method: 'GET',
-    credentials: 'include',
-    cache: 'no-store'
-  });
-
-  if (response.status === 401) {
-    throw new ApiError('Authentification requise', 401);
-  }
-
-  if (!response.ok) {
-    const message = await readErrorMessage(response, 'Impossible de lister vos départements.');
-    throw new ApiError(message, response.status);
-  }
-
-  const json = await response.json();
-  return departmentListSchema.parse(json);
-};
-
-const createDepartmentRequest = async (input: DepartmentInput): Promise<Department> => {
-  const response = await fetch('/api/departments', {
-    method: 'POST',
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(input)
-  });
-
-  if (response.status === 401) {
-    throw new ApiError('Authentification requise', 401);
-  }
-
-  if (!response.ok) {
-    const message = await readErrorMessage(response, 'Impossible de créer le département.');
-    throw new ApiError(message, response.status);
-  }
-
-  const json = await response.json();
-  return departmentSchema.parse(json);
-};
-
-const deleteDepartmentRequest = async (departmentId: string): Promise<void> => {
-  const response = await fetch(`/api/departments/${encodeURIComponent(departmentId)}`, {
-    method: 'DELETE',
-    credentials: 'include'
-  });
-
-  if (response.status === 401) {
-    throw new ApiError('Authentification requise', 401);
-  }
-
-  if (response.status === 204) {
-    return;
-  }
-
-  if (!response.ok) {
-    const message = await readErrorMessage(response, 'Impossible de supprimer le département.');
-    throw new ApiError(message, response.status);
-  }
-};
-
-const updateDepartmentRequest = async (input: DepartmentInput & { id: string }): Promise<Department> => {
-  const response = await fetch(`/api/departments/${encodeURIComponent(input.id)}`, {
-    method: 'PATCH',
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name: input.name, color: input.color })
-  });
-
-  if (response.status === 401) {
-    throw new ApiError('Authentification requise', 401);
-  }
-
-  if (!response.ok) {
-    const message = await readErrorMessage(response, "Impossible de mettre à jour le département.");
-    throw new ApiError(message, response.status);
-  }
-
-  const json = await response.json();
-  return departmentSchema.parse(json);
-};
-
-const createRoleRequest = async (input: RoleCreateInput): Promise<Role> => {
-  const response = await fetch(`/api/departments/${encodeURIComponent(input.departmentId)}/roles`, {
-    method: 'POST',
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name: input.name, color: input.color })
-  });
-
-  if (response.status === 401) {
-    throw new ApiError('Authentification requise', 401);
-  }
-
-  if (!response.ok) {
-    const message = await readErrorMessage(response, 'Impossible de créer le rôle.');
-    throw new ApiError(message, response.status);
-  }
-
-  const json = await response.json();
-  return roleSchema.parse(json);
-};
-
-const updateRoleRequest = async (input: RoleUpdateInput): Promise<Role> => {
-  const response = await fetch(`/api/roles/${encodeURIComponent(input.id)}`, {
-    method: 'PATCH',
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name: input.name, color: input.color })
-  });
-
-  if (response.status === 401) {
-    throw new ApiError('Authentification requise', 401);
-  }
-
-  if (!response.ok) {
-    const message = await readErrorMessage(response, 'Impossible de mettre à jour le rôle.');
-    throw new ApiError(message, response.status);
-  }
-
-  const json = await response.json();
-  return roleSchema.parse(json);
-};
-
-const deleteRoleRequest = async (roleId: string): Promise<void> => {
-  const response = await fetch(`/api/roles/${encodeURIComponent(roleId)}`, {
-    method: 'DELETE',
-    credentials: 'include'
-  });
-
-  if (response.status === 401) {
-    throw new ApiError('Authentification requise', 401);
-  }
-
-  if (response.status === 204) {
-    return;
-  }
-
-  if (!response.ok) {
-    const message = await readErrorMessage(response, 'Impossible de supprimer le rôle.');
     throw new ApiError(message, response.status);
   }
 };
@@ -729,73 +498,16 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
     [dateTimeFormatOptions, locale]
   );
 
-  const processSummariesQuery = useQuery<ProcessSummary[], ApiError>({
-    queryKey: ['processes'],
-    queryFn: () => requestProcessSummaries(landingErrorMessages),
-    retry: (failureCount, error) => {
-      if (error instanceof ApiError && error.status === 401) {
-        return false;
-      }
-      return failureCount < 2;
-    }
-  });
-
   const currentProcessId = selectedProcessId;
 
-  const processQuery = useQuery<ProcessResponse, ApiError>({
-    queryKey: ['process', currentProcessId],
-    queryFn: () => requestProcess(currentProcessId as string, landingErrorMessages),
-    enabled: typeof currentProcessId === 'string',
-    retry: (failureCount, error) => {
-      if (error instanceof ApiError && error.status === 401) {
-        return false;
-      }
-      return failureCount < 2;
-    }
+  const { processSummariesQuery, processQuery } = useProcessData({
+    processId: currentProcessId,
+    messages: landingErrorMessages
   });
 
-  const departmentsQuery = useQuery<Department[], ApiError>({
-    queryKey: ['departments'],
-    queryFn: requestDepartments,
-    retry: (failureCount, error) => {
-      if (error instanceof ApiError && error.status === 401) {
-        return false;
-      }
-      return failureCount < 2;
-    }
-  });
-
-  const profileQuery = useQuery<ProfileResponse, ApiError>({
-    queryKey: ['profile', 'self'],
-    queryFn: async () => {
-      const response = await fetch('/api/profile', {
-        method: 'GET',
-        credentials: 'include',
-        headers: { Accept: 'application/json' },
-        cache: 'no-store'
-      });
-      const json = await response.json().catch(() => null);
-
-      if (response.status === 401) {
-        throw new ApiError('Authentification requise', 401);
-      }
-
-      if (!response.ok || !json) {
-        const message = json && typeof json.error === 'string'
-          ? json.error
-          : 'Impossible de charger votre profil.';
-        throw new ApiError(message, response.status);
-      }
-
-      return profileResponseSchema.parse(json);
-    },
-    retry: (failureCount, error) => {
-      if (error instanceof ApiError && error.status === 401) {
-        return false;
-      }
-      return failureCount < 2;
-    }
-  });
+  const { departmentsQuery, invalidateDepartments, setDepartmentsCache } = useDepartments();
+  const { invalidateRoles } = useRoles();
+  const { profileQuery } = useProfile();
 
   const createDepartmentMutation = useMutation<Department, ApiError, void>({
     mutationFn: async () => {
@@ -898,10 +610,10 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
         let targetDepartmentId = baseline?.id ?? staged.id;
 
         if (!baseline) {
-          const created = await createDepartmentRequest({ name: staged.name, color: staged.color });
+          const created = await createDepartment({ name: staged.name, color: staged.color });
           targetDepartmentId = created.id;
         } else if (baseline.name !== staged.name || baseline.color !== staged.color) {
-          await updateDepartmentRequest({ id: staged.id, name: staged.name, color: staged.color });
+          await updateDepartment({ id: staged.id, name: staged.name, color: staged.color });
         }
 
         const baselineRoles = new Map(baseline?.roles.map((role) => [role.id, role]));
@@ -917,27 +629,27 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
               originalRole.name !== roleInput.name ||
               originalRole.color !== roleInput.color
             ) {
-              await updateRoleRequest({ id: roleInput.id, name: roleInput.name, color: roleInput.color });
+              await updateRole({ id: roleInput.id, name: roleInput.name, color: roleInput.color });
             }
 
             continue;
           }
 
-          await createRoleRequest({ departmentId: targetDepartmentId, name: roleInput.name, color: roleInput.color });
+          await createRole({ departmentId: targetDepartmentId, name: roleInput.name, color: roleInput.color });
         }
 
         for (const [roleId] of baselineRoles) {
           if (!seenRoleIds.has(roleId)) {
-            await deleteRoleRequest(roleId);
+            await deleteRole(roleId);
           }
         }
       }
 
-      const refreshedDepartments = await requestDepartments();
+      const refreshedDepartments = await fetchDepartments();
       return refreshedDepartments;
     },
     onSuccess: async (departmentsList) => {
-      queryClient.setQueryData(['departments'], departmentsList);
+      setDepartmentsCache(departmentsList);
       setDraftDepartments(departmentsList);
       hasInitializedDraftDepartmentsRef.current = true;
       setEditingDepartmentId(null);
@@ -977,18 +689,18 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
         );
       }
 
-      await queryClient.invalidateQueries({ queryKey: ['departments'] });
-      await queryClient.invalidateQueries({ queryKey: ['roles', { departmentId: editingDepartmentId }] });
+      await invalidateDepartments();
+      await invalidateRoles(editingDepartmentId);
     }
   });
 
   const deleteDepartmentMutation = useMutation<void, ApiError, { id: string }>({
-    mutationFn: ({ id }) => deleteDepartmentRequest(id),
+    mutationFn: ({ id }) => deleteDepartment(id),
     onMutate: async ({ id }) => {
       setDeleteDepartmentId(id);
     },
     onSuccess: async (_data, variables) => {
-      await queryClient.invalidateQueries({ queryKey: ['departments'] });
+      await invalidateDepartments();
       setDraftDepartments((previous) => previous.filter((item) => item.id !== variables.id));
       let shouldReset = false;
       setEditingDepartmentId((current) => {
@@ -1576,7 +1288,7 @@ export function LandingPanels({ highlights }: LandingPanelsProps) {
       processQuery.error.status === 404 &&
       currentProcessId
     ) {
-      queryClient.invalidateQueries({ queryKey: ['processes'] });
+      queryClient.invalidateQueries({ queryKey: processQueryKeys.summaries });
       setSelectedProcessId(null);
       const fallback = cloneSteps(DEFAULT_PROCESS_STEPS);
       baselineStepsRef.current = cloneSteps(fallback);
