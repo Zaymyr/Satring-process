@@ -767,22 +767,12 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
       invalidateDepartments();
       invalidateRoles(editingDepartmentId);
 
-      setStatusMessage(statusMessages.saved);
-      setShowSaveIndicator(true);
       void queryClient.invalidateQueries({ queryKey: ['departments'] });
       void queryClient.invalidateQueries({ queryKey: ['process', data.process.id] });
       void queryClient.invalidateQueries({ queryKey: ['processes'] });
     },
     onError: (error, variables) => {
       console.error('Erreur lors de la sauvegarde', error);
-      if (!error.message || !variables.process.id) {
-        setStatusMessage(statusMessages.saveErrorFallback);
-        setShowSaveIndicator(true);
-        return;
-      }
-
-      setStatusMessage(error.message);
-      setShowSaveIndicator(true);
     }
   });
 
