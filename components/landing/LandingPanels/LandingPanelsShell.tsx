@@ -1906,7 +1906,15 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
     [iaChat, isProcessInitialized]
   );
 
-  const isSaveDisabled = isStepEditingDisabled || isSaving || !isDirty || iaChat.isLoading;
+  const isSaveDisabled =
+    isStepEditingDisabled ||
+    isSaving ||
+    isDepartmentActionsDisabled ||
+    isAddingDepartmentRole ||
+    isDeletingDepartment ||
+    departments.length === 0 ||
+    !isDirty ||
+    iaChat.isLoading;
 
   const handleSave = useCallback(() => {
     if (isSaveDisabled || !currentProcessId) {
@@ -2265,10 +2273,8 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
       deleteDepartmentId={deleteDepartmentId}
       formatDateTime={formatDateTime}
       departmentEditForm={departmentEditForm}
-      handleSave={handleSave}
       handleDeleteDepartment={handleDeleteDepartment}
       isSaving={isSaving}
-      isSaveDisabled={isSaveDisabled}
       saveError={saveMutation.isError ? saveMutation.error?.message ?? null : null}
       departmentRoleFields={departmentRoleFields}
       isAddingDepartmentRole={isAddingDepartmentRole}
