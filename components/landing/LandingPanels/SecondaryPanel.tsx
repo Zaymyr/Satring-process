@@ -98,25 +98,15 @@ type SecondaryPanelProps = {
   deleteDepartmentId: string | null;
   formatDateTime: (date: string | number | Date | null | undefined) => string | null;
   departmentEditForm: UseFormReturn<DepartmentCascadeForm>;
-  handleSaveAllDepartments: () => void;
+  handleSave: () => void;
   handleDeleteDepartment: (departmentId: string) => void;
-  isSavingDepartment: boolean;
+  isSaving: boolean;
+  isSaveDisabled: boolean;
+  saveError: string | null;
   departmentRoleFields: UseFieldArrayReturn<DepartmentCascadeForm, 'roles', 'id'>;
   isAddingDepartmentRole: boolean;
   handleAddRole: () => void;
   createDepartmentRoleMutation: UseMutationResult<Role, ApiError, { departmentId: string }>;
-  saveDepartmentMutation: UseMutationResult<
-    Department[],
-    ApiError,
-    {
-      departments: {
-        id: string;
-        name: string;
-        color: string;
-        roles: { id?: string; name: string; color: string }[];
-      }[];
-    }
-  >;
   deleteDepartmentMutation: UseMutationResult<void, ApiError, { id: string }>;
   startEditingDepartment: (department: DepartmentWithDraftStatus) => void;
   formatTemplateText: (template: string, value: string | null, token?: string) => string | null;
@@ -163,14 +153,15 @@ export function SecondaryPanel({
   deleteDepartmentId,
   formatDateTime,
   departmentEditForm,
-  handleSaveAllDepartments,
+  handleSave,
   handleDeleteDepartment,
-  isSavingDepartment,
+  isSaving,
+  isSaveDisabled,
+  saveError,
   departmentRoleFields,
   isAddingDepartmentRole,
   handleAddRole,
   createDepartmentRoleMutation,
-  saveDepartmentMutation,
   deleteDepartmentMutation,
   startEditingDepartment,
   formatTemplateText
@@ -386,7 +377,7 @@ export function SecondaryPanel({
                                   isDraft={department.isDraft}
                                   departmentEditForm={departmentEditForm}
                                   departmentRoleFields={departmentRoleFields}
-                                  isSaving={isSavingDepartment}
+                                  isSaving={isSaving}
                                   isActionsDisabled={isDepartmentActionsDisabled || !editingDepartmentId}
                                   isAddingRole={isAddingDepartmentRole}
                                   isDeleting={isDeletingCurrent}
@@ -495,24 +486,25 @@ export function SecondaryPanel({
                   {createDepartmentRoleMutation.isError ? (
                     <p className="text-xs text-red-600">{createDepartmentRoleMutation.error?.message}</p>
                   ) : null}
-                  {saveDepartmentMutation.isError ? (
-                    <p className="text-xs text-red-600">{saveDepartmentMutation.error?.message}</p>
+                  {saveError ? (
+                    <p className="text-xs text-red-600">{saveError}</p>
                   ) : null}
                 </div>
                 <Button
                   type="button"
                   size="sm"
-                  onClick={handleSaveAllDepartments}
+                  onClick={handleSave}
                   disabled={
                     isDepartmentActionsDisabled ||
-                    isSavingDepartment ||
+                    isSaving ||
                     isAddingDepartmentRole ||
                     isDeletingDepartment ||
+                    isSaveDisabled ||
                     departments.length === 0
                   }
                   className="inline-flex h-9 items-center gap-1 rounded-md bg-slate-900 px-3 text-xs font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600"
                 >
-                  {isSavingDepartment ? (
+                  {isSaving ? (
                     <Loader2 aria-hidden="true" className="h-4 w-4 animate-spin" />
                   ) : (
                     <Save aria-hidden="true" className="h-4 w-4" />
