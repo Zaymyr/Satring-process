@@ -1,6 +1,5 @@
 import type { ReactNode } from 'react';
 
-import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils/cn';
 
 type MissingAssignments = {
@@ -29,24 +28,20 @@ export function ProcessControls({
   missingAssignments,
   isDirty
 }: ProcessControlsProps) {
+  void onSave;
+  void isSaveDisabled;
+  void saveButtonLabel;
+
   const hasMissingAssignments =
     isDirty && (missingAssignments.departments.length > 0 || missingAssignments.roles.length > 0);
 
   return (
-    <div className="grid grid-cols-[auto,1fr] items-start gap-3 pt-2">
-      <Button
-        type="button"
-        onClick={onSave}
-        disabled={isSaveDisabled}
-        className="h-9 rounded-md bg-slate-900 px-3 text-sm font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600"
-      >
-        {saveButtonLabel}
-      </Button>
+    <div className="space-y-2 pt-2">
       <p className={cn('text-[11px] leading-5', statusToneClass)} aria-live="polite">
         {statusMessage}
       </p>
       {hasMissingAssignments ? (
-        <div className="col-span-2 space-y-1.5 rounded-lg border border-amber-200 bg-amber-50/80 px-3 py-2 text-[11px] text-amber-950 shadow-inner">
+        <div className="space-y-1.5 rounded-lg border border-amber-200 bg-amber-50/80 px-3 py-2 text-[11px] text-amber-950 shadow-inner">
           {missingAssignments.departments.length > 0 ? (
             <div className="flex flex-wrap items-start gap-2">
               <span className="font-semibold">{missingAssignments.departmentsLabel}</span>

@@ -2151,17 +2151,6 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
 
   const diagramControlsContentId = useId();
 
-  const iaPanelSaveButton = (
-    <Button
-      type="button"
-      onClick={handleSave}
-      disabled={isSaveDisabled}
-      className="h-9 rounded-md bg-slate-900 px-3 text-sm font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600"
-    >
-      {saveButtonLabel}
-    </Button>
-  );
-
   const iaPanelContent = (
     <ProcessIaChat
       messages={iaChat.messages}
@@ -2177,7 +2166,6 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
         errorLabel: iaPanel.errorLabel
       }}
       disabled={isStepEditingDisabled}
-      footerAction={iaPanelSaveButton}
     />
   );
 
