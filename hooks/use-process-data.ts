@@ -1,7 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
 
 import { ApiError, readErrorMessage } from '@/lib/api/errors';
-import { processSummariesSchema, processResponseSchema, type ProcessResponse, type ProcessSummary } from '@/lib/validation/process';
+import { processSummariesSchema } from '@/lib/process/schema';
+import { processResponseSchema, type ProcessResponse, type ProcessSummary } from '@/lib/validation/process';
 import { type ProcessErrorMessages } from '@/lib/process/types';
 
 export const processQueryKeys = {
