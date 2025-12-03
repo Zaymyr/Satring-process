@@ -1,8 +1,7 @@
 import { useMemo } from 'react';
 
 import { FALLBACK_STEP_FILL_ALPHA, toRgba } from '@/lib/process/colors';
-import { normalizeBranchTarget, normalizeNameKey } from '@/lib/process/normalizers';
-import { normalizeDraftName } from '@/lib/process/steps';
+import { normalizeBranchTarget, normalizeDraftName, normalizeNameKey } from '@/lib/process/normalizers';
 import { wrapStepLabel } from '@/lib/process/mermaid-format';
 import type { Step } from '@/lib/process/types';
 import type { DepartmentWithDraftStatus } from './LandingPanelsShell';
