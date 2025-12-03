@@ -638,15 +638,12 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
         const seenRoleIds = new Set<string>();
 
         for (const roleInput of staged.roles) {
-          if (roleInput.id) {
-            seenRoleIds.add(roleInput.id);
-            const originalRole = baselineRoles.get(roleInput.id);
+          const originalRole = roleInput.id ? baselineRoles.get(roleInput.id) : null;
 
-            if (
-              !originalRole ||
-              originalRole.name !== roleInput.name ||
-              originalRole.color !== roleInput.color
-            ) {
+          if (originalRole) {
+            seenRoleIds.add(roleInput.id);
+
+            if (originalRole.name !== roleInput.name || originalRole.color !== roleInput.color) {
               await updateRole({ id: roleInput.id, name: roleInput.name, color: roleInput.color });
             }
 
