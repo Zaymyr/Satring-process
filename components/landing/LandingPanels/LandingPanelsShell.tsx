@@ -285,6 +285,7 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
   const [activeSecondaryTab, setActiveSecondaryTab] = useState<'processes' | 'departments'>('processes');
   const hasAppliedInviteTabRef = useRef(false);
   const [editingDepartmentId, setEditingDepartmentId] = useState<string | null>(null);
+  const editingDepartmentIdRef = useRef<string | null>(null);
   const [deleteDepartmentId, setDeleteDepartmentId] = useState<string | null>(null);
   const [draftDepartments, setDraftDepartments] = useState<Department[]>([]);
   const hasAutoCreatedProcessRef = useRef(false);
@@ -297,6 +298,10 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
     name: 'roles'
   });
   const editingDepartmentBaselineRef = useRef<Department | null>(null);
+
+  useEffect(() => {
+    editingDepartmentIdRef.current = editingDepartmentId;
+  }, [editingDepartmentId]);
 
   const formatDateTime = useMemo(
     () => createDateTimeFormatter(locale, dateTimeFormatOptions),
@@ -330,6 +335,7 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
     onSuccess: (department) => {
       setDraftDepartments((previous) => [department, ...previous]);
       setEditingDepartmentId(department.id);
+      editingDepartmentIdRef.current = department.id;
       editingDepartmentBaselineRef.current = null;
       departmentEditForm.reset({ name: department.name, color: department.color, roles: [] });
       departmentRoleFields.replace([]);
@@ -404,11 +410,14 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
       setDraftDepartments((previous) => previous.filter((item) => item.id !== variables.id));
       let shouldReset = false;
       setEditingDepartmentId((current) => {
+        const nextEditingId = current === variables.id ? null : current;
+        editingDepartmentIdRef.current = nextEditingId;
+
         if (current === variables.id) {
           shouldReset = true;
-          return null;
         }
-        return current;
+
+        return nextEditingId;
       });
       if (shouldReset) {
         departmentEditForm.reset({
@@ -619,8 +628,11 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
 
       const baselineDepartments = departmentsQuery.data ?? [];
       const baselineById = new Map(baselineDepartments.map((item) => [item.id, item]));
+      const stagedDepartmentIds = new Set(stagedDepartments.map((department) => department.id));
       const departmentIdMap = new Map<string, string>();
       const roleIdMap = new Map<string, string>();
+      const savedDepartmentIds = new Set<string>();
+      const savedRoleIds = new Set<string>();
 
       for (const staged of stagedDepartments) {
         const baseline = baselineById.get(staged.id) ?? null;
@@ -630,22 +642,37 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
           const created = await createDepartment({ name: staged.name, color: staged.color });
           departmentIdMap.set(staged.id, created.id);
           targetDepartmentId = created.id;
-        } else if (baseline.name !== staged.name || baseline.color !== staged.color) {
-          await updateDepartment({ id: staged.id, name: staged.name, color: staged.color });
+          savedDepartmentIds.add(created.id);
+        } else {
+          savedDepartmentIds.add(baseline.id);
+
+          if (baseline.name !== staged.name || baseline.color !== staged.color) {
+            await updateDepartment({ id: staged.id, name: staged.name, color: staged.color });
+          }
         }
 
         const baselineRoles = new Map(baseline?.roles.map((role) => [role.id, role]));
         const seenRoleIds = new Set<string>();
+        const seenRoleNames = new Set<string>();
 
         for (const roleInput of staged.roles) {
+          const normalizedRoleName = normalizeNameKey(roleInput.name) ?? roleInput.name;
+
+          if (seenRoleNames.has(normalizedRoleName)) {
+            continue;
+          }
+
           const originalRole = roleInput.id
             ? baselineRoles.get(roleInput.id)
             : baseline?.roles.find((role) => role.name === roleInput.name) ?? null;
+
+          seenRoleNames.add(normalizedRoleName);
 
           if (originalRole) {
             const resolvedRoleId = originalRole.id;
             const stagedRoleKey = roleInput.id ?? roleInput.name;
             seenRoleIds.add(resolvedRoleId);
+            savedRoleIds.add(resolvedRoleId);
 
             if (stagedRoleKey) {
               roleIdMap.set(stagedRoleKey, resolvedRoleId);
@@ -664,6 +691,7 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
             color: roleInput.color
           });
           roleIdMap.set(roleInput.id ?? roleInput.name, createdRole.id);
+          savedRoleIds.add(createdRole.id);
           seenRoleIds.add(createdRole.id);
         }
 
@@ -674,12 +702,20 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
         }
       }
 
+      for (const baseline of baselineDepartments) {
+        if (!stagedDepartmentIds.has(baseline.id)) {
+          await deleteDepartment(baseline.id);
+        }
+      }
+
       const refreshedDepartments = await fetchDepartments();
       const normalizedSteps = process.steps.map((step) => {
         const mappedDepartmentId = step.departmentId
-          ? departmentIdMap.get(step.departmentId) ?? step.departmentId
+          ? departmentIdMap.get(step.departmentId) ?? (savedDepartmentIds.has(step.departmentId) ? step.departmentId : null)
           : null;
-        const mappedRoleId = step.roleId ? roleIdMap.get(step.roleId) ?? step.roleId : null;
+        const mappedRoleId = step.roleId
+          ? roleIdMap.get(step.roleId) ?? (savedRoleIds.has(step.roleId) ? step.roleId : null)
+          : null;
 
         return normalizeStep({
           ...step,
@@ -720,6 +756,7 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
       setDraftDepartments(data.departments);
       hasInitializedDraftDepartmentsRef.current = true;
       setEditingDepartmentId(null);
+      editingDepartmentIdRef.current = null;
       editingDepartmentBaselineRef.current = null;
       departmentEditForm.reset({
         name: '',
@@ -850,13 +887,16 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
         setDraftDepartments((previous) => previous.filter((department) => department.id !== id));
 
         setEditingDepartmentId((current) => {
+          const nextEditingId = current === id ? null : current;
+          editingDepartmentIdRef.current = nextEditingId;
+
           if (current !== id) {
             return current;
           }
 
           departmentEditForm.reset({ name: '', color: DEFAULT_DEPARTMENT_COLOR, roles: [] });
           departmentRoleFields.replace([]);
-          return null;
+          return nextEditingId;
         });
 
         return;
@@ -879,6 +919,7 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
       }
 
       setEditingDepartmentId(department.id);
+      editingDepartmentIdRef.current = department.id;
       editingDepartmentBaselineRef.current =
         (departmentsQuery.data ?? []).find((item) => item.id === department.id) ?? null;
       const mappedRoles = department.roles.map((role) => ({ roleId: role.id, name: role.name, color: role.color }));
@@ -897,12 +938,14 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
 
   useEffect(() => {
     const subscription = departmentEditForm.watch((values) => {
-      if (!editingDepartmentId) {
+      const currentEditingId = editingDepartmentIdRef.current;
+
+      if (!currentEditingId) {
         return;
       }
 
       setDraftDepartments((previous) => {
-        const targetIndex = previous.findIndex((department) => department.id === editingDepartmentId);
+        const targetIndex = previous.findIndex((department) => department.id === currentEditingId);
 
         if (targetIndex === -1) {
           return previous;
@@ -981,6 +1024,7 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
     hasResetDepartmentEditorRef.current = true;
 
     setEditingDepartmentId(null);
+    editingDepartmentIdRef.current = null;
     editingDepartmentBaselineRef.current = null;
     departmentEditForm.reset({
       name: '',
