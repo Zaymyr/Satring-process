@@ -216,6 +216,7 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
   const [editingDepartmentId, setEditingDepartmentId] = useState<string | null>(null);
   const [deleteDepartmentId, setDeleteDepartmentId] = useState<string | null>(null);
   const [draftDepartments, setDraftDepartments] = useState<Department[]>([]);
+  const hasAutoCreatedProcessRef = useRef(false);
   const departmentEditForm = useForm<DepartmentCascadeForm>({
     resolver: zodResolver(departmentCascadeFormSchema),
     defaultValues: { name: '', color: DEFAULT_DEPARTMENT_COLOR, roles: [] }
@@ -496,6 +497,8 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
   const isUnauthorized = isProcessListUnauthorized || isProcessQueryUnauthorized;
   const isAuthMissing = isUnauthorized || isProfileUnauthorized;
   const isProcessEditorReadOnly = isAuthMissing || isProcessManagementRestricted;
+  const isProcessInitialized = Boolean(currentProcessId);
+  const isStepEditingDisabled = isProcessEditorReadOnly || !isProcessInitialized;
   const processSummaries = useMemo(
     () => processSummariesQuery.data ?? [],
     [processSummariesQuery.data]
@@ -1069,6 +1072,14 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
     }
   });
 
+  const handleCreateProcess = useCallback(() => {
+    if (isProcessEditorReadOnly || isCreating) {
+      return;
+    }
+
+    createProcessMutation.mutate(undefined);
+  }, [createProcessMutation, isCreating, isProcessEditorReadOnly]);
+
   const renameProcessMutation = useMutation<ProcessSummary, ApiError, { id: string; title: string }>({
     mutationFn: (input) => renameProcessRequest(landingErrorMessages, input),
     onSuccess: (summary) => {
@@ -1222,6 +1233,25 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
 
   const formattedSavedAt = formatDateTime(lastSavedAt);
 
+  useEffect(() => {
+    if (hasAutoCreatedProcessRef.current) {
+      return;
+    }
+
+    if (
+      isProcessEditorReadOnly ||
+      isCreating ||
+      processSummariesQuery.isLoading ||
+      processSummariesQuery.isError ||
+      processSummariesQuery.data?.length
+    ) {
+      return;
+    }
+
+    hasAutoCreatedProcessRef.current = true;
+    createProcessMutation.mutate(undefined);
+  }, [createProcessMutation, isCreating, isProcessEditorReadOnly, processSummariesQuery]);
+
   const statusMessage = useMemo<ReactNode>(() => {
     if (isAuthMissing) {
       return (
@@ -1247,7 +1277,20 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
       if (isCreating) {
         return statusMessages.creating;
       }
-      return statusMessages.createPrompt;
+      return (
+        <div className="flex flex-wrap items-center gap-2">
+          <span>{statusMessages.createPrompt}</span>
+          <Button
+            type="button"
+            size="sm"
+            onClick={handleCreateProcess}
+            disabled={isProcessEditorReadOnly || isCreating}
+            className="h-8 rounded-md bg-slate-900 px-2.5 text-xs font-semibold text-white hover:bg-slate-800 disabled:bg-slate-200"
+          >
+            {saveButtonLabels.create}
+          </Button>
+        </div>
+      );
     }
 
     if (saveMutation.isError && saveMutation.error) {
@@ -1271,11 +1314,14 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
     currentProcessId,
     formattedSavedAt,
     isAuthMissing,
+    handleCreateProcess,
     isCreating,
     isDirty,
     isProcessManagementRestricted,
+    isProcessEditorReadOnly,
     processQuery.isLoading,
     statusMessages,
+    saveButtonLabels.create,
     saveMutation.error,
     saveMutation.isError
   ]);
@@ -1376,14 +1422,6 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
     ]
   );
 
-  const handleCreateProcess = useCallback(() => {
-    if (isProcessEditorReadOnly || isCreating) {
-      return;
-    }
-
-    createProcessMutation.mutate(undefined);
-  }, [createProcessMutation, isCreating, isProcessEditorReadOnly]);
-
   const handleDeleteProcess = useCallback(
     (processId: string) => {
       if (isProcessEditorReadOnly) {
@@ -1402,7 +1440,7 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
 
   const handleStepDragStart = useCallback(
     (event: React.DragEvent<HTMLButtonElement>, stepId: string) => {
-      if (isProcessEditorReadOnly) {
+      if (isStepEditingDisabled) {
         event.preventDefault();
         return;
       }
@@ -1414,7 +1452,7 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
       setDraggedStepId(stepId);
       setSelectedStepId(stepId);
     },
-    [isProcessEditorReadOnly, setSelectedStepId]
+    [isStepEditingDisabled, setSelectedStepId]
   );
 
   const handleStepDragEnd = useCallback(() => {
@@ -1425,21 +1463,21 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
     (event: React.DragEvent<HTMLElement>) => {
       event.preventDefault();
 
-      if (isProcessEditorReadOnly) {
+      if (isStepEditingDisabled) {
         clearDragState();
         return;
       }
 
       clearDragState();
     },
-    [clearDragState, isProcessEditorReadOnly]
+    [clearDragState, isStepEditingDisabled]
   );
 
   const handleStepDragOver = useCallback(
     (event: React.DragEvent<HTMLElement>, overStepId: string) => {
       event.preventDefault();
 
-      if (isProcessEditorReadOnly) {
+      if (isStepEditingDisabled) {
         return;
       }
 
@@ -1476,14 +1514,14 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
         return updated;
       });
     },
-    [isProcessEditorReadOnly]
+    [isStepEditingDisabled]
   );
 
   const handleStepListDragOverEnd = useCallback(
     (event: React.DragEvent<HTMLDivElement>) => {
       event.preventDefault();
 
-      if (isProcessEditorReadOnly) {
+      if (isStepEditingDisabled) {
         return;
       }
 
@@ -1514,7 +1552,7 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
         return updated;
       });
     },
-    [isProcessEditorReadOnly]
+    [isStepEditingDisabled]
   );
 
   const diagramDefinition = useMemo(() => {
@@ -1789,8 +1827,18 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
     onProcessUpdate: handleProcessUpdateFromIa
   });
 
-  const isSaveDisabled =
-    isProcessEditorReadOnly || isSaving || !isDirty || !currentProcessId || iaChat.isLoading;
+  const sendIaMessage = useCallback(
+    (message: string) => {
+      if (!isProcessInitialized) {
+        return { ok: false } as const;
+      }
+
+      return iaChat.sendMessage(message);
+    },
+    [iaChat, isProcessInitialized]
+  );
+
+  const isSaveDisabled = isStepEditingDisabled || isSaving || !isDirty || iaChat.isLoading;
 
   const handleSave = () => {
     if (isSaveDisabled || !currentProcessId) {
@@ -1807,7 +1855,7 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
   };
 
   const addStep = (type: Extract<StepType, 'action' | 'decision'>) => {
-    if (isProcessEditorReadOnly) {
+    if (isStepEditingDisabled) {
       return;
     }
 
@@ -1851,7 +1899,7 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
   };
 
   const updateStepLabel = (id: string, label: string) => {
-    if (isProcessEditorReadOnly) {
+    if (isStepEditingDisabled) {
       return;
     }
 
@@ -1859,7 +1907,7 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
   };
 
   const updateStepDepartment = (id: string, departmentId: string | null) => {
-    if (isProcessEditorReadOnly) {
+    if (isStepEditingDisabled) {
       return;
     }
 
@@ -1886,7 +1934,7 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
   };
 
   const updateStepRole = (id: string, roleId: string | null) => {
-    if (isProcessEditorReadOnly) {
+    if (isStepEditingDisabled) {
       return;
     }
 
@@ -1918,7 +1966,7 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
   };
 
   const updateDecisionBranch = (id: string, branch: 'yes' | 'no', targetId: string | null) => {
-    if (isProcessEditorReadOnly) {
+    if (isStepEditingDisabled) {
       return;
     }
 
@@ -1940,7 +1988,7 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
   };
 
   const removeStep = (id: string) => {
-    if (isProcessEditorReadOnly) {
+    if (isStepEditingDisabled) {
       return;
     }
 
@@ -1994,7 +2042,7 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
   const iaPanelContent = (
     <ProcessIaChat
       messages={iaChat.messages}
-      onSend={iaChat.sendMessage}
+      onSend={sendIaMessage}
       isLoading={iaChat.isLoading}
       inputError={iaChat.inputError}
       errorMessage={iaChat.errorMessage}
@@ -2005,7 +2053,7 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
         loading: iaPanel.loading,
         errorLabel: iaPanel.errorLabel
       }}
-      disabled={!currentProcessId || isProcessEditorReadOnly}
+      disabled={isStepEditingDisabled}
       footerAction={iaPanelSaveButton}
     />
   );
@@ -2015,6 +2063,11 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
       processTitle={processTitle}
       primaryPanel={primaryPanel}
       iaPanel={iaPanelContent}
+      isProcessInitialized={isProcessInitialized}
+      onCreateProcess={handleCreateProcess}
+      isCreatingProcess={isCreating}
+      createLabel={saveButtonLabels.create}
+      createPrompt={statusMessages.createPrompt}
       addStep={addStep}
       isProcessEditorReadOnly={isProcessEditorReadOnly}
       steps={steps}

@@ -33,6 +33,11 @@ type PrimaryPanelProps = {
   processTitle: string;
   primaryPanel: PrimaryPanelLabels;
   iaPanel: ReactNode;
+  isProcessInitialized: boolean;
+  onCreateProcess: () => void;
+  isCreatingProcess: boolean;
+  createLabel: string;
+  createPrompt: string;
   addStep: (type: Extract<StepType, 'action' | 'decision'>) => void;
   isProcessEditorReadOnly: boolean;
   steps: ProcessStep[];
@@ -81,6 +86,11 @@ type PrimaryPanelProps = {
 export function PrimaryPanel({
   processTitle,
   primaryPanel,
+  isProcessInitialized,
+  onCreateProcess,
+  isCreatingProcess,
+  createLabel,
+  createPrompt,
   addStep,
   isProcessEditorReadOnly,
   steps,
@@ -119,6 +129,8 @@ export function PrimaryPanel({
 }: PrimaryPanelProps) {
   const tabsListId = useId();
   const [activeTab, setActiveTab] = useState<'ia' | 'manual'>('manual');
+
+  const isStepEditingDisabled = isProcessEditorReadOnly || !isProcessInitialized;
 
   const manualPanelId = `${tabsListId}-manual-panel`;
   const iaPanelId = `${tabsListId}-ia-panel`;
@@ -179,7 +191,7 @@ export function PrimaryPanel({
             <Button
               type="button"
               onClick={() => addStep('action')}
-              disabled={isProcessEditorReadOnly}
+              disabled={isStepEditingDisabled}
               className="h-10 w-full rounded-md bg-slate-900 px-3 text-sm text-white hover:bg-slate-800"
             >
               <Plus className="mr-2 h-3.5 w-3.5" />
@@ -189,7 +201,7 @@ export function PrimaryPanel({
               type="button"
               variant="outline"
               onClick={() => addStep('decision')}
-              disabled={isProcessEditorReadOnly}
+              disabled={isStepEditingDisabled}
               className="h-10 w-full rounded-md border-slate-300 bg-white px-3 text-sm text-slate-900 hover:bg-slate-50"
             >
               <GitBranch className="mr-2 h-3.5 w-3.5" />
@@ -198,6 +210,21 @@ export function PrimaryPanel({
           </div>
           <div className="flex-1 min-h-0 overflow-hidden">
             <div className="h-full space-y-3 overflow-y-auto rounded-2xl border border-slate-200 bg-white/75 p-3 pr-1 shadow-inner sm:pr-1.5">
+              {!isProcessInitialized ? (
+                <Card className="border-dashed border-slate-300 bg-white/80">
+                  <CardContent className="flex flex-wrap items-center justify-between gap-3 p-3 text-sm text-slate-700">
+                    <p className="flex-1 text-left text-sm text-slate-800">{createPrompt}</p>
+                    <Button
+                      type="button"
+                      onClick={onCreateProcess}
+                      disabled={isProcessEditorReadOnly || isCreatingProcess}
+                      className="bg-slate-900 text-xs font-semibold text-white hover:bg-slate-800 disabled:bg-slate-200"
+                    >
+                      {createLabel}
+                    </Button>
+                  </CardContent>
+                </Card>
+              ) : null}
               <div className="space-y-2.5">
                 {steps.map((step, index) => {
                   const isRemovable = step.type === 'action' || step.type === 'decision';
@@ -205,7 +232,7 @@ export function PrimaryPanel({
                   const availableTargets = steps.filter((candidate) => candidate.id !== step.id);
                   const isDragging = draggedStepId === step.id;
                   const isFixedStep = step.type === 'start' || step.type === 'finish';
-                  const canReorderStep = !isFixedStep && !isProcessEditorReadOnly;
+                  const canReorderStep = !isFixedStep && !isStepEditingDisabled;
                   const isSelectedStep = selectedStepId === step.id;
                   const displayLabel = getStepDisplayLabel(step);
                   const departmentName = getStepDepartmentLabel(step);
@@ -276,11 +303,11 @@ export function PrimaryPanel({
                           >
                             {stepPosition}
                           </span>
-                          <button
-                            type="button"
-                            className={cn(
-                              'flex h-7 w-7 items-center justify-center rounded-full border border-transparent bg-slate-100 text-slate-500 transition',
-                              canReorderStep ? 'hover:border-slate-300 hover:bg-white' : 'cursor-not-allowed opacity-60'
+                            <button
+                              type="button"
+                              className={cn(
+                                'flex h-7 w-7 items-center justify-center rounded-full border border-transparent bg-slate-100 text-slate-500 transition',
+                                canReorderStep ? 'hover:border-slate-300 hover:bg-white' : 'cursor-not-allowed opacity-60'
                             )}
                             draggable={canReorderStep}
                             onDragStart={(event) => {
@@ -303,7 +330,7 @@ export function PrimaryPanel({
                               variant="ghost"
                               size="icon"
                               onClick={() => removeStep(step.id)}
-                              disabled={isProcessEditorReadOnly}
+                              disabled={isStepEditingDisabled}
                               className="h-7 w-7 shrink-0 text-red-500 hover:text-red-600"
                               aria-label="Delete step"
                             >
@@ -318,7 +345,7 @@ export function PrimaryPanel({
                               value={step.label}
                               onChange={(event) => updateStepLabel(step.id, event.target.value)}
                               placeholder="Step label"
-                              disabled={isProcessEditorReadOnly}
+                              disabled={isStepEditingDisabled}
                               className="h-8 w-full border-slate-200 bg-white text-sm text-slate-900 placeholder:text-slate-400 focus-visible:ring-slate-900/20 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-50"
                             />
                             <div className="grid gap-1.5 sm:grid-cols-2">
@@ -333,7 +360,7 @@ export function PrimaryPanel({
                                     )
                                   }
                                   className="h-8 rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-900 transition focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
-                                  disabled={isProcessEditorReadOnly || !hasDepartments}
+                                  disabled={isStepEditingDisabled || !hasDepartments}
                                 >
                                   <option value="">No department</option>
                                   {departments.map((department) => (
@@ -358,7 +385,7 @@ export function PrimaryPanel({
                                 hasRoles={hasRoles}
                                 roleEntries={availableRoleEntries}
                                 messages={rolePickerMessages}
-                                disabled={isProcessEditorReadOnly || !hasRoles}
+                                disabled={isStepEditingDisabled || !hasRoles}
                                 onChange={(roleId) => updateStepRole(step.id, roleId)}
                                 helperText={helperText}
                               />
@@ -372,7 +399,7 @@ export function PrimaryPanel({
                                     onChange={(event) =>
                                       updateDecisionBranch(step.id, 'yes', event.target.value || null)
                                     }
-                                    disabled={isProcessEditorReadOnly}
+                                    disabled={isStepEditingDisabled}
                                     className="h-8 rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-900 transition focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
                                   >
                                     <option value="">Next step (default)</option>
@@ -397,7 +424,7 @@ export function PrimaryPanel({
                                     onChange={(event) =>
                                       updateDecisionBranch(step.id, 'no', event.target.value || null)
                                     }
-                                    disabled={isProcessEditorReadOnly}
+                                    disabled={isStepEditingDisabled}
                                     className="h-8 rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-900 transition focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
                                   >
                                     <option value="">Next step (default)</option>
