@@ -1072,6 +1072,8 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
     }
   });
 
+  const isCreating = createProcessMutation.isPending;
+
   const handleCreateProcess = useCallback(() => {
     if (isProcessEditorReadOnly || isCreating) {
       return;
@@ -1228,7 +1230,6 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
   });
 
   const isSaving = saveMutation.isPending;
-  const isCreating = createProcessMutation.isPending;
   const isRenaming = renameProcessMutation.isPending;
 
   const formattedSavedAt = formatDateTime(lastSavedAt);
