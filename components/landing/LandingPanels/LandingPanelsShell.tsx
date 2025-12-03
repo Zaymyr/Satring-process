@@ -645,11 +645,20 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
 
         const baselineRoles = new Map(baseline?.roles.map((role) => [role.id, role]));
         const seenRoleIds = new Set<string>();
+        const seenRoleNames = new Set<string>();
 
         for (const roleInput of staged.roles) {
+          const normalizedRoleName = normalizeNameKey(roleInput.name) ?? roleInput.name;
+
+          if (seenRoleNames.has(normalizedRoleName)) {
+            continue;
+          }
+
           const originalRole = roleInput.id
             ? baselineRoles.get(roleInput.id)
             : baseline?.roles.find((role) => role.name === roleInput.name) ?? null;
+
+          seenRoleNames.add(normalizedRoleName);
 
           if (originalRole) {
             const resolvedRoleId = originalRole.id;
