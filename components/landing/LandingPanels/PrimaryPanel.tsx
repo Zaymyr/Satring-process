@@ -5,6 +5,8 @@ import { GitBranch, GripVertical, Plus, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { ProcessControls } from '@/components/landing/LandingPanels/ProcessControls';
+import { RolePicker, type RolePickerMessages } from '@/components/landing/LandingPanels/RolePicker';
 import { cn } from '@/lib/utils/cn';
 import type { RoleLookupEntry, Step } from '@/lib/process/types';
 import type { ProcessStep, StepType } from '@/lib/validation/process';
@@ -19,12 +21,6 @@ type PrimaryPanelLabels = {
     ia: string;
     manual: string;
   };
-};
-
-type RolePickerMessages = {
-  addRole: string;
-  noDepartmentRoles: string;
-  chooseRoleForDepartment: string;
 };
 
 type TooltipLabels = {
@@ -234,6 +230,13 @@ export function PrimaryPanel({
 
                     return null;
                   })();
+                  const helperText =
+                    roleHelperText &&
+                    step.type !== 'start' &&
+                    step.type !== 'finish' &&
+                    roleHelperText !== rolePickerMessages.chooseRoleForDepartment
+                      ? roleHelperText
+                      : null;
 
                   return (
                     <Card
@@ -350,42 +353,15 @@ export function PrimaryPanel({
                                   </span>
                                 ) : null}
                               </label>
-                              <label className="flex flex-col gap-1 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
-                                <span title={rolePickerMessages.chooseRoleForDepartment}>Role</span>
-                                <select
-                                  value={step.roleId ?? ''}
-                                  onChange={(event) =>
-                                    updateStepRole(
-                                      step.id,
-                                      event.target.value.length > 0 ? event.target.value : null
-                                    )
-                                  }
-                                  className="h-8 rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-900 transition focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
-                                  disabled={isProcessEditorReadOnly || !hasRoles}
-                                >
-                                  <option value="">No role</option>
-                                  {availableRoleEntries.map((entry) => (
-                                    <option key={entry.role.id} value={entry.role.id}>
-                                      {step.departmentId
-                                        ? entry.role.name
-                                        : `${entry.role.name} — ${entry.departmentName}`}
-                                    </option>
-                                  ))}
-                                </select>
-                                {!step.roleId && step.draftRoleName ? (
-                                  <span className="text-[0.6rem] font-normal normal-case tracking-normal text-slate-500">
-                                    Suggested: {step.draftRoleName}
-                                  </span>
-                                ) : null}
-                                {roleHelperText &&
-                                step.type !== 'start' &&
-                                step.type !== 'finish' &&
-                                roleHelperText !== rolePickerMessages.chooseRoleForDepartment ? (
-                                  <span className="text-[0.6rem] font-normal normal-case tracking-normal text-slate-500">
-                                    {roleHelperText}
-                                  </span>
-                                ) : null}
-                              </label>
+                              <RolePicker
+                                step={step}
+                                hasRoles={hasRoles}
+                                roleEntries={availableRoleEntries}
+                                messages={rolePickerMessages}
+                                disabled={isProcessEditorReadOnly || !hasRoles}
+                                onChange={(roleId) => updateStepRole(step.id, roleId)}
+                                helperText={helperText}
+                              />
                             </div>
                             {step.type === 'decision' ? (
                               <div className="mt-1.5 grid gap-1.5 sm:grid-cols-2">
@@ -477,53 +453,15 @@ export function PrimaryPanel({
               </div>
             </div>
           </div>
-          <div className="grid grid-cols-[auto,1fr] items-start gap-3 pt-2">
-          <Button
-            type="button"
-            onClick={handleSave}
-            disabled={isSaveDisabled}
-            className="h-9 rounded-md bg-slate-900 px-3 text-sm font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600"
-          >
-            {saveButtonLabel}
-          </Button>
-          <p className={cn('text-[11px] leading-5', statusToneClass)} aria-live="polite">
-            {statusMessage}
-          </p>
-          {isDirty && (missingAssignments.departments.length > 0 || missingAssignments.roles.length > 0) ? (
-            <div className="col-span-2 space-y-1.5 rounded-lg border border-amber-200 bg-amber-50/80 px-3 py-2 text-[11px] text-amber-950 shadow-inner">
-              {missingAssignments.departments.length > 0 ? (
-                <div className="flex flex-wrap items-start gap-2">
-                  <span className="font-semibold">{missingAssignments.departmentsLabel}</span>
-                  <div className="flex flex-wrap gap-1.5">
-                    {missingAssignments.departments.map((label, index) => (
-                      <span
-                        key={`${label}-department-${index}`}
-                        className="rounded-full bg-white/80 px-2 py-0.5 text-[10px] font-medium shadow-sm"
-                      >
-                        {label}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              ) : null}
-              {missingAssignments.roles.length > 0 ? (
-                <div className="flex flex-wrap items-start gap-2">
-                  <span className="font-semibold">{missingAssignments.rolesLabel}</span>
-                  <div className="flex flex-wrap gap-1.5">
-                    {missingAssignments.roles.map((label, index) => (
-                      <span
-                        key={`${label}-role-${index}`}
-                        className="rounded-full bg-white/80 px-2 py-0.5 text-[10px] font-medium shadow-sm"
-                      >
-                        {label}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              ) : null}
-            </div>
-          ) : null}
-        </div>
+          <ProcessControls
+            onSave={handleSave}
+            isSaveDisabled={isSaveDisabled}
+            saveButtonLabel={saveButtonLabel}
+            statusToneClass={statusToneClass}
+            statusMessage={statusMessage}
+            missingAssignments={missingAssignments}
+            isDirty={isDirty}
+          />
       </section>
 
         <section
