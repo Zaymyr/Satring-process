@@ -638,16 +638,21 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
         const seenRoleIds = new Set<string>();
 
         for (const roleInput of staged.roles) {
-          if (roleInput.id) {
-            seenRoleIds.add(roleInput.id);
-            const originalRole = baselineRoles.get(roleInput.id);
+          const originalRole = roleInput.id
+            ? baselineRoles.get(roleInput.id)
+            : baseline?.roles.find((role) => role.name === roleInput.name) ?? null;
 
-            if (
-              !originalRole ||
-              originalRole.name !== roleInput.name ||
-              originalRole.color !== roleInput.color
-            ) {
-              await updateRole({ id: roleInput.id, name: roleInput.name, color: roleInput.color });
+          if (originalRole) {
+            const resolvedRoleId = originalRole.id;
+            const stagedRoleKey = roleInput.id ?? roleInput.name;
+            seenRoleIds.add(resolvedRoleId);
+
+            if (stagedRoleKey) {
+              roleIdMap.set(stagedRoleKey, resolvedRoleId);
+            }
+
+            if (originalRole.name !== roleInput.name || originalRole.color !== roleInput.color) {
+              await updateRole({ id: resolvedRoleId, name: roleInput.name, color: roleInput.color });
             }
 
             continue;
