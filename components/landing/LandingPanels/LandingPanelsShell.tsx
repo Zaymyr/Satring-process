@@ -2311,6 +2311,11 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
       primaryToggleLabel={primaryPanel.toggleLabel}
       secondaryToggleLabel={secondaryPanel.toggleLabel}
       bottomToggleLabel={diagramControls.toggleLabel}
+      handleSave={handleSave}
+      isSaveDisabled={isSaveDisabled}
+      saveButtonLabel={saveButtonLabel}
+      statusToneClass={statusToneClass}
+      statusMessage={statusMessage}
     />
   );
 }
