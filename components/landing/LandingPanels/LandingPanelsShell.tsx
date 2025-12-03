@@ -143,11 +143,11 @@ const deleteProcessRequest = async (
 
 const FALLBACK_ROLE_PICKER_MESSAGES = getDictionary(DEFAULT_LOCALE).landing.primaryPanel.rolePicker;
 
-type LandingPanelsProps = {
+export type LandingPanelsShellProps = {
   highlights: readonly Highlight[];
 };
 
-export function LandingPanels({ highlights }: LandingPanelsProps) {
+export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
   const queryClient = useQueryClient();
   const { dictionary, locale } = useI18n();
   const searchParams = useSearchParams();
