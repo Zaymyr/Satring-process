@@ -78,10 +78,10 @@ const normalizeDepartmentSnapshot = (
 ) => {
   const normalizedDepartments = departments.map((department) => ({
     id: department.id,
-    name: normalizeNameKey(department.name),
+    name: normalizeNameKey(department.name) ?? '',
     color: department.color.toUpperCase(),
     roles: department.roles
-      .map((role) => ({ id: role.id, name: normalizeNameKey(role.name), color: role.color.toUpperCase() }))
+      .map((role) => ({ id: role.id, name: normalizeNameKey(role.name) ?? '', color: role.color.toUpperCase() }))
       .sort((a, b) => a.id.localeCompare(b.id) || a.name.localeCompare(b.name))
   }));
 
