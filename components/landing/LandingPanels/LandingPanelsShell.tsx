@@ -607,12 +607,192 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
     [departments]
   );
 
-  useEffect(() => {
-    if (!hasAppliedInviteTabRef.current && shouldUseDepartmentDemo) {
-      setActiveSecondaryTab('departments');
-      hasAppliedInviteTabRef.current = true;
+  type SavePayload = { process: ProcessPayload; departments: DepartmentDraft[] };
+  type SaveResult = { process: ProcessResponse; departments: Department[] };
+
+  const saveMutation = useMutation<SaveResult, ApiError, SavePayload>({
+    mutationFn: async ({ process, departments: stagedDepartments }) => {
+      if (!process.id) {
+        throw new ApiError('Identifiant de process manquant', 400);
+      }
+
+      const baselineDepartments = departmentsQuery.data ?? [];
+      const baselineById = new Map(baselineDepartments.map((item) => [item.id, item]));
+      const departmentIdMap = new Map<string, string>();
+      const roleIdMap = new Map<string, string>();
+
+      for (const staged of stagedDepartments) {
+        const baseline = baselineById.get(staged.id) ?? null;
+        let targetDepartmentId = baseline?.id ?? staged.id;
+
+        if (!baseline) {
+          const created = await createDepartment({ name: staged.name, color: staged.color });
+          departmentIdMap.set(staged.id, created.id);
+          targetDepartmentId = created.id;
+        } else if (baseline.name !== staged.name || baseline.color !== staged.color) {
+          await updateDepartment({ id: staged.id, name: staged.name, color: staged.color });
+        }
+
+        const baselineRoles = new Map(baseline?.roles.map((role) => [role.id, role]));
+        const seenRoleIds = new Set<string>();
+
+        for (const roleInput of staged.roles) {
+          if (roleInput.id) {
+            seenRoleIds.add(roleInput.id);
+            const originalRole = baselineRoles.get(roleInput.id);
+
+            if (
+              !originalRole ||
+              originalRole.name !== roleInput.name ||
+              originalRole.color !== roleInput.color
+            ) {
+              await updateRole({ id: roleInput.id, name: roleInput.name, color: roleInput.color });
+            }
+
+            continue;
+          }
+
+          const createdRole = await createRole({
+            departmentId: targetDepartmentId,
+            name: roleInput.name,
+            color: roleInput.color
+          });
+          roleIdMap.set(roleInput.id ?? roleInput.name, createdRole.id);
+          seenRoleIds.add(createdRole.id);
+        }
+
+        for (const [roleId] of baselineRoles) {
+          if (!seenRoleIds.has(roleId)) {
+            await deleteRole(roleId);
+          }
+        }
+      }
+
+      const refreshedDepartments = await fetchDepartments();
+      const normalizedSteps = process.steps.map((step) => {
+        const mappedDepartmentId = step.departmentId
+          ? departmentIdMap.get(step.departmentId) ?? step.departmentId
+          : null;
+        const mappedRoleId = step.roleId ? roleIdMap.get(step.roleId) ?? step.roleId : null;
+
+        return normalizeStep({
+          ...step,
+          departmentId: mappedDepartmentId,
+          roleId: mappedRoleId
+        });
+      });
+
+      const response = await fetch(`/api/process?id=${encodeURIComponent(process.id)}`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: process.title, steps: normalizedSteps })
+      });
+
+      if (response.status === 401) {
+        throw new ApiError('Authentification requise', 401);
+      }
+
+      if (!response.ok) {
+        const message = await readErrorMessage(response, 'Impossible de sauvegarder le process.');
+        throw new ApiError(message, response.status);
+      }
+
+      const json = await response.json();
+      const parsedProcess = processResponseSchema.parse(json);
+      return { process: parsedProcess, departments: refreshedDepartments } satisfies SaveResult;
+    },
+    onSuccess: (data) => {
+      const sanitized = cloneSteps(data.process.steps);
+      const normalizedTitle = normalizeProcessTitle(data.process.title);
+      baselineStepsRef.current = cloneSteps(sanitized);
+      baselineTitleRef.current = normalizedTitle;
+      setSteps(sanitized);
+      setLastSavedAt(data.process.updatedAt);
+      setProcessTitle(normalizedTitle);
+      setDepartmentsCache(data.departments);
+      setDraftDepartments(data.departments);
+      hasInitializedDraftDepartmentsRef.current = true;
+      setEditingDepartmentId(null);
+      editingDepartmentBaselineRef.current = null;
+      departmentEditForm.reset({
+        name: '',
+        color: DEFAULT_DEPARTMENT_COLOR,
+        roles: []
+      });
+      departmentRoleFields.replace([]);
+      createDepartmentRoleMutation.reset();
+      const updatedLookup = new Map<string, string>();
+      data.departments.forEach((department) => {
+        updatedLookup.set(department.id, department.name);
+        department.roles.forEach((role) => {
+          updatedLookup.set(role.id, role.name);
+        });
+      });
+
+      setRoleLookup((previous) => ({
+        all: data.departments.flatMap((department) =>
+          department.roles.map((role) => ({ departmentId: department.id, role }))
+        ),
+        byId: updatedLookup
+      }));
+
+      if (selectedStepId) {
+        setSteps((previousSteps) =>
+          previousSteps.map((step) => {
+            if (step.id !== selectedStepId) {
+              return step;
+            }
+
+            const updatedDepartmentName = updatedLookup.get(step.departmentId ?? '') ?? step.draftDepartmentName;
+            const updatedRoleName = updatedLookup.get(step.roleId ?? '') ?? step.draftRoleName;
+
+            return {
+              ...step,
+              draftDepartmentName: updatedDepartmentName ?? step.draftDepartmentName,
+              draftRoleName: updatedRoleName ?? step.draftRoleName
+            };
+          })
+        );
+      }
+
+      queryClient.setQueryData(['process', data.process.id], data.process);
+      queryClient.setQueryData(['processes'], (previous?: ProcessSummary[]) => {
+        const summary: ProcessSummary = {
+          id: data.process.id,
+          title: normalizedTitle,
+          updatedAt: data.process.updatedAt
+        };
+
+        if (!previous) {
+          return [summary];
+        }
+
+        const filtered = previous.filter((item) => item.id !== data.process.id);
+        return [summary, ...filtered];
+      });
+      invalidateDepartments();
+      invalidateRoles(editingDepartmentId);
+
+      setStatusMessage(statusMessages.saved);
+      setShowSaveIndicator(true);
+      void queryClient.invalidateQueries({ queryKey: ['departments'] });
+      void queryClient.invalidateQueries({ queryKey: ['process', data.process.id] });
+      void queryClient.invalidateQueries({ queryKey: ['processes'] });
+    },
+    onError: (error, variables) => {
+      console.error('Erreur lors de la sauvegarde', error);
+      if (!error.message || !variables.process.id) {
+        setStatusMessage(statusMessages.saveErrorFallback);
+        setShowSaveIndicator(true);
+        return;
+      }
+
+      setStatusMessage(error.message);
+      setShowSaveIndicator(true);
     }
-  }, [shouldUseDepartmentDemo]);
+  });
+
   const hasDepartments = departments.length > 0;
   const hasRoles = roleLookup.all.length > 0;
   const isProcessesTabActive = activeSecondaryTab === 'processes';
@@ -621,6 +801,7 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
   const isCreatingDepartment = createDepartmentMutation.isPending;
   const isAddingDepartmentRole = createDepartmentRoleMutation.isPending;
   const isDeletingDepartment = deleteDepartmentMutation.isPending;
+  const isSaving = saveMutation.isPending;
   const secondaryPanelTitle = isDepartmentsTabActive
     ? secondaryPanel.title.departments
     : secondaryPanel.title.processes;
@@ -629,6 +810,13 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
       value ? template.replace(token, value) : null,
     []
   );
+
+  useEffect(() => {
+    if (!hasAppliedInviteTabRef.current && shouldUseDepartmentDemo) {
+      setActiveSecondaryTab('departments');
+      hasAppliedInviteTabRef.current = true;
+    }
+  }, [shouldUseDepartmentDemo]);
 
   const handleCreateDepartment = useCallback(() => {
     if (isDepartmentActionsDisabled || isCreatingDepartment) {
@@ -1120,171 +1308,6 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
     }
   });
 
-  type SavePayload = { process: ProcessPayload; departments: DepartmentDraft[] };
-  type SaveResult = { process: ProcessResponse; departments: Department[] };
-
-  const saveMutation = useMutation<SaveResult, ApiError, SavePayload>({
-    mutationFn: async ({ process, departments: stagedDepartments }) => {
-      if (!process.id) {
-        throw new ApiError('Identifiant de process manquant', 400);
-      }
-
-      const baselineDepartments = departmentsQuery.data ?? [];
-      const baselineById = new Map(baselineDepartments.map((item) => [item.id, item]));
-      const departmentIdMap = new Map<string, string>();
-      const roleIdMap = new Map<string, string>();
-
-      for (const staged of stagedDepartments) {
-        const baseline = baselineById.get(staged.id) ?? null;
-        let targetDepartmentId = baseline?.id ?? staged.id;
-
-        if (!baseline) {
-          const created = await createDepartment({ name: staged.name, color: staged.color });
-          departmentIdMap.set(staged.id, created.id);
-          targetDepartmentId = created.id;
-        } else if (baseline.name !== staged.name || baseline.color !== staged.color) {
-          await updateDepartment({ id: staged.id, name: staged.name, color: staged.color });
-        }
-
-        const baselineRoles = new Map(baseline?.roles.map((role) => [role.id, role]));
-        const seenRoleIds = new Set<string>();
-
-        for (const roleInput of staged.roles) {
-          if (roleInput.id) {
-            seenRoleIds.add(roleInput.id);
-            const originalRole = baselineRoles.get(roleInput.id);
-
-            if (
-              !originalRole ||
-              originalRole.name !== roleInput.name ||
-              originalRole.color !== roleInput.color
-            ) {
-              await updateRole({ id: roleInput.id, name: roleInput.name, color: roleInput.color });
-            }
-
-            continue;
-          }
-
-          const createdRole = await createRole({
-            departmentId: targetDepartmentId,
-            name: roleInput.name,
-            color: roleInput.color
-          });
-          roleIdMap.set(roleInput.id ?? roleInput.name, createdRole.id);
-          seenRoleIds.add(createdRole.id);
-        }
-
-        for (const [roleId] of baselineRoles) {
-          if (!seenRoleIds.has(roleId)) {
-            await deleteRole(roleId);
-          }
-        }
-      }
-
-      const refreshedDepartments = await fetchDepartments();
-      const normalizedSteps = process.steps.map((step) => {
-        const mappedDepartmentId = step.departmentId
-          ? departmentIdMap.get(step.departmentId) ?? step.departmentId
-          : null;
-        const mappedRoleId = step.roleId ? roleIdMap.get(step.roleId) ?? step.roleId : null;
-
-        return normalizeStep({
-          ...step,
-          departmentId: mappedDepartmentId,
-          roleId: mappedRoleId
-        });
-      });
-
-      const response = await fetch(`/api/process?id=${encodeURIComponent(process.id)}`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: process.title, steps: normalizedSteps })
-      });
-
-      if (response.status === 401) {
-        throw new ApiError('Authentification requise', 401);
-      }
-
-      if (!response.ok) {
-        const message = await readErrorMessage(response, 'Impossible de sauvegarder le process.');
-        throw new ApiError(message, response.status);
-      }
-
-      const json = await response.json();
-      const parsedProcess = processResponseSchema.parse(json);
-      return { process: parsedProcess, departments: refreshedDepartments } satisfies SaveResult;
-    },
-    onSuccess: (data) => {
-      const sanitized = cloneSteps(data.process.steps);
-      const normalizedTitle = normalizeProcessTitle(data.process.title);
-      baselineStepsRef.current = cloneSteps(sanitized);
-      baselineTitleRef.current = normalizedTitle;
-      setSteps(sanitized);
-      setLastSavedAt(data.process.updatedAt);
-      setProcessTitle(normalizedTitle);
-      setDepartmentsCache(data.departments);
-      setDraftDepartments(data.departments);
-      hasInitializedDraftDepartmentsRef.current = true;
-      setEditingDepartmentId(null);
-      editingDepartmentBaselineRef.current = null;
-      departmentEditForm.reset({
-        name: '',
-        color: DEFAULT_DEPARTMENT_COLOR,
-        roles: []
-      });
-      departmentRoleFields.replace([]);
-      createDepartmentRoleMutation.reset();
-      const updatedLookup = new Map<string, string>();
-      data.departments.forEach((department) => {
-        updatedLookup.set(department.id, department.name);
-        department.roles.forEach((role) => {
-          updatedLookup.set(role.id, role.name);
-        });
-      });
-
-      if (selectedStepId) {
-        setSteps((previousSteps) =>
-          previousSteps.map((step) => {
-            if (step.id !== selectedStepId) {
-              return step;
-            }
-
-            const updatedDepartmentName = updatedLookup.get(step.departmentId ?? '') ?? step.draftDepartmentName;
-            const updatedRoleName = updatedLookup.get(step.roleId ?? '') ?? step.draftRoleName;
-
-            return {
-              ...step,
-              draftDepartmentName: updatedDepartmentName ?? step.draftDepartmentName,
-              draftRoleName: updatedRoleName ?? step.draftRoleName
-            };
-          })
-        );
-      }
-      queryClient.setQueryData(['process', data.process.id], data.process);
-      queryClient.setQueryData(['processes'], (previous?: ProcessSummary[]) => {
-        const summary: ProcessSummary = {
-          id: data.process.id,
-          title: normalizedTitle,
-          updatedAt: data.process.updatedAt
-        };
-
-        if (!previous) {
-          return [summary];
-        }
-
-        const filtered = previous.filter((item) => item.id !== data.process.id);
-        return [summary, ...filtered];
-      });
-      invalidateDepartments();
-      invalidateRoles(editingDepartmentId);
-    },
-    onError: (error) => {
-      console.error('Erreur de sauvegarde du process', error);
-    }
-  });
-
-  const isSaving = saveMutation.isPending;
   const isRenaming = renameProcessMutation.isPending;
 
   const formattedSavedAt = formatDateTime(lastSavedAt);
