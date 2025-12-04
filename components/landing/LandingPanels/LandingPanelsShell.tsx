@@ -18,6 +18,7 @@ import { ProcessShell } from '@/components/landing/LandingPanels/ProcessShell';
 import { Button } from '@/components/ui/button';
 import { DEFAULT_PROCESS_STEPS, DEFAULT_PROCESS_TITLE } from '@/lib/process/defaults';
 import { type ProcessErrorMessages, type RoleLookupEntry, type Step } from '@/lib/process/types';
+import { generateRandomHexColor } from '@/lib/colors';
 import {
   normalizeBranchTarget,
   normalizeDepartmentId,
@@ -50,7 +51,6 @@ import {
 } from '@/lib/validation/process';
 import { useProcessIaChat } from '@/lib/process/use-process-ia-chat';
 import {
-  DEFAULT_DEPARTMENT_COLOR,
   departmentColorSchema,
   departmentCascadeFormSchema,
   departmentNameSchema,
@@ -73,6 +73,12 @@ export type DepartmentWithDraftStatus = Department & {
   isDraft: boolean;
   roles: (Role & { isDraft: boolean })[];
 };
+
+const buildEmptyDepartmentFormValues = (): DepartmentCascadeForm => ({
+  name: '',
+  color: generateRandomHexColor(),
+  roles: [] as DepartmentCascadeForm['roles']
+});
 
 const normalizeDepartmentSnapshot = (
   departments: { id: string; name: string; color: string; roles: { id: string; name: string; color: string }[] }[]
@@ -291,7 +297,7 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
   const hasAutoCreatedProcessRef = useRef(false);
   const departmentEditForm = useForm<DepartmentCascadeForm>({
     resolver: zodResolver(departmentCascadeFormSchema),
-    defaultValues: { name: '', color: DEFAULT_DEPARTMENT_COLOR, roles: [] }
+    defaultValues: buildEmptyDepartmentFormValues()
   });
   const departmentRoleFields = useFieldArray({
     control: departmentEditForm.control,
@@ -321,11 +327,12 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
   const createDepartmentMutation = useMutation<Department, ApiError, void>({
     mutationFn: async () => {
       const now = new Date().toISOString();
+      const color = generateRandomHexColor();
 
       return {
         id: generateClientUuid(),
         name: defaultDepartmentName,
-        color: DEFAULT_DEPARTMENT_COLOR,
+        color,
         createdAt: now,
         updatedAt: now,
         roles: []
@@ -344,15 +351,14 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
 
   const createDepartmentRoleMutation = useMutation<Role, ApiError, { departmentId: string }>({
     mutationFn: async ({ departmentId }) => {
-      const department = departments.find((item) => item.id === departmentId);
-      const fallbackColor = department?.color ?? DEFAULT_ROLE_COLOR;
       const now = new Date().toISOString();
+      const color = generateRandomHexColor();
 
       return {
         id: generateClientUuid(),
         departmentId,
         name: defaultRoleName,
-        color: fallbackColor,
+        color,
         createdAt: now,
         updatedAt: now
       } satisfies Role;
@@ -399,6 +405,12 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
     }
   });
 
+  const resetDepartmentEditor = useCallback(() => {
+    departmentEditForm.reset(buildEmptyDepartmentFormValues());
+    departmentRoleFields.replace([]);
+    createDepartmentRoleMutation.reset();
+  }, [createDepartmentRoleMutation, departmentEditForm, departmentRoleFields]);
+
   const collapseDepartmentEditor = useCallback(() => {
     if (!editingDepartmentIdRef.current) {
       return;
@@ -407,17 +419,9 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
     setEditingDepartmentId(null);
     editingDepartmentIdRef.current = null;
     editingDepartmentBaselineRef.current = null;
-    departmentEditForm.reset({
-      name: '',
-      color: DEFAULT_DEPARTMENT_COLOR,
-      roles: []
-    });
-    departmentRoleFields.replace([]);
-    createDepartmentRoleMutation.reset();
+    resetDepartmentEditor();
   }, [
-    createDepartmentRoleMutation,
-    departmentEditForm,
-    departmentRoleFields,
+    resetDepartmentEditor,
     editingDepartmentIdRef,
     editingDepartmentBaselineRef
   ]);
@@ -442,13 +446,7 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
         return nextEditingId;
       });
       if (shouldReset) {
-        departmentEditForm.reset({
-          name: '',
-          color: DEFAULT_DEPARTMENT_COLOR,
-          roles: []
-        });
-        departmentRoleFields.replace([]);
-        createDepartmentRoleMutation.reset();
+        resetDepartmentEditor();
       }
     },
     onSettled: () => {
@@ -780,13 +778,7 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
       setEditingDepartmentId(null);
       editingDepartmentIdRef.current = null;
       editingDepartmentBaselineRef.current = null;
-      departmentEditForm.reset({
-        name: '',
-        color: DEFAULT_DEPARTMENT_COLOR,
-        roles: []
-      });
-      departmentRoleFields.replace([]);
-      createDepartmentRoleMutation.reset();
+      resetDepartmentEditor();
       const updatedLookup = new Map<string, string>();
       data.departments.forEach((department) => {
         updatedLookup.set(department.id, department.name);
@@ -916,8 +908,7 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
             return current;
           }
 
-          departmentEditForm.reset({ name: '', color: DEFAULT_DEPARTMENT_COLOR, roles: [] });
-          departmentRoleFields.replace([]);
+          resetDepartmentEditor();
           return nextEditingId;
         });
 
@@ -926,11 +917,10 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
       deleteDepartmentMutation.mutate({ id });
     },
     [
-      departmentEditForm,
-      departmentRoleFields,
       departmentsQuery.data,
       deleteDepartmentMutation,
-      isDepartmentActionsDisabled
+      isDepartmentActionsDisabled,
+      resetDepartmentEditor
     ]
   );
 
@@ -1048,19 +1038,11 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
     setEditingDepartmentId(null);
     editingDepartmentIdRef.current = null;
     editingDepartmentBaselineRef.current = null;
-    departmentEditForm.reset({
-      name: '',
-      color: DEFAULT_DEPARTMENT_COLOR,
-      roles: []
-    });
-    departmentRoleFields.replace([]);
-    createDepartmentRoleMutation.reset();
+    resetDepartmentEditor();
   }, [
-    createDepartmentRoleMutation,
-    departmentEditForm,
-    departmentRoleFields,
     editingDepartmentBaselineRef,
-    isDepartmentActionsDisabled
+    isDepartmentActionsDisabled,
+    resetDepartmentEditor
   ]);
 
   useEffect(() => {
