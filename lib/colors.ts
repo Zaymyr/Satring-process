@@ -1,10 +1,6 @@
 export const generateRandomHexColor = (): string => {
-  const randomChannel = () => Math.floor(128 + Math.random() * 127);
+  const bytes = crypto.getRandomValues(new Uint8Array(3));
   const toHex = (value: number) => value.toString(16).padStart(2, '0').toUpperCase();
 
-  const r = randomChannel();
-  const g = randomChannel();
-  const b = randomChannel();
-
-  return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+  return `#${toHex(bytes[0])}${toHex(bytes[1])}${toHex(bytes[2])}`;
 };
