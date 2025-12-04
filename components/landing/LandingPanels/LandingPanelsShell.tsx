@@ -298,29 +298,6 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
     name: 'roles'
   });
   const editingDepartmentBaselineRef = useRef<Department | null>(null);
-  const collapseDepartmentEditor = useCallback(() => {
-    if (!editingDepartmentIdRef.current) {
-      return;
-    }
-
-    setEditingDepartmentId(null);
-    editingDepartmentIdRef.current = null;
-    editingDepartmentBaselineRef.current = null;
-    departmentEditForm.reset({
-      name: '',
-      color: DEFAULT_DEPARTMENT_COLOR,
-      roles: []
-    });
-    departmentRoleFields.replace([]);
-    createDepartmentRoleMutation.reset();
-  }, [
-    createDepartmentRoleMutation,
-    departmentEditForm,
-    departmentRoleFields,
-    editingDepartmentIdRef,
-    editingDepartmentBaselineRef
-  ]);
-
   useEffect(() => {
     editingDepartmentIdRef.current = editingDepartmentId;
   }, [editingDepartmentId]);
@@ -421,6 +398,29 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
       }, 0);
     }
   });
+
+  const collapseDepartmentEditor = useCallback(() => {
+    if (!editingDepartmentIdRef.current) {
+      return;
+    }
+
+    setEditingDepartmentId(null);
+    editingDepartmentIdRef.current = null;
+    editingDepartmentBaselineRef.current = null;
+    departmentEditForm.reset({
+      name: '',
+      color: DEFAULT_DEPARTMENT_COLOR,
+      roles: []
+    });
+    departmentRoleFields.replace([]);
+    createDepartmentRoleMutation.reset();
+  }, [
+    createDepartmentRoleMutation,
+    departmentEditForm,
+    departmentRoleFields,
+    editingDepartmentIdRef,
+    editingDepartmentBaselineRef
+  ]);
 
   const deleteDepartmentMutation = useMutation<void, ApiError, { id: string }>({
     mutationFn: ({ id }) => deleteDepartment(id),
