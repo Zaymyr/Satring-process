@@ -143,11 +143,7 @@ export function useProcessIaChat({
       return processAiResponseSchema.parse(json);
     },
     onSuccess: ({ process, reply }) => {
-      const normalizedTitle = process.title?.trim() || DEFAULT_PROCESS_TITLE;
-      const formattedContent = `${copy.responseTitle}\n\n${reply}\n\n${JSON.stringify({
-        title: normalizedTitle,
-        steps: process.steps
-      }, null, 2)}\n\n${copy.applyNotice}`;
+      const formattedContent = `${copy.responseTitle}\n\n${reply}\n\n${copy.applyNotice}`;
 
       setMessages((previous) => [
         ...previous,
