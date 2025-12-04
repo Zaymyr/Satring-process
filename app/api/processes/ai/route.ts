@@ -390,6 +390,7 @@ export async function POST(request: Request) {
         '- Analyse le processus du point de vue métier : objectif, enchaînement logique, acteurs impliqués.',
         '- Améliore la clarté du processus (labels, ordre, éventuels splits/decisions) sans le compliquer inutilement.',
         '- Pour chaque étape, choisis le département et le rôle le plus pertinent dans le référentiel ou propose-en un nouveau via draftDepartmentName/draftRoleName si nécessaire.',
+        '-Tu as le droit de réorganiser les étapes si cela rend le processus plus logique (sans en ajouter inutilement)',
         '',
         'Contraintes de sortie :',
         '- La réponse doit être un objet JSON unique avec exactement deux propriétés :',
