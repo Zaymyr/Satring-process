@@ -359,15 +359,14 @@ export function SecondaryPanel({
                               )}
                             >
                               {isEditingDepartment ? (
-                                <DepartmentEditor
-                                  colorInputId={colorInputId}
-                                  labels={secondaryPanel.departments}
-                                  draftBadgeLabel={secondaryPanel.departments.draftBadge}
-                                  roleDraftBadgeLabel={secondaryPanel.departments.roleDraftBadge}
-                                  roleDraftLookup={new Map(
-                                    department.roles.map((role) => [
-                                      role.id,
-                                      Boolean((role as Role & { isDraft?: boolean }).isDraft)
+                                  <DepartmentEditor
+                                    colorInputId={colorInputId}
+                                    labels={secondaryPanel.departments}
+                                    draftBadgeLabel={secondaryPanel.departments.draftBadge}
+                                    roleDraftLookup={new Map(
+                                      department.roles.map((role) => [
+                                        role.id,
+                                        Boolean((role as Role & { isDraft?: boolean }).isDraft)
                                     ])
                                   )}
                                   isDraft={department.isDraft}

@@ -12,7 +12,6 @@ type DepartmentEditorProps = {
   colorInputId: string;
   labels: SecondaryPanelLabels['departments'];
   draftBadgeLabel: string;
-  roleDraftBadgeLabel: string;
   roleDraftLookup: Map<string, boolean>;
   isDraft: boolean;
   departmentEditForm: UseFormReturn<DepartmentCascadeForm>;
@@ -29,7 +28,6 @@ export function DepartmentEditor({
   colorInputId,
   labels,
   draftBadgeLabel,
-  roleDraftBadgeLabel,
   roleDraftLookup,
   isDraft,
   departmentEditForm,
@@ -151,11 +149,6 @@ export function DepartmentEditor({
                       )}
                     />
                   </div>
-                  {isRoleDraft ? (
-                    <span className="inline-flex items-center gap-1 rounded-full border border-dashed border-slate-300 bg-slate-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-600">
-                      {roleDraftBadgeLabel}
-                    </span>
-                  ) : null}
                   <Button
                     type="button"
                     size="icon"
