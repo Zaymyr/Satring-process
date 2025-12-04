@@ -76,13 +76,6 @@ type PrimaryPanelProps = {
   saveButtonLabel: string;
   statusToneClass: string;
   statusMessage: ReactNode;
-  missingAssignments: {
-    departmentsLabel: string;
-    rolesLabel: string;
-    departments: string[];
-    roles: string[];
-  };
-  isDirty: boolean;
 };
 
 const hexToRgba = (hex: string, alpha: number): string | null => {
@@ -160,8 +153,6 @@ export function PrimaryPanel({
   saveButtonLabel,
   statusToneClass,
   statusMessage,
-  missingAssignments,
-  isDirty,
   iaPanel
 }: PrimaryPanelProps) {
   const tabsListId = useId();
@@ -576,8 +567,6 @@ export function PrimaryPanel({
             saveButtonLabel={saveButtonLabel}
             statusToneClass={statusToneClass}
             statusMessage={statusMessage}
-            missingAssignments={missingAssignments}
-            isDirty={isDirty}
           />
       </section>
 
