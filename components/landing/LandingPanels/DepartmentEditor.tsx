@@ -11,10 +11,7 @@ import type { SecondaryPanelLabels } from './SecondaryPanel';
 type DepartmentEditorProps = {
   colorInputId: string;
   labels: SecondaryPanelLabels['departments'];
-  draftBadgeLabel: string;
-  roleDraftBadgeLabel: string;
   roleDraftLookup: Map<string, boolean>;
-  isDraft: boolean;
   departmentEditForm: UseFormReturn<DepartmentCascadeForm>;
   departmentRoleFields: UseFieldArrayReturn<DepartmentCascadeForm, 'roles', 'id'>;
   isSaving: boolean;
@@ -28,10 +25,7 @@ type DepartmentEditorProps = {
 export function DepartmentEditor({
   colorInputId,
   labels,
-  draftBadgeLabel,
-  roleDraftBadgeLabel,
   roleDraftLookup,
-  isDraft,
   departmentEditForm,
   departmentRoleFields,
   isSaving,
@@ -63,11 +57,6 @@ export function DepartmentEditor({
           disabled={isSaving}
           className="h-9 min-w-[12rem] flex-1 rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
         />
-        {isDraft ? (
-          <span className="inline-flex items-center gap-1 rounded-full border border-dashed border-slate-300 bg-slate-50 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-slate-600">
-            {draftBadgeLabel}
-          </span>
-        ) : null}
         <Button
           type="button"
           size="icon"
@@ -151,11 +140,6 @@ export function DepartmentEditor({
                       )}
                     />
                   </div>
-                  {isRoleDraft ? (
-                    <span className="inline-flex items-center gap-1 rounded-full border border-dashed border-slate-300 bg-slate-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-600">
-                      {roleDraftBadgeLabel}
-                    </span>
-                  ) : null}
                   <Button
                     type="button"
                     size="icon"
