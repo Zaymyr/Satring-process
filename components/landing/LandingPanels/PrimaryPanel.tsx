@@ -333,8 +333,10 @@ export function PrimaryPanel({
                       >
                         <div
                           className={cn(
-                            'flex items-center',
-                            isSelectedStep ? 'flex-col gap-2 pt-0.5' : 'flex-row gap-2'
+                            'flex',
+                            isSelectedStep
+                              ? 'flex-col items-center gap-2 pt-0.5'
+                              : 'flex-col items-center gap-1'
                           )}
                         >
                           <span
