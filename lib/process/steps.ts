@@ -1,5 +1,5 @@
-import { DEFAULT_DEPARTMENT_COLOR, type Department } from '@/lib/validation/department';
-import { DEFAULT_ROLE_COLOR } from '@/lib/validation/role';
+import { generateRandomHexColor } from '@/lib/colors';
+import { type Department } from '@/lib/validation/department';
 import type { ProcessStep } from '@/lib/validation/process';
 
 import {
@@ -76,7 +76,7 @@ const mergeDraftEntitiesFromSteps = (
     const department: Department = existingDepartment ?? {
       id: generateClientUuid(),
       name: draftDepartmentName,
-      color: DEFAULT_DEPARTMENT_COLOR,
+      color: generateRandomHexColor(),
       createdAt: now,
       updatedAt: now,
       roles: []
@@ -95,7 +95,7 @@ const mergeDraftEntitiesFromSteps = (
             id: generateClientUuid(),
             departmentId: department.id,
             name: draftRoleName,
-            color: DEFAULT_ROLE_COLOR,
+            color: generateRandomHexColor(),
             createdAt: now,
             updatedAt: now
           }
