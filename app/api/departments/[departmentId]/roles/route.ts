@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 
 import { createServerClient } from '@/lib/supabase/server';
 import { getServerUser } from '@/lib/supabase/auth';
+import { generateRandomHexColor } from '@/lib/colors';
 import { roleInputSchema, roleSchema } from '@/lib/validation/role';
 import {
   fetchUserOrganizations,
@@ -37,7 +38,14 @@ export async function POST(request: Request, context: RouteContext) {
     body = {};
   }
 
-  const parsedBody = roleInputSchema.safeParse(body ?? {});
+  const normalizedBody: Record<string, unknown> =
+    typeof body === 'object' && body !== null ? (body as Record<string, unknown>) : {};
+
+  if (typeof normalizedBody.color !== 'string') {
+    normalizedBody.color = generateRandomHexColor();
+  }
+
+  const parsedBody = roleInputSchema.safeParse(normalizedBody);
   if (!parsedBody.success) {
     return NextResponse.json(
       { error: 'Le nom fourni est invalide.', details: parsedBody.error.flatten() },
