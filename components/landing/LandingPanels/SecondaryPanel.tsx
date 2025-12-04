@@ -359,17 +359,15 @@ export function SecondaryPanel({
                               )}
                             >
                               {isEditingDepartment ? (
-                                  <DepartmentEditor
-                                    colorInputId={colorInputId}
-                                    labels={secondaryPanel.departments}
-                                    draftBadgeLabel={secondaryPanel.departments.draftBadge}
-                                    roleDraftLookup={new Map(
-                                      department.roles.map((role) => [
-                                        role.id,
-                                        Boolean((role as Role & { isDraft?: boolean }).isDraft)
+                                <DepartmentEditor
+                                  colorInputId={colorInputId}
+                                  labels={secondaryPanel.departments}
+                                  roleDraftLookup={new Map(
+                                    department.roles.map((role) => [
+                                      role.id,
+                                      Boolean((role as Role & { isDraft?: boolean }).isDraft)
                                     ])
                                   )}
-                                  isDraft={department.isDraft}
                                   departmentEditForm={departmentEditForm}
                                   departmentRoleFields={departmentRoleFields}
                                   isSaving={isSaving}
@@ -423,11 +421,6 @@ export function SecondaryPanel({
                                         <p className="truncate text-sm font-medium text-slate-900">
                                           {department.name}
                                         </p>
-                                        {department.isDraft ? (
-                                          <span className="inline-flex items-center gap-1 rounded-full border border-dashed border-slate-300 bg-slate-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-600">
-                                            {secondaryPanel.departments.draftBadge}
-                                          </span>
-                                        ) : null}
                                       </div>
                                       {updatedLabel ? (
                                         <p className="text-xs text-slate-500">
