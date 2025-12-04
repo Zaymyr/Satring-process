@@ -282,7 +282,7 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
   const [renameDraft, setRenameDraft] = useState('');
   const renameInputRef = useRef<HTMLInputElement | null>(null);
   const appliedQueryProcessIdRef = useRef<string | null>(null);
-  const [activeSecondaryTab, setActiveSecondaryTab] = useState<'processes' | 'departments'>('processes');
+  const [activeSecondaryTab, setActiveSecondaryTab] = useState<'processes' | 'departments'>('departments');
   const hasAppliedInviteTabRef = useRef(false);
   const [editingDepartmentId, setEditingDepartmentId] = useState<string | null>(null);
   const editingDepartmentIdRef = useRef<string | null>(null);
@@ -298,6 +298,28 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
     name: 'roles'
   });
   const editingDepartmentBaselineRef = useRef<Department | null>(null);
+  const collapseDepartmentEditor = useCallback(() => {
+    if (!editingDepartmentIdRef.current) {
+      return;
+    }
+
+    setEditingDepartmentId(null);
+    editingDepartmentIdRef.current = null;
+    editingDepartmentBaselineRef.current = null;
+    departmentEditForm.reset({
+      name: '',
+      color: DEFAULT_DEPARTMENT_COLOR,
+      roles: []
+    });
+    departmentRoleFields.replace([]);
+    createDepartmentRoleMutation.reset();
+  }, [
+    createDepartmentRoleMutation,
+    departmentEditForm,
+    departmentRoleFields,
+    editingDepartmentIdRef,
+    editingDepartmentBaselineRef
+  ]);
 
   useEffect(() => {
     editingDepartmentIdRef.current = editingDepartmentId;
@@ -2319,6 +2341,7 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
       createDepartmentRoleMutation={createDepartmentRoleMutation}
       deleteDepartmentMutation={deleteDepartmentMutation}
       startEditingDepartment={startEditingDepartment}
+      onCollapseEditingDepartment={collapseDepartmentEditor}
       formatTemplateText={formatTemplateText}
     />
   );
