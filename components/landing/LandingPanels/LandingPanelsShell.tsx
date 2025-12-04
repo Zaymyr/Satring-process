@@ -282,7 +282,7 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
   const [renameDraft, setRenameDraft] = useState('');
   const renameInputRef = useRef<HTMLInputElement | null>(null);
   const appliedQueryProcessIdRef = useRef<string | null>(null);
-  const [activeSecondaryTab, setActiveSecondaryTab] = useState<'processes' | 'departments'>('processes');
+  const [activeSecondaryTab, setActiveSecondaryTab] = useState<'processes' | 'departments'>('departments');
   const hasAppliedInviteTabRef = useRef(false);
   const [editingDepartmentId, setEditingDepartmentId] = useState<string | null>(null);
   const editingDepartmentIdRef = useRef<string | null>(null);
@@ -298,7 +298,6 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
     name: 'roles'
   });
   const editingDepartmentBaselineRef = useRef<Department | null>(null);
-
   useEffect(() => {
     editingDepartmentIdRef.current = editingDepartmentId;
   }, [editingDepartmentId]);
@@ -399,6 +398,29 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
       }, 0);
     }
   });
+
+  const collapseDepartmentEditor = useCallback(() => {
+    if (!editingDepartmentIdRef.current) {
+      return;
+    }
+
+    setEditingDepartmentId(null);
+    editingDepartmentIdRef.current = null;
+    editingDepartmentBaselineRef.current = null;
+    departmentEditForm.reset({
+      name: '',
+      color: DEFAULT_DEPARTMENT_COLOR,
+      roles: []
+    });
+    departmentRoleFields.replace([]);
+    createDepartmentRoleMutation.reset();
+  }, [
+    createDepartmentRoleMutation,
+    departmentEditForm,
+    departmentRoleFields,
+    editingDepartmentIdRef,
+    editingDepartmentBaselineRef
+  ]);
 
   const deleteDepartmentMutation = useMutation<void, ApiError, { id: string }>({
     mutationFn: ({ id }) => deleteDepartment(id),
@@ -1418,7 +1440,7 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
     }
 
     if (formattedSavedAt) {
-      return `${statusMessages.lastSavedLabel} : ${formattedSavedAt}`;
+      return null;
     }
 
     return statusMessages.noSavedYet;
@@ -2265,13 +2287,6 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
       saveButtonLabel={saveButtonLabel}
       statusToneClass={statusToneClass}
       statusMessage={statusMessage}
-      missingAssignments={{
-        departmentsLabel: iaPanel.missingDepartmentsHeading,
-        rolesLabel: iaPanel.missingRolesHeading,
-        departments: missingDepartments,
-        roles: missingRoles
-      }}
-      isDirty={isDirty}
     />
   );
 
@@ -2326,6 +2341,7 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
       createDepartmentRoleMutation={createDepartmentRoleMutation}
       deleteDepartmentMutation={deleteDepartmentMutation}
       startEditingDepartment={startEditingDepartment}
+      onCollapseEditingDepartment={collapseDepartmentEditor}
       formatTemplateText={formatTemplateText}
     />
   );

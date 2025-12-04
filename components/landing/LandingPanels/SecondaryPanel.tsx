@@ -1,4 +1,4 @@
-import type { Dispatch, MutableRefObject, SetStateAction } from 'react';
+import { useEffect, type Dispatch, type MutableRefObject, type SetStateAction } from 'react';
 import { Building2, FolderTree, Loader2, Plus, Trash2 } from 'lucide-react';
 import type { UseMutationResult, UseQueryResult } from '@tanstack/react-query';
 import { type UseFieldArrayReturn, type UseFormReturn } from 'react-hook-form';
@@ -107,6 +107,7 @@ type SecondaryPanelProps = {
   createDepartmentRoleMutation: UseMutationResult<Role, ApiError, { departmentId: string }>;
   deleteDepartmentMutation: UseMutationResult<void, ApiError, { id: string }>;
   startEditingDepartment: (department: DepartmentWithDraftStatus) => void;
+  onCollapseEditingDepartment: () => void;
   formatTemplateText: (template: string, value: string | null, token?: string) => string | null;
 };
 
@@ -160,6 +161,7 @@ export function SecondaryPanel({
   createDepartmentRoleMutation,
   deleteDepartmentMutation,
   startEditingDepartment,
+  onCollapseEditingDepartment,
   formatTemplateText
 }: SecondaryPanelProps) {
   const processListErrorMessage =
@@ -171,6 +173,39 @@ export function SecondaryPanel({
         ? landingErrorMessages.authRequired
         : null;
   const isProcessListLoading = processSummariesQuery.isLoading;
+
+  useEffect(() => {
+    if (!editingDepartmentId) {
+      return;
+    }
+
+    const handleClickOutside = (event: MouseEvent) => {
+      if (event.defaultPrevented) {
+        return;
+      }
+
+      const target = event.target;
+
+      if (!(target instanceof Node)) {
+        return;
+      }
+
+      const isInsideDepartmentEditor =
+        target instanceof Element && target.closest('[data-department-editor="true"]');
+
+      if (isInsideDepartmentEditor) {
+        return;
+      }
+
+      onCollapseEditingDepartment();
+    };
+
+    document.addEventListener('pointerdown', handleClickOutside);
+
+    return () => {
+      document.removeEventListener('pointerdown', handleClickOutside);
+    };
+  }, [editingDepartmentId, onCollapseEditingDepartment]);
 
   return (
     <>
@@ -346,6 +381,7 @@ export function SecondaryPanel({
                           data-collapsed={isCollapsed ? 'true' : 'false'}
                         >
                           <Card
+                          data-department-editor={isEditingDepartment ? 'true' : undefined}
                           className={cn(
                               'bg-white/90 shadow-sm transition focus-within:ring-2 focus-within:ring-slate-900/20',
                               department.isDraft ? 'border-dashed border-slate-300' : 'border-slate-200',
@@ -362,15 +398,12 @@ export function SecondaryPanel({
                                 <DepartmentEditor
                                   colorInputId={colorInputId}
                                   labels={secondaryPanel.departments}
-                                  draftBadgeLabel={secondaryPanel.departments.draftBadge}
-                                  roleDraftBadgeLabel={secondaryPanel.departments.roleDraftBadge}
                                   roleDraftLookup={new Map(
                                     department.roles.map((role) => [
                                       role.id,
                                       Boolean((role as Role & { isDraft?: boolean }).isDraft)
                                     ])
                                   )}
-                                  isDraft={department.isDraft}
                                   departmentEditForm={departmentEditForm}
                                   departmentRoleFields={departmentRoleFields}
                                   isSaving={isSaving}
@@ -424,11 +457,6 @@ export function SecondaryPanel({
                                         <p className="truncate text-sm font-medium text-slate-900">
                                           {department.name}
                                         </p>
-                                        {department.isDraft ? (
-                                          <span className="inline-flex items-center gap-1 rounded-full border border-dashed border-slate-300 bg-slate-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-600">
-                                            {secondaryPanel.departments.draftBadge}
-                                          </span>
-                                        ) : null}
                                       </div>
                                       {updatedLabel ? (
                                         <p className="text-xs text-slate-500">

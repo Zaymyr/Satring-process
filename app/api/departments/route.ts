@@ -4,6 +4,7 @@ import { getInviteDemoDepartments } from '@/lib/department/demo';
 import { ensureSampleDataSeeded } from '@/lib/onboarding/sample-seed';
 import { createServerClient } from '@/lib/supabase/server';
 import { getServerUser } from '@/lib/supabase/auth';
+import { generateRandomHexColor } from '@/lib/colors';
 import { departmentInputSchema, departmentListSchema, departmentSchema } from '@/lib/validation/department';
 import {
   fetchUserOrganizations,
@@ -103,7 +104,14 @@ export async function POST(request: Request) {
     body = {};
   }
 
-  const parsedBody = departmentInputSchema.safeParse(body ?? {});
+  const normalizedBody: Record<string, unknown> =
+    typeof body === 'object' && body !== null ? (body as Record<string, unknown>) : {};
+
+  if (typeof normalizedBody.color !== 'string') {
+    normalizedBody.color = generateRandomHexColor();
+  }
+
+  const parsedBody = departmentInputSchema.safeParse(normalizedBody);
   if (!parsedBody.success) {
     return NextResponse.json(
       { error: 'Le nom fourni est invalide.', details: parsedBody.error.flatten() },

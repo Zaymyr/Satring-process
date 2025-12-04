@@ -402,8 +402,8 @@ const dictionaries: Record<Locale, Dictionary> = {
       },
       primaryPanel: {
         toggleLabel: 'Toggle primary panel',
-        addAction: 'Add action',
-        addDecision: 'Add decision',
+        addAction: 'Action',
+        addDecision: 'Decision',
         iaDescription: 'Use the conversational IA assistant to build processes collaboratively.',
         tabs: {
           ariaLabel: 'Primary panel modes',
@@ -805,8 +805,8 @@ const dictionaries: Record<Locale, Dictionary> = {
       },
       primaryPanel: {
         toggleLabel: 'Basculer le panneau principal',
-        addAction: 'Ajouter une action',
-        addDecision: 'Ajouter une décision',
+        addAction: 'Action',
+        addDecision: 'Décision',
         iaDescription: "Utilisez l’assistant conversationnel IA pour construire vos process ensemble.",
         tabs: {
           ariaLabel: 'Modes du panneau principal',
