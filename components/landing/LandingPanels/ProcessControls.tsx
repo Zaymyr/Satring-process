@@ -21,6 +21,10 @@ export function ProcessControls({
   void isSaveDisabled;
   void saveButtonLabel;
 
+  if (!statusMessage) {
+    return null;
+  }
+
   return (
     <div className="space-y-2 pt-2">
       <p className={cn('text-[11px] leading-5', statusToneClass)} aria-live="polite">

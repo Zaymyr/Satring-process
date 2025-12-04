@@ -1418,7 +1418,7 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
     }
 
     if (formattedSavedAt) {
-      return `${statusMessages.lastSavedLabel} : ${formattedSavedAt}`;
+      return null;
     }
 
     return statusMessages.noSavedYet;
