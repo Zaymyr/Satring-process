@@ -1,4 +1,4 @@
-import type { Dispatch, DragEvent, ReactNode, SetStateAction } from 'react';
+import type { CSSProperties, Dispatch, DragEvent, ReactNode, SetStateAction } from 'react';
 import { useId, useState } from 'react';
 import { GitBranch, GripVertical, Plus, Trash2 } from 'lucide-react';
 
@@ -83,6 +83,39 @@ type PrimaryPanelProps = {
     roles: string[];
   };
   isDirty: boolean;
+};
+
+const hexToRgba = (hex: string, alpha: number): string | null => {
+  const normalized = hex.trim().replace('#', '');
+
+  if (normalized.length !== 6) {
+    return null;
+  }
+
+  const r = Number.parseInt(normalized.slice(0, 2), 16);
+  const g = Number.parseInt(normalized.slice(2, 4), 16);
+  const b = Number.parseInt(normalized.slice(4, 6), 16);
+
+  if ([r, g, b].some((channel) => Number.isNaN(channel))) {
+    return null;
+  }
+
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+};
+
+const getBadgeStyle = (color?: string): CSSProperties | undefined => {
+  if (!color) {
+    return undefined;
+  }
+
+  const backgroundColor = hexToRgba(color, 0.12);
+  const borderColor = hexToRgba(color, 0.35);
+
+  return {
+    backgroundColor: backgroundColor ?? undefined,
+    color,
+    borderColor: borderColor ?? color
+  } satisfies CSSProperties;
 };
 
 export function PrimaryPanel({
@@ -300,8 +333,10 @@ export function PrimaryPanel({
                       >
                         <div
                           className={cn(
-                            'flex items-center',
-                            isSelectedStep ? 'flex-col gap-2 pt-0.5' : 'flex-row gap-2'
+                            'flex',
+                            isSelectedStep
+                              ? 'flex-col items-center gap-2 pt-0.5'
+                              : 'flex-col items-center gap-1'
                           )}
                         >
                           <span
@@ -467,32 +502,34 @@ export function PrimaryPanel({
                                 {displayLabel}
                               </span>
                               <div className="flex flex-wrap gap-1.5">
-                              <span
-                                className={cn(
-                                  'flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-700',
-                                  department?.isDraft && 'border border-dashed border-slate-300 bg-slate-50'
-                                )}
-                              >
-                                <span className="truncate">{departmentName}</span>
-                                {department?.isDraft ? (
-                                  <span className="text-[9px] font-semibold uppercase tracking-wide text-slate-500">
-                                    {draftBadgeLabel}
-                                  </span>
-                                ) : null}
-                              </span>
-                              <span
-                                className={cn(
-                                  'flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-700',
-                                  roleEntry?.isDraft && 'border border-dashed border-slate-300 bg-slate-50'
-                                )}
-                              >
-                                <span className="truncate">{roleName}</span>
-                                {roleEntry?.isDraft ? (
-                                  <span className="text-[9px] font-semibold uppercase tracking-wide text-slate-500">
-                                    {roleDraftBadgeLabel}
-                                  </span>
-                                ) : null}
-                              </span>
+                                <span
+                                  className={cn(
+                                    'flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold',
+                                    department?.isDraft && 'border border-dashed border-slate-300 bg-white/60 text-slate-700'
+                                  )}
+                                  style={getBadgeStyle(department?.color)}
+                                >
+                                  <span className="truncate">{departmentName}</span>
+                                  {department?.isDraft ? (
+                                    <span className="text-[9px] font-semibold uppercase tracking-wide text-slate-500">
+                                      {draftBadgeLabel}
+                                    </span>
+                                  ) : null}
+                                </span>
+                                <span
+                                  className={cn(
+                                    'flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold',
+                                    roleEntry?.isDraft && 'border border-dashed border-slate-300 bg-white/60 text-slate-700'
+                                  )}
+                                  style={getBadgeStyle(roleEntry?.role.color)}
+                                >
+                                  <span className="truncate">{roleName}</span>
+                                  {roleEntry?.isDraft ? (
+                                    <span className="text-[9px] font-semibold uppercase tracking-wide text-slate-500">
+                                      {roleDraftBadgeLabel}
+                                    </span>
+                                  ) : null}
+                                </span>
                               </div>
                             </div>
                           )}
