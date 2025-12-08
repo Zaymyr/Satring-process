@@ -332,11 +332,12 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
   const { departmentsQuery, invalidateDepartments, setDepartmentsCache } = useDepartments();
   const { invalidateRoles } = useRoles();
   const { profileQuery } = useProfile();
+  const isOnboardingEnabled = profileQuery.isSuccess;
   const {
     activeStep: activeOnboardingStep,
     isActive: isOnboardingActive,
     markStepCompleted
-  } = useLandingOnboardingOverlay(shouldForceOnboarding);
+  } = useLandingOnboardingOverlay(shouldForceOnboarding, isOnboardingEnabled);
 
   const createDepartmentMutation = useMutation<Department, ApiError, void>({
     mutationFn: async () => {
