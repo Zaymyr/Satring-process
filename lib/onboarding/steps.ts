@@ -5,6 +5,7 @@ export const ONBOARDING_STEPS = [
   'nameDepartment',
   'createRole',
   'nameRole',
+  'openProcessTab',
   'createProcess',
   'addStep',
   'assignStep'
@@ -44,10 +45,15 @@ export const ONBOARDING_STEP_CONTENT: Record<OnboardingStepKey, { targetId: stri
     title: 'Nommez le rôle',
     description: 'Choisissez un intitulé précis afin de faciliter les affectations.'
   },
+  openProcessTab: {
+    targetId: 'processes-tab',
+    title: 'Ouvrez les processus',
+    description: 'Passez à l’onglet Processus pour créer et organiser vos étapes.'
+  },
   createProcess: {
     targetId: 'onboarding-create-process',
     title: 'Créez un processus',
-    description: 'Initialisez un processus afin de pouvoir ajouter des étapes.'
+    description: 'Créez un nouveau processus puis renommez-le avant d’ajouter vos étapes.'
   },
   addStep: {
     targetId: 'onboarding-add-step',

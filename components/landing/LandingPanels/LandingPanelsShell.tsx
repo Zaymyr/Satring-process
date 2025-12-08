@@ -565,18 +565,23 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
 
     if (normalizedRoleName && normalizedRoleName !== defaultRoleName) {
       void markStepCompleted('nameRole');
-
-      if (activeSecondaryTab !== 'processes') {
-        setActiveSecondaryTab('processes');
-      }
     }
   }, [
-    activeSecondaryTab,
     defaultRoleName,
     isOnboardingActive,
     markStepCompleted,
     roleFieldsValue
   ]);
+
+  useEffect(() => {
+    if (!isOnboardingActive || activeOnboardingStep !== 'openProcessTab') {
+      return;
+    }
+
+    if (activeSecondaryTab === 'processes') {
+      void markStepCompleted('openProcessTab');
+    }
+  }, [activeOnboardingStep, activeSecondaryTab, isOnboardingActive, markStepCompleted]);
 
   const departments: DepartmentWithDraftStatus[] = useMemo(() => {
     const persistedById = new Map((departmentsQuery.data ?? []).map((department) => [department.id, department]));
@@ -2285,16 +2290,6 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
       void markStepCompleted('createProcess');
     }
   }, [activeOnboardingStep, currentProcessId, isOnboardingActive, markStepCompleted, processTitle]);
-
-  useEffect(() => {
-    if (!isOnboardingActive) {
-      return;
-    }
-
-    if (activeOnboardingStep === 'createProcess' && activeSecondaryTab !== 'processes') {
-      setActiveSecondaryTab('processes');
-    }
-  }, [activeOnboardingStep, activeSecondaryTab, isOnboardingActive]);
 
   useEffect(() => {
     if (!isOnboardingActive) {
