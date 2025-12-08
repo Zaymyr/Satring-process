@@ -1,8 +1,17 @@
 import { z } from 'zod';
 
+import { onboardingStepKeySchema } from '@/lib/onboarding/steps';
+
+export const onboardingOverlayProgressSchema = z.object({
+  completedSteps: z.record(onboardingStepKeySchema, z.boolean()).default({}),
+  dismissed: z.boolean().optional()
+});
+
 export const organizationRoleSchema = z.enum(['owner', 'admin', 'member']);
 
-export const onboardingOverlayStateSchema = z.union([z.boolean(), z.record(z.string(), z.unknown())]).nullable();
+export const onboardingOverlayStateSchema = z
+  .union([z.boolean(), onboardingOverlayProgressSchema])
+  .nullable();
 
 const planIdentifierSchema = z.string().min(1, 'Identifiant de plan invalide.');
 const planNameSchema = z.string().min(1, 'Nom de plan invalide.');
@@ -51,3 +60,4 @@ export type UpdateProfileInput = z.infer<typeof updateProfileInputSchema>;
 export type ProfileResponse = z.infer<typeof profileResponseSchema>;
 export type OrganizationRoleLimits = z.infer<typeof organizationRoleLimitsSchema>;
 export type OnboardingOverlayState = z.infer<typeof onboardingOverlayStateSchema>;
+export type OnboardingOverlayProgress = z.infer<typeof onboardingOverlayProgressSchema>;
