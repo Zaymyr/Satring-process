@@ -476,9 +476,9 @@ export async function POST(request: Request, context: RouteContext) {
   }
 
   let targetUserId = existingUser?.id ?? null;
-  let invitationStatus: InviteMemberResponse['status'] = 'added';
+  let invitationStatus: InviteMemberResponse['status'] = targetUserId ? 'added' : 'invited';
 
-  if (!targetUserId) {
+  const sendInvitationEmail = async () => {
     const { data: invitation, error: invitationError } = await adminClient.auth.admin.inviteUserByEmail(
       normalizedEmail,
       {
@@ -491,14 +491,24 @@ export async function POST(request: Request, context: RouteContext) {
     );
 
     if (invitationError) {
-      console.error("Erreur lors de la création de l'invitation", invitationError);
+      console.error("Erreur lors de l'envoi de l'invitation", invitationError);
+      return null;
+    }
+
+    return invitation.user?.id ?? targetUserId;
+  };
+
+  if (!targetUserId) {
+    const invitedUserId = await sendInvitationEmail();
+
+    if (!invitedUserId) {
       return NextResponse.json(
         { error: "Impossible d'envoyer une invitation à cette adresse." },
         { status: 500, headers: NO_STORE_HEADERS }
       );
     }
 
-    targetUserId = invitation.user?.id ?? null;
+    targetUserId = invitedUserId;
     invitationStatus = 'invited';
   }
 
@@ -593,6 +603,20 @@ export async function POST(request: Request, context: RouteContext) {
         );
       }
 
+      if (invitationStatus !== 'invited') {
+        const invitedUserId = await sendInvitationEmail();
+
+        if (!invitedUserId) {
+          return NextResponse.json(
+            { error: "Impossible d'envoyer une invitation à cette adresse." },
+            { status: 500, headers: NO_STORE_HEADERS }
+          );
+        }
+
+        targetUserId = invitedUserId;
+        invitationStatus = 'invited';
+      }
+
       finalStatus = invitationStatus === 'invited' ? 'invited' : 'updated';
       responseMessage =
         invitationStatus === 'invited'
@@ -600,6 +624,20 @@ export async function POST(request: Request, context: RouteContext) {
           : 'Rôle du membre mis à jour.';
     }
   } else {
+    if (invitationStatus !== 'invited') {
+      const invitedUserId = await sendInvitationEmail();
+
+      if (!invitedUserId) {
+        return NextResponse.json(
+          { error: "Impossible d'envoyer une invitation à cette adresse." },
+          { status: 500, headers: NO_STORE_HEADERS }
+        );
+      }
+
+      targetUserId = invitedUserId;
+      invitationStatus = 'invited';
+    }
+
     try {
       await insertMembership(adminClient, organizationId, targetUserId, mappedRole);
     } catch (createMembershipError) {
