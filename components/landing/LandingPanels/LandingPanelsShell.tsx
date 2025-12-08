@@ -64,6 +64,8 @@ import { useDepartments, createDepartment, deleteDepartment, fetchDepartments, u
 import { useRoles, createRole, deleteRole, updateRole } from '@/hooks/use-roles';
 import { useProfile } from '@/hooks/use-profile';
 import { ProcessDiagram } from '@/components/landing/LandingPanels/ProcessDiagram';
+import { useLandingOnboardingOverlay } from '@/hooks/use-landing-onboarding-overlay';
+import { OnboardingOverlay } from '@/components/landing/LandingPanels/OnboardingOverlay';
 
 type IaDepartmentsPayload = Parameters<typeof useProcessIaChat>[0]['departments'];
 
@@ -229,6 +231,7 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
   const { dictionary, locale } = useI18n();
   const searchParams = useSearchParams();
   const processIdFromQuery = searchParams.get('processId');
+  const shouldForceOnboarding = searchParams.get('onboardingOverlay') === 'true';
   const {
     formatting: { dateTime: dateTimeFormatOptions },
     landing: {
@@ -323,6 +326,11 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
   const { departmentsQuery, invalidateDepartments, setDepartmentsCache } = useDepartments();
   const { invalidateRoles } = useRoles();
   const { profileQuery } = useProfile();
+  const {
+    activeStep: activeOnboardingStep,
+    isActive: isOnboardingActive,
+    markStepCompleted
+  } = useLandingOnboardingOverlay(shouldForceOnboarding);
 
   const createDepartmentMutation = useMutation<Department, ApiError, void>({
     mutationFn: async () => {
@@ -346,6 +354,7 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
       departmentEditForm.reset({ name: department.name, color: department.color, roles: [] });
       departmentRoleFields.replace([]);
       createDepartmentRoleMutation.reset();
+      void markStepCompleted('createDepartment');
     }
   });
 
@@ -402,6 +411,7 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
       setTimeout(() => {
         departmentEditForm.setFocus(roleNameField);
       }, 0);
+      void markStepCompleted('createRole');
     }
   });
 
@@ -1232,6 +1242,7 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
       queryClient.setQueryData(['process', data.id], data);
       setEditingProcessId(data.id);
       setRenameDraft(normalizedTitle);
+      void markStepCompleted('createProcess');
     },
     onError: (error) => {
       console.error('Erreur lors de la création du process', error);
@@ -2205,6 +2216,21 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
     setSelectedStepId(nextSelectedId ?? null);
   };
 
+  useEffect(() => {
+    if (!isOnboardingActive) {
+      return;
+    }
+
+    const actionableSteps = steps.filter((step) => step.type === 'action' || step.type === 'decision');
+    if (actionableSteps.length > 0) {
+      void markStepCompleted('addStep');
+    }
+
+    if (actionableSteps.some((step) => step.departmentId !== null || step.roleId !== null)) {
+      void markStepCompleted('assignStep');
+    }
+  }, [isOnboardingActive, markStepCompleted, steps]);
+
   const diagramControlsContentId = useId();
 
   const iaPanelContent = (
@@ -2341,23 +2367,26 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
   );
 
   return (
-    <ProcessShell
-      diagramDefinition={diagramDefinition}
-      fallbackDiagram={fallbackDiagram}
-      mermaidErrorMessages={mermaidErrorMessages}
-      diagramDirection={diagramDirection}
-      diagramElementId={diagramElementId}
-      primaryPanel={primaryPanelContent}
-      secondaryPanel={secondaryPanelContent}
-      renderBottomPanel={renderBottomPanel}
-      primaryToggleLabel={primaryPanel.toggleLabel}
-      secondaryToggleLabel={secondaryPanel.toggleLabel}
-      bottomToggleLabel={diagramControls.toggleLabel}
-      handleSave={handleSave}
-      isSaveDisabled={isSaveDisabled}
-      saveButtonLabel={saveButtonLabel}
-      statusToneClass={statusToneClass}
-      statusMessage={statusMessage}
-    />
+    <>
+      <ProcessShell
+        diagramDefinition={diagramDefinition}
+        fallbackDiagram={fallbackDiagram}
+        mermaidErrorMessages={mermaidErrorMessages}
+        diagramDirection={diagramDirection}
+        diagramElementId={diagramElementId}
+        primaryPanel={primaryPanelContent}
+        secondaryPanel={secondaryPanelContent}
+        renderBottomPanel={renderBottomPanel}
+        primaryToggleLabel={primaryPanel.toggleLabel}
+        secondaryToggleLabel={secondaryPanel.toggleLabel}
+        bottomToggleLabel={diagramControls.toggleLabel}
+        handleSave={handleSave}
+        isSaveDisabled={isSaveDisabled}
+        saveButtonLabel={saveButtonLabel}
+        statusToneClass={statusToneClass}
+        statusMessage={statusMessage}
+      />
+      {isOnboardingActive ? <OnboardingOverlay activeStep={activeOnboardingStep ?? null} /> : null}
+    </>
   );
 }
