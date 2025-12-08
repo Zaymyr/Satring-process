@@ -481,7 +481,13 @@ export async function POST(request: Request, context: RouteContext) {
   if (!targetUserId) {
     const { data: invitation, error: invitationError } = await adminClient.auth.admin.inviteUserByEmail(
       normalizedEmail,
-      { redirectTo: invitationRedirect.toString() }
+      {
+        redirectTo: invitationRedirect.toString(),
+        data: {
+          invited_by_organization_id: organizationId,
+          invited_role: mappedRole
+        }
+      }
     );
 
     if (invitationError) {
