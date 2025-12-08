@@ -172,6 +172,7 @@ export function DepartmentEditor({
             type="button"
             variant="outline"
             size="sm"
+            id="onboarding-add-role"
             onClick={onAddRole}
             disabled={isSaving || isAddingRole || isActionsDisabled}
             className="inline-flex h-8 items-center gap-1 rounded-md border-slate-300 text-xs font-medium text-slate-700 hover:bg-slate-100"
