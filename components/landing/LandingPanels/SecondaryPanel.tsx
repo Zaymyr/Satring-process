@@ -80,6 +80,7 @@ type SecondaryPanelProps = {
   processSummaries: ProcessSummary[];
   currentProcessId: string | null;
   editingProcessId: string | null;
+  onboardingRenameTargetId?: string | null;
   setSelectedProcessId: Dispatch<SetStateAction<string | null>>;
   startEditingProcess: (process: ProcessSummary) => void;
   renameInputRef: MutableRefObject<HTMLInputElement | null>;
@@ -134,6 +135,7 @@ export function SecondaryPanel({
   processSummaries,
   currentProcessId,
   editingProcessId,
+  onboardingRenameTargetId,
   setSelectedProcessId,
   startEditingProcess,
   renameInputRef,
@@ -320,14 +322,15 @@ export function SecondaryPanel({
                 isUnauthorized={isProcessListUnauthorized}
                 isLoading={isProcessListLoading}
                 errorMessage={processListErrorMessage}
-                hasProcesses={hasProcesses}
-                processes={processSummaries}
-                currentProcessId={currentProcessId}
-                editingProcessId={editingProcessId}
-                isProcessEditorReadOnly={isProcessEditorReadOnly}
-                renameInputRef={renameInputRef}
-                renameDraft={renameDraft}
-                onRenameDraftChange={setRenameDraft}
+                  hasProcesses={hasProcesses}
+                  processes={processSummaries}
+                  currentProcessId={currentProcessId}
+                  editingProcessId={editingProcessId}
+                  isProcessEditorReadOnly={isProcessEditorReadOnly}
+                  onboardingRenameTargetId={onboardingRenameTargetId}
+                  renameInputRef={renameInputRef}
+                  renameDraft={renameDraft}
+                  onRenameDraftChange={setRenameDraft}
                 onSelectProcess={setSelectedProcessId}
                 onStartEditing={startEditingProcess}
                 onConfirmRename={confirmRenameProcess}

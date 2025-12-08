@@ -449,6 +449,9 @@ export function PrimaryPanel({
                                 onChange={(roleId) => updateStepRole(step.id, roleId)}
                                 helperText={helperText}
                                 draftBadgeLabel={roleDraftBadgeLabel}
+                                onboardingTargetId={
+                                  isSelectedStep ? 'onboarding-step-role-assignment' : undefined
+                                }
                               />
                             </div>
                             {step.type === 'decision' ? (

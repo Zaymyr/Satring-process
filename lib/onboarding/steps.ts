@@ -2,10 +2,15 @@ import { z } from 'zod';
 
 export const ONBOARDING_STEPS = [
   'createDepartment',
+  'nameDepartment',
   'createRole',
+  'nameRole',
+  'openProcessTab',
   'createProcess',
+  'saveProcess',
   'addStep',
-  'assignStep'
+  'assignStep',
+  'assignRole'
 ] as const;
 
 export type OnboardingStepKey = (typeof ONBOARDING_STEPS)[number];
@@ -27,15 +32,35 @@ export const ONBOARDING_STEP_CONTENT: Record<OnboardingStepKey, { targetId: stri
     title: 'Créez un département',
     description: 'Ajoutez votre première équipe pour organiser les rôles du processus.'
   },
+  nameDepartment: {
+    targetId: 'onboarding-department-name',
+    title: 'Nommez le département',
+    description: 'Donnez un nom clair à ce département pour l’identifier facilement.'
+  },
   createRole: {
     targetId: 'onboarding-add-role',
     title: 'Ajoutez un rôle',
     description: 'Ajoutez un rôle dans le département actif pour préparer les affectations.'
   },
+  nameRole: {
+    targetId: 'onboarding-role-name',
+    title: 'Nommez le rôle',
+    description: 'Choisissez un intitulé précis afin de faciliter les affectations.'
+  },
+  openProcessTab: {
+    targetId: 'processes-tab',
+    title: 'Ouvrez les processus',
+    description: 'Passez à l’onglet Processus pour créer et organiser vos étapes.'
+  },
   createProcess: {
     targetId: 'onboarding-create-process',
     title: 'Créez un processus',
-    description: 'Initialisez un processus afin de pouvoir ajouter des étapes.'
+    description: 'Créez un nouveau processus puis renommez-le avant d’ajouter vos étapes.'
+  },
+  saveProcess: {
+    targetId: 'onboarding-save-process',
+    title: 'Sauvegardez le processus',
+    description: 'Enregistrez vos changements pour confirmer le nom du processus.'
   },
   addStep: {
     targetId: 'onboarding-add-step',
@@ -45,6 +70,11 @@ export const ONBOARDING_STEP_CONTENT: Record<OnboardingStepKey, { targetId: stri
   assignStep: {
     targetId: 'onboarding-step-assignment',
     title: 'Assignez l’étape',
-    description: 'Sélectionnez un département ou un rôle pour l’étape courante.'
+    description: "Sélectionnez un département pour l’étape courante."
+  },
+  assignRole: {
+    targetId: 'onboarding-step-role-assignment',
+    title: 'Attribuez un rôle',
+    description: "Choisissez un rôle pour l’étape afin de préciser le responsable."
   }
 };
