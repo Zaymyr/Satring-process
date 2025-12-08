@@ -22,7 +22,7 @@ export default async function AdministrationPage() {
 
   const { data: profileRow, error: profileError } = await supabase
     .from('user_profiles')
-    .select('username')
+    .select('username, onboarding_overlay_state')
     .eq('user_id', user.id)
     .maybeSingle();
 
@@ -43,6 +43,7 @@ export default async function AdministrationPage() {
   const parsed = profileResponseSchema.safeParse({
     email: user.email ?? '',
     username: profileRow?.username ?? null,
+    onboardingOverlayState: profileRow?.onboarding_overlay_state ?? null,
     organizations
   });
 
