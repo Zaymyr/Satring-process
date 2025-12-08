@@ -1407,6 +1407,8 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
   });
 
   const isRenaming = renameProcessMutation.isPending;
+  const onboardingRenameDraft =
+    editingProcessId && editingProcessId === currentProcessId ? renameDraft.trim() : '';
 
   const formattedSavedAt = formatDateTime(lastSavedAt);
 
@@ -2275,17 +2277,23 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
     if (!createProcessStepSnapshotRef.current) {
       createProcessStepSnapshotRef.current = {
         processId: currentProcessId ?? null,
-        normalizedTitle: normalizeProcessTitle(processTitle)
+        normalizedTitle: normalizeProcessTitle(onboardingRenameDraft || processTitle)
       };
     }
-  }, [activeOnboardingStep, currentProcessId, isOnboardingActive, processTitle]);
+  }, [
+    activeOnboardingStep,
+    currentProcessId,
+    isOnboardingActive,
+    onboardingRenameDraft,
+    processTitle
+  ]);
 
   useEffect(() => {
     if (!isOnboardingActive) {
       return;
     }
 
-    const normalizedTitle = normalizeProcessTitle(processTitle);
+    const normalizedTitle = normalizeProcessTitle(onboardingRenameDraft || processTitle);
     if (activeOnboardingStep !== 'createProcess') {
       createProcessStepSnapshotRef.current = null;
       return;
@@ -2303,7 +2311,14 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
     if (currentProcessId && hasValidTitle && (hasChangedProcess || hasRenamedTitle)) {
       void markStepCompleted('createProcess');
     }
-  }, [activeOnboardingStep, currentProcessId, isOnboardingActive, markStepCompleted, processTitle]);
+  }, [
+    activeOnboardingStep,
+    currentProcessId,
+    isOnboardingActive,
+    markStepCompleted,
+    onboardingRenameDraft,
+    processTitle
+  ]);
 
   useEffect(() => {
     if (!isOnboardingActive) {
@@ -2339,6 +2354,14 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
       disabled={isStepEditingDisabled}
     />
   );
+
+  const onboardingRenameTargetId =
+    isOnboardingActive &&
+    activeOnboardingStep === 'createProcess' &&
+    isProcessesTabActive &&
+    editingProcessId
+      ? 'onboarding-process-rename'
+      : null;
 
   const primaryPanelContent = (
     <PrimaryPanel
@@ -2411,6 +2434,7 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
       processSummaries={processSummaries}
       currentProcessId={currentProcessId}
       editingProcessId={editingProcessId}
+      onboardingRenameTargetId={onboardingRenameTargetId}
       setSelectedProcessId={setSelectedProcessId}
       startEditingProcess={startEditingProcess}
       renameInputRef={renameInputRef}
@@ -2475,7 +2499,12 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
         statusToneClass={statusToneClass}
         statusMessage={statusMessage}
       />
-      {isOnboardingActive ? <OnboardingOverlay activeStep={activeOnboardingStep ?? null} /> : null}
+      {isOnboardingActive ? (
+        <OnboardingOverlay
+          activeStep={activeOnboardingStep ?? null}
+          targetIdOverride={onboardingRenameTargetId}
+        />
+      ) : null}
     </>
   );
 }

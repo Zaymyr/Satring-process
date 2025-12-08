@@ -17,6 +17,7 @@ type ProcessListPanelProps = {
   currentProcessId: string | null;
   editingProcessId: string | null;
   isProcessEditorReadOnly: boolean;
+  onboardingRenameTargetId?: string | null;
   renameInputRef: MutableRefObject<HTMLInputElement | null>;
   renameDraft: string;
   onRenameDraftChange: (value: string) => void;
@@ -40,6 +41,7 @@ export function ProcessListPanel({
   currentProcessId,
   editingProcessId,
   isProcessEditorReadOnly,
+  onboardingRenameTargetId,
   renameInputRef,
   renameDraft,
   onRenameDraftChange,
@@ -128,6 +130,7 @@ export function ProcessListPanel({
                     {isEditing ? (
                       <div className="flex items-center gap-2">
                         <Input
+                          id={isEditing && onboardingRenameTargetId ? onboardingRenameTargetId : undefined}
                           ref={renameInputRef}
                           value={renameDraft}
                           onChange={(event) => onRenameDraftChange(event.target.value)}
