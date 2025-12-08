@@ -18,6 +18,7 @@ type RolePickerProps = {
   onChange: (roleId: string | null) => void;
   helperText?: string | null;
   draftBadgeLabel: string;
+  onboardingTargetId?: string;
 };
 
 export function RolePicker({
@@ -28,7 +29,8 @@ export function RolePicker({
   disabled,
   onChange,
   helperText: helperTextOverride,
-  draftBadgeLabel
+  draftBadgeLabel,
+  onboardingTargetId
 }: RolePickerProps) {
   const handleChange = (event: ChangeEvent<HTMLSelectElement>) => {
     const value = event.target.value;
@@ -55,6 +57,7 @@ export function RolePicker({
     <label className="flex flex-col gap-1 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
       <span title={messages.chooseRoleForDepartment}>Role</span>
       <select
+        id={onboardingTargetId}
         value={step.roleId ?? ''}
         onChange={handleChange}
         disabled={disabled}

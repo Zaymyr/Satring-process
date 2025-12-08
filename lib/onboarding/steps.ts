@@ -9,7 +9,8 @@ export const ONBOARDING_STEPS = [
   'createProcess',
   'saveProcess',
   'addStep',
-  'assignStep'
+  'assignStep',
+  'assignRole'
 ] as const;
 
 export type OnboardingStepKey = (typeof ONBOARDING_STEPS)[number];
@@ -69,6 +70,11 @@ export const ONBOARDING_STEP_CONTENT: Record<OnboardingStepKey, { targetId: stri
   assignStep: {
     targetId: 'onboarding-step-assignment',
     title: 'Assignez l’étape',
-    description: 'Sélectionnez un département ou un rôle pour l’étape courante.'
+    description: "Sélectionnez un département pour l’étape courante."
+  },
+  assignRole: {
+    targetId: 'onboarding-step-role-assignment',
+    title: 'Attribuez un rôle',
+    description: "Choisissez un rôle pour l’étape afin de préciser le responsable."
   }
 };

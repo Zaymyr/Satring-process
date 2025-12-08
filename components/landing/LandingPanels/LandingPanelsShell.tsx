@@ -316,6 +316,7 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
   const saveProcessStepSnapshotRef = useRef<string | null | undefined>(undefined);
   const addStepSnapshotRef = useRef<number | null>(null);
   const assignStepSnapshotRef = useRef<number | null>(null);
+  const assignRoleSnapshotRef = useRef<number | null>(null);
   useEffect(() => {
     editingDepartmentIdRef.current = editingDepartmentId;
   }, [editingDepartmentId]);
@@ -2362,17 +2363,37 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
       return;
     }
 
-    const assignedActionableSteps = steps.filter(
-      (step) => (step.type === 'action' || step.type === 'decision') && (step.departmentId !== null || step.roleId !== null)
+    const departmentAssignedSteps = steps.filter(
+      (step) => (step.type === 'action' || step.type === 'decision') && step.departmentId !== null
     );
 
     if (assignStepSnapshotRef.current === null) {
-      assignStepSnapshotRef.current = assignedActionableSteps.length;
+      assignStepSnapshotRef.current = departmentAssignedSteps.length;
       return;
     }
 
-    if (assignedActionableSteps.length > assignStepSnapshotRef.current) {
+    if (departmentAssignedSteps.length > assignStepSnapshotRef.current) {
       void markStepCompleted('assignStep');
+    }
+  }, [activeOnboardingStep, isOnboardingActive, markStepCompleted, steps]);
+
+  useEffect(() => {
+    if (!isOnboardingActive || activeOnboardingStep !== 'assignRole') {
+      assignRoleSnapshotRef.current = null;
+      return;
+    }
+
+    const roleAssignedSteps = steps.filter(
+      (step) => (step.type === 'action' || step.type === 'decision') && step.roleId !== null
+    );
+
+    if (assignRoleSnapshotRef.current === null) {
+      assignRoleSnapshotRef.current = roleAssignedSteps.length;
+      return;
+    }
+
+    if (roleAssignedSteps.length > assignRoleSnapshotRef.current) {
+      void markStepCompleted('assignRole');
     }
   }, [activeOnboardingStep, isOnboardingActive, markStepCompleted, steps]);
 
