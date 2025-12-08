@@ -312,6 +312,7 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
   });
   const roleFieldsValue = useWatch({ control: departmentEditForm.control, name: 'roles' });
   const editingDepartmentBaselineRef = useRef<Department | null>(null);
+  const createProcessStepSnapshotRef = useRef<{ processId: string | null; normalizedTitle: string } | null>(null);
   useEffect(() => {
     editingDepartmentIdRef.current = editingDepartmentId;
   }, [editingDepartmentId]);
@@ -2265,10 +2266,24 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
     }
 
     const normalizedTitle = normalizeProcessTitle(processTitle);
-    if (currentProcessId && normalizedTitle !== DEFAULT_PROCESS_TITLE) {
+    if (activeOnboardingStep !== 'createProcess') {
+      createProcessStepSnapshotRef.current = null;
+      return;
+    }
+
+    if (!createProcessStepSnapshotRef.current) {
+      createProcessStepSnapshotRef.current = { processId: currentProcessId ?? null, normalizedTitle };
+      return;
+    }
+
+    const hasValidTitle = normalizedTitle !== DEFAULT_PROCESS_TITLE;
+    const hasChangedProcess = createProcessStepSnapshotRef.current.processId !== currentProcessId;
+    const hasRenamedTitle = hasValidTitle && normalizedTitle !== createProcessStepSnapshotRef.current.normalizedTitle;
+
+    if (currentProcessId && hasValidTitle && (hasChangedProcess || hasRenamedTitle)) {
       void markStepCompleted('createProcess');
     }
-  }, [currentProcessId, isOnboardingActive, markStepCompleted, processTitle]);
+  }, [activeOnboardingStep, currentProcessId, isOnboardingActive, markStepCompleted, processTitle]);
 
   useEffect(() => {
     if (!isOnboardingActive) {
