@@ -1276,7 +1276,6 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
       queryClient.setQueryData(['process', data.id], data);
       setEditingProcessId(data.id);
       setRenameDraft(normalizedTitle);
-      void markStepCompleted('createProcess');
     },
     onError: (error) => {
       console.error('Erreur lors de la création du process', error);
@@ -2255,10 +2254,21 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
       return;
     }
 
-    if (currentProcessId || steps.length > 0) {
+    const normalizedTitle = normalizeProcessTitle(processTitle);
+    if (currentProcessId && normalizedTitle !== DEFAULT_PROCESS_TITLE) {
       void markStepCompleted('createProcess');
     }
-  }, [currentProcessId, isOnboardingActive, markStepCompleted, steps.length]);
+  }, [currentProcessId, isOnboardingActive, markStepCompleted, processTitle]);
+
+  useEffect(() => {
+    if (!isOnboardingActive) {
+      return;
+    }
+
+    if (activeOnboardingStep === 'createProcess' && activeSecondaryTab !== 'processes') {
+      setActiveSecondaryTab('processes');
+    }
+  }, [activeOnboardingStep, activeSecondaryTab, isOnboardingActive]);
 
   useEffect(() => {
     if (!isOnboardingActive) {
