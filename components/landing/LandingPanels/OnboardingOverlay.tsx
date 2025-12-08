@@ -88,9 +88,12 @@ const useSpotlight = (targetId: string | null) => {
 };
 
 export function OnboardingOverlay({ activeStep }: OnboardingOverlayProps) {
-  const isClient = typeof document !== 'undefined';
-  const content = isClient && activeStep ? ONBOARDING_STEP_CONTENT[activeStep] : null;
-  const spotlight = useSpotlight(isClient ? content?.targetId ?? null : null);
+  if (typeof document === 'undefined') {
+    return null;
+  }
+
+  const content = activeStep ? ONBOARDING_STEP_CONTENT[activeStep] : null;
+  const spotlight = useSpotlight(content?.targetId ?? null);
 
   const maskStyle = useMemo(() => {
     if (!spotlight) {
@@ -106,7 +109,7 @@ export function OnboardingOverlay({ activeStep }: OnboardingOverlayProps) {
     };
   }, [spotlight]);
 
-  if (!isClient || !content || !spotlight) {
+  if (!content || !spotlight) {
     return null;
   }
 
