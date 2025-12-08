@@ -16,7 +16,7 @@ const NO_STORE_HEADERS = { 'Cache-Control': 'no-store, max-age=0, must-revalidat
 async function buildProfileResponse(supabase: SupabaseClient, user: User): Promise<ProfileResponse> {
   const { data: profileData, error: profileError } = await supabase
     .from('user_profiles')
-    .select('username')
+    .select('username, onboarding_overlay_state')
     .eq('user_id', user.id)
     .maybeSingle();
 
@@ -29,6 +29,7 @@ async function buildProfileResponse(supabase: SupabaseClient, user: User): Promi
   const parsed = profileResponseSchema.safeParse({
     email: user.email ?? '',
     username: profileData?.username ?? null,
+    onboardingOverlayState: profileData?.onboarding_overlay_state ?? null,
     organizations: memberships
   });
 
@@ -70,7 +71,7 @@ const mapUpsertError = (error: { code?: string | null }) => {
     case '23503':
       return { status: 404, message: 'Profil utilisateur introuvable.' } as const;
     default:
-      return { status: 500, message: "Impossible de mettre à jour le nom d'utilisateur." } as const;
+      return { status: 500, message: 'Impossible de mettre à jour le profil utilisateur.' } as const;
   }
 };
 
@@ -94,9 +95,21 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: 'Authentification requise.' }, { status: 401, headers: NO_STORE_HEADERS });
   }
 
+  const updatePayload: { user_id: string; username?: string; onboarding_overlay_state?: unknown } = {
+    user_id: user.id
+  };
+
+  if (payload.username !== undefined) {
+    updatePayload.username = payload.username;
+  }
+
+  if (payload.onboardingOverlayState !== undefined) {
+    updatePayload.onboarding_overlay_state = payload.onboardingOverlayState;
+  }
+
   const { error: upsertError } = await supabase
     .from('user_profiles')
-    .upsert({ user_id: user.id, username: payload.username }, { onConflict: 'user_id' })
+    .upsert(updatePayload, { onConflict: 'user_id' })
     .select('username')
     .single();
 

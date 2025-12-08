@@ -2,6 +2,8 @@ import { z } from 'zod';
 
 export const organizationRoleSchema = z.enum(['owner', 'admin', 'member']);
 
+export const onboardingOverlayStateSchema = z.union([z.boolean(), z.record(z.string(), z.unknown())]).nullable();
+
 const planIdentifierSchema = z.string().min(1, 'Identifiant de plan invalide.');
 const planNameSchema = z.string().min(1, 'Nom de plan invalide.');
 const roleLimitValueSchema = z.number().int().min(0, 'La limite doit être positive.').nullable();
@@ -28,16 +30,24 @@ export const usernameSchema = z
   .max(30, "Le nom d'utilisateur ne peut pas dépasser 30 caractères.")
   .regex(/^[a-z0-9_]+$/i, "Utilisez uniquement des lettres, chiffres ou underscores.");
 
-export const updateProfileInputSchema = z.object({
-  username: usernameSchema
-});
+export const updateProfileInputSchema = z
+  .object({
+    username: usernameSchema.optional(),
+    onboardingOverlayState: onboardingOverlayStateSchema.optional()
+  })
+  .refine((value) => value.username !== undefined || value.onboardingOverlayState !== undefined, {
+    message: 'Aucun champ à mettre à jour.',
+    path: ['username']
+  });
 
 export const profileResponseSchema = z.object({
   email: z.string().email('Adresse e-mail invalide.'),
   username: usernameSchema.nullable(),
+  onboardingOverlayState: onboardingOverlayStateSchema,
   organizations: profileOrganizationSchema.array()
 });
 
 export type UpdateProfileInput = z.infer<typeof updateProfileInputSchema>;
 export type ProfileResponse = z.infer<typeof profileResponseSchema>;
 export type OrganizationRoleLimits = z.infer<typeof organizationRoleLimitsSchema>;
+export type OnboardingOverlayState = z.infer<typeof onboardingOverlayStateSchema>;

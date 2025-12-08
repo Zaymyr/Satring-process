@@ -1,6 +1,8 @@
 import { index, integer, jsonb, pgTable, primaryKey, text, timestamp, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
 import type { ProcessStep } from '@/lib/validation/process';
 
+export type OnboardingOverlayState = boolean | Record<string, unknown> | null;
+
 export const organizations = pgTable(
   'organizations',
   {
@@ -118,6 +120,7 @@ export type NewOrganizationInvitation = typeof organizationInvitations.$inferIns
 export const userProfiles = pgTable('user_profiles', {
   userId: uuid('user_id').primaryKey(),
   username: text('username').unique(),
+  onboardingOverlayState: jsonb('onboarding_overlay_state').$type<OnboardingOverlayState>(),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull()
 });
