@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState, useId, type ReactNode } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useId, type ReactNode } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
@@ -2265,6 +2265,20 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
     });
     setSelectedStepId(nextSelectedId ?? null);
   };
+
+  useLayoutEffect(() => {
+    if (!isOnboardingActive || activeOnboardingStep !== 'createProcess') {
+      createProcessStepSnapshotRef.current = null;
+      return;
+    }
+
+    if (!createProcessStepSnapshotRef.current) {
+      createProcessStepSnapshotRef.current = {
+        processId: currentProcessId ?? null,
+        normalizedTitle: normalizeProcessTitle(processTitle)
+      };
+    }
+  }, [activeOnboardingStep, currentProcessId, isOnboardingActive, processTitle]);
 
   useEffect(() => {
     if (!isOnboardingActive) {
