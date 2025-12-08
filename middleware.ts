@@ -12,6 +12,18 @@ const securityHeaders: Record<string, string> = {
 };
 
 export function middleware(request: NextRequest) {
+  const requestUrl = request.nextUrl;
+
+  if (
+    requestUrl.searchParams.has('code') ||
+    (requestUrl.searchParams.has('access_token') && requestUrl.searchParams.has('refresh_token'))
+  ) {
+    const redirectUrl = new URL('/auth/callback', requestUrl);
+    redirectUrl.search = requestUrl.search;
+
+    return NextResponse.redirect(redirectUrl);
+  }
+
   const ip =
     request.ip || request.headers.get('x-real-ip') || request.headers.get('x-forwarded-for') || 'anonymous';
 
