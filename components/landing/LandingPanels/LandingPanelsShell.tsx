@@ -2270,7 +2270,7 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
       void markStepCompleted('addStep');
     }
 
-    if (actionableSteps.some((step) => step.departmentId !== null || step.roleId !== null)) {
+    if (actionableSteps.some((step) => step.departmentId !== null && step.roleId !== null)) {
       void markStepCompleted('assignStep');
     }
   }, [isOnboardingActive, markStepCompleted, steps]);
