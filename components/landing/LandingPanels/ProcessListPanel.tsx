@@ -139,6 +139,7 @@ export function ProcessListPanel({
                         <div className="flex items-center gap-1">
                           <button
                             type="button"
+                            id="onboarding-save-process"
                             onClick={() => onConfirmRename(summary.id)}
                             className="inline-flex h-8 items-center justify-center rounded-md bg-slate-900 px-2 text-xs font-medium text-white hover:bg-slate-800"
                           >
