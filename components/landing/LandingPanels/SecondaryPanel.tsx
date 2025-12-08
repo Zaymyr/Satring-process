@@ -218,6 +218,7 @@ export function SecondaryPanel({
             <Button
               type="button"
               size="sm"
+              id="onboarding-create-process"
               onClick={handleCreateProcess}
               disabled={isProcessEditorReadOnly || isCreating}
               className="inline-flex h-8 items-center gap-1 rounded-md bg-slate-900 px-3 text-xs font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600"
@@ -229,6 +230,7 @@ export function SecondaryPanel({
             <Button
               type="button"
               size="sm"
+              id="onboarding-create-department"
               onClick={handleCreateDepartment}
               disabled={isDepartmentActionsDisabled || isCreatingDepartment}
               className="inline-flex h-8 items-center gap-1 rounded-md bg-slate-900 px-3 text-xs font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600"

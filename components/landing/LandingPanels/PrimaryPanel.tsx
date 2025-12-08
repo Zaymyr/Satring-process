@@ -171,6 +171,7 @@ export function PrimaryPanel({
           <Button
             type="button"
             size="sm"
+            id="onboarding-add-step"
             onClick={() => addStep('action')}
             disabled={isStepEditingDisabled}
             className="inline-flex h-8 items-center gap-1.5 rounded-md bg-slate-900 px-3 text-xs font-semibold text-white hover:bg-slate-800"
@@ -404,6 +405,7 @@ export function PrimaryPanel({
                               <label className="flex flex-col gap-1 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
                                 <span>Department</span>
                                 <select
+                                  id={isSelectedStep ? 'onboarding-step-assignment' : undefined}
                                   value={step.departmentId ?? ''}
                                   onChange={(event) =>
                                     updateStepDepartment(
