@@ -314,6 +314,8 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
   const editingDepartmentBaselineRef = useRef<Department | null>(null);
   const createProcessStepSnapshotRef = useRef<{ processId: string | null; normalizedTitle: string } | null>(null);
   const saveProcessStepSnapshotRef = useRef<string | null | undefined>(undefined);
+  const addStepSnapshotRef = useRef<number | null>(null);
+  const assignStepSnapshotRef = useRef<number | null>(null);
   useEffect(() => {
     editingDepartmentIdRef.current = editingDepartmentId;
   }, [editingDepartmentId]);
@@ -2338,19 +2340,41 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
   }, [activeOnboardingStep, isOnboardingActive, lastSavedAt, markStepCompleted]);
 
   useEffect(() => {
-    if (!isOnboardingActive) {
+    if (!isOnboardingActive || activeOnboardingStep !== 'addStep') {
+      addStepSnapshotRef.current = null;
       return;
     }
 
     const actionableSteps = steps.filter((step) => step.type === 'action' || step.type === 'decision');
-    if (actionableSteps.length > 0) {
-      void markStepCompleted('addStep');
+    if (addStepSnapshotRef.current === null) {
+      addStepSnapshotRef.current = actionableSteps.length;
+      return;
     }
 
-    if (actionableSteps.some((step) => step.departmentId !== null || step.roleId !== null)) {
+    if (actionableSteps.length > addStepSnapshotRef.current) {
+      void markStepCompleted('addStep');
+    }
+  }, [activeOnboardingStep, isOnboardingActive, markStepCompleted, steps]);
+
+  useEffect(() => {
+    if (!isOnboardingActive || activeOnboardingStep !== 'assignStep') {
+      assignStepSnapshotRef.current = null;
+      return;
+    }
+
+    const assignedActionableSteps = steps.filter(
+      (step) => (step.type === 'action' || step.type === 'decision') && (step.departmentId !== null || step.roleId !== null)
+    );
+
+    if (assignStepSnapshotRef.current === null) {
+      assignStepSnapshotRef.current = assignedActionableSteps.length;
+      return;
+    }
+
+    if (assignedActionableSteps.length > assignStepSnapshotRef.current) {
       void markStepCompleted('assignStep');
     }
-  }, [isOnboardingActive, markStepCompleted, steps]);
+  }, [activeOnboardingStep, isOnboardingActive, markStepCompleted, steps]);
 
   const diagramControlsContentId = useId();
 
