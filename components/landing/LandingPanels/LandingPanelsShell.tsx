@@ -5,7 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useFieldArray, useForm } from 'react-hook-form';
+import { useFieldArray, useForm, useWatch } from 'react-hook-form';
 import { z } from 'zod';
 
 import { useI18n } from '@/components/providers/i18n-provider';
@@ -306,6 +306,11 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
     control: departmentEditForm.control,
     name: 'roles'
   });
+  const departmentNameValue = useWatch({
+    control: departmentEditForm.control,
+    name: 'name'
+  });
+  const roleFieldsValue = useWatch({ control: departmentEditForm.control, name: 'roles' });
   const editingDepartmentBaselineRef = useRef<Department | null>(null);
   useEffect(() => {
     editingDepartmentIdRef.current = editingDepartmentId;
@@ -531,6 +536,35 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
       hasInitializedDraftDepartmentsRef.current = true;
     }
   }, [draftDepartments.length, shouldUseDepartmentDemo, sourceDepartments]);
+
+  useEffect(() => {
+    if (!isOnboardingActive) {
+      return;
+    }
+
+    const normalizedDepartmentName = (departmentNameValue ?? '').trim();
+    if (normalizedDepartmentName && normalizedDepartmentName !== defaultDepartmentName) {
+      void markStepCompleted('nameDepartment');
+    }
+  }, [
+    defaultDepartmentName,
+    departmentNameValue,
+    isOnboardingActive,
+    markStepCompleted
+  ]);
+
+  useEffect(() => {
+    if (!isOnboardingActive) {
+      return;
+    }
+
+    const latestRoleName = roleFieldsValue?.[roleFieldsValue.length - 1]?.name ?? '';
+    const normalizedRoleName = latestRoleName.trim();
+
+    if (normalizedRoleName && normalizedRoleName !== defaultRoleName) {
+      void markStepCompleted('nameRole');
+    }
+  }, [defaultRoleName, isOnboardingActive, markStepCompleted, roleFieldsValue]);
 
   const departments: DepartmentWithDraftStatus[] = useMemo(() => {
     const persistedById = new Map((departmentsQuery.data ?? []).map((department) => [department.id, department]));
@@ -2215,6 +2249,16 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
     });
     setSelectedStepId(nextSelectedId ?? null);
   };
+
+  useEffect(() => {
+    if (!isOnboardingActive) {
+      return;
+    }
+
+    if (currentProcessId || steps.length > 0) {
+      void markStepCompleted('createProcess');
+    }
+  }, [currentProcessId, isOnboardingActive, markStepCompleted, steps.length]);
 
   useEffect(() => {
     if (!isOnboardingActive) {

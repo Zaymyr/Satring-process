@@ -2,7 +2,9 @@ import { z } from 'zod';
 
 export const ONBOARDING_STEPS = [
   'createDepartment',
+  'nameDepartment',
   'createRole',
+  'nameRole',
   'createProcess',
   'addStep',
   'assignStep'
@@ -27,10 +29,20 @@ export const ONBOARDING_STEP_CONTENT: Record<OnboardingStepKey, { targetId: stri
     title: 'Créez un département',
     description: 'Ajoutez votre première équipe pour organiser les rôles du processus.'
   },
+  nameDepartment: {
+    targetId: 'onboarding-department-name',
+    title: 'Nommez le département',
+    description: 'Donnez un nom clair à ce département pour l’identifier facilement.'
+  },
   createRole: {
     targetId: 'onboarding-add-role',
     title: 'Ajoutez un rôle',
     description: 'Ajoutez un rôle dans le département actif pour préparer les affectations.'
+  },
+  nameRole: {
+    targetId: 'onboarding-role-name',
+    title: 'Nommez le rôle',
+    description: 'Choisissez un intitulé précis afin de faciliter les affectations.'
   },
   createProcess: {
     targetId: 'onboarding-create-process',
