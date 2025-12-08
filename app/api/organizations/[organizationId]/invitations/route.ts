@@ -520,11 +520,12 @@ export async function POST(request: Request, context: RouteContext) {
   }
 
   let existingMembership: OrganizationMember | null = null;
+  const userIdForLookup = targetUserId as string;
 
   try {
     const membershipRecord = await db.query.organizationMembers.findFirst({
       where: (fields, { and: andFn, eq: eqFn }) =>
-        andFn(eqFn(fields.organizationId, organizationId), eqFn(fields.userId, targetUserId))
+        andFn(eqFn(fields.organizationId, organizationId), eqFn(fields.userId, userIdForLookup))
     });
 
     existingMembership = membershipRecord ?? null;
@@ -546,7 +547,7 @@ export async function POST(request: Request, context: RouteContext) {
     );
 
     try {
-      existingMembership = await fetchMembershipViaSupabase(adminClient, organizationId, targetUserId);
+      existingMembership = await fetchMembershipViaSupabase(adminClient, organizationId, userIdForLookup);
     } catch (fallbackLookupError) {
       console.error(
         "Erreur lors de l'utilisation de Supabase pour récupérer l'état du membre",
