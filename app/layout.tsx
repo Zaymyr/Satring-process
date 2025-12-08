@@ -9,6 +9,7 @@ import { CurrentPageTitle } from '@/components/header/current-page-title';
 import { LocaleProvider } from '@/components/providers/locale-provider';
 import { QueryProvider } from '@/components/providers/query-provider';
 import { LocaleToggle } from '@/components/ui/locale-toggle';
+import { AuthHashTokenHandler } from '@/components/auth-hash-token-handler';
 import { createServerClient } from '@/lib/supabase/server';
 import { getServerUser } from '@/lib/supabase/auth';
 import { I18nProvider } from '@/components/providers/i18n-provider';
@@ -58,6 +59,7 @@ export default async function RootLayout({
         <LocaleProvider initialLocale={locale}>
           <I18nProvider locale={locale} dictionary={dictionary}>
             <QueryProvider>
+              <AuthHashTokenHandler />
               <div className="flex h-screen flex-col overflow-hidden">
                 <header className="relative z-50 w-full shrink-0 border-b border-slate-200 bg-white/90 backdrop-blur">
                   <div className="grid w-full grid-cols-1 gap-3 px-6 py-4 sm:grid-cols-[auto,1fr,auto] sm:items-center">
