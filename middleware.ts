@@ -13,10 +13,12 @@ const securityHeaders: Record<string, string> = {
 
 export function middleware(request: NextRequest) {
   const requestUrl = request.nextUrl;
+  const isAuthCallback = requestUrl.pathname === '/auth/callback';
 
   if (
-    requestUrl.searchParams.has('code') ||
-    (requestUrl.searchParams.has('access_token') && requestUrl.searchParams.has('refresh_token'))
+    !isAuthCallback &&
+    (requestUrl.searchParams.has('code') ||
+      (requestUrl.searchParams.has('access_token') && requestUrl.searchParams.has('refresh_token')))
   ) {
     const redirectUrl = new URL('/auth/callback', requestUrl);
     redirectUrl.search = requestUrl.search;
