@@ -563,8 +563,18 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
 
     if (normalizedRoleName && normalizedRoleName !== defaultRoleName) {
       void markStepCompleted('nameRole');
+
+      if (activeSecondaryTab !== 'processes') {
+        setActiveSecondaryTab('processes');
+      }
     }
-  }, [defaultRoleName, isOnboardingActive, markStepCompleted, roleFieldsValue]);
+  }, [
+    activeSecondaryTab,
+    defaultRoleName,
+    isOnboardingActive,
+    markStepCompleted,
+    roleFieldsValue
+  ]);
 
   const departments: DepartmentWithDraftStatus[] = useMemo(() => {
     const persistedById = new Map((departmentsQuery.data ?? []).map((department) => [department.id, department]));
