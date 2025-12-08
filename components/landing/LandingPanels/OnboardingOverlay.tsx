@@ -88,12 +88,15 @@ const useSpotlight = (targetId: string | null) => {
 };
 
 export function OnboardingOverlay({ activeStep }: OnboardingOverlayProps) {
-  if (typeof document === 'undefined') {
-    return null;
-  }
+  const [isClient, setIsClient] = useState(false);
 
-  const content = activeStep ? ONBOARDING_STEP_CONTENT[activeStep] : null;
-  const spotlight = useSpotlight(content?.targetId ?? null);
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
+  const content = isClient && activeStep ? ONBOARDING_STEP_CONTENT[activeStep] : null;
+  const targetId = isClient && content ? content.targetId : null;
+  const spotlight = useSpotlight(targetId);
 
   const maskStyle = useMemo(() => {
     if (!spotlight) {
@@ -109,7 +112,7 @@ export function OnboardingOverlay({ activeStep }: OnboardingOverlayProps) {
     };
   }, [spotlight]);
 
-  if (!content || !spotlight) {
+  if (!isClient || !content || !spotlight) {
     return null;
   }
 
