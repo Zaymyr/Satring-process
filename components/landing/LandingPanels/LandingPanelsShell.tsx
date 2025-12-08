@@ -1,11 +1,11 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState, useId, type ReactNode } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useId, type ReactNode } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useFieldArray, useForm } from 'react-hook-form';
+import { useFieldArray, useForm, useWatch } from 'react-hook-form';
 import { z } from 'zod';
 
 import { useI18n } from '@/components/providers/i18n-provider';
@@ -306,7 +306,17 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
     control: departmentEditForm.control,
     name: 'roles'
   });
+  const departmentNameValue = useWatch({
+    control: departmentEditForm.control,
+    name: 'name'
+  });
+  const roleFieldsValue = useWatch({ control: departmentEditForm.control, name: 'roles' });
   const editingDepartmentBaselineRef = useRef<Department | null>(null);
+  const createProcessStepSnapshotRef = useRef<{ processId: string | null; normalizedTitle: string } | null>(null);
+  const saveProcessStepSnapshotRef = useRef<string | null | undefined>(undefined);
+  const addStepSnapshotRef = useRef<number | null>(null);
+  const assignStepSnapshotRef = useRef<number | null>(null);
+  const assignRoleSnapshotRef = useRef<number | null>(null);
   useEffect(() => {
     editingDepartmentIdRef.current = editingDepartmentId;
   }, [editingDepartmentId]);
@@ -326,11 +336,12 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
   const { departmentsQuery, invalidateDepartments, setDepartmentsCache } = useDepartments();
   const { invalidateRoles } = useRoles();
   const { profileQuery } = useProfile();
+  const isOnboardingEnabled = profileQuery.isSuccess;
   const {
     activeStep: activeOnboardingStep,
     isActive: isOnboardingActive,
     markStepCompleted
-  } = useLandingOnboardingOverlay(shouldForceOnboarding);
+  } = useLandingOnboardingOverlay(shouldForceOnboarding, isOnboardingEnabled);
 
   const createDepartmentMutation = useMutation<Department, ApiError, void>({
     mutationFn: async () => {
@@ -531,6 +542,50 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
       hasInitializedDraftDepartmentsRef.current = true;
     }
   }, [draftDepartments.length, shouldUseDepartmentDemo, sourceDepartments]);
+
+  useEffect(() => {
+    if (!isOnboardingActive) {
+      return;
+    }
+
+    const normalizedDepartmentName = (departmentNameValue ?? '').trim();
+    if (normalizedDepartmentName && normalizedDepartmentName !== defaultDepartmentName) {
+      void markStepCompleted('nameDepartment');
+    }
+  }, [
+    defaultDepartmentName,
+    departmentNameValue,
+    isOnboardingActive,
+    markStepCompleted
+  ]);
+
+  useEffect(() => {
+    if (!isOnboardingActive) {
+      return;
+    }
+
+    const latestRoleName = roleFieldsValue?.[roleFieldsValue.length - 1]?.name ?? '';
+    const normalizedRoleName = latestRoleName.trim();
+
+    if (normalizedRoleName && normalizedRoleName !== defaultRoleName) {
+      void markStepCompleted('nameRole');
+    }
+  }, [
+    defaultRoleName,
+    isOnboardingActive,
+    markStepCompleted,
+    roleFieldsValue
+  ]);
+
+  useEffect(() => {
+    if (!isOnboardingActive || activeOnboardingStep !== 'openProcessTab') {
+      return;
+    }
+
+    if (activeSecondaryTab === 'processes') {
+      void markStepCompleted('openProcessTab');
+    }
+  }, [activeOnboardingStep, activeSecondaryTab, isOnboardingActive, markStepCompleted]);
 
   const departments: DepartmentWithDraftStatus[] = useMemo(() => {
     const persistedById = new Map((departmentsQuery.data ?? []).map((department) => [department.id, department]));
@@ -1242,7 +1297,6 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
       queryClient.setQueryData(['process', data.id], data);
       setEditingProcessId(data.id);
       setRenameDraft(normalizedTitle);
-      void markStepCompleted('createProcess');
     },
     onError: (error) => {
       console.error('Erreur lors de la création du process', error);
@@ -1357,6 +1411,8 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
   });
 
   const isRenaming = renameProcessMutation.isPending;
+  const onboardingRenameDraft =
+    editingProcessId && editingProcessId === currentProcessId ? renameDraft.trim() : '';
 
   const formattedSavedAt = formatDateTime(lastSavedAt);
 
@@ -2216,20 +2272,130 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
     setSelectedStepId(nextSelectedId ?? null);
   };
 
+  useLayoutEffect(() => {
+    if (!isOnboardingActive || activeOnboardingStep !== 'createProcess') {
+      createProcessStepSnapshotRef.current = null;
+      return;
+    }
+
+    if (!createProcessStepSnapshotRef.current) {
+      createProcessStepSnapshotRef.current = {
+        processId: currentProcessId ?? null,
+        normalizedTitle: normalizeProcessTitle(onboardingRenameDraft || processTitle)
+      };
+    }
+  }, [
+    activeOnboardingStep,
+    currentProcessId,
+    isOnboardingActive,
+    onboardingRenameDraft,
+    processTitle
+  ]);
+
   useEffect(() => {
     if (!isOnboardingActive) {
       return;
     }
 
-    const actionableSteps = steps.filter((step) => step.type === 'action' || step.type === 'decision');
-    if (actionableSteps.length > 0) {
-      void markStepCompleted('addStep');
+    const normalizedTitle = normalizeProcessTitle(onboardingRenameDraft || processTitle);
+    if (activeOnboardingStep !== 'createProcess') {
+      createProcessStepSnapshotRef.current = null;
+      return;
     }
 
-    if (actionableSteps.some((step) => step.departmentId !== null || step.roleId !== null)) {
+    if (!createProcessStepSnapshotRef.current) {
+      createProcessStepSnapshotRef.current = { processId: currentProcessId ?? null, normalizedTitle };
+      return;
+    }
+
+    const hasValidTitle = normalizedTitle !== DEFAULT_PROCESS_TITLE;
+    const hasChangedProcess = createProcessStepSnapshotRef.current.processId !== currentProcessId;
+    const hasRenamedTitle = hasValidTitle && normalizedTitle !== createProcessStepSnapshotRef.current.normalizedTitle;
+
+    if (currentProcessId && hasValidTitle && (hasChangedProcess || hasRenamedTitle)) {
+      void markStepCompleted('createProcess');
+    }
+  }, [
+    activeOnboardingStep,
+    currentProcessId,
+    isOnboardingActive,
+    markStepCompleted,
+    onboardingRenameDraft,
+    processTitle
+  ]);
+
+  useEffect(() => {
+    if (!isOnboardingActive || activeOnboardingStep !== 'saveProcess') {
+      saveProcessStepSnapshotRef.current = undefined;
+      return;
+    }
+
+    if (saveProcessStepSnapshotRef.current === undefined) {
+      saveProcessStepSnapshotRef.current = lastSavedAt ?? null;
+      return;
+    }
+
+    if (lastSavedAt && lastSavedAt !== saveProcessStepSnapshotRef.current) {
+      void markStepCompleted('saveProcess');
+    }
+  }, [activeOnboardingStep, isOnboardingActive, lastSavedAt, markStepCompleted]);
+
+  useEffect(() => {
+    if (!isOnboardingActive || activeOnboardingStep !== 'addStep') {
+      addStepSnapshotRef.current = null;
+      return;
+    }
+
+    const actionableSteps = steps.filter((step) => step.type === 'action' || step.type === 'decision');
+    if (addStepSnapshotRef.current === null) {
+      addStepSnapshotRef.current = actionableSteps.length;
+      return;
+    }
+
+    if (actionableSteps.length > addStepSnapshotRef.current) {
+      void markStepCompleted('addStep');
+    }
+  }, [activeOnboardingStep, isOnboardingActive, markStepCompleted, steps]);
+
+  useEffect(() => {
+    if (!isOnboardingActive || activeOnboardingStep !== 'assignStep') {
+      assignStepSnapshotRef.current = null;
+      return;
+    }
+
+    const departmentAssignedSteps = steps.filter(
+      (step) => (step.type === 'action' || step.type === 'decision') && step.departmentId !== null
+    );
+
+    if (assignStepSnapshotRef.current === null) {
+      assignStepSnapshotRef.current = departmentAssignedSteps.length;
+      return;
+    }
+
+    if (departmentAssignedSteps.length > assignStepSnapshotRef.current) {
       void markStepCompleted('assignStep');
     }
-  }, [isOnboardingActive, markStepCompleted, steps]);
+  }, [activeOnboardingStep, isOnboardingActive, markStepCompleted, steps]);
+
+  useEffect(() => {
+    if (!isOnboardingActive || activeOnboardingStep !== 'assignRole') {
+      assignRoleSnapshotRef.current = null;
+      return;
+    }
+
+    const roleAssignedSteps = steps.filter(
+      (step) => (step.type === 'action' || step.type === 'decision') && step.roleId !== null
+    );
+
+    if (assignRoleSnapshotRef.current === null) {
+      assignRoleSnapshotRef.current = roleAssignedSteps.length;
+      return;
+    }
+
+    if (roleAssignedSteps.length > assignRoleSnapshotRef.current) {
+      void markStepCompleted('assignRole');
+    }
+  }, [activeOnboardingStep, isOnboardingActive, markStepCompleted, steps]);
 
   const diagramControlsContentId = useId();
 
@@ -2250,6 +2416,14 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
       disabled={isStepEditingDisabled}
     />
   );
+
+  const onboardingRenameTargetId =
+    isOnboardingActive &&
+    activeOnboardingStep === 'createProcess' &&
+    isProcessesTabActive &&
+    editingProcessId
+      ? 'onboarding-process-rename'
+      : null;
 
   const primaryPanelContent = (
     <PrimaryPanel
@@ -2322,6 +2496,7 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
       processSummaries={processSummaries}
       currentProcessId={currentProcessId}
       editingProcessId={editingProcessId}
+      onboardingRenameTargetId={onboardingRenameTargetId}
       setSelectedProcessId={setSelectedProcessId}
       startEditingProcess={startEditingProcess}
       renameInputRef={renameInputRef}
@@ -2386,7 +2561,12 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
         statusToneClass={statusToneClass}
         statusMessage={statusMessage}
       />
-      {isOnboardingActive ? <OnboardingOverlay activeStep={activeOnboardingStep ?? null} /> : null}
+      {isOnboardingActive ? (
+        <OnboardingOverlay
+          activeStep={activeOnboardingStep ?? null}
+          targetIdOverride={onboardingRenameTargetId}
+        />
+      ) : null}
     </>
   );
 }

@@ -13,9 +13,18 @@ import { useOnboardingOverlay } from './use-onboarding-overlay';
 
 const normalizeProgress = (
   state: OnboardingOverlayState,
-  forceEnable: boolean
+  forceEnable: boolean,
+  isEnabled: boolean
 ): { progress: OnboardingOverlayProgress; isActive: boolean; activeStep: OnboardingStepKey | null } => {
   const baseCompleted = buildDefaultOnboardingStepState();
+
+  if (!isEnabled) {
+    return {
+      progress: { completedSteps: baseCompleted, dismissed: true },
+      isActive: false,
+      activeStep: null
+    };
+  }
 
   if (state && typeof state === 'object' && 'completedSteps' in state) {
     Object.entries(state.completedSteps ?? {}).forEach(([key, value]) => {
@@ -37,20 +46,23 @@ const normalizeProgress = (
   return { progress, isActive, activeStep };
 };
 
-export const useLandingOnboardingOverlay = (forceEnable = false) => {
+export const useLandingOnboardingOverlay = (forceEnable = false, isEnabled = true) => {
   const { overlayState, updateOverlayState } = useOnboardingOverlay();
   const debugHasResetRef = useRef(false);
 
   const { progress, isActive, activeStep } = useMemo(
-    () => normalizeProgress(overlayState, forceEnable),
-    [forceEnable, overlayState]
+    () => normalizeProgress(overlayState, forceEnable, isEnabled),
+    [forceEnable, isEnabled, overlayState]
   );
 
   const persistProgress = useCallback(
     async (nextProgress: OnboardingOverlayProgress) => {
+      if (!isEnabled) {
+        return;
+      }
       await updateOverlayState(nextProgress);
     },
-    [updateOverlayState]
+    [isEnabled, updateOverlayState]
   );
 
   const resetProgress = useCallback(async () => {
@@ -71,6 +83,9 @@ export const useLandingOnboardingOverlay = (forceEnable = false) => {
 
   const markStepCompleted = useCallback(
     async (step: OnboardingStepKey) => {
+      if (!isEnabled) {
+        return;
+      }
       if (!forceEnable && progress.dismissed) {
         return;
       }
@@ -87,7 +102,7 @@ export const useLandingOnboardingOverlay = (forceEnable = false) => {
 
       await persistProgress(nextProgress);
     },
-    [forceEnable, persistProgress, progress.completedSteps, progress.dismissed]
+    [forceEnable, isEnabled, persistProgress, progress.completedSteps, progress.dismissed]
   );
 
   return {

@@ -15,6 +15,7 @@ type Spotlight = {
 
 type OnboardingOverlayProps = {
   activeStep: OnboardingStepKey | null;
+  targetIdOverride?: string | null;
 };
 
 const useSpotlight = (targetId: string | null) => {
@@ -87,7 +88,7 @@ const useSpotlight = (targetId: string | null) => {
   return spotlight;
 };
 
-export function OnboardingOverlay({ activeStep }: OnboardingOverlayProps) {
+export function OnboardingOverlay({ activeStep, targetIdOverride }: OnboardingOverlayProps) {
   const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
@@ -95,7 +96,9 @@ export function OnboardingOverlay({ activeStep }: OnboardingOverlayProps) {
   }, []);
 
   const content = isClient && activeStep ? ONBOARDING_STEP_CONTENT[activeStep] : null;
-  const targetId = isClient && content ? content.targetId : null;
+  const targetId = isClient
+    ? targetIdOverride ?? (content ? content.targetId : null)
+    : null;
   const spotlight = useSpotlight(targetId);
 
   const maskStyle = useMemo(() => {

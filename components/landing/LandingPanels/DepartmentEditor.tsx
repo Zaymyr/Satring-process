@@ -53,6 +53,7 @@ export function DepartmentEditor({
         </div>
         <Input
           {...departmentEditForm.register('name')}
+          id="onboarding-department-name"
           autoFocus
           disabled={isSaving}
           className="h-9 min-w-[12rem] flex-1 rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
@@ -134,6 +135,7 @@ export function DepartmentEditor({
                         <Input
                           {...roleNameControl}
                           value={roleNameControl.value ?? ''}
+                          id={index === departmentRoleFields.fields.length - 1 ? 'onboarding-role-name' : undefined}
                           disabled={isSaving}
                           className="h-8 min-w-[10rem] flex-1 rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
                         />
