@@ -30,6 +30,7 @@ export function FloatingSaveControls({
     >
       <button
         type="button"
+        id="onboarding-save-process"
         onClick={onSave}
         disabled={isSaveDisabled}
         className={cn(

@@ -7,6 +7,7 @@ export const ONBOARDING_STEPS = [
   'nameRole',
   'openProcessTab',
   'createProcess',
+  'saveProcess',
   'addStep',
   'assignStep'
 ] as const;
@@ -54,6 +55,11 @@ export const ONBOARDING_STEP_CONTENT: Record<OnboardingStepKey, { targetId: stri
     targetId: 'onboarding-create-process',
     title: 'Créez un processus',
     description: 'Créez un nouveau processus puis renommez-le avant d’ajouter vos étapes.'
+  },
+  saveProcess: {
+    targetId: 'onboarding-save-process',
+    title: 'Sauvegardez le processus',
+    description: 'Enregistrez vos changements pour confirmer le nom du processus.'
   },
   addStep: {
     targetId: 'onboarding-add-step',

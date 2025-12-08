@@ -313,6 +313,7 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
   const roleFieldsValue = useWatch({ control: departmentEditForm.control, name: 'roles' });
   const editingDepartmentBaselineRef = useRef<Department | null>(null);
   const createProcessStepSnapshotRef = useRef<{ processId: string | null; normalizedTitle: string } | null>(null);
+  const saveProcessStepSnapshotRef = useRef<string | null | undefined>(undefined);
   useEffect(() => {
     editingDepartmentIdRef.current = editingDepartmentId;
   }, [editingDepartmentId]);
@@ -2321,6 +2322,22 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
   ]);
 
   useEffect(() => {
+    if (!isOnboardingActive || activeOnboardingStep !== 'saveProcess') {
+      saveProcessStepSnapshotRef.current = undefined;
+      return;
+    }
+
+    if (saveProcessStepSnapshotRef.current === undefined) {
+      saveProcessStepSnapshotRef.current = lastSavedAt ?? null;
+      return;
+    }
+
+    if (lastSavedAt && lastSavedAt !== saveProcessStepSnapshotRef.current) {
+      void markStepCompleted('saveProcess');
+    }
+  }, [activeOnboardingStep, isOnboardingActive, lastSavedAt, markStepCompleted]);
+
+  useEffect(() => {
     if (!isOnboardingActive) {
       return;
     }
@@ -2330,7 +2347,7 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
       void markStepCompleted('addStep');
     }
 
-    if (actionableSteps.some((step) => step.departmentId !== null && step.roleId !== null)) {
+    if (actionableSteps.some((step) => step.departmentId !== null || step.roleId !== null)) {
       void markStepCompleted('assignStep');
     }
   }, [isOnboardingActive, markStepCompleted, steps]);
