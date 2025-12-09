@@ -68,6 +68,7 @@ import { LanguageSelectorModal } from '@/components/landing/LandingPanels/Langua
 import { useLandingOnboardingOverlay } from '@/hooks/use-landing-onboarding-overlay';
 import { OnboardingOverlay } from '@/components/landing/LandingPanels/OnboardingOverlay';
 import { OnboardingCompletionDialog } from '@/components/landing/LandingPanels/OnboardingCompletionDialog';
+import { ONBOARDING_STEPS } from '@/lib/onboarding/steps';
 
 type IaDepartmentsPayload = Parameters<typeof useProcessIaChat>[0]['departments'];
 
@@ -341,11 +342,29 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
   const { profileQuery } = useProfile();
   const isOnboardingEnabled = profileQuery.isSuccess;
   const {
+    completedSteps: onboardingCompletedSteps,
     activeStep: activeOnboardingStep,
     isActive: isOnboardingActive,
     markStepCompleted
   } = useLandingOnboardingOverlay(shouldForceOnboarding, isOnboardingEnabled);
   const shouldShowLanguageSelector = isOnboardingActive && activeOnboardingStep === 'chooseLanguage';
+
+  const [isOnboardingCompletionDialogOpen, setIsOnboardingCompletionDialogOpen] = useState(false);
+  const hasOpenedOnboardingCompletionRef = useRef(false);
+
+  const hasCompletedOnboarding = useMemo(
+    () => ONBOARDING_STEPS.every((step) => onboardingCompletedSteps[step]),
+    [onboardingCompletedSteps]
+  );
+
+  useEffect(() => {
+    if (!hasCompletedOnboarding || hasOpenedOnboardingCompletionRef.current) {
+      return;
+    }
+
+    setIsOnboardingCompletionDialogOpen(true);
+    hasOpenedOnboardingCompletionRef.current = true;
+  }, [hasCompletedOnboarding]);
 
   const handleLanguageSelected = useCallback(async () => {
     await markStepCompleted('chooseLanguage');
