@@ -166,11 +166,17 @@ export type Dictionary = {
         responseTitle: string;
         applyNotice: string;
       };
-      onboardingCompletion: {
-        title: string;
-        description: string;
-        close: string;
-        newProcess: string;
+      onboarding: {
+        languageSelector: {
+          title: string;
+          description: string;
+          helper: string;
+          dialogAriaLabel: string;
+          options: Record<
+            Locale,
+            { label: string; description: string; flagAlt: string; selectAriaLabel: string }
+          >;
+        };
       };
   };
   raci: {
@@ -556,12 +562,27 @@ const dictionaries: Record<Locale, Dictionary> = {
         responseTitle: 'AI suggestion',
         applyNotice: 'Steps updated in the editor. Review and save to persist.'
       },
-      onboardingCompletion: {
-        title: 'Congratulations! 🎉',
-        description:
-          'You created your first process. Improve it manually or with the IA tab on the left, or start a new one right away.',
-        close: 'Continue improving',
-        newProcess: 'Create another process'
+      onboarding: {
+        languageSelector: {
+          title: 'Choose your language',
+          description: 'Select the language for onboarding and the interface.',
+          helper: 'You can switch languages anytime from the header toggle.',
+          dialogAriaLabel: 'Language selection dialog',
+          options: {
+            en: {
+              label: 'English',
+              description: 'Continue in English',
+              flagAlt: 'United Kingdom flag',
+              selectAriaLabel: 'Use English'
+            },
+            fr: {
+              label: 'Français',
+              description: 'Continuer en français',
+              flagAlt: 'Drapeau français',
+              selectAriaLabel: 'Utiliser le français'
+            }
+          }
+        }
       }
     },
     raci: {
@@ -967,12 +988,27 @@ const dictionaries: Record<Locale, Dictionary> = {
         responseTitle: 'Proposition IA',
         applyNotice: 'Étapes mises à jour dans l’éditeur. Relisez puis sauvegardez pour conserver.'
       },
-      onboardingCompletion: {
-        title: 'Félicitations ! 🎉',
-        description:
-          'Vous avez créé votre premier process. Améliorez-le manuellement ou via l’onglet IA à gauche, ou lancez-en un nouveau immédiatement.',
-        close: 'Continuer à améliorer',
-        newProcess: 'Créer un autre process'
+      onboarding: {
+        languageSelector: {
+          title: 'Choisissez votre langue',
+          description: 'Sélectionnez la langue du tutoriel et de l’interface.',
+          helper: 'Vous pourrez changer de langue à tout moment via le sélecteur en en-tête.',
+          dialogAriaLabel: 'Fenêtre de sélection de langue',
+          options: {
+            en: {
+              label: 'English',
+              description: 'Continue in English',
+              flagAlt: 'Drapeau du Royaume-Uni',
+              selectAriaLabel: 'Utiliser l’anglais'
+            },
+            fr: {
+              label: 'Français',
+              description: 'Continuer en français',
+              flagAlt: 'Drapeau français',
+              selectAriaLabel: 'Utiliser le français'
+            }
+          }
+        }
       }
     },
     raci: {

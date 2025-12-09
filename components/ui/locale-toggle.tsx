@@ -5,7 +5,7 @@ import { Loader2 } from 'lucide-react';
 import { useI18n } from '@/components/providers/i18n-provider';
 import { useLocale, type Locale } from '@/components/providers/locale-provider';
 
-const localeFlag: Record<Locale, { src: string; alt: string }> = {
+export const localeFlag: Record<Locale, { src: string; alt: string }> = {
   en: { src: '/flags/gb.svg', alt: 'United Kingdom flag' },
   fr: { src: '/flags/fr.svg', alt: 'Drapeau français' }
 };
