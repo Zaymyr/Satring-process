@@ -67,7 +67,6 @@ import { ProcessDiagram } from '@/components/landing/LandingPanels/ProcessDiagra
 import { LanguageSelectorModal } from '@/components/landing/LandingPanels/LanguageSelectorModal';
 import { useLandingOnboardingOverlay } from '@/hooks/use-landing-onboarding-overlay';
 import { OnboardingOverlay } from '@/components/landing/LandingPanels/OnboardingOverlay';
-import { ONBOARDING_STEPS } from '@/lib/onboarding/steps';
 import { OnboardingCompletionDialog } from '@/components/landing/LandingPanels/OnboardingCompletionDialog';
 
 type IaDepartmentsPayload = Parameters<typeof useProcessIaChat>[0]['departments'];
@@ -341,17 +340,33 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
   const { invalidateRoles } = useRoles();
   const { profileQuery } = useProfile();
   const isOnboardingEnabled = profileQuery.isSuccess;
-  const {
-    completedSteps: onboardingCompletedSteps,
-    activeStep: activeOnboardingStep,
-    isActive: isOnboardingActive,
-    markStepCompleted
-  } = useLandingOnboardingOverlay(shouldForceOnboarding, isOnboardingEnabled);
+  const { completedSteps, activeStep: activeOnboardingStep, isActive: isOnboardingActive, markStepCompleted } =
+    useLandingOnboardingOverlay(shouldForceOnboarding, isOnboardingEnabled);
   const shouldShowLanguageSelector = isOnboardingActive && activeOnboardingStep === 'chooseLanguage';
+  const [isOnboardingCompletionDialogOpen, setIsOnboardingCompletionDialogOpen] = useState(false);
+  const hasOpenedOnboardingCompletionDialogRef = useRef(false);
 
   const handleLanguageSelected = useCallback(async () => {
     await markStepCompleted('chooseLanguage');
   }, [markStepCompleted]);
+
+  useEffect(() => {
+    if (!isOnboardingEnabled) {
+      return;
+    }
+
+    const allCompleted = Object.values(completedSteps).every(Boolean);
+
+    if (allCompleted && !hasOpenedOnboardingCompletionDialogRef.current) {
+      hasOpenedOnboardingCompletionDialogRef.current = true;
+      setIsOnboardingCompletionDialogOpen(true);
+      return;
+    }
+
+    if (!allCompleted) {
+      hasOpenedOnboardingCompletionDialogRef.current = false;
+    }
+  }, [completedSteps, isOnboardingEnabled]);
 
   const createDepartmentMutation = useMutation<Department, ApiError, void>({
     mutationFn: async () => {

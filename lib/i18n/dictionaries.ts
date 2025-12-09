@@ -166,6 +166,12 @@ export type Dictionary = {
         responseTitle: string;
         applyNotice: string;
       };
+      onboardingCompletion: {
+        title: string;
+        description: string;
+        close: string;
+        newProcess: string;
+      };
       onboarding: {
         languageSelector: {
           title: string;
@@ -561,6 +567,13 @@ const dictionaries: Record<Locale, Dictionary> = {
         validation: 'Write a message before sending.',
         responseTitle: 'AI suggestion',
         applyNotice: 'Steps updated in the editor. Review and save to persist.'
+      },
+      onboardingCompletion: {
+        title: 'Process created and ready to edit',
+        description:
+          'We added a starter process based on your selections. Customize the steps, departments, and roles to match your workflow.',
+        close: 'Continue later',
+        newProcess: 'Create another process'
       },
       onboarding: {
         languageSelector: {
@@ -987,6 +1000,13 @@ const dictionaries: Record<Locale, Dictionary> = {
         validation: 'Saisissez un message avant d’envoyer.',
         responseTitle: 'Proposition IA',
         applyNotice: 'Étapes mises à jour dans l’éditeur. Relisez puis sauvegardez pour conserver.'
+      },
+      onboardingCompletion: {
+        title: 'Process créé et prêt à être édité',
+        description:
+          'Nous avons ajouté un process de départ selon vos choix. Personnalisez les étapes, départements et rôles pour refléter votre organisation.',
+        close: 'Continuer plus tard',
+        newProcess: 'Créer un autre process'
       },
       onboarding: {
         languageSelector: {
