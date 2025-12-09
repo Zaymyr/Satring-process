@@ -166,6 +166,12 @@ export type Dictionary = {
         responseTitle: string;
         applyNotice: string;
       };
+      onboardingCompletion: {
+        title: string;
+        description: string;
+        close: string;
+        newProcess: string;
+      };
   };
   raci: {
     metadata: {
@@ -549,6 +555,13 @@ const dictionaries: Record<Locale, Dictionary> = {
         validation: 'Write a message before sending.',
         responseTitle: 'AI suggestion',
         applyNotice: 'Steps updated in the editor. Review and save to persist.'
+      },
+      onboardingCompletion: {
+        title: 'Congratulations! 🎉',
+        description:
+          'You created your first process. Improve it manually or with the IA tab on the left, or start a new one right away.',
+        close: 'Continue improving',
+        newProcess: 'Create another process'
       }
     },
     raci: {
@@ -953,6 +966,13 @@ const dictionaries: Record<Locale, Dictionary> = {
         validation: 'Saisissez un message avant d’envoyer.',
         responseTitle: 'Proposition IA',
         applyNotice: 'Étapes mises à jour dans l’éditeur. Relisez puis sauvegardez pour conserver.'
+      },
+      onboardingCompletion: {
+        title: 'Félicitations ! 🎉',
+        description:
+          'Vous avez créé votre premier process. Améliorez-le manuellement ou via l’onglet IA à gauche, ou lancez-en un nouveau immédiatement.',
+        close: 'Continuer à améliorer',
+        newProcess: 'Créer un autre process'
       }
     },
     raci: {
