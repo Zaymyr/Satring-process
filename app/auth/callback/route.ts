@@ -39,8 +39,10 @@ export async function GET(request: Request) {
 
   if (rawNext && rawNext.startsWith('/')) {
     nextPath = rawNext;
-  } else if (!rawNext && (type === 'invite' || type === 'signup' || type === 'recovery')) {
-    nextPath = '/reset-password';
+  } else if (!rawNext) {
+    if (type === 'invite' || type === 'recovery') {
+      nextPath = '/reset-password';
+    }
   }
 
   return NextResponse.redirect(new URL(nextPath, requestUrl.origin));

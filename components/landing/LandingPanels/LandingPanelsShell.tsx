@@ -67,6 +67,8 @@ import { ProcessDiagram } from '@/components/landing/LandingPanels/ProcessDiagra
 import { LanguageSelectorModal } from '@/components/landing/LandingPanels/LanguageSelectorModal';
 import { useLandingOnboardingOverlay } from '@/hooks/use-landing-onboarding-overlay';
 import { OnboardingOverlay } from '@/components/landing/LandingPanels/OnboardingOverlay';
+import { ONBOARDING_STEPS } from '@/lib/onboarding/steps';
+import { OnboardingCompletionDialog } from '@/components/landing/LandingPanels/OnboardingCompletionDialog';
 
 type IaDepartmentsPayload = Parameters<typeof useProcessIaChat>[0]['departments'];
 
@@ -244,7 +246,8 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
       status: statusMessages,
       saveButton: saveButtonLabels,
       diagramControls,
-      ia: iaPanel
+      ia: iaPanel,
+      onboardingCompletion
     }
   } = dictionary;
   const stepTypeLabels = primaryPanel.stepLabels;
@@ -339,6 +342,7 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
   const { profileQuery } = useProfile();
   const isOnboardingEnabled = profileQuery.isSuccess;
   const {
+    completedSteps: onboardingCompletedSteps,
     activeStep: activeOnboardingStep,
     isActive: isOnboardingActive,
     markStepCompleted
@@ -1318,6 +1322,15 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
 
     createProcessMutation.mutate(undefined);
   }, [createProcessMutation, isCreating, isProcessEditorReadOnly]);
+
+  const handleOnboardingCompletionDismiss = useCallback(() => {
+    setIsOnboardingCompletionDialogOpen(false);
+  }, []);
+
+  const handleCreateProcessFromOnboarding = useCallback(() => {
+    handleOnboardingCompletionDismiss();
+    handleCreateProcess();
+  }, [handleCreateProcess, handleOnboardingCompletionDismiss]);
 
   const renameProcessMutation = useMutation<ProcessSummary, ApiError, { id: string; title: string }>({
     mutationFn: (input) => renameProcessRequest(landingErrorMessages, input),
@@ -2576,6 +2589,16 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
           targetIdOverride={onboardingRenameTargetId}
         />
       ) : null}
+      <OnboardingCompletionDialog
+        open={isOnboardingCompletionDialogOpen}
+        title={onboardingCompletion.title}
+        description={onboardingCompletion.description}
+        closeLabel={onboardingCompletion.close}
+        newProcessLabel={onboardingCompletion.newProcess}
+        isCreatingProcess={isCreating}
+        onClose={handleOnboardingCompletionDismiss}
+        onCreateProcess={handleCreateProcessFromOnboarding}
+      />
     </>
   );
 }

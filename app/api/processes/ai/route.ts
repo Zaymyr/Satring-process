@@ -350,53 +350,67 @@ export async function POST(request: Request) {
 
   try {
     completion = await performChatCompletion({
-      messages: [
-        {
-          role: 'system',
-          content:
-            [
-              'Tu es un expert en cartographie de processus (bilingue français/anglais).',
-              'A partir du processus fourni, propose une version améliorée en respectant strictement le schéma JSON indiqué.',
-              [
-                "Réutilise uniquement les UUID fournis pour departmentId/roleId.",
-                "Pour proposer un nouveau département, laisse departmentId à null et renseigne draftDepartmentName avec le nom suggéré (pas d'UUID inventé).",
-                "Pour proposer un nouveau rôle sur un département existant, fournis departmentId (UUID connu), mets roleId à null et renseigne draftRoleName.",
-                "Pour un nouveau rôle sur un nouveau département, laisse departmentId/roleId à null et fournis draftDepartmentName et draftRoleName.",
-                "Ne génère jamais d'UUID provisoire ni de placeholders ; utilise les champs draft* pour toute création."
-              ].join('\n'),
-              "La sortie doit uniquement contenir l'objet JSON final (aucun texte libre) avec deux clés obligatoires : process (processus à jour conforme au schéma) et reply (message concis destiné à l'utilisateur)."
-            ].join('\n')
-        },
-        {
-          role: 'user',
-          content: [
-            'Référentiel des départements et rôles autorisés (réutilise uniquement ces UUID) :',
-            departmentsContext,
-            'Processus actuel :',
-            grounding,
-            'Contexte supplémentaire :',
-            parsedBody.data.context || 'Aucun contexte fourni.',
-            'Demande utilisateur :',
-            parsedBody.data.prompt,
-            [
-              'Pour chaque étape :',
-              '- departmentId/roleId doivent correspondre aux UUID du référentiel ci-dessus.',
-              "- Si tu proposes un nouveau département, laisse departmentId à null et remplis draftDepartmentName (pas d'UUID inventé).",
-              "- Si tu proposes un nouveau rôle dans un département existant, indique son departmentId, mets roleId à null et remplis draftRoleName.",
-              "- Si département et rôle sont tous deux nouveaux, garde departmentId/roleId à null et fournis draftDepartmentName et draftRoleName.",
-              "- N'invente jamais d'UUID ou d'identifiant temporaire : utilise uniquement les champs draft*.",
-              'Le champ reply doit :',
-              '- résumer brièvement la proposition (2 phrases max) ;',
-              "- poser une question de clarification si des informations manquent (1 question courte maximum)."
-            ].join('\n')
-          ].join('\n\n')
-        }
-      ],
-      model: 'gpt-4.1-mini',
-      temperature: 0.2,
-      maxTokens: 2000,
-      responseFormat: { type: 'json_schema', json_schema: { name: 'process_payload', schema: aiResponseSchema } }
-    });
+  messages: [
+    {
+      role: 'system',
+      content: [
+        'Tu es un expert en cartographie de processus et en organisation (bilingue français/anglais).',
+        'Ton objectif principal est de comprendre le processus métier, de clarifier la logique des étapes et de proposer une répartition cohérente des responsabilités (départements et rôles).',
+        '',
+        'Règles importantes :',
+        '- Tu dois toujours renvoyer un objet JSON valide qui respecte strictement le schéma fourni (process + reply).',
+        '- Pour les identifiants de départements et de rôles :',
+        '  • Si tu fais référence à un département ou un rôle existant, tu dois réutiliser EXACTEMENT son UUID tel qu’il apparaît dans le référentiel.',
+        '  • Si tu souhaites proposer un NOUVEAU département, laisse departmentId à null et renseigne draftDepartmentName avec le nom du département (sans inventer d’UUID).',
+        '  • Si tu souhaites proposer un NOUVEAU rôle sur un département existant, renseigne departmentId avec un UUID existant, mets roleId à null et renseigne draftRoleName.',
+        '  • Si tu souhaites proposer un NOUVEAU rôle sur un NOUVEAU département, laisse departmentId/roleId à null et renseigne draftDepartmentName et draftRoleName.',
+        '  • N’invente jamais d’UUID ni d’identifiant temporaire : toute création passe par les champs draft*.',
+        '',
+        'Priorité métier :',
+        '- Cherche à éviter les étapes sans responsable : pour chaque étape, essaye soit de trouver le meilleur département/rôle existant, soit de proposer un nouveau département/rôle cohérent via les champs draft*.',
+        '- Regroupe les actions par logique métier (préparation, validation, exécution, contrôle, communication, etc.) et tiens compte de qui est le plus légitime pour réaliser chaque étape.'
+      ].join('\n')
+    },
+    {
+      role: 'user',
+      content: [
+        'Référentiel des départements et rôles existants (réutilise uniquement ces UUID pour departmentId/roleId) :',
+        departmentsContext,
+        '',
+        'Processus actuel (id, titre, steps) :',
+        grounding,
+        '',
+        'Contexte métier supplémentaire :',
+        parsedBody.data.context || 'Aucun contexte métier additionnel fourni.',
+        '',
+        'Demande utilisateur :',
+        parsedBody.data.prompt,
+        '',
+        'Tâche à effectuer :',
+        '- Analyse le processus du point de vue métier : objectif, enchaînement logique, acteurs impliqués.',
+        '- Améliore la clarté du processus (labels, ordre, éventuels splits/decisions) sans le compliquer inutilement.',
+        '- Pour chaque étape, choisis le département et le rôle le plus pertinent dans le référentiel ou propose-en un nouveau via draftDepartmentName/draftRoleName si nécessaire.',
+        '-Tu as le droit de réorganiser les étapes si cela rend le processus plus logique (sans en ajouter inutilement)',
+        '',
+        'Contraintes de sortie :',
+        '- La réponse doit être un objet JSON unique avec exactement deux propriétés :',
+        '  • "process" : le processus complet mis à jour, conforme au schéma (id existant, title, steps avec departmentId/roleId/draft*).',
+        '  • "reply" : un court message pour l’utilisateur (max 3 phrases) qui :',
+        '    · résume les principaux changements (ex : nouveaux départements/rôles, étapes restructurées),',
+        '    · pose éventuellement UNE question de clarification si des informations importantes manquent.',
+        '- Ne retourne aucun texte en dehors de cet objet JSON.'
+      ].join('\n')
+    }
+  ],
+  model: 'gpt-4.1-mini',
+  temperature: 0.4,      // <— un peu plus haut pour encourager les propositions
+  maxTokens: 2000,
+  responseFormat: {
+    type: 'json_schema',
+    json_schema: { name: 'process_payload', schema: aiResponseSchema }
+  }
+});
+
   } catch (generationError) {
     console.error('Erreur OpenAI lors de la génération du process', generationError);
     const message =

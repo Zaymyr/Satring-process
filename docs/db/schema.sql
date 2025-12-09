@@ -309,6 +309,7 @@ as $$
 declare
     existing_org_id uuid;
     org_name text;
+    starter_plan_id uuid;
 begin
     select id into existing_org_id
     from public.organizations
@@ -333,7 +334,18 @@ begin
 
     insert into public.organizations (name, created_by)
     values (org_name, new.id)
-    on conflict do nothing;
+    returning id into existing_org_id;
+
+    select id into starter_plan_id
+    from public.subscription_plans
+    where slug = 'starter'
+    limit 1;
+
+    if starter_plan_id is not null then
+        insert into public.organization_plan_subscriptions (organization_id, plan_id)
+        values (existing_org_id, starter_plan_id)
+        on conflict (organization_id) do update set plan_id = excluded.plan_id;
+    end if;
 
     return new;
 end;
