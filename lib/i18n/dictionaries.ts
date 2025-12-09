@@ -178,7 +178,13 @@ export type Dictionary = {
           >;
         };
       };
-  };
+      onboardingCompletion: {
+        title: string;
+        description: string;
+        close: string;
+        newProcess: string;
+      };
+    };
   raci: {
     metadata: {
       title: string;
@@ -583,6 +589,12 @@ const dictionaries: Record<Locale, Dictionary> = {
             }
           }
         }
+      },
+      onboardingCompletion: {
+        title: 'Onboarding completed',
+        description: 'Your workspace is ready. You can start a new process now or keep exploring.',
+        close: 'Close',
+        newProcess: 'Create a process'
       }
     },
     raci: {
@@ -1009,6 +1021,12 @@ const dictionaries: Record<Locale, Dictionary> = {
             }
           }
         }
+      },
+      onboardingCompletion: {
+        title: 'Tutoriel terminé',
+        description: 'Votre espace est prêt. Vous pouvez créer un nouveau process ou continuer la visite.',
+        close: 'Fermer',
+        newProcess: 'Créer un process'
       }
     },
     raci: {
