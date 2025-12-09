@@ -30,6 +30,8 @@ type ProcessListPanelProps = {
   labels: SecondaryPanelLabels['processes'];
   statusMessages: StatusMessages;
   isProcessManagementRestricted: boolean;
+  formatDateTime: (date: string | number | Date | null | undefined) => string | null;
+  formatTemplateText: (template: string, value: string | null, token?: string) => string | null;
 };
 
 export function ProcessListPanel({
@@ -53,7 +55,9 @@ export function ProcessListPanel({
   deleteProcessMutation,
   labels,
   statusMessages,
-  isProcessManagementRestricted
+  isProcessManagementRestricted,
+  formatDateTime,
+  formatTemplateText
 }: ProcessListPanelProps) {
   if (isUnauthorized) {
     return <p className="text-sm text-slate-600">{errorMessage}</p>;
@@ -86,6 +90,10 @@ export function ProcessListPanel({
         const isSelected = summary.id === currentProcessId;
         const isEditing = editingProcessId === summary.id;
         const isDeleting = deleteProcessMutation.isPending && deleteProcessMutation.variables === summary.id;
+        const formattedUpdatedAt = formatDateTime(summary.updatedAt);
+        const updatedLabel = formattedUpdatedAt
+          ? formatTemplateText(labels.updatedLabel, formattedUpdatedAt) ?? formattedUpdatedAt
+          : null;
 
         return (
           <li key={summary.id} role="treeitem" aria-selected={isSelected} className="focus:outline-none">
@@ -157,7 +165,7 @@ export function ProcessListPanel({
                     ) : (
                       <div className="space-y-1">
                         <p className="truncate text-sm font-semibold text-slate-900">{summary.title}</p>
-                        <p className="text-xs text-slate-500">{summary.updatedAt}</p>
+                        {updatedLabel ? <p className="text-xs text-slate-500">{updatedLabel}</p> : null}
                       </div>
                     )}
                   </div>
