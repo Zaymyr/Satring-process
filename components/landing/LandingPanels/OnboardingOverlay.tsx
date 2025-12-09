@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 
-import { useI18n } from '@/components/providers/i18n-provider';
 import { cn } from '@/lib/utils/cn';
 import { ONBOARDING_STEP_CONTENT, type OnboardingStepKey } from '@/lib/onboarding/steps';
 
@@ -91,20 +90,12 @@ const useSpotlight = (targetId: string | null) => {
 
 export function OnboardingOverlay({ activeStep, targetIdOverride }: OnboardingOverlayProps) {
   const [isClient, setIsClient] = useState(false);
-  const { locale } = useI18n();
 
   useEffect(() => {
     setIsClient(true);
   }, []);
 
   const content = isClient && activeStep ? ONBOARDING_STEP_CONTENT[activeStep] : null;
-  const localizedContent = content
-    ? {
-        ...content,
-        title: content.title[locale] ?? content.title.en,
-        description: content.description[locale] ?? content.description.en
-      }
-    : null;
   const targetId = isClient
     ? targetIdOverride ?? (content ? content.targetId : null)
     : null;
@@ -124,7 +115,7 @@ export function OnboardingOverlay({ activeStep, targetIdOverride }: OnboardingOv
     };
   }, [spotlight]);
 
-  if (!isClient || !localizedContent || !spotlight) {
+  if (!isClient || !content || !spotlight) {
     return null;
   }
 
@@ -158,8 +149,8 @@ export function OnboardingOverlay({ activeStep, targetIdOverride }: OnboardingOv
               : 380
         }}
       >
-        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{localizedContent.title}</p>
-        <p className="text-sm text-slate-800">{localizedContent.description}</p>
+        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{content.title}</p>
+        <p className="text-sm text-slate-800">{content.description}</p>
       </div>
       <div
         className={cn(

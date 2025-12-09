@@ -4,7 +4,6 @@ import type { ReactNode } from 'react';
 import { createContext, useContext, useMemo } from 'react';
 import type { Dictionary, Locale } from '@/lib/i18n/dictionaries';
 import { getDictionary } from '@/lib/i18n/dictionaries';
-import { useLocale } from './locale-provider';
 
 type I18nContextValue = {
   locale: Locale;
@@ -22,18 +21,14 @@ export function I18nProvider({
   dictionary?: Dictionary;
   children: ReactNode;
 }) {
-  const localeContext = useLocale();
-  const resolvedLocale = localeContext?.locale ?? locale;
-
   const value = useMemo<I18nContextValue>(() => {
-    const resolvedDictionary =
-      dictionary && locale === resolvedLocale ? dictionary : getDictionary(resolvedLocale);
+    const resolvedDictionary = dictionary ?? getDictionary(locale);
 
     return {
-      locale: resolvedLocale,
+      locale,
       dictionary: resolvedDictionary
     };
-  }, [dictionary, locale, resolvedLocale]);
+  }, [dictionary, locale]);
 
   return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>;
 }
