@@ -22,6 +22,7 @@ export type SecondaryPanelLabels = {
     loading: string;
     listAriaLabel: string;
     deleteAriaLabel: string;
+    updatedLabel: string;
     rename: { save: string; cancel: string; ariaLabel: string };
   };
   departments: {
@@ -340,6 +341,8 @@ export function SecondaryPanel({
                 labels={secondaryPanel.processes}
                 statusMessages={statusMessages}
                 isProcessManagementRestricted={isProcessManagementRestricted}
+                formatDateTime={formatDateTime}
+                formatTemplateText={formatTemplateText}
               />
             </div>
               <div
