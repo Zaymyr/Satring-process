@@ -67,7 +67,6 @@ import { ProcessDiagram } from '@/components/landing/LandingPanels/ProcessDiagra
 import { LanguageSelectorModal } from '@/components/landing/LandingPanels/LanguageSelectorModal';
 import { useLandingOnboardingOverlay } from '@/hooks/use-landing-onboarding-overlay';
 import { OnboardingOverlay } from '@/components/landing/LandingPanels/OnboardingOverlay';
-import { ONBOARDING_STEPS } from '@/lib/onboarding/steps';
 import { OnboardingCompletionDialog } from '@/components/landing/LandingPanels/OnboardingCompletionDialog';
 
 type IaDepartmentsPayload = Parameters<typeof useProcessIaChat>[0]['departments'];
@@ -342,7 +341,6 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
   const { profileQuery } = useProfile();
   const isOnboardingEnabled = profileQuery.isSuccess;
   const {
-    completedSteps: onboardingCompletedSteps,
     activeStep: activeOnboardingStep,
     isActive: isOnboardingActive,
     markStepCompleted
