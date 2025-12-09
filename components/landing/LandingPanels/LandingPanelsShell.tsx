@@ -64,7 +64,6 @@ import { useDepartments, createDepartment, deleteDepartment, fetchDepartments, u
 import { useRoles, createRole, deleteRole, updateRole } from '@/hooks/use-roles';
 import { useProfile } from '@/hooks/use-profile';
 import { ProcessDiagram } from '@/components/landing/LandingPanels/ProcessDiagram';
-import { LanguageSelectorModal } from '@/components/landing/LandingPanels/LanguageSelectorModal';
 import { useLandingOnboardingOverlay } from '@/hooks/use-landing-onboarding-overlay';
 import { OnboardingOverlay } from '@/components/landing/LandingPanels/OnboardingOverlay';
 import { ONBOARDING_STEPS } from '@/lib/onboarding/steps';
@@ -347,11 +346,20 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
     isActive: isOnboardingActive,
     markStepCompleted
   } = useLandingOnboardingOverlay(shouldForceOnboarding, isOnboardingEnabled);
-  const shouldShowLanguageSelector = isOnboardingActive && activeOnboardingStep === 'chooseLanguage';
+  const [isOnboardingCompletionDialogOpen, setIsOnboardingCompletionDialogOpen] = useState(false);
+  const hasOnboardingCompleted = useMemo(
+    () => ONBOARDING_STEPS.every((step) => onboardingCompletedSteps[step]),
+    [onboardingCompletedSteps]
+  );
+  const hasTrackedOnboardingCompletionRef = useRef(hasOnboardingCompleted);
 
-  const handleLanguageSelected = useCallback(async () => {
-    await markStepCompleted('chooseLanguage');
-  }, [markStepCompleted]);
+  useEffect(() => {
+    if (hasOnboardingCompleted && !hasTrackedOnboardingCompletionRef.current) {
+      setIsOnboardingCompletionDialogOpen(true);
+    }
+
+    hasTrackedOnboardingCompletionRef.current = hasOnboardingCompleted;
+  }, [hasOnboardingCompleted]);
 
   const createDepartmentMutation = useMutation<Department, ApiError, void>({
     mutationFn: async () => {
@@ -2580,10 +2588,7 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
         statusToneClass={statusToneClass}
         statusMessage={statusMessage}
       />
-      {shouldShowLanguageSelector ? (
-        <LanguageSelectorModal isOpen onLocaleSelected={handleLanguageSelected} />
-      ) : null}
-      {isOnboardingActive && activeOnboardingStep && activeOnboardingStep !== 'chooseLanguage' ? (
+      {isOnboardingActive ? (
         <OnboardingOverlay
           activeStep={activeOnboardingStep ?? null}
           targetIdOverride={onboardingRenameTargetId}

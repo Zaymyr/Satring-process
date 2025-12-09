@@ -14,7 +14,7 @@ const LocaleSchema = z.object({
 
 type LocaleContextValue = {
   locale: Locale;
-  setLocale: (value: Locale) => Promise<boolean>;
+  setLocale: (value: Locale) => Promise<void>;
   isPending: boolean;
 };
 
@@ -34,7 +34,7 @@ export function LocaleProvider({
   const setLocale = useCallback(
     async (value: Locale) => {
       if (value === locale) {
-        return true;
+        return;
       }
 
       setLocaleState(value);
@@ -49,14 +49,12 @@ export function LocaleProvider({
 
       if (!response.ok) {
         setLocaleState(locale);
-        return false;
+        return;
       }
 
       startTransition(() => {
         router.refresh();
       });
-
-      return true;
     },
     [locale, router]
   );
