@@ -28,6 +28,11 @@ type ProcessShellProps = {
   statusMessage: ReactNode;
 };
 
+type PanelLayoutStyle = CSSProperties & {
+  '--primary-width': string;
+  '--secondary-width': string;
+};
+
 export function ProcessShell({
   diagramDefinition,
   fallbackDiagram,
@@ -50,9 +55,9 @@ export function ProcessShell({
   const [isSecondaryCollapsed, setIsSecondaryCollapsed] = useState(false);
   const [isBottomCollapsed, setIsBottomCollapsed] = useState(false);
 
-  const primaryWidth = isPrimaryCollapsed ? '3.5rem' : 'clamp(13.5rem, 21vw, 25.5rem)';
-  const secondaryWidth = isSecondaryCollapsed ? '3.5rem' : 'clamp(16rem, 22vw, 26rem)';
-  const layoutStyle = useMemo<CSSProperties>(
+  const primaryWidth = isPrimaryCollapsed ? 'min(3.5rem, 100%)' : 'min(100%, clamp(13.5rem, 21vw, 25.5rem))';
+  const secondaryWidth = isSecondaryCollapsed ? 'min(3.5rem, 100%)' : 'min(100%, clamp(16rem, 22vw, 26rem))';
+  const layoutStyle = useMemo<PanelLayoutStyle>(
     () => ({
       '--primary-width': primaryWidth,
       '--secondary-width': secondaryWidth
@@ -82,10 +87,17 @@ export function ProcessShell({
               onClick={() => setIsPrimaryCollapsed((prev) => !prev)}
               aria-expanded={!isPrimaryCollapsed}
               aria-controls="primary-panel"
-              className={cn(
-                'absolute right-3 top-3 z-20 flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white/90 text-slate-600 shadow-sm transition hover:bg-white',
-                'lg:right-0 lg:top-1/2 lg:-translate-y-1/2 lg:translate-x-1/2'
-              )}
+              className="absolute right-3 top-3 z-20 flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white/90 text-slate-600 shadow-sm transition hover:bg-white lg:hidden"
+            >
+              {isPrimaryCollapsed ? <ChevronRight className="h-5 w-5" /> : <ChevronLeft className="h-5 w-5" />}
+              <span className="sr-only">{primaryToggleLabel}</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsPrimaryCollapsed((prev) => !prev)}
+              aria-expanded={!isPrimaryCollapsed}
+              aria-controls="primary-panel"
+              className="absolute right-0 top-1/2 z-20 hidden h-10 w-10 -translate-y-1/2 translate-x-1/2 items-center justify-center rounded-full border border-slate-200 bg-white/90 text-slate-600 shadow-sm transition hover:bg-white lg:flex"
             >
               {isPrimaryCollapsed ? <ChevronRight className="h-5 w-5" /> : <ChevronLeft className="h-5 w-5" />}
               <span className="sr-only">{primaryToggleLabel}</span>
@@ -110,10 +122,17 @@ export function ProcessShell({
               onClick={() => setIsSecondaryCollapsed((prev) => !prev)}
               aria-expanded={!isSecondaryCollapsed}
               aria-controls="secondary-panel"
-              className={cn(
-                'absolute right-3 top-3 z-20 flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white/90 text-slate-600 shadow-sm transition hover:bg-white',
-                'lg:left-0 lg:top-1/2 lg:-translate-y-1/2 lg:-translate-x-1/2'
-              )}
+              className="absolute right-3 top-3 z-20 flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white/90 text-slate-600 shadow-sm transition hover:bg-white lg:hidden"
+            >
+              {isSecondaryCollapsed ? <ChevronLeft className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
+              <span className="sr-only">{secondaryToggleLabel}</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsSecondaryCollapsed((prev) => !prev)}
+              aria-expanded={!isSecondaryCollapsed}
+              aria-controls="secondary-panel"
+              className="absolute left-0 top-1/2 z-20 hidden h-10 w-10 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-slate-200 bg-white/90 text-slate-600 shadow-sm transition hover:bg-white lg:flex"
             >
               {isSecondaryCollapsed ? <ChevronLeft className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
               <span className="sr-only">{secondaryToggleLabel}</span>
