@@ -83,7 +83,8 @@ export function ProcessShell({
               aria-expanded={!isPrimaryCollapsed}
               aria-controls="primary-panel"
               className={cn(
-                'absolute right-0 top-1/2 z-20 flex h-10 w-10 -translate-y-1/2 translate-x-1/2 items-center justify-center rounded-full border border-slate-200 bg-white/90 text-slate-600 shadow-sm transition hover:bg-white'
+                'absolute right-3 top-3 z-20 flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white/90 text-slate-600 shadow-sm transition hover:bg-white',
+                'lg:right-0 lg:top-1/2 lg:-translate-y-1/2 lg:translate-x-1/2'
               )}
             >
               {isPrimaryCollapsed ? <ChevronRight className="h-5 w-5" /> : <ChevronLeft className="h-5 w-5" />}
@@ -110,7 +111,8 @@ export function ProcessShell({
               aria-expanded={!isSecondaryCollapsed}
               aria-controls="secondary-panel"
               className={cn(
-                'absolute left-0 top-1/2 z-20 flex h-10 w-10 -translate-y-1/2 -translate-x-1/2 items-center justify-center rounded-full border border-slate-200 bg-white/90 text-slate-600 shadow-sm transition hover:bg-white'
+                'absolute right-3 top-3 z-20 flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white/90 text-slate-600 shadow-sm transition hover:bg-white',
+                'lg:left-0 lg:top-1/2 lg:-translate-y-1/2 lg:-translate-x-1/2'
               )}
             >
               {isSecondaryCollapsed ? <ChevronLeft className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
