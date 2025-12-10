@@ -5,7 +5,6 @@ import { createServerClient } from '@/lib/supabase/server';
 import { getServerUser } from '@/lib/supabase/auth';
 import { createDefaultProcessPayload, DEFAULT_PROCESS_TITLE } from '@/lib/process/defaults';
 import { getInviteDemoProcessSummaries } from '@/lib/process/demo';
-import { ensureSampleDataSeeded } from '@/lib/onboarding/sample-seed';
 import { processResponseSchema, processSummarySchema, type ProcessResponse } from '@/lib/validation/process';
 import {
   fetchUserOrganizations,
@@ -166,12 +165,6 @@ export async function GET() {
 
   if (accessibleOrganizationIds.length === 0) {
     return NextResponse.json([], { headers: NO_STORE_HEADERS });
-  }
-
-  try {
-    await ensureSampleDataSeeded(supabase);
-  } catch (seedError) {
-    console.error('Erreur lors de la préparation des données de démonstration (processes)', seedError);
   }
 
   const { data, error } = await supabase
