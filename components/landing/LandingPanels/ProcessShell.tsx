@@ -28,6 +28,11 @@ type ProcessShellProps = {
   statusMessage: ReactNode;
 };
 
+type PanelLayoutStyle = CSSProperties & {
+  '--primary-width': string;
+  '--secondary-width': string;
+};
+
 export function ProcessShell({
   diagramDefinition,
   fallbackDiagram,
@@ -50,11 +55,12 @@ export function ProcessShell({
   const [isSecondaryCollapsed, setIsSecondaryCollapsed] = useState(false);
   const [isBottomCollapsed, setIsBottomCollapsed] = useState(false);
 
-  const primaryWidth = isPrimaryCollapsed ? '3.5rem' : 'clamp(13.5rem, 21vw, 25.5rem)';
-  const secondaryWidth = isSecondaryCollapsed ? '3.5rem' : 'clamp(16rem, 22vw, 26rem)';
-  const layoutStyle = useMemo<CSSProperties>(
+  const primaryWidth = isPrimaryCollapsed ? 'min(3.5rem, 100%)' : 'min(100%, clamp(13.5rem, 21vw, 25.5rem))';
+  const secondaryWidth = isSecondaryCollapsed ? 'min(3.5rem, 100%)' : 'min(100%, clamp(16rem, 22vw, 26rem))';
+  const layoutStyle = useMemo<PanelLayoutStyle>(
     () => ({
-      gridTemplateColumns: `${primaryWidth} minmax(0, 1fr) ${secondaryWidth}`
+      '--primary-width': primaryWidth,
+      '--secondary-width': secondaryWidth
     }),
     [primaryWidth, secondaryWidth]
   );
@@ -70,21 +76,28 @@ export function ProcessShell({
       />
       <div className="pointer-events-none relative z-10 flex h-full min-h-0 w-full flex-col gap-3 px-2.5 py-4 lg:px-5 lg:py-6 xl:px-6">
         <div
-          className="pointer-events-none flex min-h-0 flex-1 flex-col gap-4 lg:grid lg:[grid-template-rows:minmax(0,1fr)_auto] lg:items-stretch lg:gap-0"
+          className="pointer-events-none flex min-h-0 flex-1 flex-col gap-4 lg:grid lg:[grid-template-rows:minmax(0,1fr)_auto] lg:[grid-template-columns:var(--primary-width)_minmax(0,1fr)_var(--secondary-width)] lg:items-stretch lg:gap-0"
           style={layoutStyle}
         >
           <div
-            className="pointer-events-auto relative flex h-full min-h-0 shrink-0 items-stretch overflow-visible transition-[width] duration-300 ease-out lg:col-start-1 lg:row-start-1 lg:row-span-2 lg:h-full lg:min-h-0"
-            style={{ width: primaryWidth }}
+            className="pointer-events-auto relative flex h-full min-h-0 w-full shrink-0 items-stretch overflow-visible transition-[width] duration-300 ease-out lg:col-start-1 lg:row-start-1 lg:row-span-2 lg:h-full lg:min-h-0 lg:w-[var(--primary-width)]"
           >
             <button
               type="button"
               onClick={() => setIsPrimaryCollapsed((prev) => !prev)}
               aria-expanded={!isPrimaryCollapsed}
               aria-controls="primary-panel"
-              className={cn(
-                'absolute right-0 top-1/2 z-20 flex h-10 w-10 -translate-y-1/2 translate-x-1/2 items-center justify-center rounded-full border border-slate-200 bg-white/90 text-slate-600 shadow-sm transition hover:bg-white'
-              )}
+              className="absolute right-3 top-3 z-20 flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white/90 text-slate-600 shadow-sm transition hover:bg-white lg:hidden"
+            >
+              {isPrimaryCollapsed ? <ChevronRight className="h-5 w-5" /> : <ChevronLeft className="h-5 w-5" />}
+              <span className="sr-only">{primaryToggleLabel}</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsPrimaryCollapsed((prev) => !prev)}
+              aria-expanded={!isPrimaryCollapsed}
+              aria-controls="primary-panel"
+              className="absolute right-0 top-1/2 z-20 hidden h-10 w-10 -translate-y-1/2 translate-x-1/2 items-center justify-center rounded-full border border-slate-200 bg-white/90 text-slate-600 shadow-sm transition hover:bg-white lg:flex"
             >
               {isPrimaryCollapsed ? <ChevronRight className="h-5 w-5" /> : <ChevronLeft className="h-5 w-5" />}
               <span className="sr-only">{primaryToggleLabel}</span>
@@ -102,17 +115,24 @@ export function ProcessShell({
             </div>
           </div>
           <div
-            className="pointer-events-auto relative flex h-full min-h-0 shrink-0 items-stretch overflow-visible transition-[width] duration-300 ease-out lg:col-start-3 lg:row-start-1 lg:row-span-2 lg:h-full lg:min-h-0"
-            style={{ width: secondaryWidth }}
+            className="pointer-events-auto relative flex h-full min-h-0 w-full shrink-0 items-stretch overflow-visible transition-[width] duration-300 ease-out lg:col-start-3 lg:row-start-1 lg:row-span-2 lg:h-full lg:min-h-0 lg:w-[var(--secondary-width)]"
           >
             <button
               type="button"
               onClick={() => setIsSecondaryCollapsed((prev) => !prev)}
               aria-expanded={!isSecondaryCollapsed}
               aria-controls="secondary-panel"
-              className={cn(
-                'absolute left-0 top-1/2 z-20 flex h-10 w-10 -translate-y-1/2 -translate-x-1/2 items-center justify-center rounded-full border border-slate-200 bg-white/90 text-slate-600 shadow-sm transition hover:bg-white'
-              )}
+              className="absolute right-3 top-3 z-20 flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white/90 text-slate-600 shadow-sm transition hover:bg-white lg:hidden"
+            >
+              {isSecondaryCollapsed ? <ChevronLeft className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
+              <span className="sr-only">{secondaryToggleLabel}</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsSecondaryCollapsed((prev) => !prev)}
+              aria-expanded={!isSecondaryCollapsed}
+              aria-controls="secondary-panel"
+              className="absolute left-0 top-1/2 z-20 hidden h-10 w-10 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-slate-200 bg-white/90 text-slate-600 shadow-sm transition hover:bg-white lg:flex"
             >
               {isSecondaryCollapsed ? <ChevronLeft className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
               <span className="sr-only">{secondaryToggleLabel}</span>
