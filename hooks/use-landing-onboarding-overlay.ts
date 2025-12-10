@@ -36,7 +36,8 @@ const normalizeProgress = (
 
   const progress: OnboardingOverlayProgress = {
     completedSteps: baseCompleted,
-    dismissed: state === true ? true : Boolean((state as { dismissed?: boolean } | null)?.dismissed)
+    dismissed: state === true ? true : Boolean((state as { dismissed?: boolean } | null)?.dismissed),
+    completionSeen: state === true ? true : Boolean((state as { completionSeen?: boolean } | null)?.completionSeen)
   };
 
   const allCompleted = ONBOARDING_STEPS.every((step) => progress.completedSteps[step]);
@@ -68,7 +69,8 @@ export const useLandingOnboardingOverlay = (forceEnable = false, isEnabled = tru
   const resetProgress = useCallback(async () => {
     const resetState: OnboardingOverlayProgress = {
       completedSteps: buildDefaultOnboardingStepState(),
-      dismissed: false
+      dismissed: false,
+      completionSeen: false
     };
     await persistProgress(resetState);
   }, [persistProgress]);
@@ -97,7 +99,8 @@ export const useLandingOnboardingOverlay = (forceEnable = false, isEnabled = tru
       const allCompleted = ONBOARDING_STEPS.every((key) => nextCompleted[key]);
       const nextProgress: OnboardingOverlayProgress = {
         completedSteps: nextCompleted,
-        dismissed: allCompleted
+        dismissed: allCompleted,
+        completionSeen: progress.completionSeen
       };
 
       await persistProgress(nextProgress);
@@ -110,6 +113,20 @@ export const useLandingOnboardingOverlay = (forceEnable = false, isEnabled = tru
     activeStep,
     isActive,
     markStepCompleted,
-    resetProgress
+    resetProgress,
+    completionSeen: Boolean(progress.completionSeen),
+    markCompletionSeen: useCallback(async () => {
+      if (!isEnabled || forceEnable) {
+        return;
+      }
+
+      const nextProgress: OnboardingOverlayProgress = {
+        completedSteps: { ...progress.completedSteps },
+        dismissed: progress.dismissed,
+        completionSeen: true
+      };
+
+      await persistProgress(nextProgress);
+    }, [forceEnable, isEnabled, persistProgress, progress.completedSteps, progress.dismissed])
   } as const;
 };
