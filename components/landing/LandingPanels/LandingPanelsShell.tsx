@@ -345,7 +345,9 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
     completedSteps: onboardingCompletedSteps,
     activeStep: activeOnboardingStep,
     isActive: isOnboardingActive,
-    markStepCompleted
+    markStepCompleted,
+    completionSeen: hasSeenOnboardingCompletion,
+    markCompletionSeen
   } = useLandingOnboardingOverlay(shouldForceOnboarding, isOnboardingEnabled);
   const shouldShowLanguageSelector = isOnboardingActive && activeOnboardingStep === 'chooseLanguage';
 
@@ -358,13 +360,18 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
   );
 
   useEffect(() => {
-    if (!hasCompletedOnboarding || hasOpenedOnboardingCompletionRef.current) {
+    if (
+      !hasCompletedOnboarding ||
+      hasOpenedOnboardingCompletionRef.current ||
+      hasSeenOnboardingCompletion
+    ) {
       return;
     }
 
     setIsOnboardingCompletionDialogOpen(true);
     hasOpenedOnboardingCompletionRef.current = true;
-  }, [hasCompletedOnboarding]);
+    void markCompletionSeen();
+  }, [hasCompletedOnboarding, hasSeenOnboardingCompletion, markCompletionSeen]);
 
   const handleLanguageSelected = useCallback(async () => {
     await markStepCompleted('chooseLanguage');
