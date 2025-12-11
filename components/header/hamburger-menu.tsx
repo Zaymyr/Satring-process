@@ -75,7 +75,6 @@ export function HamburgerMenu() {
           className="absolute left-0 top-full z-50 mt-2 w-64 rounded-lg border border-slate-200 bg-white p-2 shadow-xl"
           aria-label={navigationCopy.ariaLabel}
         >
-          <p className="px-2 pb-2 text-sm font-semibold text-slate-900">{navigationCopy.menuLabel}</p>
           <ul className="flex flex-col gap-1">
             {NAVIGATION_LINKS.map((item) => {
               const isActive = pathname === item.href;
