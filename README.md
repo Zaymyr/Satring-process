@@ -56,6 +56,19 @@ L’application tourne ensuite sur http://localhost:3000. Les routes `/`, `/depa
 
 3. Configurez un fournisseur d’e-mails pour l’envoi des liens magiques (onglet Authentication > Providers).
 
+## Configuration Strava OAuth
+
+Ajoutez un client Strava (https://www.strava.com/settings/api) puis renseignez les variables d’environnement suivantes :
+
+```bash
+STRAVA_CLIENT_ID=...
+STRAVA_CLIENT_SECRET=...
+STRAVA_REDIRECT_URI=http://localhost:3000/api/strava/callback
+STRAVA_SCOPES=read,activity:read_all
+```
+
+Le point d’entrée `/api/strava/authorize` gère la redirection vers Strava et crée un cookie `strava_oauth_state` pour sécuriser le retour sur `/api/strava/callback`.
+
 ## Sécurité et bonnes pratiques
 
 - **Authentification SSR** : toutes les routes protégées utilisent `@supabase/ssr` et les cookies pour récupérer la session.
