@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
 import { DEFAULT_PROCESS_TITLE } from '@/lib/process/defaults';
-import { ensureSampleDataSeeded } from '@/lib/onboarding/sample-seed';
 import { createServerClient } from '@/lib/supabase/server';
 import { getServerUser } from '@/lib/supabase/auth';
 import { stepSchema } from '@/lib/validation/process';
@@ -72,12 +71,6 @@ export async function GET() {
 
   if (accessibleOrganizationIds.length === 0) {
     return NextResponse.json([], { headers: NO_STORE_HEADERS });
-  }
-
-  try {
-    await ensureSampleDataSeeded(supabase);
-  } catch (seedError) {
-    console.error('Erreur lors de la préparation des données de démonstration (role actions)', seedError);
   }
 
   const [{ data: rawRoles, error: rolesError }, { data: rawProcesses, error: processesError }] = await Promise.all([

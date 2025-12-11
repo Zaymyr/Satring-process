@@ -4,7 +4,8 @@ import { onboardingStepKeySchema } from '@/lib/onboarding/steps';
 
 export const onboardingOverlayProgressSchema = z.object({
   completedSteps: z.record(onboardingStepKeySchema, z.boolean()).default({}),
-  dismissed: z.boolean().optional()
+  dismissed: z.boolean().optional(),
+  completionSeen: z.boolean().optional()
 });
 
 export const organizationRoleSchema = z.enum(['owner', 'admin', 'member']);
