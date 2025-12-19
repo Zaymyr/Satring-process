@@ -1,3 +1,4 @@
+import { sql } from 'drizzle-orm';
 import { index, integer, jsonb, pgTable, primaryKey, text, timestamp, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
 import type { ProcessStep } from '@/lib/validation/process';
 
@@ -65,6 +66,25 @@ export const subscriptionPlans = pgTable(
 export type SubscriptionPlan = typeof subscriptionPlans.$inferSelect;
 export type NewSubscriptionPlan = typeof subscriptionPlans.$inferInsert;
 
+export const products = pgTable(
+  'products',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    name: text('name').notNull(),
+    createdBy: uuid('created_by'),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull()
+  },
+  (table) => ({
+    nameIndex: uniqueIndex('products_name_lower_idx').on(sql`lower(${table.name})`),
+    createdAtIndex: index('products_created_at_idx').on(table.createdAt),
+    updatedAtIndex: index('products_updated_at_idx').on(table.updatedAt)
+  })
+);
+
+export type Product = typeof products.$inferSelect;
+export type NewProduct = typeof products.$inferInsert;
+
 export const organizationPlanSubscriptions = pgTable(
   'organization_plan_subscriptions',
   {
@@ -84,6 +104,26 @@ export const organizationPlanSubscriptions = pgTable(
 
 export type OrganizationPlanSubscription = typeof organizationPlanSubscriptions.$inferSelect;
 export type NewOrganizationPlanSubscription = typeof organizationPlanSubscriptions.$inferInsert;
+
+export const userProductSelections = pgTable(
+  'user_product_selections',
+  {
+    userId: uuid('user_id').notNull(),
+    productId: uuid('product_id').notNull(),
+    position: integer('position').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull()
+  },
+  (table) => ({
+    pk: primaryKey({ columns: [table.userId, table.productId], name: 'user_product_selections_pkey' }),
+    productIndex: index('user_product_selections_product_idx').on(table.productId),
+    positionIndex: uniqueIndex('user_product_selections_position_unique').on(table.userId, table.position),
+    updatedAtIndex: index('user_product_selections_updated_at_idx').on(table.updatedAt)
+  })
+);
+
+export type UserProductSelection = typeof userProductSelections.$inferSelect;
+export type NewUserProductSelection = typeof userProductSelections.$inferInsert;
 
 export const organizationInvitations = pgTable(
   'organization_invitations',

@@ -270,6 +270,38 @@ export type Dictionary = {
       };
     };
   };
+  settings: {
+    metadata: {
+      title: string;
+      description: string;
+    };
+    heading: string;
+    description: string;
+    sharedNotice: string;
+    products: {
+      title: string;
+      helper: string;
+      loading: string;
+      loadError: string;
+      selectionCountLabel: string;
+      empty: string;
+      limitReached: string;
+      save: string;
+      saving: string;
+      saved: string;
+      saveError: string;
+    };
+    creation: {
+      title: string;
+      description: string;
+      nameLabel: string;
+      placeholder: string;
+      submit: string;
+      submitting: string;
+      success: string;
+      error: string;
+    };
+  };
   header: {
     localeToggle: {
       label: string;
@@ -284,6 +316,7 @@ export type Dictionary = {
         home: string;
         raci: string;
         jobDescriptions: string;
+        settings: string;
         administration: string;
       };
     };
@@ -696,16 +729,49 @@ const dictionaries: Record<Locale, Dictionary> = {
           refresh: 'Refresh job description',
           refreshing: 'Generating…',
           downloadDoc: 'Download (Word)',
-          downloadPdf: 'Download (PDF)',
-          preparing: 'Preparing…'
-        }
+        downloadPdf: 'Download (PDF)',
+        preparing: 'Preparing…'
       }
+    }
+  },
+  settings: {
+    metadata: {
+      title: 'Settings — PI',
+      description: 'Pick up to three products to plan your race inventory.'
     },
-    header: {
-      localeToggle: {
-        label: 'Language',
-        options: {
-          en: 'English',
+    heading: 'Race planner settings',
+    description:
+      'Choose up to three products that will be used to estimate your needs in the race planner. The product list is shared with everyone.',
+    sharedNotice: 'Products are shared across the workspace and can be created by any authenticated user.',
+    products: {
+      title: 'Available products',
+      helper: 'Select up to three products to keep in your race planner.',
+      loading: 'Loading products…',
+      loadError: 'Unable to load products.',
+      selectionCountLabel: 'Selected {count}/{max}',
+      empty: 'No products are available yet. Add one with the form on the right.',
+      limitReached: 'You can select up to 3 products.',
+      save: 'Save selection',
+      saving: 'Saving…',
+      saved: 'Selection saved.',
+      saveError: 'Unable to save your selection.'
+    },
+    creation: {
+      title: 'Add a product',
+      description: 'Create a shared product that everyone can use in their race planner.',
+      nameLabel: 'Product name',
+      placeholder: 'e.g. Energy gel',
+      submit: 'Add product',
+      submitting: 'Adding…',
+      success: 'Product added.',
+      error: 'Unable to add the product.'
+    }
+  },
+  header: {
+    localeToggle: {
+      label: 'Language',
+      options: {
+        en: 'English',
           fr: 'French'
         }
       },
@@ -718,6 +784,7 @@ const dictionaries: Record<Locale, Dictionary> = {
           home: 'Home',
           raci: 'RACI matrices',
           jobDescriptions: 'Job descriptions',
+          settings: 'Setting',
           administration: 'Administration'
         }
       },
@@ -1128,16 +1195,49 @@ const dictionaries: Record<Locale, Dictionary> = {
           refresh: 'Rafraîchir la fiche',
           refreshing: 'Génération…',
           downloadDoc: 'Télécharger (Word)',
-          downloadPdf: 'Télécharger (PDF)',
-          preparing: 'Préparation…'
-        }
+        downloadPdf: 'Télécharger (PDF)',
+        preparing: 'Préparation…'
       }
+    }
+  },
+  settings: {
+    metadata: {
+      title: 'Paramètres — PI',
+      description: 'Choisissez jusqu’à trois produits pour préparer vos besoins en course.'
     },
-    header: {
-      localeToggle: {
-        label: 'Langue',
-        options: {
-          en: 'Anglais',
+    heading: 'Paramètres du planificateur de course',
+    description:
+      'Sélectionnez jusqu’à trois produits qui serviront à estimer vos besoins dans le planificateur de course. La liste est partagée avec tous les utilisateurs.',
+    sharedNotice: 'La liste des produits est commune et peut être enrichie par tout utilisateur authentifié.',
+    products: {
+      title: 'Produits disponibles',
+      helper: 'Sélectionnez jusqu’à trois produits à conserver dans votre planificateur de course.',
+      loading: 'Chargement des produits…',
+      loadError: 'Impossible de charger les produits.',
+      selectionCountLabel: 'Sélectionnés {count}/{max}',
+      empty: 'Aucun produit pour le moment. Ajoutez-en un via le formulaire à droite.',
+      limitReached: 'Vous pouvez sélectionner jusqu’à 3 produits.',
+      save: 'Enregistrer la sélection',
+      saving: 'Enregistrement…',
+      saved: 'Sélection enregistrée.',
+      saveError: 'Impossible d’enregistrer votre sélection.'
+    },
+    creation: {
+      title: 'Ajouter un produit',
+      description: 'Créez un produit partagé utilisable par tous dans le planificateur de course.',
+      nameLabel: 'Nom du produit',
+      placeholder: 'ex. Gel énergétique',
+      submit: 'Ajouter le produit',
+      submitting: 'Ajout en cours…',
+      success: 'Produit ajouté.',
+      error: 'Impossible d’ajouter le produit.'
+    }
+  },
+  header: {
+    localeToggle: {
+      label: 'Langue',
+      options: {
+        en: 'Anglais',
           fr: 'Français'
         }
       },
@@ -1150,6 +1250,7 @@ const dictionaries: Record<Locale, Dictionary> = {
           home: 'Accueil',
           raci: 'Matrices RACI',
           jobDescriptions: 'Fiches de poste',
+          settings: 'Paramètres',
           administration: 'Administration'
         }
       },

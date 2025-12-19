@@ -84,14 +84,22 @@ export default async function RootLayout({
                     <div className="flex items-center gap-3 justify-start sm:justify-end sm:justify-self-end">
                       <LocaleToggle />
                       {user ? (
-                        <form action="/api/auth/sign-out" method="post">
-                          <button
-                            type="submit"
+                        <>
+                          <Link
+                            href="/settings"
                             className="inline-flex items-center rounded-md border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 transition hover:bg-slate-50"
                           >
-                            {dictionary.header.signOut}
-                          </button>
-                        </form>
+                            {dictionary.header.navigation.links.settings}
+                          </Link>
+                          <form action="/api/auth/sign-out" method="post">
+                            <button
+                              type="submit"
+                              className="inline-flex items-center rounded-md border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 transition hover:bg-slate-50"
+                            >
+                              {dictionary.header.signOut}
+                            </button>
+                          </form>
+                        </>
                       ) : (
                         <>
                           <Link

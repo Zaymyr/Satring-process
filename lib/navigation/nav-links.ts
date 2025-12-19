@@ -10,5 +10,6 @@ export const NAVIGATION_LINKS = [
   { href: '/', labelKey: 'home' },
   { href: '/raci', labelKey: 'raci' },
   { href: '/job-descriptions', labelKey: 'jobDescriptions' },
+  { href: '/settings', labelKey: 'settings' },
   { href: '/administration', labelKey: 'administration' }
 ] satisfies NavigationLink[];
