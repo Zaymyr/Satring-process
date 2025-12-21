@@ -69,6 +69,7 @@ import { useLandingOnboardingOverlay } from '@/hooks/use-landing-onboarding-over
 import { OnboardingOverlay } from '@/components/landing/LandingPanels/OnboardingOverlay';
 import { OnboardingCompletionDialog } from '@/components/landing/LandingPanels/OnboardingCompletionDialog';
 import { ONBOARDING_STEPS } from '@/lib/onboarding/steps';
+import { FloatingSaveControls } from '@/components/landing/LandingPanels/FloatingSaveControls';
 
 type IaDepartmentsPayload = Parameters<typeof useProcessIaChat>[0]['departments'];
 
@@ -2468,6 +2469,18 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
       ? 'onboarding-process-rename'
       : null;
 
+  const saveControls = (
+    <FloatingSaveControls
+      onSave={handleSave}
+      isSaveDisabled={isSaveDisabled}
+      saveButtonLabel={saveButtonLabel}
+      statusToneClass={statusToneClass}
+      statusMessage={statusMessage}
+      placement="inline"
+      className="w-full"
+    />
+  );
+
   const primaryPanelContent = (
     <PrimaryPanel
       processTitle={processTitle}
@@ -2569,6 +2582,7 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
       startEditingDepartment={startEditingDepartment}
       onCollapseEditingDepartment={collapseDepartmentEditor}
       formatTemplateText={formatTemplateText}
+      saveControls={saveControls}
     />
   );
 
@@ -2598,11 +2612,6 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
         primaryToggleLabel={primaryPanel.toggleLabel}
         secondaryToggleLabel={secondaryPanel.toggleLabel}
         bottomToggleLabel={diagramControls.toggleLabel}
-        handleSave={handleSave}
-        isSaveDisabled={isSaveDisabled}
-        saveButtonLabel={saveButtonLabel}
-        statusToneClass={statusToneClass}
-        statusMessage={statusMessage}
       />
       {shouldShowLanguageSelector ? (
         <LanguageSelectorModal isOpen onLocaleSelected={handleLanguageSelected} />

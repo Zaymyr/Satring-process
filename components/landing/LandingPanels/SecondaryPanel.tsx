@@ -1,4 +1,4 @@
-import { useEffect, type Dispatch, type MutableRefObject, type SetStateAction } from 'react';
+import { useEffect, type Dispatch, type MutableRefObject, type ReactNode, type SetStateAction } from 'react';
 import { Building2, FolderTree, Loader2, Plus, Trash2 } from 'lucide-react';
 import type { UseMutationResult, UseQueryResult } from '@tanstack/react-query';
 import { type UseFieldArrayReturn, type UseFormReturn } from 'react-hook-form';
@@ -111,6 +111,7 @@ type SecondaryPanelProps = {
   startEditingDepartment: (department: DepartmentWithDraftStatus) => void;
   onCollapseEditingDepartment: () => void;
   formatTemplateText: (template: string, value: string | null, token?: string) => string | null;
+  saveControls?: ReactNode;
 };
 
 export function SecondaryPanel({
@@ -165,7 +166,8 @@ export function SecondaryPanel({
   deleteDepartmentMutation,
   startEditingDepartment,
   onCollapseEditingDepartment,
-  formatTemplateText
+  formatTemplateText,
+  saveControls
 }: SecondaryPanelProps) {
   const processListErrorMessage =
     processSummariesQuery.isError && !isProcessListUnauthorized
@@ -212,6 +214,7 @@ export function SecondaryPanel({
 
   return (
     <>
+      {saveControls ? <div className="mb-3">{saveControls}</div> : null}
       <div className="space-y-3">
         <div className="flex items-start justify-between gap-3">
           <div>

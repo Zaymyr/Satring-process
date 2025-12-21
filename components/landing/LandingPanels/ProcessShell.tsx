@@ -6,7 +6,6 @@ import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp } from 'lucide-react'
 import type { ProcessErrorMessages } from '@/lib/process/types';
 import { cn } from '@/lib/utils/cn';
 
-import { FloatingSaveControls } from './FloatingSaveControls';
 import { ProcessCanvas } from './ProcessCanvas';
 
 type ProcessShellProps = {
@@ -21,11 +20,6 @@ type ProcessShellProps = {
   primaryToggleLabel: string;
   secondaryToggleLabel: string;
   bottomToggleLabel: string;
-  handleSave: () => void;
-  isSaveDisabled: boolean;
-  saveButtonLabel: string;
-  statusToneClass: string;
-  statusMessage: ReactNode;
 };
 
 type PanelLayoutStyle = CSSProperties & {
@@ -44,12 +38,7 @@ export function ProcessShell({
   renderBottomPanel,
   primaryToggleLabel,
   secondaryToggleLabel,
-  bottomToggleLabel,
-  handleSave,
-  isSaveDisabled,
-  saveButtonLabel,
-  statusToneClass,
-  statusMessage
+  bottomToggleLabel
 }: ProcessShellProps) {
   const [isPrimaryCollapsed, setIsPrimaryCollapsed] = useState(false);
   const [isSecondaryCollapsed, setIsSecondaryCollapsed] = useState(false);
@@ -152,14 +141,6 @@ export function ProcessShell({
         </div>
         <div className="pointer-events-auto flex w-full justify-center lg:col-start-2 lg:row-start-2">
           <div className="relative w-full max-w-3xl pt-2 lg:max-w-2xl">
-            <FloatingSaveControls
-              onSave={handleSave}
-              isSaveDisabled={isSaveDisabled}
-              saveButtonLabel={saveButtonLabel}
-              statusToneClass={statusToneClass}
-              statusMessage={statusMessage}
-              isBottomCollapsed={isBottomCollapsed}
-            />
             <button
               type="button"
               onClick={() => setIsBottomCollapsed((previous) => !previous)}

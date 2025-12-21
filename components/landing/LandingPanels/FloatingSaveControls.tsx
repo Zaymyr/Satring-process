@@ -8,7 +8,9 @@ type FloatingSaveControlsProps = {
   saveButtonLabel: string;
   statusToneClass: string;
   statusMessage: ReactNode;
-  isBottomCollapsed: boolean;
+  isBottomCollapsed?: boolean;
+  placement?: 'floating' | 'inline';
+  className?: string;
 };
 
 export function FloatingSaveControls({
@@ -17,17 +19,26 @@ export function FloatingSaveControls({
   saveButtonLabel,
   statusToneClass,
   statusMessage,
-  isBottomCollapsed
+  isBottomCollapsed = false,
+  placement = 'floating',
+  className
 }: FloatingSaveControlsProps) {
+  const containerClassName =
+    placement === 'floating'
+      ? cn(
+          'pointer-events-auto flex w-max min-w-[14rem] max-w-[20rem] flex-col items-center gap-2 rounded-2xl border border-slate-200 bg-white/90 px-4 py-3 text-center shadow-[0_20px_80px_-50px_rgba(15,23,42,0.4)] backdrop-blur transition-all duration-200',
+          isBottomCollapsed
+            ? 'fixed bottom-20 left-1/2 -translate-x-1/2'
+            : 'absolute left-1/2 top-0 -translate-x-1/2 -translate-y-[140%]',
+          className
+        )
+      : cn(
+          'pointer-events-auto flex w-full flex-col items-stretch gap-2 rounded-2xl border border-slate-200 bg-white/90 px-4 py-3 text-center shadow-sm backdrop-blur',
+          className
+        );
+
   return (
-    <div
-      className={cn(
-        'pointer-events-auto flex w-max min-w-[14rem] max-w-[20rem] flex-col items-center gap-2 rounded-2xl border border-slate-200 bg-white/90 px-4 py-3 text-center shadow-[0_20px_80px_-50px_rgba(15,23,42,0.4)] backdrop-blur transition-all duration-200',
-        isBottomCollapsed
-          ? 'fixed bottom-20 left-1/2 -translate-x-1/2'
-          : 'absolute left-1/2 top-0 -translate-x-1/2 -translate-y-[140%]'
-      )}
-    >
+    <div className={containerClassName}>
       <button
         type="button"
         onClick={onSave}
