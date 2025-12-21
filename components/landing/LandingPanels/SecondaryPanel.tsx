@@ -1,4 +1,4 @@
-import { useEffect, type Dispatch, type MutableRefObject, type SetStateAction } from 'react';
+import { useEffect, type Dispatch, type MutableRefObject, type ReactNode, type SetStateAction } from 'react';
 import { Building2, FolderTree, Loader2, Plus, Trash2 } from 'lucide-react';
 import type { UseMutationResult, UseQueryResult } from '@tanstack/react-query';
 import { type UseFieldArrayReturn, type UseFormReturn } from 'react-hook-form';
@@ -111,6 +111,11 @@ type SecondaryPanelProps = {
   startEditingDepartment: (department: DepartmentWithDraftStatus) => void;
   onCollapseEditingDepartment: () => void;
   formatTemplateText: (template: string, value: string | null, token?: string) => string | null;
+  onSave: () => void;
+  isSaveDisabled: boolean;
+  saveButtonLabel: string;
+  statusToneClass: string;
+  statusMessage: ReactNode;
 };
 
 export function SecondaryPanel({
@@ -165,7 +170,12 @@ export function SecondaryPanel({
   deleteDepartmentMutation,
   startEditingDepartment,
   onCollapseEditingDepartment,
-  formatTemplateText
+  formatTemplateText,
+  onSave,
+  isSaveDisabled,
+  saveButtonLabel,
+  statusToneClass,
+  statusMessage
 }: SecondaryPanelProps) {
   const processListErrorMessage =
     processSummariesQuery.isError && !isProcessListUnauthorized
@@ -524,6 +534,25 @@ export function SecondaryPanel({
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+      </div>
+      <div className="mt-4">
+        <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white/85 p-4 shadow-sm">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            {statusMessage ? (
+              <p className={cn('text-[11px] leading-5 text-slate-700', statusToneClass)} aria-live="polite">
+                {statusMessage}
+              </p>
+            ) : null}
+            <Button
+              type="button"
+              onClick={onSave}
+              disabled={isSaveDisabled}
+              className="inline-flex h-10 min-w-[9rem] items-center justify-center rounded-full bg-slate-900 px-4 text-sm font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600"
+            >
+              {saveButtonLabel}
+            </Button>
           </div>
         </div>
       </div>

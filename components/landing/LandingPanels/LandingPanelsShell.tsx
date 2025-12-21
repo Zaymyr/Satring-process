@@ -2569,6 +2569,11 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
       startEditingDepartment={startEditingDepartment}
       onCollapseEditingDepartment={collapseDepartmentEditor}
       formatTemplateText={formatTemplateText}
+      onSave={handleSave}
+      isSaveDisabled={isSaveDisabled}
+      saveButtonLabel={saveButtonLabel}
+      statusToneClass={statusToneClass}
+      statusMessage={statusMessage}
     />
   );
 
@@ -2598,11 +2603,6 @@ export function LandingPanelsShell({ highlights }: LandingPanelsShellProps) {
         primaryToggleLabel={primaryPanel.toggleLabel}
         secondaryToggleLabel={secondaryPanel.toggleLabel}
         bottomToggleLabel={diagramControls.toggleLabel}
-        handleSave={handleSave}
-        isSaveDisabled={isSaveDisabled}
-        saveButtonLabel={saveButtonLabel}
-        statusToneClass={statusToneClass}
-        statusMessage={statusMessage}
       />
       {shouldShowLanguageSelector ? (
         <LanguageSelectorModal isOpen onLocaleSelected={handleLanguageSelected} />
